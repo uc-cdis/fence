@@ -44,6 +44,9 @@ def get_gen3_users_from_ga4gh_passports(passports):
             logger.warning(f"invalid passport provided, ignoring. Error: {exc}")
             continue
 
+        if not raw_visas:
+            continue
+
         identity_to_visas = collections.defaultdict(list)
         min_visa_expiration = int(time.time()) + datetime.timedelta(hours=1).seconds
         for raw_visa in raw_visas:
@@ -66,7 +69,7 @@ def get_gen3_users_from_ga4gh_passports(passports):
             "DELETE_EXPIRED_GOOGLE_ACCESS_JOB_FREQUENCY_IN_SECONDS", 300
         )
         min_visa_expiration -= delete_expired_google_access_job_frequency
-        if min_visa_expiration <= int(time.now()):
+        if min_visa_expiration <= int(time.time()):
             logger.warning(
                 "the passport's minimum visa expiration time fell within "
                 f"{delete_expired_google_access_job_frequency} seconds of now, "
@@ -97,6 +100,7 @@ def get_gen3_users_from_ga4gh_passports(passports):
         put_gen3_usernames_for_passport_into_cache(
             passport, usernames_from_current_passport
         )
+        usernames_from_all_passports.extend(usernames_from_current_passport)
 
     return list(set(usernames_from_all_passports))
 
@@ -236,7 +240,7 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id):
             db_session.add(iss_sub_pair_to_user)
             db_session.commit()
 
-    return iss_sub_pair_to_user.user
+        return iss_sub_pair_to_user.user
 
 
 def sync_visa_authorization(gen3_user, ga4gh_visas, expiration):

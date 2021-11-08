@@ -232,7 +232,7 @@ def add_visa_manually(db_session, user, rsa_private_key, kid):
                 "participant_set": "p1",
                 "consent_group": "c1",
                 "role": "designated user",
-                "expiration": "2020-11-14 00:00:00",
+                "expiration": int(time.time()) + 1001,
             },
             {
                 "consent_name": "General Research Use (IRB, PUB)",
@@ -241,7 +241,7 @@ def add_visa_manually(db_session, user, rsa_private_key, kid):
                 "participant_set": "p1",
                 "consent_group": "c1",
                 "role": "designated user",
-                "expiration": "2020-11-14 00:00:00",
+                "expiration": int(time.time()) + 1001,
             },
             {
                 "consent_name": "Disease-Specific (Cardiovascular Disease)",
@@ -250,7 +250,7 @@ def add_visa_manually(db_session, user, rsa_private_key, kid):
                 "participant_set": "p1",
                 "consent_group": "c1",
                 "role": "designated user",
-                "expiration": "2020-11-14 00:00:00",
+                "expiration": int(time.time()) + 1001,
             },
             {
                 "consent_name": "Health/Medical/Biomedical (IRB)",
@@ -259,7 +259,7 @@ def add_visa_manually(db_session, user, rsa_private_key, kid):
                 "participant_set": "p2",
                 "consent_group": "c3",
                 "role": "designated user",
-                "expiration": "2020-11-14 00:00:00",
+                "expiration": int(time.time()) + 1001,
             },
             {
                 "consent_name": "Disease-Specific (Focused Disease Only, IRB, NPU)",
@@ -268,7 +268,7 @@ def add_visa_manually(db_session, user, rsa_private_key, kid):
                 "participant_set": "p2",
                 "consent_group": "c2",
                 "role": "designated user",
-                "expiration": "2020-11-14 00:00:00",
+                "expiration": int(time.time()) + 1001,
             },
             {
                 "consent_name": "Disease-Specific (Autism Spectrum Disorder)",
@@ -277,7 +277,7 @@ def add_visa_manually(db_session, user, rsa_private_key, kid):
                 "participant_set": "p3",
                 "consent_group": "c1",
                 "role": "designated user",
-                "expiration": "2020-11-14 00:00:00",
+                "expiration": int(time.time()) + 1001,
             },
         ],
     }

@@ -1,6 +1,10 @@
 import backoff
 import flask
 import requests
+
+# the whole passports module is imported to avoid issue with circular imports
+import fence.resources.ga4gh.passports
+
 from flask_sqlalchemy_session import current_session
 from jose import jwt as jose_jwt
 
@@ -17,7 +21,6 @@ from fence.models import (
     query_for_user,
 )
 from fence.jwt.validate import validate_jwt
-from fence.resources.ga4gh.passports import get_unvalidated_visas_from_valid_passport
 from fence.utils import DEFAULT_BACKOFF_SETTINGS
 from .idp_oauth2 import Oauth2ClientBase
 
@@ -91,7 +94,11 @@ class RASOauth2Client(Oauth2ClientBase):
             list: list of encoded GA4GH visas
         """
         encoded_passport = userinfo.get("passport_jwt_v11")
-        return get_unvalidated_visas_from_valid_passport(encoded_passport, pkey_cache)
+        return (
+            fence.resources.ga4gh.passports.get_unvalidated_visas_from_valid_passport(
+                encoded_passport, pkey_cache
+            )
+        )
 
     def get_user_id(self, code):
 

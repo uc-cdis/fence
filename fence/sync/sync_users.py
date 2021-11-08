@@ -2122,7 +2122,7 @@ class UserSyncer(object):
                 self._sync_visas(s)
         # if returns with some failure use telemetry file
 
-    def sync_single_user_visas(self, user, sess=None, expires=None):
+    def sync_single_user_visas(self, user, ga4gh_visas, sess=None, expires=None):
         """
         TODO update docstring
         Sync a single user's visa during login

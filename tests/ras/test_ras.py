@@ -661,9 +661,9 @@ def test_map_iss_sub_pair_to_user_with_no_prior_DRS_access(db_session):
     iss_sub_pair_to_user_records = db_session.query(IssSubPairToUser).all()
     assert len(iss_sub_pair_to_user_records) == 0
 
-    username_to_login = ras_client.map_iss_sub_pair_to_user(iss, sub, username, email)
+    username_to_log_in = ras_client.map_iss_sub_pair_to_user(iss, sub, username, email)
 
-    assert username_to_login == username
+    assert username_to_log_in == username
     iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get((iss, sub))
     assert iss_sub_pair_to_user.user.username == username
     assert iss_sub_pair_to_user.user.email == email
@@ -689,9 +689,9 @@ def test_map_iss_sub_pair_to_user_with_prior_DRS_access(db_session):
     iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get((iss, sub))
     assert iss_sub_pair_to_user.user.username == "123_abcdomain.tld"
 
-    username_to_login = ras_client.map_iss_sub_pair_to_user(iss, sub, username, email)
+    username_to_log_in = ras_client.map_iss_sub_pair_to_user(iss, sub, username, email)
 
-    assert username_to_login == username
+    assert username_to_log_in == username
     iss_sub_pair_to_user_records = db_session.query(IssSubPairToUser).all()
     assert len(iss_sub_pair_to_user_records) == 1
     iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get((iss, sub))
@@ -717,7 +717,7 @@ def test_map_iss_sub_pair_to_user_with_prior_login_and_prior_DRS_access(
     db_session.commit()
 
     get_or_create_gen3_user_from_iss_sub(iss, sub)
-    username_to_login = ras_client.map_iss_sub_pair_to_user(iss, sub, username, email)
-    assert username_to_login == "123_abcdomain.tld"
+    username_to_log_in = ras_client.map_iss_sub_pair_to_user(iss, sub, username, email)
+    assert username_to_log_in == "123_abcdomain.tld"
     iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get((iss, sub))
     assert iss_sub_pair_to_user.user.username == "123_abcdomain.tld"
