@@ -44,7 +44,6 @@ def get_gen3_users_from_ga4gh_passports(passports):
             continue
 
         identity_to_visas = collections.defaultdict(list)
-        # TODO need to subtract 5 minutes
         min_visa_expiration = int(time.time()) + datetime.timedelta(hours=1).seconds
         for raw_visa in raw_visas:
             try:

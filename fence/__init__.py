@@ -425,9 +425,15 @@ def _setup_oidc_clients(app):
             HTTP_PROXY=config.get("HTTP_PROXY"),
             logger=logger,
         )
-        # TODO maybe get this from discovery doc or from the config file
-        split_url = urlparse(app.ras_client.discovery_url)
-        issuer = f"{split_url.scheme}://{split_url.netloc}"
+        issuer = app.ras_client.get_value_from_discovery_doc("issuer", "")
+        if not issuer:
+            logger.warn(
+                "Unable to determine RAS issuer from discovery doc. Instead, "
+                "RAS issuer will be set to the base url of the RAS "
+                "client's discovery url."
+            )
+            split_url = urlparse(app.ras_client.discovery_url)
+            issuer = f"{split_url.scheme}://{split_url.netloc}"
         app.issuer_to_idp = {issuer: IdentityProvider.ras}
 
     # Add OIDC client for Synapse if configured.
