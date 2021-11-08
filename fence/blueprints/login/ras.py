@@ -5,19 +5,17 @@ import os
 # the whole fence_create module is imported to avoid issue with circular imports
 import fence.scripting.fence_create
 from distutils.util import strtobool
-from authutils.errors import JWTError
-from authutils.token.core import validate_jwt
-from authutils.token.keys import get_public_key_for_token
-from cdislogging import get_logger
-from flask_sqlalchemy_session import current_session
 from urllib.parse import urlparse, parse_qs
 
-from fence.models import GA4GHVisaV1, IdentityProvider
+from authutils.errors import JWTError
+from cdislogging import get_logger
+from flask_sqlalchemy_session import current_session
 from gen3authz.client.arborist.client import ArboristClient
 
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 from fence.config import config
-
+from fence.jwt.validate import validate_jwt
+from fence.models import GA4GHVisaV1, IdentityProvider
 from fence.utils import get_valid_expiration
 
 logger = get_logger(__name__)
@@ -67,30 +65,14 @@ class RASCallback(DefaultOAuth2Callback):
 
         for encoded_visa in encoded_visas:
             try:
-                # Do not move out of loop unless we can assume every visa has same issuer and kid
-                public_key = get_public_key_for_token(
-                    encoded_visa, attempt_refresh=True
-                )
-            except Exception as e:
-                # (But don't log the visa contents!)
-                logger.error(
-                    "Could not get public key to validate visa: {}. Discarding visa.".format(
-                        e
-                    )
-                )
-                continue
-
-            try:
                 # Validate the visa per GA4GH AAI "Embedded access token" format rules.
                 # pyjwt also validates signature and expiration.
                 decoded_visa = validate_jwt(
-                    encoded_visa,
-                    public_key,
-                    # Embedded token must not contain aud claim
-                    aud=None,
+                    encoded_token=encoded_visa,
                     # Embedded token must contain scope claim, which must include openid
-                    scope={"openid"},
-                    issuers=config.get("GA4GH_VISA_ISSUER_ALLOWLIST", []),
+                    scope={"openid", "ga4gh_passport_v1"},
+                    issuers=config["GA4GH_VISA_ISSUER_ALLOWLIST"],
+                    require_purpose=False,
                     # Embedded token must contain iss, sub, iat, exp claims
                     # options={"require": ["iss", "sub", "iat", "exp"]},
                     # ^ FIXME 2021-05-13: Above needs pyjwt>=v2.0.0, which requires cryptography>=3.
@@ -101,12 +83,16 @@ class RASCallback(DefaultOAuth2Callback):
                     options={
                         "require_iat": True,
                         "require_exp": True,
+                        "verify_aud": False,
                     },
                 )
 
                 # Also require 'sub' claim (see note above about pyjwt and the options arg).
                 if "sub" not in decoded_visa:
                     raise JWTError("Visa is missing the 'sub' claim.")
+                # Embedded token must not contain aud claim
+                if "aud" in decoded_visa:
+                    raise JWTError("Visa contains the 'aud' claim.")
             except Exception as e:
                 logger.error("Visa failed validation: {}. Discarding visa.".format(e))
                 continue

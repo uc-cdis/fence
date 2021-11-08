@@ -461,6 +461,8 @@ class GoogleProxyGroupToGoogleBucketAccessGroup(Base):
         ),
     )
 
+    expires = Column(BigInteger)
+
 
 class UserServiceAccount(Base):
     __tablename__ = "user_service_account"
@@ -873,6 +875,15 @@ CREATE TRIGGER cert_audit
 AFTER INSERT OR UPDATE OR DELETE ON certificate
     FOR EACH ROW EXECUTE PROCEDURE process_cert_audit();"""
         )
+
+    # Google Access expiration
+
+    add_column_if_not_exist(
+        table_name=GoogleProxyGroupToGoogleBucketAccessGroup.__tablename__,
+        column=Column("expires", BigInteger()),
+        driver=driver,
+        metadata=md,
+    )
 
 
 def add_foreign_key_column_if_not_exist(
