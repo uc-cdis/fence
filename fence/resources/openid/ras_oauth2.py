@@ -150,7 +150,7 @@ class RASOauth2Client(Oauth2ClientBase):
             self.logger.info("Using {} field as username.".format(field_name))
 
             email = userinfo.get("email")
-            issuer = self.get_value_from_discovery_doc("issuer")
+            issuer = self.get_value_from_discovery_doc("issuer", "")
             subject_id = userinfo.get("sub")
             if not issuer or not subject_id:
                 err_msg = "Could not determine both issuer and subject id"
