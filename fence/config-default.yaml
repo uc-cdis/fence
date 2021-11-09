@@ -25,6 +25,9 @@
 APP_NAME: 'Gen3 Data Commons'
 # Where fence microservice is deployed
 BASE_URL: 'http://localhost/user'
+# a standardized name unique to each app for service-to-service interaction
+# so the service receiving the request knows it came from another Gen3 service
+SERVICE_NAME: 'fence'
 # postgres db to connect to
 # connection url format:
 #     postgresql://[user[:password]@][netloc][:port][/dbname]
@@ -37,6 +40,9 @@ DB: 'postgresql://test:test@localhost:5432/fence'
 #     key = base64.urlsafe_b64encode(os.urandom(32))
 #     print(key)
 ENCRYPTION_KEY: ''
+
+# Cross-service keys
+AMANUENSIS_PUBLIC_KEY_PATH: ''
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # DEBUG & SECURITY SETTINGS

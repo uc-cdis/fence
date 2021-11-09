@@ -69,6 +69,24 @@ def get_all_users():
     return jsonify(admin.get_all_users(current_session))
 
 
+@blueprint.route("/users/selected", methods=["POST"])
+@blueprint.route("/user/selected", methods=["POST"])
+@admin_login_required
+@debug_log
+def get_users():
+    """
+    Get the information about each user included in the submitted username list from our 
+    userdatamodel database
+
+    Returns a json object of one or more user records
+    """
+    usernames = request.get_json().get('usernames', None)
+    # logger.debug(f"get_users usernames: {usernames}")
+    users = admin.get_users(current_session, usernames)
+    # logger.debug(f"get_users users returned: {users}")
+    return jsonify(users)
+
+
 @blueprint.route("/users", methods=["POST"])
 @blueprint.route("/user", methods=["POST"])
 @admin_login_required
