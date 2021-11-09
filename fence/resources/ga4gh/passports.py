@@ -26,6 +26,23 @@ logger = get_logger(__name__)
 
 
 def get_gen3_users_from_ga4gh_passports(passports):
+    """
+    Validate passports and embedded visas, using each valid visa's identity
+    established by <iss, sub> combination to possibly create and definitely
+    determine a Fence user whose username is added to the list returned by
+    this function. In the process of determining Fence users from visas, visa
+    authorization information is also persisted in Fence and synced to
+    Arborist.
+
+    Args:
+        passports (list): a list of raw encoded passport strings, each
+                          including header, payload, and signature
+
+    Return:
+        list: a list of strings, each being the username of a Fence user who
+              corresponds to a valid visa identity embedded within the passports
+              passed in.
+    """
     logger.info("getting gen3 users from passports")
     usernames_from_all_passports = []
     for passport in passports:
@@ -168,6 +185,18 @@ def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
 
 
 def validate_visa(raw_visa):
+    """
+    Validate a raw visa in accordance with:
+        - GA4GH AAI spec (https://github.com/ga4gh/data-security/blob/master/AAI/AAIConnectProfile.md)
+        - GA4GH DURI spec (https://github.com/ga4gh-duri/ga4gh-duri.github.io/blob/master/researcher_ids/ga4gh_passport_v1.md)
+
+    Args:
+        raw_visa (str): a raw, encoded visa including header, payload, and signature
+
+    Return:
+        dict: the decoded payload if validation was successful. an exception
+              is raised if validation was unsuccessful
+    """
     # TODO check that there is no JKU field in header?
     decoded_visa = validate_jwt(
         raw_visa,
@@ -210,6 +239,19 @@ def validate_visa(raw_visa):
 
 
 def get_or_create_gen3_user_from_iss_sub(issuer, subject_id):
+    """
+    Get a user from the Fence database corresponding to the visa identity
+    indicated by the <issuer, subject_id> combination. If a Fence user has
+    not yet been created for the given <issuer, subject_id> combination,
+    create and return such a user.
+
+    Args:
+        issuer (str): the issuer of a given visa
+        subject_id (str): the subject of a given visa
+
+    Return:
+        userdatamodel.user.User: the Fence user corresponding to issuer and subject_id
+    """
     with flask.current_app.db.session as db_session:
         iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get(
             (issuer, subject_id)
@@ -244,6 +286,22 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id):
 
 
 def sync_visa_authorization(gen3_user, ga4gh_visas, expiration):
+    """
+    Wrapper around UserSyncer.sync_single_user_visas method, which parses
+    authorization information from the provided visas, persists it in Fence,
+    and syncs it to Arborist.
+
+    Args:
+        gen3_user (userdatamodel.user.User): the Fence user whose visas'
+                                             authz info is being synced
+        ga4gh_visas (list): a list of fence.models.GA4GHVisaV1 objects
+                            that are parsed and synced
+        expiration (int): time at which synced Arborist policies and
+                          inclusion in any GBAG are set to expire
+
+    Return:
+        None
+    """
     arborist_client = ArboristClient(
         arborist_base_url=config.get("ARBORIST"), logger=logger, authz_provider="GA4GH"
     )
@@ -262,7 +320,6 @@ def sync_visa_authorization(gen3_user, ga4gh_visas, expiration):
     )
 
     with flask.current_app.db.session as db_session:
-        # TODO set expiration for Google Access
         syncer.sync_single_user_visas(
             gen3_user, ga4gh_visas, db_session, expires=expiration
         )

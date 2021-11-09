@@ -172,6 +172,27 @@ class RASOauth2Client(Oauth2ClientBase):
         return {"username": username, "email": email}
 
     def map_iss_sub_pair_to_user(self, issuer, subject_id, username, email):
+        """
+        Map <issuer, subject_id> combination to a Fence user whose username
+        equals the username argument passed into this function.
+
+        One exception to this is when two Fence users exist who both
+        correspond to the user who is trying to log in. Please see logged
+        warning for more details.
+
+        Args:
+            issuer (str): RAS issuer
+            subject_id (str): RAS subject
+            username (str): username of the Fence user who is being mapped to
+            email (str): email to populate the mapped Fence user with in cases
+                         when this function creates the mapped user or changes
+                         its username
+
+        Return:
+            str: username that should be logged in. this will be equal to
+                 username that was passed in in all cases except for the
+                 exception noted above
+        """
         with flask.current_app.db.session as db_session:
             iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get(
                 (issuer, subject_id)

@@ -12,6 +12,11 @@ logger = get_logger(__name__, log_level="debug")
 
 
 def test_get_or_create_gen3_user_from_iss_sub_without_prior_login(db_session):
+    """
+    Test get_or_create_gen3_user_from_iss_sub when the visa's <iss, sub>
+    combination are not present in the mapping table beforehand (i.e. the user
+    has not previously logged in)
+    """
     iss = "https://sts.nih.gov"
     sub = "123_abc"
 
@@ -25,6 +30,11 @@ def test_get_or_create_gen3_user_from_iss_sub_without_prior_login(db_session):
 
 
 def test_get_or_create_gen3_user_from_iss_sub_after_prior_login(db_session):
+    """
+    Test get_or_create_gen3_user_from_iss_sub when the visa's <iss, sub>
+    combination are present in the mapping table beforehand (i.e. the user
+    has previously logged in)
+    """
     iss = "https://sts.nih.gov"
     sub = "123_abc"
     username = "johnsmith"

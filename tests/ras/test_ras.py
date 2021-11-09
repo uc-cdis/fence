@@ -646,6 +646,12 @@ def test_visa_update_cronjob(
 
 
 def test_map_iss_sub_pair_to_user_with_no_prior_DRS_access(db_session):
+    """
+    Test RASOauth2Client.map_iss_sub_pair_to_user when the username passed in
+    (e.g. eRA username) does not already exist in the Fence database and that
+    user's <iss, sub> combination has not already been mapped through a prior
+    DRS/data access request.
+    """
     iss = "https://domain.tld"
     sub = "123_abc"
     username = "johnsmith"
@@ -672,6 +678,14 @@ def test_map_iss_sub_pair_to_user_with_no_prior_DRS_access(db_session):
 
 
 def test_map_iss_sub_pair_to_user_with_prior_DRS_access(db_session):
+    """
+    Test RASOauth2Client.map_iss_sub_pair_to_user when the username passed in
+    (e.g. eRA username) does not already exist in the Fence database but that
+    user's <iss, sub> combination has already been mapped to an existing user
+    created during a prior DRS/data access request. In this case, that
+    existing user's username is changed from sub+iss to the username passed
+    in.
+    """
     iss = "https://domain.tld"
     sub = "123_abc"
     username = "johnsmith"
@@ -702,6 +716,14 @@ def test_map_iss_sub_pair_to_user_with_prior_DRS_access(db_session):
 def test_map_iss_sub_pair_to_user_with_prior_login_and_prior_DRS_access(
     db_session,
 ):
+    """
+    Test RASOauth2Client.map_iss_sub_pair_to_user when the username passed in
+    (e.g. eRA username) already exists in the Fence database and that
+    user's <iss, sub> combination has already been mapped to a separate user
+    created during a prior DRS/data access request. In this case,
+    map_iss_sub_pair_to_user returns the user created from prior DRS/data
+    access, rendering the other user (e.g. the eRA one) inaccessible.
+    """
     iss = "https://domain.tld"
     sub = "123_abc"
     username = "johnsmith"

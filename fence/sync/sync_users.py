@@ -1767,8 +1767,6 @@ class UserSyncer(object):
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
                     self.arborist_client.grant_user_policy(username, policy)
-                    # TODO need to add expiration to this function in gen3authz
-                    # self.arborist_client.grant_user_policy(username, policy, expiration=expiration)
 
         if user_yaml:
             for client_name, client_details in user_yaml.clients.items():
@@ -2124,8 +2122,19 @@ class UserSyncer(object):
 
     def sync_single_user_visas(self, user, ga4gh_visas, sess=None, expires=None):
         """
-        TODO update docstring
-        Sync a single user's visa during login
+        Sync a single user's visas during login or DRS/data access
+
+        Args:
+            user (userdatamodel.user.User): Fence user whose visas'
+                                            authz info is being synced
+            ga4gh_visas (list): a list of fence.models.GA4GHVisaV1 objects
+                                that are parsed and synced
+            sess (sqlalchemy.orm.session.Session): database session
+            expires (int): time at which synced Arborist policies and
+                           inclusion in any GBAG are set to expire
+
+        Return:
+            None
         """
         self.ras_sync_client = RASVisa(logger=self.logger)
         dbgap_config = self.dbGaP[0]
