@@ -55,6 +55,7 @@ import fence.blueprints.privacy
 import fence.blueprints.register
 import fence.blueprints.ga4gh
 from pcdcutils.signature import SignatureManager
+from pcdcutils.errors import KeyPathInvalidError, NoKeyError
 
 
 # for some reason the temp dir does not get created properly if we move
@@ -363,7 +364,14 @@ def app_config(
 
     # load amanuensis public key for cross-service access
     key_path = config.get("AMANUENSIS_PUBLIC_KEY_PATH", None)
-    config["AMANUENSIS_PUBLIC_KEY"] = SignatureManager(key_path=key_path).get_key()
+    try:
+        config["AMANUENSIS_PUBLIC_KEY"] = SignatureManager(key_path=key_path).get_key()
+    except NoKeyError:
+        logger.warn('AMANUENSIS_PUBLIC_KEY not found.')
+        pass
+    except KeyPathInvalidError:
+        logger.warn('AMANUENSIS_PUBLIC_KEY_PATH invalid.')
+        pass
 
 
 def _setup_data_endpoint_and_boto(app):
