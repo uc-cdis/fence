@@ -57,7 +57,7 @@ class CognitoOauth2Client(Oauth2ClientBase):
             if claims["email"] and (
                 claims["email_verified"] or self.settings["assume_emails_verified"]
             ):
-                return {"email": claims["email"]}
+                return {"email": claims["email"], "sub": claims["sub"]}
             elif claims["email"]:
                 return {"error": "Email is not verified"}
             else:
