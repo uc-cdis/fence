@@ -57,7 +57,9 @@ def build_redirect_url(hostname, path):
     return redirect_base + path
 
 
-def login_user(username, provider, fence_idp=None, shib_idp=None, email=None):
+def login_user(
+    username, provider, fence_idp=None, shib_idp=None, email=None, id_from_idp=None
+):
     """
     Login a user with the given username and provider. Set values in Flask
     session to indicate the user being logged in. In addition, commit the user
@@ -70,6 +72,8 @@ def login_user(username, provider, fence_idp=None, shib_idp=None, email=None):
         shib_idp (str, optional): Downstreawm shibboleth IdP
         email (str, optional): email of user (may or may not match username depending
             on the IdP)
+        id_from_idp (str, optional): id from the IDP (which may be different than
+            the username)
     """
 
     def set_flask_session_values(user):
@@ -93,6 +97,7 @@ def login_user(username, provider, fence_idp=None, shib_idp=None, email=None):
     user = query_for_user(session=current_session, username=username)
     if user:
         _update_users_email(user, email)
+        _update_users_id_from_idp(user, id_from_idp)
 
         #  This expression is relevant to those users who already have user and
         #  idp info persisted to the database. We return early to avoid
@@ -101,11 +106,16 @@ def login_user(username, provider, fence_idp=None, shib_idp=None, email=None):
             set_flask_session_values(user)
             return
     else:
-        if email:
-            user = User(username=username, email=email)
-        else:
-            user = User(username=username)
+        # we need a new user
+        user = User(username=username)
 
+        if email:
+            user.email = email
+
+        if id_from_idp:
+            user.id_from_idp = id_from_idp
+
+    # setup idp connection for new user (or existing user w/o it setup)
     idp = (
         current_session.query(IdentityProvider)
         .filter(IdentityProvider.name == provider)
@@ -268,6 +278,20 @@ def _update_users_email(user, email):
             f"Updating username {user.username}'s email from {user.email} to {email}"
         )
         user.email = email
+
+        current_session.add(user)
+        current_session.commit()
+
+
+def _update_users_id_from_idp(user, id_from_idp):
+    """
+    Update id_from_idp if provided and doesn't match db entry.
+    """
+    if id_from_idp and user.id_from_idp != id_from_idp:
+        logger.info(
+            f"Updating username {user.username}'s id_from_idp from {user.id_from_idp} to {id_from_idp}"
+        )
+        user.id_from_idp = id_from_idp
 
         current_session.add(user)
         current_session.commit()
