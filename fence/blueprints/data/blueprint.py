@@ -297,21 +297,13 @@ def upload_file(file_id):
     return flask.jsonify(result)
 
 
-@blueprint.route("/download/<path:file_id>", methods=["GET", "POST"])
+@blueprint.route("/download/<path:file_id>", methods=["GET"])
 @enable_audit_logging
 def download_file(file_id):
     """
     Get a presigned url to download a file given by file_id.
     """
-    ga4gh_passports = None
-    if flask.request.method == "POST":
-        ga4gh_passports = flask.request.get_json(force=True, silent=True).get(
-            config["GA4GH_DRS_POSTED_PASSPORT_FIELD"]
-        )
-
-    result = get_signed_url_for_file(
-        "download", file_id, ga4gh_passports=ga4gh_passports
-    )
+    result = get_signed_url_for_file("download", file_id)
     if not "redirect" in flask.request.args or not "url" in result:
         return flask.jsonify(result)
     return flask.redirect(result["url"])
