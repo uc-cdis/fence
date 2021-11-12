@@ -61,6 +61,9 @@ def get_gen3_users_from_ga4gh_passports(passports):
             logger.warning(f"invalid passport provided, ignoring. Error: {exc}")
             continue
 
+        # an empty raw_visas list means that either the current passport is
+        # invalid or that it has no visas. in both cases, the current passport
+        # is ignored and we move on to the next passport
         if not raw_visas:
             continue
 
@@ -82,16 +85,15 @@ def get_gen3_users_from_ga4gh_passports(passports):
                 logger.warning(f"invalid visa provided, ignoring. Error: {exc}")
                 continue
 
-        delete_expired_google_access_job_frequency = config.get(
-            "DELETE_EXPIRED_GOOGLE_ACCESS_JOB_FREQUENCY_IN_SECONDS", 300
-        )
-        min_visa_expiration -= delete_expired_google_access_job_frequency
+        expired_authz_removal_job_freq_in_seconds = config[
+            "EXPIRED_AUTHZ_REMOVAL_JOB_FREQ_IN_SECONDS"
+        ]
+        min_visa_expiration -= expired_authz_removal_job_freq_in_seconds
         if min_visa_expiration <= int(time.time()):
             logger.warning(
-                "the passport's minimum visa expiration time fell within "
-                f"{delete_expired_google_access_job_frequency} seconds of now, "
-                "which is the frequency of the delete_expired_google_access job. "
-                "for this reason, the passport will be ignored"
+                "the passport's earliest valid visa expiration time is set to "
+                f"occur within {expired_authz_removal_job_freq_in_seconds} "
+                "seconds from now, which is too soon an expiration to handle."
             )
             continue
 

@@ -864,6 +864,14 @@ ASSUME_ROLE_CACHE_SECONDS: 1800
 # will have access to download data.
 REGISTER_USERS_ON: false
 REGISTERED_USERS_GROUP: ''
+
+# Number of projects that can be registered to a Google Service Account
+SERVICE_ACCOUNT_LIMIT: 6
+
+# //////////////////////////////////////////////////////////////////////////////////////
+# GA4GH SUPPORT: DATA ACCESS AND AUTHORIZATION SYNCING
+# //////////////////////////////////////////////////////////////////////////////////////
+
 # RAS refresh_tokens expire in 15 days
 RAS_REFRESH_EXPIRATION: 1296000
 # List of JWT issuers from which Fence will accept GA4GH visas
@@ -876,11 +884,7 @@ GA4GH_VISA_V1_CLAIM_REQUIRED_FIELDS:
   asserted: 0
   value: "https://stsstg.nih.gov/passport/dbgap/v1.1"
   source: "https://ncbi.nlm.nih.gov/gap"
-DELETE_EXPIRED_GOOGLE_ACCESS_JOB_FREQUENCY_IN_SECONDS: 300
-
-# Number of projects that can be registered to a Google Service Account
-SERVICE_ACCOUNT_LIMIT: 6
-
+EXPIRED_AUTHZ_REMOVAL_JOB_FREQ_IN_SECONDS: 300
 # Global sync visas during login
 # None(Default): Allow per client i.e. a fence client can pick whether or not to sync their visas during login with parse_visas param in /authorization endpoint
 # True: Parse for all clients i.e. a fence client will always sync their visas during login
