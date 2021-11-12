@@ -200,6 +200,7 @@ class RASOauth2Client(Oauth2ClientBase):
             user = query_for_user(db_session, username)
             if iss_sub_pair_to_user:
                 if not user:
+                    # TODO just say DRS, not DRS/data
                     self.logger.info(
                         "Issuer and subject id have already been mapped to a "
                         "Fence user created from the DRS/data endpoints. "

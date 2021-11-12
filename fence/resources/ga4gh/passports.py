@@ -44,13 +44,14 @@ def get_gen3_users_from_ga4gh_passports(passports):
               passed in.
     """
     logger.info("getting gen3 users from passports")
-    usernames_from_all_passports = []
+    users_from_all_passports = []
+    user_ids_from_all_passports = []
     for passport in passports:
         try:
             # TODO check cache
-            cached_usernames = get_gen3_usernames_for_passport_from_cache(passport)
-            if cached_usernames:
-                usernames_from_all_passports.extend(cached_usernames)
+            cached_user_ids = get_gen3_user_ids_for_passport_from_cache(passport)
+            if cached_user_ids:
+                user_ids_from_all_passports.extend(cached_user_ids)
                 # existence in the cache means that this passport was validated
                 # previously
                 continue
@@ -97,7 +98,7 @@ def get_gen3_users_from_ga4gh_passports(passports):
             )
             continue
 
-        usernames_from_current_passport = []
+        users_from_current_passport = []
         for (issuer, subject_id), visas in identity_to_visas.items():
             gen3_user = get_or_create_gen3_user_from_iss_sub(issuer, subject_id)
 
@@ -114,17 +115,24 @@ def get_gen3_users_from_ga4gh_passports(passports):
             ]
             # NOTE: does not validate, assumes validation occurs above.
             sync_visa_authorization(gen3_user, ga4gh_visas, min_visa_expiration)
-            usernames_from_current_passport.append(gen3_user.username)
+            users_from_current_passport.append(gen3_user)
 
         put_gen3_usernames_for_passport_into_cache(
-            passport, usernames_from_current_passport
+            passport, users_from_current_passport
         )
-        usernames_from_all_passports.extend(usernames_from_current_passport)
+        users_from_all_passports.extend(users_from_current_passport)
 
-    return list(set(usernames_from_all_passports))
+    # TODO use user_ids_from_all_passports that were returned from cache to
+    # query db for users and add those queried users to
+    # users_from_all_passports
+
+    # the same user could have been added to users_from_all_passports more
+    # than one time, making the dictionary comprehension below necessary to
+    # return a list of unique users
+    return list({u.username: u for u in users_from_all_passports}.values())
 
 
-def get_gen3_usernames_for_passport_from_cache(passport):
+def get_gen3_user_ids_for_passport_from_cache(passport):
     cached_user_ids = []
     # TODO
     return cached_user_ids

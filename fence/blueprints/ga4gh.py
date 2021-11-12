@@ -1,6 +1,7 @@
 import flask
 from flask import request
 from fence.errors import UserError
+from fence.config import config
 
 from fence.blueprints.data.indexd import (
     get_signed_url_for_file,
