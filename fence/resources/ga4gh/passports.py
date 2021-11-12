@@ -217,17 +217,17 @@ def validate_visa(raw_visa):
     if "aud" in decoded_visa:
         raise Exception('Visa MUST NOT contain "aud" claim')
 
-    field_to_expected_value = config["GA4GH_VISA_V1_CLAIM_REQUIRED_FIELDS"]
-    for field, expected_value in field_to_expected_value.items():
+    field_to_allowed_values = config["GA4GH_VISA_V1_CLAIM_REQUIRED_FIELDS"]
+    for field, allowed_values in field_to_allowed_values.items():
         if field not in decoded_visa["ga4gh_visa_v1"]:
             raise Exception(
                 f'"ga4gh_visa_v1" claim does not contain REQUIRED "{field}" field'
             )
-        if expected_value:
-            if decoded_visa["ga4gh_visa_v1"][field] != expected_value:
-                raise Exception(
-                    f'"{field}" field in "ga4gh_visa_v1" does not equal expected value "{expected_value}"'
-                )
+        if decoded_visa["ga4gh_visa_v1"][field] not in allowed_values:
+            raise Exception(
+                f'"{field}" field in "ga4gh_visa_v1" is not equal to one of the allowed_values: {allowed_values}'
+            )
+    # TODO special processing for asserted field
 
     if "conditions" in decoded_visa["ga4gh_visa_v1"]:
         logger.warning(
