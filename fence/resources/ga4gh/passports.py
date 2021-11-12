@@ -227,7 +227,23 @@ def validate_visa(raw_visa):
             raise Exception(
                 f'"{field}" field in "ga4gh_visa_v1" is not equal to one of the allowed_values: {allowed_values}'
             )
-    # TODO special processing for asserted field
+
+    if "asserted" not in decoded_visa["ga4gh_visa_v1"]:
+        raise Exception(
+            '"ga4gh_visa_v1" claim does not contain REQUIRED "asserted" field'
+        )
+    asserted = decoded_visa["ga4gh_visa_v1"]["asserted"]
+    if type(asserted) not in (int, float):
+        raise Exception(
+            '"ga4gh_visa_v1" claim object\'s "asserted" field\'s type is not '
+            "JSON numeric"
+        )
+    if decoded_visa["iat"] < asserted:
+        raise Exception(
+            "the Passport Visa Assertion Source made the claim after the visa "
+            'was minted (i.e. "ga4gh_visa_v1" claim object\'s "asserted" '
+            'field is greater than the visa\'s "iat" claim)'
+        )
 
     if "conditions" in decoded_visa["ga4gh_visa_v1"]:
         logger.warning(
