@@ -203,7 +203,7 @@ def validate_visa(raw_visa):
         attempt_refresh=True,
         scope={"openid", "ga4gh_passport_v1"},
         require_purpose=False,
-        issuers=config.get("GA4GH_VISA_ISSUER_ALLOWLIST", []),
+        issuers=config["GA4GH_VISA_ISSUER_ALLOWLIST"],
         options={"require_iat": True, "require_exp": True, "verify_aud": False},
     )
     # TODO log jti?
@@ -215,7 +215,7 @@ def validate_visa(raw_visa):
     if "aud" in decoded_visa:
         raise Exception('Visa MUST NOT contain "aud" claim')
 
-    field_to_expected_value = config.get("GA4GH_VISA_V1_CLAIM_REQUIRED_FIELDS")
+    field_to_expected_value = config["GA4GH_VISA_V1_CLAIM_REQUIRED_FIELDS"]
     for field, expected_value in field_to_expected_value.items():
         if field not in decoded_visa["ga4gh_visa_v1"]:
             raise Exception(
@@ -303,13 +303,13 @@ def sync_visa_authorization(gen3_user, ga4gh_visas, expiration):
         None
     """
     arborist_client = ArboristClient(
-        arborist_base_url=config.get("ARBORIST"), logger=logger, authz_provider="GA4GH"
+        arborist_base_url=config["ARBORIST"], logger=logger, authz_provider="GA4GH"
     )
 
-    dbgap_config = os.environ.get("dbGaP") or config.get("dbGaP")
+    dbgap_config = os.environ.get("dbGaP") or config["dbGaP"]
     if not isinstance(dbgap_config, list):
         dbgap_config = [dbgap_config]
-    DB = os.environ.get("FENCE_DB") or config.get("DB")
+    DB = os.environ.get("FENCE_DB") or config["DB"]
     if DB is None:
         try:
             from fence.settings import DB

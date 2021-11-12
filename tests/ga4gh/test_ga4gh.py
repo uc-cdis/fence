@@ -39,10 +39,10 @@ def test_get_or_create_gen3_user_from_iss_sub_after_prior_login(db_session):
     sub = "123_abc"
     username = "johnsmith"
     email = "johnsmith@domain.tld"
-    oidc = config.get("OPENID_CONNECT", {})
+    oidc = config["OPENID_CONNECT"]
     ras_client = RASOauth2Client(
         oidc["ras"],
-        HTTP_PROXY=config.get("HTTP_PROXY"),
+        HTTP_PROXY=config["HTTP_PROXY"],
         logger=logger,
     )
     ras_client.map_iss_sub_pair_to_user(iss, sub, username, email)
