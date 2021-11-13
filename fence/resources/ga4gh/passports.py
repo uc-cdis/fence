@@ -3,6 +3,7 @@ import os
 import collections
 import time
 import datetime
+import jwt
 
 # the whole fence_create module is imported to avoid issue with circular imports
 import fence.scripting.fence_create
@@ -207,7 +208,12 @@ def validate_visa(raw_visa):
         dict: the decoded payload if validation was successful. an exception
               is raised if validation was unsuccessful
     """
-    # TODO check that there is no JKU field in header?
+    if jwt.get_unverified_header(raw_visa).get("jku"):
+        raise Exception(
+            "Visa Document Tokens are not currently supported by passing "
+            '"jku" in the header. Only Visa Access Tokens are supported.'
+        )
+
     decoded_visa = validate_jwt(
         raw_visa,
         attempt_refresh=True,
@@ -216,8 +222,6 @@ def validate_visa(raw_visa):
         issuers=config["GA4GH_VISA_ISSUER_ALLOWLIST"],
         options={"require_iat": True, "require_exp": True, "verify_aud": False},
     )
-    # TODO log jti?
-    # TODO log txn?
     for claim in ["sub", "ga4gh_visa_v1"]:
         if claim not in decoded_visa:
             raise Exception(f'Visa does not contain REQUIRED "{claim}" claim')
