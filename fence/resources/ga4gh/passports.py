@@ -44,7 +44,7 @@ def get_gen3_users_from_ga4gh_passports(passports):
               corresponds to a valid visa identity embedded within the passports
               passed in.
     """
-    logger.info("getting gen3 users from passports")
+    logger.info("Getting gen3 users from passports")
     users_from_all_passports = []
     user_ids_from_all_passports = []
     for passport in passports:
@@ -60,7 +60,7 @@ def get_gen3_users_from_ga4gh_passports(passports):
             # below function also validates passport (or raises exception)
             raw_visas = get_unvalidated_visas_from_valid_passport(passport)
         except Exception as exc:
-            logger.warning(f"invalid passport provided, ignoring. Error: {exc}")
+            logger.warning(f"Invalid passport provided, ignoring. Error: {exc}")
             continue
 
         # an empty raw_visas list means that either the current passport is
@@ -84,7 +84,7 @@ def get_gen3_users_from_ga4gh_passports(passports):
                     min_visa_expiration, validated_decoded_visa.get("exp")
                 )
             except Exception as exc:
-                logger.warning(f"invalid visa provided, ignoring. Error: {exc}")
+                logger.warning(f"Invalid visa provided, ignoring. Error: {exc}")
                 continue
 
         expired_authz_removal_job_freq_in_seconds = config[
@@ -93,7 +93,7 @@ def get_gen3_users_from_ga4gh_passports(passports):
         min_visa_expiration -= expired_authz_removal_job_freq_in_seconds
         if min_visa_expiration <= int(time.time()):
             logger.warning(
-                "the passport's earliest valid visa expiration time is set to "
+                "The passport's earliest valid visa expiration time is set to "
                 f"occur within {expired_authz_removal_job_freq_in_seconds} "
                 "seconds from now, which is too soon an expiration to handle."
             )
@@ -252,19 +252,19 @@ def validate_visa(raw_visa):
         )
     if decoded_visa["iat"] < asserted:
         raise Exception(
-            "the Passport Visa Assertion Source made the claim after the visa "
+            "The Passport Visa Assertion Source made the claim after the visa "
             'was minted (i.e. "ga4gh_visa_v1" claim object\'s "asserted" '
             'field is greater than the visa\'s "iat" claim)'
         )
 
     if "conditions" in decoded_visa["ga4gh_visa_v1"]:
         logger.warning(
-            'condition checking is not yet supported, but a visa was received that contained the "conditions" field'
+            'Condition checking is not yet supported, but a visa was received that contained the "conditions" field'
         )
         if decoded_visa["ga4gh_visa_v1"]["conditions"]:
             raise Exception('"conditions" field in "ga4gh_visa_v1" is not empty')
 
-    logger.info("visa was successfully validated")
+    logger.info("Visa was successfully validated")
     return decoded_visa
 
 
@@ -288,8 +288,8 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id):
         )
         if not iss_sub_pair_to_user:
             logger.info(
-                "creating a new Fence user with a username formed from subject "
-                "id and issuer. mapping subject id and issuer combination to "
+                "Creating a new Fence user with a username formed from subject "
+                "id and issuer. Mapping subject id and issuer combination to "
                 "said user"
             )
             username = subject_id + issuer[len("https://") :]
