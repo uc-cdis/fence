@@ -304,6 +304,12 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id):
                 if not idp:
                     idp = IdentityProvider(name=idp_name)
                 gen3_user.identity_provider = idp
+            else:
+                logger.info(
+                    "The user will be created without a linked identity "
+                    "provider since it could not be determined based on "
+                    "the issuer"
+                )
 
             iss_sub_pair_to_user = IssSubPairToUser(iss=issuer, sub=subject_id)
             iss_sub_pair_to_user.user = gen3_user
