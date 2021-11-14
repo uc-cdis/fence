@@ -30,8 +30,8 @@ def get_gen3_users_from_ga4gh_passports(passports):
     """
     Validate passports and embedded visas, using each valid visa's identity
     established by <iss, sub> combination to possibly create and definitely
-    determine a Fence user whose username is added to the list returned by
-    this function. In the process of determining Fence users from visas, visa
+    determine a Fence user who is added to the list returned by this
+    function. In the process of determining Fence users from visas, visa
     authorization information is also persisted in Fence and synced to
     Arborist.
 
@@ -40,9 +40,8 @@ def get_gen3_users_from_ga4gh_passports(passports):
                           including header, payload, and signature
 
     Return:
-        list: a list of strings, each being the username of a Fence user who
-              corresponds to a valid visa identity embedded within the passports
-              passed in.
+        list: a list of users, each corresponding to a valid visa identity
+              embedded within the passports passed in
     """
     logger.info("Getting gen3 users from passports")
     users_from_all_passports = []
