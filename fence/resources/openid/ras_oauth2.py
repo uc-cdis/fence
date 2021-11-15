@@ -203,7 +203,7 @@ class RASOauth2Client(Oauth2ClientBase):
                     # TODO just say DRS, not DRS/data
                     self.logger.info(
                         "Issuer and subject id have already been mapped to a "
-                        "Fence user created from the DRS/data endpoints. "
+                        "Fence user created from the DRS endpoint. "
                         "Changing said user's username to the username "
                         "returned from the RAS userinfo endpoint."
                     )
@@ -216,8 +216,8 @@ class RASOauth2Client(Oauth2ClientBase):
                         "Two users exist in the Fence database corresponding "
                         "to the RAS user who is currently trying to log in: one "
                         "created from an earlier login and one created from "
-                        "the DRS/data endpoints. The one created from the "
-                        "DRS/data endpoints will be logged in, rendering the "
+                        "the DRS endpoint. The one created from the "
+                        "DRS endpoint will be logged in, rendering the "
                         "other one inaccessible."
                     )
                 return iss_sub_pair_to_user.user.username

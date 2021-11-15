@@ -362,3 +362,8 @@ def sync_visa_authorization(gen3_user, ga4gh_visas, expiration):
 
 def put_gen3_usernames_for_passport_into_cache(passport, usernames_from_passports):
     pass
+
+
+# TODO to be called after login
+def map_gen3_iss_sub_pair_to_user(gen3_issuer, gen3_subject_id, gen3_user):
+    pass

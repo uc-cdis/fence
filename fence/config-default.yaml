@@ -881,7 +881,6 @@ GA4GH_VISA_ISSUER_ALLOWLIST:
   - 'https://stsstg.nih.gov'
 GA4GH_VISA_V1_CLAIM_REQUIRED_FIELDS:
   type:
-    - "https://ras.nih.gov/visas/v1"
     - "https://ras.nih.gov/visas/v1.1"
   value:
     - "https://stsstg.nih.gov/passport/dbgap/v1.1"
