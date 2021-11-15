@@ -3,6 +3,7 @@ import os
 import collections
 import time
 import datetime
+import jwt
 
 # the whole fence_create module is imported to avoid issue with circular imports
 import fence.scripting.fence_create
@@ -29,8 +30,8 @@ def sync_gen3_users_authz_from_ga4gh_passports(passports, pkey_cache=None):
     """
     Validate passports and embedded visas, using each valid visa's identity
     established by <iss, sub> combination to possibly create and definitely
-    determine a Fence user whose username is added to the list returned by
-    this function. In the process of determining Fence users from visas, visa
+    determine a Fence user who is added to the list returned by this
+    function. In the process of determining Fence users from visas, visa
     authorization information is also persisted in Fence and synced to
     Arborist.
 
@@ -39,18 +40,18 @@ def sync_gen3_users_authz_from_ga4gh_passports(passports, pkey_cache=None):
                           including header, payload, and signature
 
     Return:
-        list: a list of strings, each being the username of a Fence user who
-              corresponds to a valid visa identity embedded within the passports
-              passed in.
+        list: a list of users, each corresponding to a valid visa identity
+              embedded within the passports passed in
     """
-    logger.info("getting gen3 users from passports")
-    usernames_from_all_passports = []
+    logger.info("Getting gen3 users from passports")
+    users_from_all_passports = []
+    user_ids_from_all_passports = []
     for passport in passports:
         try:
             # TODO check cache
-            cached_usernames = get_gen3_usernames_for_passport_from_cache(passport)
-            if cached_usernames:
-                usernames_from_all_passports.extend(cached_usernames)
+            cached_user_ids = get_gen3_user_ids_for_passport_from_cache(passport)
+            if cached_user_ids:
+                user_ids_from_all_passports.extend(cached_user_ids)
                 # existence in the cache means that this passport was validated
                 # previously
                 continue
@@ -60,9 +61,12 @@ def sync_gen3_users_authz_from_ga4gh_passports(passports, pkey_cache=None):
                 passport, pkey_cache=pkey_cache
             )
         except Exception as exc:
-            logger.warning(f"invalid passport provided, ignoring. Error: {exc}")
+            logger.warning(f"Invalid passport provided, ignoring. Error: {exc}")
             continue
 
+        # an empty raw_visas list means that either the current passport is
+        # invalid or that it has no visas. in both cases, the current passport
+        # is ignored and we move on to the next passport
         if not raw_visas:
             continue
 
@@ -81,23 +85,22 @@ def sync_gen3_users_authz_from_ga4gh_passports(passports, pkey_cache=None):
                     min_visa_expiration, validated_decoded_visa.get("exp")
                 )
             except Exception as exc:
-                logger.warning(f"invalid visa provided, ignoring. Error: {exc}")
+                logger.warning(f"Invalid visa provided, ignoring. Error: {exc}")
                 continue
 
-        delete_expired_google_access_job_frequency = config.get(
-            "DELETE_EXPIRED_GOOGLE_ACCESS_JOB_FREQUENCY_IN_SECONDS", 300
-        )
-        min_visa_expiration -= delete_expired_google_access_job_frequency
+        expired_authz_removal_job_freq_in_seconds = config[
+            "EXPIRED_AUTHZ_REMOVAL_JOB_FREQ_IN_SECONDS"
+        ]
+        min_visa_expiration -= expired_authz_removal_job_freq_in_seconds
         if min_visa_expiration <= int(time.time()):
             logger.warning(
-                "the passport's minimum visa expiration time fell within "
-                f"{delete_expired_google_access_job_frequency} seconds of now, "
-                "which is the frequency of the delete_expired_google_access job. "
-                "for this reason, the passport will be ignored"
+                "The passport's earliest valid visa expiration time is set to "
+                f"occur within {expired_authz_removal_job_freq_in_seconds} "
+                "seconds from now, which is too soon an expiration to handle."
             )
             continue
 
-        usernames_from_current_passport = []
+        users_from_current_passport = []
         for (issuer, subject_id), visas in identity_to_visas.items():
             gen3_user = get_or_create_gen3_user_from_iss_sub(issuer, subject_id)
 
@@ -116,17 +119,24 @@ def sync_gen3_users_authz_from_ga4gh_passports(passports, pkey_cache=None):
             sync_validated_visa_authorization(
                 gen3_user, ga4gh_visas, min_visa_expiration
             )
-            usernames_from_current_passport.append(gen3_user.username)
+            users_from_current_passport.append(gen3_user)
 
         put_gen3_usernames_for_passport_into_cache(
-            passport, usernames_from_current_passport
+            passport, users_from_current_passport
         )
-        usernames_from_all_passports.extend(usernames_from_current_passport)
+        users_from_all_passports.extend(users_from_current_passport)
 
-    return list(set(usernames_from_all_passports))
+    # TODO use user_ids_from_all_passports that were returned from cache to
+    # query db for users and add those queried users to
+    # users_from_all_passports
+
+    # the same user could have been added to users_from_all_passports more
+    # than one time, making the dictionary comprehension below necessary to
+    # return a list of unique users
+    return list({u.username: u for u in users_from_all_passports}.values())
 
 
-def get_gen3_usernames_for_passport_from_cache(passport):
+def get_gen3_user_ids_for_passport_from_cache(passport):
     cached_user_ids = []
     # TODO
     return cached_user_ids
@@ -201,17 +211,20 @@ def validate_visa(raw_visa):
         dict: the decoded payload if validation was successful. an exception
               is raised if validation was unsuccessful
     """
-    # TODO check that there is no JKU field in header?
+    if jwt.get_unverified_header(raw_visa).get("jku"):
+        raise Exception(
+            "Visa Document Tokens are not currently supported by passing "
+            '"jku" in the header. Only Visa Access Tokens are supported.'
+        )
+
     decoded_visa = validate_jwt(
         raw_visa,
         attempt_refresh=True,
         scope={"openid", "ga4gh_passport_v1"},
         require_purpose=False,
-        issuers=config.get("GA4GH_VISA_ISSUER_ALLOWLIST", []),
+        issuers=config["GA4GH_VISA_ISSUER_ALLOWLIST"],
         options={"require_iat": True, "require_exp": True, "verify_aud": False},
     )
-    # TODO log jti?
-    # TODO log txn?
     for claim in ["sub", "ga4gh_visa_v1"]:
         if claim not in decoded_visa:
             raise Exception(f'Visa does not contain REQUIRED "{claim}" claim')
@@ -219,26 +232,42 @@ def validate_visa(raw_visa):
     if "aud" in decoded_visa:
         raise Exception('Visa MUST NOT contain "aud" claim')
 
-    field_to_expected_value = config.get("GA4GH_VISA_V1_CLAIM_REQUIRED_FIELDS")
-    for field, expected_value in field_to_expected_value.items():
+    field_to_allowed_values = config["GA4GH_VISA_V1_CLAIM_REQUIRED_FIELDS"]
+    for field, allowed_values in field_to_allowed_values.items():
         if field not in decoded_visa["ga4gh_visa_v1"]:
             raise Exception(
                 f'"ga4gh_visa_v1" claim does not contain REQUIRED "{field}" field'
             )
-        if expected_value:
-            if decoded_visa["ga4gh_visa_v1"][field] != expected_value:
-                raise Exception(
-                    f'"{field}" field in "ga4gh_visa_v1" does not equal expected value "{expected_value}"'
-                )
+        if decoded_visa["ga4gh_visa_v1"][field] not in allowed_values:
+            raise Exception(
+                f'"{field}" field in "ga4gh_visa_v1" is not equal to one of the allowed_values: {allowed_values}'
+            )
+
+    if "asserted" not in decoded_visa["ga4gh_visa_v1"]:
+        raise Exception(
+            '"ga4gh_visa_v1" claim does not contain REQUIRED "asserted" field'
+        )
+    asserted = decoded_visa["ga4gh_visa_v1"]["asserted"]
+    if type(asserted) not in (int, float):
+        raise Exception(
+            '"ga4gh_visa_v1" claim object\'s "asserted" field\'s type is not '
+            "JSON numeric"
+        )
+    if decoded_visa["iat"] < asserted:
+        raise Exception(
+            "The Passport Visa Assertion Source made the claim after the visa "
+            'was minted (i.e. "ga4gh_visa_v1" claim object\'s "asserted" '
+            'field is greater than the visa\'s "iat" claim)'
+        )
 
     if "conditions" in decoded_visa["ga4gh_visa_v1"]:
         logger.warning(
-            'condition checking is not yet supported, but a visa was received that contained the "conditions" field'
+            'Condition checking is not yet supported, but a visa was received that contained the "conditions" field'
         )
         if decoded_visa["ga4gh_visa_v1"]["conditions"]:
             raise Exception('"conditions" field in "ga4gh_visa_v1" is not empty')
 
-    logger.info("visa was successfully validated")
+    logger.info("Visa was successfully validated")
     return decoded_visa
 
 
@@ -262,8 +291,8 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id):
         )
         if not iss_sub_pair_to_user:
             logger.info(
-                "creating a new Fence user with a username formed from subject "
-                "id and issuer. mapping subject id and issuer combination to "
+                "Creating a new Fence user with a username formed from subject "
+                "id and issuer. Mapping subject id and issuer combination to "
                 "said user"
             )
             username = subject_id + issuer[len("https://") :]
@@ -278,6 +307,12 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id):
                 if not idp:
                     idp = IdentityProvider(name=idp_name)
                 gen3_user.identity_provider = idp
+            else:
+                logger.info(
+                    "The user will be created without a linked identity "
+                    "provider since it could not be determined based on "
+                    "the issuer"
+                )
 
             iss_sub_pair_to_user = IssSubPairToUser(iss=issuer, sub=subject_id)
             iss_sub_pair_to_user.user = gen3_user
@@ -326,4 +361,9 @@ def sync_validated_visa_authorization(gen3_user, ga4gh_visas, expiration):
 
 
 def put_gen3_usernames_for_passport_into_cache(passport, usernames_from_passports):
+    pass
+
+
+# TODO to be called after login
+def map_gen3_iss_sub_pair_to_user(gen3_issuer, gen3_subject_id, gen3_user):
     pass
