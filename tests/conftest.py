@@ -1507,12 +1507,18 @@ def get_all_shib_idps_patcher():
     """
     mock = MagicMock()
     mock.return_value = [
-        {"idp": "some-incommon-entity-id", "name": "Some InCommon Provider"},
+        {
+            "idp": "some-incommon-entity-id",
+            "name": "Some InCommon Provider",
+        },
         {
             "idp": "urn:mace:incommon:nih.gov",
             "name": "National Institutes of Health (NIH)",
         },
-        {"idp": "urn:mace:incommon:uchicago.edu", "name": "University of Chicago"},
+        {
+            "idp": "urn:mace:incommon:uchicago.edu",
+            "name": "University of Chicago",
+        },
     ]
     get_all_shib_idps_patch = patch(
         "fence.blueprints.login.get_all_shib_idps",
