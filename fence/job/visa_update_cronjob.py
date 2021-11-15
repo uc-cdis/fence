@@ -61,8 +61,10 @@ class Visa_Token_Update(object):
         Initialize a producer-consumer workflow.
 
         Producer: Collects users from db and feeds it to the workers
-        Worker: Takes in the users from the Producer and passes it to the Updater to update the tokens and passes those updated tokens for JWT validation
-        Updater: Updates refresh_tokens and visas by calling the update_user_visas from the correct client
+          Worker: Takes in the users from the Producer and passes it to the Updater to
+                  update the tokens and passes those updated tokens for JWT validation
+         Updater: Updates refresh_tokens and visas by calling the update_user_authorization from
+                  the correct client
 
         """
         start_time = time.time()
@@ -143,6 +145,8 @@ class Visa_Token_Update(object):
         """
         while True:
             user = await updater_queue.get()
+            # IF WE NEED TO UPDATE THEIR VISAS, DETERMINE WHICH CLIENT TO USE
+            # if idp is RAS then update visas? use that info to determine client?
             if user.ga4gh_visas_v1:
                 for visa in user.ga4gh_visas_v1:
                     client = self._pick_client(visa)
@@ -151,7 +155,7 @@ class Visa_Token_Update(object):
                             name, user.username
                         )
                     )
-                    client.update_user_visas(user, self.pkey_cache, db_session)
+                    client.update_user_authorization(user, self.pkey_cache, db_session)
             else:
                 # clear expired refresh tokens
                 if user.upstream_refresh_tokens:
@@ -159,7 +163,7 @@ class Visa_Token_Update(object):
                     db_session.commit()
 
                 self.logger.info(
-                    "User {} doesnt have visa. Skipping . . .".format(user.username)
+                    "User {} doesn't have visa. Skipping . . .".format(user.username)
                 )
 
             updater_queue.task_done()

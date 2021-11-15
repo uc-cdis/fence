@@ -43,7 +43,7 @@ from fence.resources.google.utils import (
     get_google_app_creds,
     give_service_account_billing_access_if_necessary,
 )
-from fence.resources.ga4gh.passports import get_gen3_users_from_ga4gh_passports
+from fence.resources.ga4gh.passports import sync_gen3_users_authz_from_ga4gh_passports
 from fence.utils import get_valid_expiration_from_request
 from . import multipart_upload
 from ...models import AssumeRoleCacheAWS
@@ -79,7 +79,9 @@ def get_signed_url_for_file(
     user_ids_from_passports = None
     if ga4gh_passports:
         # TODO change this to usernames
-        user_ids_from_passports = get_gen3_users_from_ga4gh_passports(ga4gh_passports)
+        user_ids_from_passports = sync_gen3_users_authz_from_ga4gh_passports(
+            ga4gh_passports
+        )
 
     # add the user details to `flask.g.audit_data` first, so they are
     # included in the audit log if `IndexedFile(file_id)` raises a 404

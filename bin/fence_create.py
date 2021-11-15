@@ -34,7 +34,7 @@ from fence.scripting.fence_create import (
     force_update_google_link,
     migrate_database,
     google_list_authz_groups,
-    update_user_visas,
+    access_token_polling_job,
 )
 from fence.settings import CONFIG_SEARCH_FOLDERS
 
@@ -408,7 +408,6 @@ def main():
         "STORAGE_CREDENTIALS"
     )
     usersync = config.get("USERSYNC", {})
-    sync_from_visas = usersync.get("sync_from_visas", False)
     fallback_to_dbgap_sftp = usersync.get("fallback_to_dbgap_sftp", False)
 
     arborist = None
@@ -474,7 +473,6 @@ def main():
             sync_from_local_yaml_file=args.yaml,
             folder=args.folder,
             arborist=arborist,
-            sync_from_visas=sync_from_visas,
             fallback_to_dbgap_sftp=fallback_to_dbgap_sftp,
         )
     elif args.action == "dbgap-download-access-files":
@@ -576,7 +574,7 @@ def main():
     elif args.action == "migrate":
         migrate_database(DB)
     elif args.action == "update-visas":
-        update_user_visas(
+        access_token_polling_job(
             DB,
             chunk_size=args.chunk_size,
             concurrency=args.concurrency,

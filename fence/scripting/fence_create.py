@@ -54,6 +54,8 @@ from fence.config import config
 from fence.sync.sync_users import UserSyncer
 from fence.utils import create_client, get_valid_expiration
 
+from gen3authz.client.arborist.client import ArboristClient
+
 logger = get_logger(__name__)
 
 
@@ -200,6 +202,30 @@ def _remove_client_service_accounts(db_session, client):
                     )
 
 
+def get_default_init_syncer_inputs():
+    DB = os.environ.get("FENCE_DB") or config.get("DB")
+    if DB is None:
+        try:
+            from fence.settings import DB
+        except ImportError:
+            pass
+
+    arborist = ArboristClient(
+        arborist_base_url=config["ARBORIST"],
+        logger=get_logger("user_syncer.arborist_client"),
+        authz_provider="ras",
+    )
+    dbGaP = os.environ.get("dbGaP") or config.get("dbGaP")
+    if not isinstance(dbGaP, list):
+        dbGaP = [dbGaP]
+
+    return {
+        "DB": DB,
+        "arborist": arborist,
+        "dbGaP": dbGaP,
+    }
+
+
 def init_syncer(
     dbGaP,
     STORAGE_CREDENTIALS,
@@ -210,7 +236,6 @@ def init_syncer(
     sync_from_local_yaml_file=None,
     arborist=None,
     folder=None,
-    sync_from_visas=False,
     fallback_to_dbgap_sftp=False,
 ):
     """
@@ -270,7 +295,6 @@ def init_syncer(
         sync_from_local_yaml_file=sync_from_local_yaml_file,
         arborist=arborist,
         folder=folder,
-        sync_from_visas=sync_from_visas,
         fallback_to_dbgap_sftp=fallback_to_dbgap_sftp,
     )
 
@@ -313,7 +337,6 @@ def sync_users(
     sync_from_local_yaml_file=None,
     arborist=None,
     folder=None,
-    sync_from_visas=False,
     fallback_to_dbgap_sftp=False,
 ):
     syncer = init_syncer(
@@ -326,15 +349,11 @@ def sync_users(
         sync_from_local_yaml_file,
         arborist,
         folder,
-        sync_from_visas,
         fallback_to_dbgap_sftp,
     )
     if not syncer:
         exit(1)
-    if sync_from_visas:
-        syncer.sync_visas()
-    else:
-        syncer.sync()
+    syncer.sync()
 
 
 def create_sample_data(DB, yaml_file_path):
@@ -1573,7 +1592,7 @@ def google_list_authz_groups(db):
         return google_authz
 
 
-def update_user_visas(
+def access_token_polling_job(
     db, chunk_size=None, concurrency=None, thread_pool_size=None, buffer_size=None
 ):
     """

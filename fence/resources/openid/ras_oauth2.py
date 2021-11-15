@@ -1,8 +1,11 @@
 import backoff
 import flask
+import copy
 import requests
 
 # the whole passports module is imported to avoid issue with circular imports
+import fence.resources.ga4gh.passports
+import fence.scripting.fence_create
 import fence.resources.ga4gh.passports
 
 from flask_sqlalchemy_session import current_session
@@ -82,6 +85,18 @@ class RASOauth2Client(Oauth2ClientBase):
             return {}
         return res.json()
 
+    def get_encoded_passport_v11_userinfo(self, userinfo):
+        """
+        Return encoded passport after extracting from userinfo response
+
+        Args:
+            userinfo (dict): userinfo response
+
+        Return:
+            str: encoded ga4gh passport
+        """
+        return userinfo.get("passport_jwt_v11")
+
     def get_encoded_visas_v11_userinfo(self, userinfo, pkey_cache=None):
         """
         Return encoded visas after extracting and validating passport from userinfo response
@@ -93,7 +108,7 @@ class RASOauth2Client(Oauth2ClientBase):
         Return:
             list: list of encoded GA4GH visas
         """
-        encoded_passport = userinfo.get("passport_jwt_v11")
+        encoded_passport = self.get_encoded_passport_v11_userinfo(userinfo)
         return (
             fence.resources.ga4gh.passports.get_unvalidated_visas_from_valid_passport(
                 encoded_passport, pkey_cache
@@ -244,91 +259,29 @@ class RASOauth2Client(Oauth2ClientBase):
             return iss_sub_pair_to_user.user.username
 
     @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
-    def update_user_visas(self, user, pkey_cache, db_session=current_session):
+    def update_user_authorization(self, user, pkey_cache, db_session=current_session):
         """
         Updates user's RAS refresh token and uses the new access token to retrieve new visas from
-        RAS's /userinfo endpoint and update the db with the new visa.
-        - delete user's visas from db if we're not able to get a new access_token
-        - delete user's visas from db if we're not able to get new visas
-        - only visas which pass validation are added to the database
+        RAS's /userinfo endpoint and update access
         """
-        # Note: in the cronjob this is called per-user per-visa.
-        # So it should be noted that when there are more clients than just RAS,
-        # this code as it stands can remove visas that the user has from other clients.
-        user.ga4gh_visas_v1 = []
-        db_session.commit()
-
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
             token = self.get_access_token(user, token_endpoint, db_session)
             userinfo = self.get_userinfo(token)
-            encoded_visas = self.get_encoded_visas_v11_userinfo(userinfo, pkey_cache)
+            passport = self.get_encoded_passport_v11_userinfo(userinfo)
         except Exception as e:
             err_msg = "Could not retrieve visas"
             self.logger.exception("{}: {}".format(err_msg, e))
             raise
 
-        for encoded_visa in encoded_visas:
-            try:
-                visa_issuer = get_iss(encoded_visa)
-                visa_kid = get_kid(encoded_visa)
-            except Exception as e:
-                self.logger.error(
-                    "Could not get issuer or kid from visa: {}. Discarding visa.".format(
-                        e
-                    )
-                )
-                continue  # Not raise: If visa malformed, does not make sense to retry
-
-            # See if pkey is in cronjob cache; if not, update cache.
-            public_key = pkey_cache.get(visa_issuer, {}).get(visa_kid)
-            try:
-                # Validate the visa per GA4GH AAI "Embedded access token" format rules.
-                # pyjwt also validates signature and expiration.
-                decoded_visa = validate_jwt(
-                    encoded_token=encoded_visa,
-                    public_key=public_key,
-                    attempt_refresh=True,
-                    # Embedded token must contain scope claim, which must include openid
-                    scope={"openid"},
-                    require_purpose=False,
-                    issuers=config.get("GA4GH_VISA_ISSUER_ALLOWLIST", []),
-                    # Embedded token must contain iss, sub, iat, exp claims
-                    # options={"require": ["iss", "sub", "iat", "exp"]},
-                    # ^ FIXME 2021-05-13: Above needs pyjwt>=v2.0.0, which requires cryptography>=3.
-                    # Once we can unpin and upgrade cryptography and pyjwt, switch to above "options" arg.
-                    # For now, pyjwt 1.7.1 is able to require iat and exp;
-                    # authutils' validate_jwt (i.e. the function being called) checks issuers already (see above);
-                    # and we will check separately for sub below.
-                    pkey_cache=pkey_cache,
-                    options={
-                        "require_iat": True,
-                        "require_exp": True,
-                        "verify_aud": False,
-                    },
-                )
-
-                # Also require 'sub' claim (see note above about pyjwt and the options arg).
-                if "sub" not in decoded_visa:
-                    raise JWTError("Visa is missing the 'sub' claim.")
-                # Embedded token must not contain aud claim
-                if "aud" in decoded_visa:
-                    raise JWTError("Visa contains 'aud' calim")
-            except Exception as e:
-                self.logger.error(
-                    "Visa failed validation: {}. Discarding visa.".format(e)
-                )
-                continue
-
-            visa = GA4GHVisaV1(
-                user=user,
-                source=decoded_visa["ga4gh_visa_v1"]["source"],
-                type=decoded_visa["ga4gh_visa_v1"]["type"],
-                asserted=int(decoded_visa["ga4gh_visa_v1"]["asserted"]),
-                expires=int(decoded_visa["exp"]),
-                ga4gh_visa=encoded_visa,
+        # now sync authz updates
+        user_ids_from_passports = (
+            fence.resources.ga4gh.passports.sync_gen3_users_authz_from_ga4gh_passports(
+                [passport], pkey_cache=pkey_cache
             )
+        )
 
-            current_db_session = db_session.object_session(visa)
-            current_db_session.add(visa)
-            db_session.commit()
+        # TODO?
+        # put_gen3_usernames_for_passport_into_cache(
+        #     passport, usernames_from_current_passport
+        # )

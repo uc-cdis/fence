@@ -25,7 +25,7 @@ from fence.models import (
 logger = get_logger(__name__)
 
 
-def get_gen3_users_from_ga4gh_passports(passports):
+def sync_gen3_users_authz_from_ga4gh_passports(passports, pkey_cache=None):
     """
     Validate passports and embedded visas, using each valid visa's identity
     established by <iss, sub> combination to possibly create and definitely
@@ -56,7 +56,9 @@ def get_gen3_users_from_ga4gh_passports(passports):
                 continue
 
             # below function also validates passport (or raises exception)
-            raw_visas = get_unvalidated_visas_from_valid_passport(passport)
+            raw_visas = get_unvalidated_visas_from_valid_passport(
+                passport, pkey_cache=pkey_cache
+            )
         except Exception as exc:
             logger.warning(f"invalid passport provided, ignoring. Error: {exc}")
             continue
@@ -111,7 +113,9 @@ def get_gen3_users_from_ga4gh_passports(passports):
                 for raw_visa, validated_decoded_visa in visas
             ]
             # NOTE: does not validate, assumes validation occurs above.
-            sync_visa_authorization(gen3_user, ga4gh_visas, min_visa_expiration)
+            sync_validated_visa_authorization(
+                gen3_user, ga4gh_visas, min_visa_expiration
+            )
             usernames_from_current_passport.append(gen3_user.username)
 
         put_gen3_usernames_for_passport_into_cache(
@@ -285,11 +289,14 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id):
         return iss_sub_pair_to_user.user
 
 
-def sync_visa_authorization(gen3_user, ga4gh_visas, expiration):
+def sync_validated_visa_authorization(gen3_user, ga4gh_visas, expiration):
     """
     Wrapper around UserSyncer.sync_single_user_visas method, which parses
     authorization information from the provided visas, persists it in Fence,
     and syncs it to Arborist.
+
+    IMPORTANT NOTE: THIS DOES NOT VALIDATE THE VISAS. ENSURE THIS IS DONE
+                    BEFORE THIS.
 
     Args:
         gen3_user (userdatamodel.user.User): the Fence user whose visas'
@@ -302,27 +309,20 @@ def sync_visa_authorization(gen3_user, ga4gh_visas, expiration):
     Return:
         None
     """
-    arborist_client = ArboristClient(
-        arborist_base_url=config.get("ARBORIST"), logger=logger, authz_provider="GA4GH"
-    )
-
-    dbgap_config = os.environ.get("dbGaP") or config.get("dbGaP")
-    if not isinstance(dbgap_config, list):
-        dbgap_config = [dbgap_config]
-    DB = os.environ.get("FENCE_DB") or config.get("DB")
-    if DB is None:
-        try:
-            from fence.settings import DB
-        except ImportError:
-            pass
+    default_args = fence.scripting.fence_create.get_default_init_syncer_inputs()
     syncer = fence.scripting.fence_create.init_syncer(
-        dbgap_config, None, DB, arborist=arborist_client
+        STORAGE_CREDENTIALS=None, **default_args
     )
 
     with flask.current_app.db.session as db_session:
-        syncer.sync_single_user_visas(
+        synced_visas = syncer.sync_single_user_visas(
             gen3_user, ga4gh_visas, db_session, expires=expiration
         )
+
+        # after syncing authorization, perist the visas that were parsed successfully
+        for visa in synced_visas:
+            db_session.add(visa)
+        db_session.commit()
 
 
 def put_gen3_usernames_for_passport_into_cache(passport, usernames_from_passports):
