@@ -181,8 +181,8 @@ class RASOauth2Client(Oauth2ClientBase):
         warning for more details.
 
         Args:
-            issuer (str): RAS issuer
-            subject_id (str): RAS subject
+            issuer (str): issuer
+            subject_id (str): subject
             username (str): username of the Fence user who is being mapped to
             email (str): email to populate the mapped Fence user with in cases
                          when this function creates the mapped user or changes
@@ -200,12 +200,12 @@ class RASOauth2Client(Oauth2ClientBase):
             user = query_for_user(db_session, username)
             if iss_sub_pair_to_user:
                 if not user:
-                    # TODO just say DRS, not DRS/data
                     self.logger.info(
-                        "Issuer and subject id have already been mapped to a "
-                        "Fence user created from the DRS endpoint. "
-                        "Changing said user's username to the username "
-                        "returned from the RAS userinfo endpoint."
+                        f'Issuer ("{issuer}") and subject id ("{subject_id}") '
+                        "have already been mapped to a Fence user "
+                        f'("{iss_sub_pair_to_user.user.username}") created '
+                        "from the DRS endpoint. Changing said user's username"
+                        f' to "{username}".'
                     )
                     # TODO also change username in Arborist
                     iss_sub_pair_to_user.user.username = username
@@ -214,11 +214,12 @@ class RASOauth2Client(Oauth2ClientBase):
                 elif iss_sub_pair_to_user.user.username != username:
                     self.logger.warning(
                         "Two users exist in the Fence database corresponding "
-                        "to the RAS user who is currently trying to log in: one "
-                        "created from an earlier login and one created from "
-                        "the DRS endpoint. The one created from the "
-                        "DRS endpoint will be logged in, rendering the "
-                        "other one inaccessible."
+                        "to the user who is currently trying to log in: one "
+                        f'created from an earlier login ("{username}") and '
+                        f"one created from the DRS endpoint "
+                        f'("{iss_sub_pair_to_user.user.username}"). '
+                        f'"{iss_sub_pair_to_user.user.username}" will be '
+                        f'logged in, rendering "{username}" inaccessible.'
                     )
                 return iss_sub_pair_to_user.user.username
 

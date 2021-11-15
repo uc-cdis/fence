@@ -213,6 +213,7 @@ def validate_visa(raw_visa):
             '"jku" in the header. Only Visa Access Tokens are supported.'
         )
 
+    logger.info("Attempting to validate visa")
     decoded_visa = validate_jwt(
         raw_visa,
         attempt_refresh=True,
@@ -221,6 +222,9 @@ def validate_visa(raw_visa):
         issuers=config["GA4GH_VISA_ISSUER_ALLOWLIST"],
         options={"require_iat": True, "require_exp": True, "verify_aud": False},
     )
+    logger.info(f'Visa jti: "{decoded_visa.get("jti", "")}"')
+    logger.info(f'Visa txn: "{decoded_visa.get("txn", "")}"')
+
     for claim in ["sub", "ga4gh_visa_v1"]:
         if claim not in decoded_visa:
             raise Exception(f'Visa does not contain REQUIRED "{claim}" claim')
@@ -286,30 +290,33 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id):
             (issuer, subject_id)
         )
         if not iss_sub_pair_to_user:
-            logger.info(
-                "Creating a new Fence user with a username formed from subject "
-                "id and issuer. Mapping subject id and issuer combination to "
-                "said user"
-            )
             username = subject_id + issuer[len("https://") :]
-            gen3_user = User(username=username)
-            idp_name = flask.current_app.issuer_to_idp.get(issuer)
-            if idp_name:
-                idp = (
-                    db_session.query(IdentityProvider)
-                    .filter(IdentityProvider.name == idp_name)
-                    .first()
-                )
-                if not idp:
-                    idp = IdentityProvider(name=idp_name)
-                gen3_user.identity_provider = idp
-            else:
-                logger.info(
-                    "The user will be created without a linked identity "
-                    "provider since it could not be determined based on "
-                    "the issuer"
-                )
+            user = query_for_user(session=db_session, username=username)
+            if not user:
+                logger.info(f'Creating a new Fence user with username "{username}"')
+                gen3_user = User(username=username)
+                idp_name = flask.current_app.issuer_to_idp.get(issuer)
+                if idp_name:
+                    idp = (
+                        db_session.query(IdentityProvider)
+                        .filter(IdentityProvider.name == idp_name)
+                        .first()
+                    )
+                    if not idp:
+                        idp = IdentityProvider(name=idp_name)
+                    gen3_user.identity_provider = idp
+                else:
+                    logger.info(
+                        "The user will be created without a linked identity "
+                        "provider since it could not be determined based on "
+                        "the issuer"
+                    )
 
+            logger.info(
+                f'Mapping subject id ("{subject_id}") and issuer '
+                f'("{issuer}") combination to Fence user '
+                f'"{gen3_user.username}"'
+            )
             iss_sub_pair_to_user = IssSubPairToUser(iss=issuer, sub=subject_id)
             iss_sub_pair_to_user.user = gen3_user
 
