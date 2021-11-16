@@ -19,6 +19,7 @@ from fence.models import (
     User,
     IssSubPairToUser,
     query_for_user,
+    create_user,
 )
 from fence.jwt.validate import validate_jwt
 from fence.utils import DEFAULT_BACKOFF_SETTINGS
@@ -224,19 +225,13 @@ class RASOauth2Client(Oauth2ClientBase):
                 return iss_sub_pair_to_user.user.username
 
             if not user:
-                self.logger.info(
-                    "Creating a user in the Fence database before mapping issuer and subject id"
+                user = create_user(
+                    db_session,
+                    self.logger,
+                    username,
+                    email=email,
+                    idp_name=IdentityProvider.ras,
                 )
-                user = User(username=username, email=email)
-                idp = (
-                    db_session.query(IdentityProvider)
-                    .filter(IdentityProvider.name == IdentityProvider.ras)
-                    .first()
-                )
-                if not idp:
-                    idp = IdentityProvider(name=IdentityProvider.ras)
-                user.identity_provider = idp
-                db_session.add(user)
 
             self.logger.info("Mapping issuer and subject id to Fence user")
             iss_sub_pair_to_user = IssSubPairToUser(iss=issuer, sub=subject_id)

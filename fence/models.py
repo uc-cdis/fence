@@ -66,6 +66,40 @@ def query_for_user(session, username):
     )
 
 
+def create_user(session, logger, username, email=None, idp_name=None):
+    """
+    Create a new user in the database.
+
+    Args:
+        session (sqlalchemy.orm.session.Session): database session
+        logger (logging.Logger): logger
+        username (str): username to save for the created user
+        email (str): email to save for the created user
+        idp_name (str): name of identity provider to link
+
+    Return:
+        userdatamodel.user.User: the created user
+    """
+    logger.info(f'Creating a new Fence user with username "{username}"')
+
+    user = User(username=username)
+    if email:
+        user.email = email
+    if idp_name:
+        idp = (
+            session.query(IdentityProvider)
+            .filter(IdentityProvider.name == idp_name)
+            .first()
+        )
+        if not idp:
+            idp = IdentityProvider(name=idp_name)
+        user.identity_provider = idp
+
+    session.add(user)
+    session.commit()
+    return user
+
+
 class ClientAuthType(Enum):
     """
     List the possible types of OAuth client authentication, which are

@@ -16,6 +16,7 @@ from gen3authz.client.arborist.client import ArboristClient
 from fence.jwt.validate import validate_jwt
 from fence.config import config
 from fence.models import (
+    create_user,
     query_for_user,
     GA4GHVisaV1,
     User,
@@ -291,23 +292,13 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id):
         )
         if not iss_sub_pair_to_user:
             username = subject_id + issuer[len("https://") :]
-            user = query_for_user(session=db_session, username=username)
-            if not user:
-                logger.info(f'Creating a new Fence user with username "{username}"')
-                gen3_user = User(username=username)
+            gen3_user = query_for_user(session=db_session, username=username)
+            if not gen3_user:
                 idp_name = flask.current_app.issuer_to_idp.get(issuer)
-                if idp_name:
-                    idp = (
-                        db_session.query(IdentityProvider)
-                        .filter(IdentityProvider.name == idp_name)
-                        .first()
-                    )
-                    if not idp:
-                        idp = IdentityProvider(name=idp_name)
-                    gen3_user.identity_provider = idp
-                else:
+                gen3_user = create_user(db_session, logger, username, idp_name=idp_name)
+                if not idp_name:
                     logger.info(
-                        "The user will be created without a linked identity "
+                        "The user was created without a linked identity "
                         "provider since it could not be determined based on "
                         "the issuer"
                     )
@@ -320,7 +311,6 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id):
             iss_sub_pair_to_user = IssSubPairToUser(iss=issuer, sub=subject_id)
             iss_sub_pair_to_user.user = gen3_user
 
-            db_session.add(gen3_user)
             db_session.add(iss_sub_pair_to_user)
             db_session.commit()
 
