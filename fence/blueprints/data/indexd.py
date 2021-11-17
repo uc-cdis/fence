@@ -76,6 +76,12 @@ def get_signed_url_for_file(
     if no_force_sign_param and no_force_sign_param.lower() == "true":
         force_signed_url = False
 
+    if ga4gh_passports and not config["GA4GH_PASSPORTS_TO_DRS_ENABLED"]:
+        raise NotSupported(
+            "Using GA4GH Passports as a means of authentication and authorization "
+            "is not supported by this instance of Gen3."
+        )
+
     user_ids_from_passports = None
     if ga4gh_passports:
         # TODO change this to usernames

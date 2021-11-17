@@ -5,6 +5,8 @@ import requests
 import responses
 from tests import utils
 
+from fence.config import config
+
 
 def get_doc(has_version=True, urls=list(), drs_list=0):
     doc = {
@@ -230,3 +232,70 @@ def test_get_presigned_url_with_query_params(
         headers=user,
     )
     assert res.status_code == 200
+
+
+@responses.activate
+@pytest.mark.parametrize("indexd_client", ["s3", "gs"], indirect=True)
+def test_get_presigned_url_passports_disabled(
+    client,
+    indexd_client,
+    kid,
+    rsa_private_key,
+    google_proxy_group,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+    monkeypatch,
+):
+    access_id = indexd_client["indexed_file_location"]
+    test_guid = "1"
+    passports_body = {"passports": ["i.am.passport"]}
+
+    monkeypatch.setitem(config, "GA4GH_PASSPORTS_TO_DRS_ENABLED", False)
+
+    res = client.post(
+        "/ga4gh/drs/v1/objects/" + test_guid + f"/access/{access_id}",
+        data=json.dumps(passports_body),
+    )
+
+    assert res.status_code == 400
+
+
+@responses.activate
+@pytest.mark.parametrize("indexd_client", ["s3", "gs"], indirect=True)
+def test_get_presigned_url_post_passport_and_send_header_token(
+    client,
+    user_client,
+    indexd_client,
+    kid,
+    rsa_private_key,
+    google_proxy_group,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+    monkeypatch,
+):
+    access_id = indexd_client["indexed_file_location"]
+    test_guid = "1"
+    passports_body = {"passports": ["i.am.passport"]}
+    user = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+
+    monkeypatch.setitem(config, "GA4GH_PASSPORTS_TO_DRS_ENABLED", True)
+
+    res = client.post(
+        "/ga4gh/drs/v1/objects/" + test_guid + f"/access/{access_id}",
+        headers=user,
+        data=json.dumps(passports_body),
+    )
+
+    assert res.status_code == 400

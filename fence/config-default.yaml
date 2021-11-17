@@ -871,6 +871,8 @@ SERVICE_ACCOUNT_LIMIT: 6
 # //////////////////////////////////////////////////////////////////////////////////////
 # GA4GH SUPPORT: DATA ACCESS AND AUTHORIZATION SYNCING
 # //////////////////////////////////////////////////////////////////////////////////////
+# whether or not to accept GA4GH Passports as a means of AuthN/Z to the DRS data access endpoint
+GA4GH_PASSPORTS_TO_DRS_ENABLED: false
 
 # RAS refresh_tokens expire in 15 days
 RAS_REFRESH_EXPIRATION: 1296000
