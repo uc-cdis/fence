@@ -56,7 +56,14 @@ class DefaultOAuth2Login(Resource):
 
 
 class DefaultOAuth2Callback(Resource):
-    def __init__(self, idp_name, client, username_field="email", email_field="email"):
+    def __init__(
+        self,
+        idp_name,
+        client,
+        username_field="email",
+        email_field="email",
+        id_from_idp_field="sub",
+    ):
         """
         Construct a resource for a login callback endpoint
 
@@ -65,14 +72,18 @@ class DefaultOAuth2Callback(Resource):
             client (fence.resources.openid.idp_oauth2.Oauth2ClientBase):
                 Some instaniation of this base client class or a child class
             username_field (str, optional): default field from response to
-                retrieve the username
+                retrieve the unique username
             email_field (str, optional): default field from response to
                 retrieve the email (if available)
+            id_from_idp_field (str, optional): default field from response to
+                retrieve the idp-specific ID for this user (could be the same
+                as username_field)
         """
         self.idp_name = idp_name
         self.client = client
         self.username_field = username_field
         self.email_field = email_field
+        self.id_from_idp_field = id_from_idp_field
 
     def get(self):
         # Check if user granted access
@@ -101,20 +112,23 @@ class DefaultOAuth2Callback(Resource):
         result = self.client.get_user_id(code)
         username = result.get(self.username_field)
         email = result.get(self.email_field)
+        id_from_idp = result.get(self.id_from_idp_field)
         if username:
-            resp = _login(username, self.idp_name, email=email)
-            self.post_login(flask.g.user, result)
+            resp = _login(username, self.idp_name, email=email, id_from_idp=id_from_idp)
+            self.post_login(
+                user=flask.g.user, token_result=result, id_from_idp=id_from_idp
+            )
             return resp
         raise UserError(result)
 
-    def post_login(self, user=None, token_result=None):
-        prepare_login_log(self.idp_name)
+    def post_login(self, user=None, token_result=None, id_from_idp=None):
+        prepare_login_log(self.idp_name, id_from_idp=id_from_idp)
 
 
-def prepare_login_log(idp_name):
+def prepare_login_log(idp_name, id_from_idp=None):
     flask.g.audit_data = {
         "username": flask.g.user.username,
-        "sub": flask.g.user.id,
+        "sub": id_from_idp,
         "idp": idp_name,
         "fence_idp": flask.session.get("fence_idp"),
         "shib_idp": flask.session.get("shib_idp"),
@@ -122,12 +136,12 @@ def prepare_login_log(idp_name):
     }
 
 
-def _login(username, idp_name, email=None):
+def _login(username, idp_name, email=None, id_from_idp=None):
     """
     Login user with given username, then redirect if session has a saved
     redirect.
     """
-    login_user(username, idp_name, email=email)
+    login_user(username, idp_name, email=email, id_from_idp=id_from_idp)
 
     if config["REGISTER_USERS_ON"]:
         if not flask.g.user.additional_info.get("registration_info"):

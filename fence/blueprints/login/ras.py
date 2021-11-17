@@ -38,7 +38,7 @@ class RASCallback(DefaultOAuth2Callback):
             username_field="username",
         )
 
-    def post_login(self, user=None, token_result=None):
+    def post_login(self, user=None, token_result=None, id_from_idp=None):
         # TODO: I'm not convinced this code should be in post_login.
         # Just putting it in here for now, but might refactor later.
         # This saves us a call to RAS /userinfo, but will not make sense
@@ -118,4 +118,4 @@ class RASCallback(DefaultOAuth2Callback):
             user=user, refresh_token=refresh_token, expires=expires + issued_time
         )
 
-        super(RASCallback, self).post_login()
+        super(RASCallback, self).post_login(id_from_idp=id_from_idp)

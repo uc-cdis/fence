@@ -22,6 +22,7 @@ from fence.models import (
     User,
     IssSubPairToUser,
     query_for_user,
+    create_user,
 )
 from fence.jwt.validate import validate_jwt
 from fence.utils import DEFAULT_BACKOFF_SETTINGS
@@ -117,7 +118,7 @@ class RASOauth2Client(Oauth2ClientBase):
 
     def get_user_id(self, code):
 
-        err_msg = "Can't get user's info"
+        err_msg = "Unable to parse UserID from RAS userinfo response"
 
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
@@ -148,12 +149,6 @@ class RASOauth2Client(Oauth2ClientBase):
             elif userinfo.get("userid"):
                 username = userinfo["userid"]
                 field_name = "userid"
-            elif userinfo.get("preferred_username"):
-                username = userinfo["preferred_username"]
-                field_name = "preferred_username"
-            elif claims.get("sub"):
-                username = claims["sub"]
-                field_name = "sub"
             if not username:
                 self.logger.error(
                     "{}, received claims: {} and userinfo: {}".format(
@@ -184,7 +179,11 @@ class RASOauth2Client(Oauth2ClientBase):
             self.logger.exception("{}: {}".format(err_msg, e))
             return {"error": err_msg}
 
-        return {"username": username, "email": email}
+        return {
+            "username": username,
+            "email": userinfo.get("email"),
+            "sub": userinfo.get("sub"),
+        }
 
     def map_iss_sub_pair_to_user(self, issuer, subject_id, username, email):
         """
@@ -196,8 +195,8 @@ class RASOauth2Client(Oauth2ClientBase):
         warning for more details.
 
         Args:
-            issuer (str): RAS issuer
-            subject_id (str): RAS subject
+            issuer (str): issuer
+            subject_id (str): subject
             username (str): username of the Fence user who is being mapped to
             email (str): email to populate the mapped Fence user with in cases
                          when this function creates the mapped user or changes
@@ -215,12 +214,12 @@ class RASOauth2Client(Oauth2ClientBase):
             user = query_for_user(db_session, username)
             if iss_sub_pair_to_user:
                 if not user:
-                    # TODO just say DRS, not DRS/data
                     self.logger.info(
-                        "Issuer and subject id have already been mapped to a "
-                        "Fence user created from the DRS endpoint. "
-                        "Changing said user's username to the username "
-                        "returned from the RAS userinfo endpoint."
+                        f'Issuer ("{issuer}") and subject id ("{subject_id}") '
+                        "have already been mapped to a Fence user "
+                        f'("{iss_sub_pair_to_user.user.username}") created '
+                        "from the DRS endpoint. Changing said user's username"
+                        f' to "{username}".'
                     )
                     # TODO also change username in Arborist
                     iss_sub_pair_to_user.user.username = username
@@ -229,30 +228,28 @@ class RASOauth2Client(Oauth2ClientBase):
                 elif iss_sub_pair_to_user.user.username != username:
                     self.logger.warning(
                         "Two users exist in the Fence database corresponding "
-                        "to the RAS user who is currently trying to log in: one "
-                        "created from an earlier login and one created from "
-                        "the DRS endpoint. The one created from the "
-                        "DRS endpoint will be logged in, rendering the "
-                        "other one inaccessible."
+                        "to the user who is currently trying to log in: one "
+                        f'created from an earlier login ("{username}") and '
+                        f"one created from the DRS endpoint "
+                        f'("{iss_sub_pair_to_user.user.username}"). '
+                        f'"{iss_sub_pair_to_user.user.username}" will be '
+                        f'logged in, rendering "{username}" inaccessible.'
                     )
                 return iss_sub_pair_to_user.user.username
 
             if not user:
-                self.logger.info(
-                    "Creating a user in the Fence database before mapping issuer and subject id"
+                user = create_user(
+                    db_session,
+                    self.logger,
+                    username,
+                    email=email,
+                    idp_name=IdentityProvider.ras,
                 )
-                user = User(username=username, email=email)
-                idp = (
-                    db_session.query(IdentityProvider)
-                    .filter(IdentityProvider.name == IdentityProvider.ras)
-                    .first()
-                )
-                if not idp:
-                    idp = IdentityProvider(name=IdentityProvider.ras)
-                user.identity_provider = idp
-                db_session.add(user)
 
-            self.logger.info("Mapping issuer and subject id to Fence user")
+            self.logger.info(
+                f'Mapping issuer ("{issuer}") and subject id ("{subject_id}") '
+                f'combination to Fence user "{user.username}"'
+            )
             iss_sub_pair_to_user = IssSubPairToUser(iss=issuer, sub=subject_id)
             iss_sub_pair_to_user.user = user
             db_session.add(iss_sub_pair_to_user)
