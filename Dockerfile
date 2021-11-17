@@ -29,7 +29,7 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
 
 WORKDIR /$appname
 
-# copy ONLY poetry artifact and install
+# copy ONLY poetry artifact, install the dependencies but not fence
 # this will make sure than the dependencies is cached
 COPY poetry.lock pyproject.toml /$appname/
 RUN poetry config virtualenvs.create false \
@@ -42,6 +42,7 @@ COPY ./deployment/uwsgi/uwsgi.ini /etc/uwsgi/uwsgi.ini
 COPY ./deployment/uwsgi/wsgi.py /$appname/wsgi.py
 COPY clear_prometheus_multiproc /$appname/clear_prometheus_multiproc
 
+# install fence
 RUN poetry config virtualenvs.create false \
     && poetry install -vv --no-dev --no-interaction \
     && poetry show -v
