@@ -1,6 +1,10 @@
 import backoff
 import flask
 import requests
+
+# the whole passports module is imported to avoid issue with circular imports
+import fence.resources.ga4gh.passports
+
 from flask_sqlalchemy_session import current_session
 from jose import jwt as jose_jwt
 
@@ -9,9 +13,15 @@ from authutils.token.core import get_iss, get_kid
 
 
 from fence.config import config
+from fence.models import (
+    GA4GHVisaV1,
+    IdentityProvider,
+    User,
+    IssSubPairToUser,
+    query_for_user,
+    create_user,
+)
 from fence.jwt.validate import validate_jwt
-from fence.models import GA4GHVisaV1
-from fence.resources.ga4gh.passports import get_unvalidated_visas_from_valid_passport
 from fence.utils import DEFAULT_BACKOFF_SETTINGS
 from .idp_oauth2 import Oauth2ClientBase
 
@@ -85,7 +95,11 @@ class RASOauth2Client(Oauth2ClientBase):
             list: list of encoded GA4GH visas
         """
         encoded_passport = userinfo.get("passport_jwt_v11")
-        return get_unvalidated_visas_from_valid_passport(encoded_passport, pkey_cache)
+        return (
+            fence.resources.ga4gh.passports.get_unvalidated_visas_from_valid_passport(
+                encoded_passport, pkey_cache
+            )
+        )
 
     def get_user_id(self, code):
 
@@ -136,6 +150,17 @@ class RASOauth2Client(Oauth2ClientBase):
 
             self.logger.info("Using {} field as username.".format(field_name))
 
+            email = userinfo.get("email")
+            issuer = self.get_value_from_discovery_doc("issuer", "")
+            subject_id = userinfo.get("sub")
+            if not issuer or not subject_id:
+                err_msg = "Could not determine both issuer and subject id"
+                self.logger.error(err_msg)
+                return {"error": err_msg}
+            username = self.map_iss_sub_pair_to_user(
+                issuer, subject_id, username, email
+            )
+
             # Save userinfo and token in flask.g for later use in post_login
             flask.g.userinfo = userinfo
             flask.g.tokens = token
@@ -145,7 +170,78 @@ class RASOauth2Client(Oauth2ClientBase):
             self.logger.exception("{}: {}".format(err_msg, e))
             return {"error": err_msg}
 
-        return {"username": username, "email": userinfo.get("email")}
+        return {"username": username, "email": email}
+
+    def map_iss_sub_pair_to_user(self, issuer, subject_id, username, email):
+        """
+        Map <issuer, subject_id> combination to a Fence user whose username
+        equals the username argument passed into this function.
+
+        One exception to this is when two Fence users exist who both
+        correspond to the user who is trying to log in. Please see logged
+        warning for more details.
+
+        Args:
+            issuer (str): issuer
+            subject_id (str): subject
+            username (str): username of the Fence user who is being mapped to
+            email (str): email to populate the mapped Fence user with in cases
+                         when this function creates the mapped user or changes
+                         its username
+
+        Return:
+            str: username that should be logged in. this will be equal to
+                 username that was passed in in all cases except for the
+                 exception noted above
+        """
+        with flask.current_app.db.session as db_session:
+            iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get(
+                (issuer, subject_id)
+            )
+            user = query_for_user(db_session, username)
+            if iss_sub_pair_to_user:
+                if not user:
+                    self.logger.info(
+                        f'Issuer ("{issuer}") and subject id ("{subject_id}") '
+                        "have already been mapped to a Fence user "
+                        f'("{iss_sub_pair_to_user.user.username}") created '
+                        "from the DRS endpoint. Changing said user's username"
+                        f' to "{username}".'
+                    )
+                    # TODO also change username in Arborist
+                    iss_sub_pair_to_user.user.username = username
+                    iss_sub_pair_to_user.user.email = email
+                    db_session.commit()
+                elif iss_sub_pair_to_user.user.username != username:
+                    self.logger.warning(
+                        "Two users exist in the Fence database corresponding "
+                        "to the user who is currently trying to log in: one "
+                        f'created from an earlier login ("{username}") and '
+                        f"one created from the DRS endpoint "
+                        f'("{iss_sub_pair_to_user.user.username}"). '
+                        f'"{iss_sub_pair_to_user.user.username}" will be '
+                        f'logged in, rendering "{username}" inaccessible.'
+                    )
+                return iss_sub_pair_to_user.user.username
+
+            if not user:
+                user = create_user(
+                    db_session,
+                    self.logger,
+                    username,
+                    email=email,
+                    idp_name=IdentityProvider.ras,
+                )
+
+            self.logger.info(
+                f'Mapping issuer ("{issuer}") and subject id ("{subject_id}") '
+                f'combination to Fence user "{user.username}"'
+            )
+            iss_sub_pair_to_user = IssSubPairToUser(iss=issuer, sub=subject_id)
+            iss_sub_pair_to_user.user = user
+            db_session.add(iss_sub_pair_to_user)
+            db_session.commit()
+            return iss_sub_pair_to_user.user.username
 
     @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
     def update_user_visas(self, user, pkey_cache, db_session=current_session):

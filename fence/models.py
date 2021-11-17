@@ -66,6 +66,40 @@ def query_for_user(session, username):
     )
 
 
+def create_user(session, logger, username, email=None, idp_name=None):
+    """
+    Create a new user in the database.
+
+    Args:
+        session (sqlalchemy.orm.session.Session): database session
+        logger (logging.Logger): logger
+        username (str): username to save for the created user
+        email (str): email to save for the created user
+        idp_name (str): name of identity provider to link
+
+    Return:
+        userdatamodel.user.User: the created user
+    """
+    logger.info(f'Creating a new Fence user with username "{username}"')
+
+    user = User(username=username)
+    if email:
+        user.email = email
+    if idp_name:
+        idp = (
+            session.query(IdentityProvider)
+            .filter(IdentityProvider.name == idp_name)
+            .first()
+        )
+        if not idp:
+            idp = IdentityProvider(name=idp_name)
+        user.identity_provider = idp
+
+    session.add(user)
+    session.commit()
+    return user
+
+
 class ClientAuthType(Enum):
     """
     List the possible types of OAuth client authentication, which are
@@ -594,34 +628,21 @@ class UpstreamRefreshToken(Base):
     expires = Column(BigInteger, nullable=False)
 
 
-class IdPToUser(Base):
-    # IdP & IdP sub mapping to Gen3 User sub
+class IssSubPairToUser(Base):
+    # issuer & sub pair mapping to Gen3 User sub
 
-    __tablename__ = "idp_to_user"
+    __tablename__ = "iss_sub_pair_to_user"
 
+    iss = Column(String(), primary_key=True)
     sub = Column(String(), primary_key=True)
 
-    fk_to_idp = Column(
-        Integer,
-        ForeignKey(IdentityProvider.id, ondelete="CASCADE"),
-        nullable=False,
-        primary_key=True,
-    )  # foreign key for identity_provider table
-    idp = relationship(
-        "IdentityProvider",
-        backref=backref(
-            "idp_to_users",
-            cascade="all, delete-orphan",
-            passive_deletes=True,
-        ),
-    )
     fk_to_User = Column(
         Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False
     )  #  foreign key for User table
     user = relationship(
         "User",
         backref=backref(
-            "idp_to_users",
+            "iss_sub_pairs",
             cascade="all, delete-orphan",
             passive_deletes=True,
         ),

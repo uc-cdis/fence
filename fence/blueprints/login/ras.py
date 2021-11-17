@@ -1,6 +1,9 @@
 import flask
 import jwt
 import os
+
+# the whole fence_create module is imported to avoid issue with circular imports
+import fence.scripting.fence_create
 from distutils.util import strtobool
 from urllib.parse import urlparse, parse_qs
 
@@ -13,7 +16,6 @@ from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callbac
 from fence.config import config
 from fence.jwt.validate import validate_jwt
 from fence.models import GA4GHVisaV1, IdentityProvider
-from fence.scripting.fence_create import init_syncer
 from fence.utils import get_valid_expiration
 
 logger = get_logger(__name__)
@@ -91,11 +93,6 @@ class RASCallback(DefaultOAuth2Callback):
                 # Embedded token must not contain aud claim
                 if "aud" in decoded_visa:
                     raise JWTError("Visa contains the 'aud' claim.")
-                if not user.idp_to_users:
-                    # map user to idp
-                    self.map_user_idp_info(
-                        user, userinfo.get("sub"), IdentityProvider.ras, current_session
-                    )
             except Exception as e:
                 logger.error("Visa failed validation: {}. Discarding visa.".format(e))
                 continue
@@ -173,12 +170,12 @@ class RASCallback(DefaultOAuth2Callback):
             if not isinstance(dbGaP, list):
                 dbGaP = [dbGaP]
 
-            sync = init_syncer(
+            sync = fence.scripting.fence_create.init_syncer(
                 dbGaP,
                 None,
                 DB,
                 arborist=arborist,
             )
-            sync.sync_single_user_visas(user, current_session)
+            sync.sync_single_user_visas(user, user.ga4gh_visas_v1, current_session)
 
         super(RASCallback, self).post_login()

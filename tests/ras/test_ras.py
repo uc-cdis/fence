@@ -10,14 +10,15 @@ from cdislogging import get_logger
 from fence.blueprints.login.ras import RASCallback
 from fence.config import config
 from fence.models import (
+    query_for_user,
     User,
     UpstreamRefreshToken,
     GA4GHVisaV1,
     IdentityProvider,
-    IdPToUser,
+    IssSubPairToUser,
 )
 from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
-from fence.config import config
+from fence.resources.ga4gh.passports import get_or_create_gen3_user_from_iss_sub
 
 from tests.dbgap_sync.conftest import add_visa_manually
 from fence.job.visa_update_cronjob import Visa_Token_Update
@@ -644,46 +645,101 @@ def test_visa_update_cronjob(
         assert visa.ga4gh_visa == encoded_visa
 
 
-def test_map_user_idp_info_for_ras(db_session):
+def test_map_iss_sub_pair_to_user_with_no_prior_DRS_access(db_session):
     """
-    test regular flow where user and idp already exists in database and map it to the idp_to_user table
+    Test RASOauth2Client.map_iss_sub_pair_to_user when the username passed in
+    (e.g. eRA username) does not already exist in the Fence database and that
+    user's <iss, sub> combination has not already been mapped through a prior
+    DRS/data access request.
     """
+    iss = "https://domain.tld"
+    sub = "123_abc"
+    username = "johnsmith"
+    email = "johnsmith@domain.tld"
+    oidc = config.get("OPENID_CONNECT", {})
+    ras_client = RASClient(
+        oidc["ras"],
+        HTTP_PROXY=config.get("HTTP_PROXY"),
+        logger=logger,
+    )
 
-    ras_callback = RASCallback()
-    test_user = add_test_user(db_session)
-    user_sub = "sub12345"
-    provider = IdentityProvider.ras
+    assert not query_for_user(db_session, username)
+    iss_sub_pair_to_user_records = db_session.query(IssSubPairToUser).all()
+    assert len(iss_sub_pair_to_user_records) == 0
 
-    query_idp_to_user = db_session.query(IdPToUser).all()
-    assert len(query_idp_to_user) == 0
+    username_to_log_in = ras_client.map_iss_sub_pair_to_user(iss, sub, username, email)
 
-    ras_callback.map_user_idp_info(test_user, user_sub, provider, db_session)
+    assert username_to_log_in == username
+    iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get((iss, sub))
+    assert iss_sub_pair_to_user.user.username == username
+    assert iss_sub_pair_to_user.user.email == email
+    iss_sub_pair_to_user_records = db_session.query(IssSubPairToUser).all()
+    assert len(iss_sub_pair_to_user_records) == 1
 
-    query_idp_to_user = db_session.query(IdPToUser).first()
-    assert query_idp_to_user.sub == user_sub
-    assert str(query_idp_to_user.fk_to_User) == str(test_user.id)
 
-
-def test_map_idp_info_for_unknown_idp(db_session):
+def test_map_iss_sub_pair_to_user_with_prior_DRS_access(db_session):
     """
-    Test flow where user exists in database but idp does not
+    Test RASOauth2Client.map_iss_sub_pair_to_user when the username passed in
+    (e.g. eRA username) does not already exist in the Fence database but that
+    user's <iss, sub> combination has already been mapped to an existing user
+    created during a prior DRS/data access request. In this case, that
+    existing user's username is changed from sub+iss to the username passed
+    in.
     """
-    ras_callback = RASCallback()
-    test_user = add_test_user(db_session)
-    user_sub = "sub12345"
-    provider = "new_idp"
+    iss = "https://domain.tld"
+    sub = "123_abc"
+    username = "johnsmith"
+    email = "johnsmith@domain.tld"
+    oidc = config.get("OPENID_CONNECT", {})
+    ras_client = RASClient(
+        oidc["ras"],
+        HTTP_PROXY=config.get("HTTP_PROXY"),
+        logger=logger,
+    )
 
-    query_idp_to_user = db_session.query(IdPToUser).all()
-    assert len(query_idp_to_user) == 0
+    get_or_create_gen3_user_from_iss_sub(iss, sub)
+    iss_sub_pair_to_user_records = db_session.query(IssSubPairToUser).all()
+    assert len(iss_sub_pair_to_user_records) == 1
+    iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get((iss, sub))
+    assert iss_sub_pair_to_user.user.username == "123_abcdomain.tld"
 
-    query_idp = db_session.query(IdentityProvider).all()
-    n_idp = len(query_idp)
+    username_to_log_in = ras_client.map_iss_sub_pair_to_user(iss, sub, username, email)
 
-    ras_callback.map_user_idp_info(test_user, user_sub, provider, db_session)
+    assert username_to_log_in == username
+    iss_sub_pair_to_user_records = db_session.query(IssSubPairToUser).all()
+    assert len(iss_sub_pair_to_user_records) == 1
+    iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get((iss, sub))
+    assert iss_sub_pair_to_user.user.username == username
+    assert iss_sub_pair_to_user.user.email == email
 
-    query_idp_to_user = db_session.query(IdPToUser).first()
-    assert query_idp_to_user.sub == user_sub
-    assert str(query_idp_to_user.fk_to_User) == str(test_user.id)
 
-    query_idp = db_session.query(IdentityProvider).all()
-    assert len(query_idp) == n_idp + 1
+def test_map_iss_sub_pair_to_user_with_prior_login_and_prior_DRS_access(
+    db_session,
+):
+    """
+    Test RASOauth2Client.map_iss_sub_pair_to_user when the username passed in
+    (e.g. eRA username) already exists in the Fence database and that
+    user's <iss, sub> combination has already been mapped to a separate user
+    created during a prior DRS/data access request. In this case,
+    map_iss_sub_pair_to_user returns the user created from prior DRS/data
+    access, rendering the other user (e.g. the eRA one) inaccessible.
+    """
+    iss = "https://domain.tld"
+    sub = "123_abc"
+    username = "johnsmith"
+    email = "johnsmith@domain.tld"
+    oidc = config.get("OPENID_CONNECT", {})
+    ras_client = RASClient(
+        oidc["ras"],
+        HTTP_PROXY=config.get("HTTP_PROXY"),
+        logger=logger,
+    )
+    user = User(username=username, email=email)
+    db_session.add(user)
+    db_session.commit()
+
+    get_or_create_gen3_user_from_iss_sub(iss, sub)
+    username_to_log_in = ras_client.map_iss_sub_pair_to_user(iss, sub, username, email)
+    assert username_to_log_in == "123_abcdomain.tld"
+    iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get((iss, sub))
+    assert iss_sub_pair_to_user.user.username == "123_abcdomain.tld"

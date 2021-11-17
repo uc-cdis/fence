@@ -1612,6 +1612,7 @@ class UserSyncer(object):
         Args:
             user_projects (dict)
             user_yaml (UserYAML) optional, if there are policies for users in a user.yaml
+            expiration (datetime.datetime): expiration time
 
         Return:
             bool: success
@@ -1670,9 +1671,9 @@ class UserSyncer(object):
                 username = user.username
 
             self.arborist_client.create_user_if_not_exist(username)
-
-            # TODO make this smarter - it should do a diff, not revoke all and add
-            self.arborist_client.revoke_all_policies_for_user(username)
+            if not single_user_sync:
+                # TODO make this smarter - it should do a diff, not revoke all and add
+                self.arborist_client.revoke_all_policies_for_user(username)
             for project, permissions in user_project_info.items():
 
                 # check if this is a dbgap project, if it is, we need to get the right
@@ -1714,51 +1715,55 @@ class UserSyncer(object):
                         # so the policy id will be something like 'x.y.z-create'
                         policy_id = _format_policy_id(path, permission)
 
-                        if not single_user_sync:
-                            if policy_id not in self._created_policies:
-                                try:
-                                    # TODO use expires
-                                    self.arborist_client.update_policy(
-                                        policy_id,
-                                        {
-                                            "description": "policy created by fence sync",
-                                            "role_ids": [permission],
-                                            "resource_paths": [path],
-                                        },
-                                        create_if_not_exist=True,
-                                    )
-                                except ArboristError as e:
-                                    self.logger.info(
-                                        "not creating policy in arborist; {}".format(
-                                            str(e)
-                                        )
-                                    )
-                                self._created_policies.add(policy_id)
-                            self.arborist_client.grant_user_policy(username, policy_id)
+                        if policy_id not in self._created_policies:
+                            try:
+                                self.arborist_client.update_policy(
+                                    policy_id,
+                                    {
+                                        "description": "policy created by fence sync",
+                                        "role_ids": [permission],
+                                        "resource_paths": [path],
+                                    },
+                                    create_if_not_exist=True,
+                                )
+                            except ArboristError as e:
+                                self.logger.info(
+                                    "not creating policy in arborist; {}".format(str(e))
+                                )
+                            self._created_policies.add(policy_id)
+                        self.arborist_client.grant_user_policy(username, policy_id)
+                        # TODO need to add expiration to this function in gen3authz
+                        # self.arborist_client.grant_user_policy(username, policy_id, expiration=expiration)
 
-                        if single_user_sync:
-                            policy_id_list.append(policy_id)
-                            policy_json = {
-                                "id": policy_id,
-                                "description": "policy created by fence sync",
-                                "role_ids": [permission],
-                                "resource_paths": [path],
-                            }
-                            policies.append(policy_json)
+            # TODO As of 10-11-2021, there's no endpoint yet in Arborist to
+            # support the creation of policies in bulk. When syncing RAS
+            # passport authz information at the time of data access, the
+            # passport policies may need to be created before they can be
+            # updated. This code has been left commented out for later use
+            # when bulk Arborist policy creation is suppported.
 
-            if single_user_sync:
-                try:
-                    self.arborist_client.update_bulk_policy(policies)
-                    self.arborist_client.grant_bulk_user_policy(
-                        username, policy_id_list
-                    )
-                except Exception as e:
-                    self.logger.info(
-                        "Couldn't update bulk policy for user {}: {}".format(
-                            username, e
-                        )
-                    )
-
+            #             if single_user_sync:
+            #                 policy_id_list.append(policy_id)
+            #                 policy_json = {
+            #                     "id": policy_id,
+            #                     "description": "policy created by fence sync",
+            #                     "role_ids": [permission],
+            #                     "resource_paths": [path],
+            #                 }
+            #                 policies.append(policy_json)
+            # if single_user_sync:
+            #     try:
+            #         self.arborist_client.update_bulk_policy(policies)
+            #         self.arborist_client.grant_bulk_user_policy(
+            #             username, policy_id_list
+            #         )
+            #     except Exception as e:
+            #         self.logger.info(
+            #             "Couldn't update bulk policy for user {}: {}".format(
+            #                 username, e
+            #             )
+            #         )
+            #
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
                     self.arborist_client.grant_user_policy(username, policy)
@@ -2115,11 +2120,22 @@ class UserSyncer(object):
                 self._sync_visas(s)
         # if returns with some failure use telemetry file
 
-    def sync_single_user_visas(self, user, sess=None, expires=None):
+    def sync_single_user_visas(self, user, ga4gh_visas, sess=None, expires=None):
         """
-        Sync a single user's visa during login
-        """
+        Sync a single user's visas during login or DRS/data access
 
+        Args:
+            user (userdatamodel.user.User): Fence user whose visas'
+                                            authz info is being synced
+            ga4gh_visas (list): a list of fence.models.GA4GHVisaV1 objects
+                                that are parsed and synced
+            sess (sqlalchemy.orm.session.Session): database session
+            expires (int): time at which synced Arborist policies and
+                           inclusion in any GBAG are set to expire
+
+        Return:
+            None
+        """
         self.ras_sync_client = RASVisa(logger=self.logger)
         dbgap_config = self.dbGaP[0]
         enable_common_exchange_area_access = dbgap_config.get(
@@ -2143,7 +2159,7 @@ class UserSyncer(object):
         projects = {}
         info = {}
 
-        for visa in user.ga4gh_visas_v1:
+        for visa in ga4gh_visas:
             project = {}
             visa_type = self._pick_sync_type(visa)
             encoded_visa = visa.ga4gh_visa

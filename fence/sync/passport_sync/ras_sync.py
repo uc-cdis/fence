@@ -34,15 +34,15 @@ class RASVisa(DefaultVisa):
         if time.time() < expires:
             for permission in ras_dbgap_permissions:
                 phsid = permission.get("phs_id", "")
-                version = permission.get("version", "")
-                participant_set = permission.get("participant_set", "")
                 consent_group = permission.get("consent_group", "")
                 full_phsid = phsid
                 if parse_consent_code and consent_group:
                     full_phsid += "." + consent_group
                 privileges = {"read-storage", "read"}
-                project[full_phsid] = privileges
-                info["tags"] = {"dbgap_role": permission.get("role", "")}
+                permission_expiration = permission.get("expiration")
+                if permission_expiration and expires <= permission_expiration:
+                    project[full_phsid] = privileges
+                    info["tags"] = {"dbgap_role": permission.get("role", "")}
         else:
             # Remove visas if its invalid or expired
             user.ga4gh_visas_v1 = []

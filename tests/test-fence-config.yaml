@@ -469,7 +469,7 @@ INDEXD: null
 # this is the username which fence uses to make authenticated requests to indexd
 INDEXD_USERNAME: 'gdcapi'
 # this is the password which fence uses to make authenticated requests to indexd
-INDEXD_PASSWORD: 'fake_password'
+INDEXD_PASSWORD: 'fake_password' # pragma: allowlist secret
 
 # url where authz microservice is running
 ARBORIST: '/arborist'
@@ -483,7 +483,7 @@ ARBORIST: '/arborist'
 AZ_BLOB_CREDENTIALS: 'fake connection string'
 
 # AZ_BLOB_CONTAINER_URL: 'https://storageaccount.blob.core.windows.net/container/'
-# this is the container used for uploading, and should match the storage account 
+# this is the container used for uploading, and should match the storage account
 # used in the connection string for AZ_BLOB_CREDENTIALS
 AZ_BLOB_CONTAINER_URL: 'https://myfakeblob.blob.core.windows.net/my-fake-container/'
 
@@ -615,4 +615,5 @@ ASSUME_ROLE_CACHE_SECONDS: 1800
 
 # List of JWT issuers from which Fence will accept GA4GH visas
 GA4GH_VISA_ISSUER_ALLOWLIST:
+  - 'https://sts.nih.gov'
   - 'https://stsstg.nih.gov'

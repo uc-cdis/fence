@@ -739,7 +739,7 @@ def test_sync_in_login(
     user = models.query_for_user(
         session=db_session, username="TESTUSERB"
     )  # contains no information
-    syncer.sync_single_user_visas(user, db_session)
+    syncer.sync_single_user_visas(user, user.ga4gh_visas_v1, db_session)
     user = models.query_for_user(
         session=db_session, username="TESTUSERB"
     )  # contains only visa information
