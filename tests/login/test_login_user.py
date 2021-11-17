@@ -7,19 +7,25 @@ from fence.models import User, IdentityProvider
 def test_login_user_already_in_db(db_session):
     """
     Test that if a user is already in the database and logs in, the session will contain
-    the user's information.
+    the user's information (including additional information that may have been provided
+    during the login like email and id_from_idp)
     """
     email = "testuser@gmail.com"
     provider = "Test Provider"
+    id_from_idp = "Provider_ID_0001"
 
     test_user = User(username=email, is_admin=False)
     db_session.add(test_user)
     db_session.commit()
     user_id = str(test_user.id)
+    assert not test_user.email
+    assert not test_user.id_from_idp
 
-    login_user(email, provider)
+    login_user(email, provider, email=email, id_from_idp=id_from_idp)
 
     assert test_user.identity_provider.name == provider
+    assert test_user.id_from_idp == id_from_idp
+    assert test_user.email == email
     assert flask.session["username"] == email
     assert flask.session["provider"] == provider
     assert flask.session["user_id"] == user_id
@@ -33,8 +39,11 @@ def test_login_user_with_idp_already_in_db(db_session):
     """
     email = "testuser@gmail.com"
     provider = "Test Provider"
+    id_from_idp = "Provider_ID_0001"
 
-    test_user = User(username=email, is_admin=False)
+    test_user = User(
+        username=email, email=email, id_from_idp=id_from_idp, is_admin=False
+    )
     test_idp = IdentityProvider(name=provider)
     test_user.identity_provider = test_idp
 
@@ -42,9 +51,11 @@ def test_login_user_with_idp_already_in_db(db_session):
     db_session.commit()
     user_id = str(test_user.id)
 
-    login_user(email, provider)
+    login_user(email, provider, email=email, id_from_idp=id_from_idp)
 
     assert test_user.identity_provider.name == provider
+    assert test_user.id_from_idp == id_from_idp
+    assert test_user.email == email
     assert flask.session["username"] == email
     assert flask.session["provider"] == provider
     assert flask.session["user_id"] == user_id
@@ -58,12 +69,15 @@ def test_login_new_user(db_session):
     """
     email = "testuser@gmail.com"
     provider = "Test Provider"
+    id_from_idp = "Provider_ID_0001"
 
-    login_user(email, provider)
+    login_user(email, provider, email=email, id_from_idp=id_from_idp)
 
     test_user = db_session.query(User).filter(User.username == email.lower()).first()
 
     assert test_user.identity_provider.name == provider
+    assert test_user.id_from_idp == id_from_idp
+    assert test_user.email == email
     assert flask.session["username"] == email
     assert flask.session["provider"] == provider
     assert flask.session["user_id"] == str(test_user.id)
