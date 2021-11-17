@@ -29,9 +29,12 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
 
 WORKDIR /$appname
 
-# copy ONLY poetry artifact and install
-# this will make sure than the dependencies is cached
-COPY poetry.lock pyproject.toml /$appname/
+# copy ONLY poetry artifact
+# this will make sure that the dependencies are cached
+COPY poetry.lock pyproject.toml bin /$appname/
+# include files referred to in `tool.poetry.scripts`
+COPY bin/ /$appname/bin/
+# install
 RUN poetry config virtualenvs.create false \
     && poetry install -vv --no-root --no-dev --no-interaction \
     && poetry show -v
