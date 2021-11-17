@@ -233,7 +233,10 @@ class RASOauth2Client(Oauth2ClientBase):
                     idp_name=IdentityProvider.ras,
                 )
 
-            self.logger.info("Mapping issuer and subject id to Fence user")
+            self.logger.info(
+                f'Mapping issuer ("{issuer}") and subject id ("{subject_id}") '
+                f'combination to Fence user "{user.username}"'
+            )
             iss_sub_pair_to_user = IssSubPairToUser(iss=issuer, sub=subject_id)
             iss_sub_pair_to_user.user = user
             db_session.add(iss_sub_pair_to_user)
