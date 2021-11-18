@@ -30,6 +30,12 @@ def get_ga4gh_signed_url(object_id, access_id):
             config["GA4GH_DRS_POSTED_PASSPORT_FIELD"]
         )
 
+        if ga4gh_passports and flask.request.headers.get("Authorization"):
+            raise UserError(
+                "You cannot supply both GA4GH passports and a token "
+                "in the Authorization header of a request."
+            )
+
     result = get_signed_url_for_file(
         "download",
         object_id,
