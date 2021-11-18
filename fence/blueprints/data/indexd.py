@@ -80,6 +80,8 @@ def get_signed_url_for_file(
     if ga4gh_passports:
         # TODO change this to usernames
         user_ids_from_passports = get_gen3_users_from_ga4gh_passports(ga4gh_passports)
+        print("------------user idss from passports---------------")
+        print(user_ids_from_passports)
 
     # add the user details to `flask.g.audit_data` first, so they are
     # included in the audit log if `IndexedFile(file_id)` raises a 404
@@ -436,11 +438,24 @@ class IndexedFile(object):
         if action is not None and action not in SUPPORTED_ACTIONS:
             raise NotSupported("action {} is not supported".format(action))
         return self._get_signed_url(
-            protocol, action, expires_in, force_signed_url, r_pays_project, file_name
+            protocol,
+            action,
+            expires_in,
+            force_signed_url,
+            r_pays_project,
+            file_name,
+            user_ids_from_passports,
         )
 
     def _get_signed_url(
-        self, protocol, action, expires_in, force_signed_url, r_pays_project, file_name
+        self,
+        protocol,
+        action,
+        expires_in,
+        force_signed_url,
+        r_pays_project,
+        file_name,
+        user_ids_from_passports=None,
     ):
         if action == "upload":
             # NOTE: self.index_document ensures the GUID exists in indexd and raises
@@ -475,6 +490,7 @@ class IndexedFile(object):
                     public_data=self.public,
                     force_signed_url=force_signed_url,
                     r_pays_project=r_pays_project,
+                    user_ids_from_passports=user_ids_from_passports,
                 )
 
         raise NotFound(
@@ -687,6 +703,7 @@ class IndexedFileLocation(object):
         expires_in,
         public_data=False,
         force_signed_url=True,
+        user_ids_from_passports=None,
         **kwargs,
     ):
         return self.url
@@ -1050,10 +1067,11 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         public_data=False,
         force_signed_url=True,
         r_pays_project=None,
+        user_ids_from_passports=None,
     ):
         resource_path = self.get_resource_path()
 
-        user_info = _get_user_info()
+        user_info = _get_user_info(user_ids_from_passports=user_ids_from_passports)
 
         if public_data and not force_signed_url:
             url = "https://storage.cloud.google.com/" + resource_path
@@ -1428,13 +1446,19 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
             return ("Failed to delete data file.", status_code)
 
 
-def _get_user_info(sub_type=str):
+def _get_user_info(sub_type=str, user_ids_from_passports=None):
     """
     Attempt to parse the request for token to authenticate the user. fallback to
     populated information about an anonymous user.
     By default, cast `sub` to str. Use `sub_type` to override this behavior.
     """
     # TODO Update to support POSTed passport
+    print("-----get user_infdo==========")
+    print(user_ids_from_passports)
+    # if user_ids_from_passports:
+    #     try:
+    #         #query idp table
+    #         user_id = ""
     try:
         set_current_token(
             validate_request(scope={"user"}, audience=config.get("BASE_URL"))
