@@ -226,11 +226,8 @@ def get_login_providers_info():
     return default_provider_info, all_provider_info
 
 
-def make_login_blueprint(app):
+def make_login_blueprint():
     """
-    Args:
-        app (flask.Flask): a flask app (with `app.config` set up)
-
     Return:
         flask.Blueprint: the blueprint used for ``/login`` endpoints
 
