@@ -46,7 +46,7 @@ from fence.resources.google.utils import (
 from fence.resources.ga4gh.passports import get_gen3_users_from_ga4gh_passports
 from fence.utils import get_valid_expiration_from_request
 from . import multipart_upload
-from ...models import AssumeRoleCacheAWS
+from ...models import AssumeRoleCacheAWS, query_for_user
 from ...models import AssumeRoleCacheGCP
 
 logger = get_logger(__name__)
@@ -412,10 +412,11 @@ class IndexedFile(object):
                 "upload": "write-storage",
                 "download": "read-storage",
             }
-            if not self.check_authz(
+            authorized_user_id = self.check_authz(
                 action_to_permission[action],
                 user_ids_from_passports=user_ids_from_passports,
-            ):
+            )
+            if not authorized_user_id:
                 raise Unauthorized(
                     f"Either you weren't logged in or you don't have "
                     f"{action_to_permission[action]} permission "
@@ -444,7 +445,7 @@ class IndexedFile(object):
             force_signed_url,
             r_pays_project,
             file_name,
-            user_ids_from_passports,
+            authorized_user_id,
         )
 
     def _get_signed_url(
@@ -455,7 +456,7 @@ class IndexedFile(object):
         force_signed_url,
         r_pays_project,
         file_name,
-        user_ids_from_passports=None,
+        user_id=None,
     ):
         if action == "upload":
             # NOTE: self.index_document ensures the GUID exists in indexd and raises
@@ -490,7 +491,7 @@ class IndexedFile(object):
                     public_data=self.public,
                     force_signed_url=force_signed_url,
                     r_pays_project=r_pays_project,
-                    user_ids_from_passports=user_ids_from_passports,
+                    user_id=user_id,
                 )
 
         raise NotFound(
@@ -519,6 +520,7 @@ class IndexedFile(object):
         if user_ids_from_passports:
             for user_id in user_ids_from_passports:
                 authorized = flask.current_app.arborist.auth_request(
+                    jwt=None,
                     user_id=user_id,
                     service="fence",
                     methods=action,
@@ -526,7 +528,8 @@ class IndexedFile(object):
                 )
                 # if any passport provides access, user is authorized
                 if authorized:
-                    return authorized
+                    return user_id
+                return authorized
         else:
             try:
                 token = get_jwt()
@@ -1067,11 +1070,11 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         public_data=False,
         force_signed_url=True,
         r_pays_project=None,
-        user_ids_from_passports=None,
+        user_id=None,
     ):
         resource_path = self.get_resource_path()
 
-        user_info = _get_user_info(user_ids_from_passports=user_ids_from_passports)
+        user_info = _get_user_info(user=user_id)
 
         if public_data and not force_signed_url:
             url = "https://storage.cloud.google.com/" + resource_path
@@ -1138,7 +1141,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         r_pays_project=None,
     ):
 
-        proxy_group_id = get_or_create_proxy_group_id()
+        proxy_group_id = get_or_create_proxy_group_id(user_id=user_id)
         expiration_time = int(time.time()) + expires_in
 
         is_cached = False
@@ -1446,27 +1449,29 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
             return ("Failed to delete data file.", status_code)
 
 
-def _get_user_info(sub_type=str, user_ids_from_passports=None):
+def _get_user_info(sub_type=str, user=None):
     """
     Attempt to parse the request for token to authenticate the user. fallback to
     populated information about an anonymous user.
     By default, cast `sub` to str. Use `sub_type` to override this behavior.
     """
     # TODO Update to support POSTed passport
-    print("-----get user_infdo==========")
-    print(user_ids_from_passports)
-    # if user_ids_from_passports:
-    #     try:
-    #         #query idp table
-    #         user_id = ""
     try:
-        set_current_token(
-            validate_request(scope={"user"}, audience=config.get("BASE_URL"))
-        )
-        user_id = current_token["sub"]
-        if sub_type:
-            user_id = sub_type(user_id)
-        username = current_token["context"]["user"]["name"]
+        if user:
+            print("-------------user true-----------")
+            if hasattr(flask.current_app, "db"):
+                with flask.current_app.db.session as session:
+                    result = query_for_user(session, user)
+                    username = result.username
+                    user_id = result.id
+        else:
+            set_current_token(
+                validate_request(scope={"user"}, audience=config.get("BASE_URL"))
+            )
+            user_id = current_token["sub"]
+            if sub_type:
+                user_id = sub_type(user_id)
+            username = current_token["context"]["user"]["name"]
     except JWTError:
         # this is fine b/c it might be public data, sign with anonymous username/id
         user_id = None

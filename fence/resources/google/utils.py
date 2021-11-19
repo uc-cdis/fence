@@ -515,7 +515,7 @@ def _update_service_account_db_entry(
     return service_account_db_entry
 
 
-def get_or_create_proxy_group_id(expires=None):
+def get_or_create_proxy_group_id(expires=None, user_id=None):
     """
     If no username returned from token or database, create a new proxy group
     for the give user. Also, add the access privileges.
@@ -523,7 +523,7 @@ def get_or_create_proxy_group_id(expires=None):
     Returns:
         int: id of (possibly newly created) proxy group associated with user
     """
-    proxy_group_id = _get_proxy_group_id()
+    proxy_group_id = _get_proxy_group_id(user_id=user_id)
     if not proxy_group_id:
         user_id = current_token["sub"]
         username = current_token.get("context", {}).get("user", {}).get("name", "")
@@ -557,7 +557,7 @@ def get_or_create_proxy_group_id(expires=None):
     return proxy_group_id
 
 
-def _get_proxy_group_id():
+def _get_proxy_group_id(user_id=None):
     """
     Get users proxy group id from the current token, if possible.
     Otherwise, check the database for it.
@@ -568,10 +568,15 @@ def _get_proxy_group_id():
     proxy_group_id = get_users_proxy_group_from_token()
 
     if not proxy_group_id:
+        user_id = user_id or current_token["sub"]
         user = (
-            current_session.query(User).filter(User.id == current_token["sub"]).first()
+            current_session.query(User).filter(User.id == user_id).first()
         )
+        print("-----------userid-----------")
+        print(user)
         proxy_group_id = user.google_proxy_group_id
+        print("-----proxy----")
+        print(proxy_group_id)
 
     return proxy_group_id
 
