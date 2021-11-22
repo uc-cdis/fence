@@ -121,11 +121,11 @@ class DefaultOAuth2Callback(Resource):
             return resp
         raise UserError(result)
 
-    def post_login(self, user=None, token_result=None, id_from_idp=None):
-        prepare_login_log(self.idp_name, id_from_idp=id_from_idp)
+    def post_login(self, user=None, token_result=None):
+        prepare_login_log(self.idp_name)
 
 
-def prepare_login_log(idp_name, id_from_idp=None):
+def prepare_login_log(idp_name):
     flask.g.audit_data = {
         "username": flask.g.user.username,
         "sub": flask.g.user.id,
