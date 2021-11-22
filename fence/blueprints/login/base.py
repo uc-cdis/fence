@@ -128,7 +128,7 @@ class DefaultOAuth2Callback(Resource):
 def prepare_login_log(idp_name, id_from_idp=None):
     flask.g.audit_data = {
         "username": flask.g.user.username,
-        "sub": id_from_idp,
+        "sub": flask.g.user.id,
         "idp": idp_name,
         "fence_idp": flask.session.get("fence_idp"),
         "shib_idp": flask.session.get("shib_idp"),
