@@ -121,7 +121,7 @@ class DefaultOAuth2Callback(Resource):
             return resp
         raise UserError(result)
 
-    def post_login(self, user=None, token_result=None):
+    def post_login(self, user=None, token_result=None, **kwargs):
         prepare_login_log(self.idp_name)
 
 
