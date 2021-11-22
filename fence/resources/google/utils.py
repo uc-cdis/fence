@@ -3,6 +3,7 @@ import json
 import os
 from cryptography.fernet import Fernet
 import flask
+from sqlalchemy.sql.functions import user
 from flask_sqlalchemy_session import current_session
 from sqlalchemy import desc, func
 
@@ -525,8 +526,13 @@ def get_or_create_proxy_group_id(expires=None, user_id=None):
     """
     proxy_group_id = _get_proxy_group_id(user_id=user_id)
     if not proxy_group_id:
-        user_id = current_token["sub"]
-        username = current_token.get("context", {}).get("user", {}).get("name", "")
+        if user_id:
+            user = current_session.query(User).filter_by(id=int(user_id)).first()
+            user_id = user_id
+            username = user.username
+        else:
+            user_id = current_token["sub"]
+            username = current_token.get("context", {}).get("user", {}).get("name", "")
         proxy_group_id = _create_proxy_group(user_id, username).id
 
         privileges = current_session.query(AccessPrivilege).filter(
@@ -572,11 +578,7 @@ def _get_proxy_group_id(user_id=None):
         user = (
             current_session.query(User).filter(User.id == user_id).first()
         )
-        print("-----------userid-----------")
-        print(user)
         proxy_group_id = user.google_proxy_group_id
-        print("-----proxy----")
-        print(proxy_group_id)
 
     return proxy_group_id
 
@@ -605,6 +607,10 @@ def _create_proxy_group(user_id, username):
 
     # link proxy group to user
     user = current_session.query(User).filter_by(id=user_id).first()
+    print("----------proxy grou id----------------  ")
+    print(proxy_group)
+    print(proxy_group.id)
+    print(user)
     user.google_proxy_group_id = proxy_group.id
 
     current_session.add(proxy_group)

@@ -5,6 +5,8 @@ from urllib.parse import urlparse, ParseResult, urlunparse
 
 from datetime import datetime, timedelta
 
+from sqlalchemy.sql.functions import user
+
 from cached_property import cached_property
 import cirrus
 from cirrus import GoogleCloudManager
@@ -19,6 +21,7 @@ from azure.storage.blob import (
     AccountSasPermissions,
     generate_blob_sas,
 )
+from fence import auth
 
 from fence.auth import (
     get_jwt,
@@ -99,7 +102,6 @@ def get_signed_url_for_file(
     )
 
     prepare_presigned_url_audit_log(requested_protocol, indexed_file)
-
     signed_url = indexed_file.get_signed_url(
         requested_protocol,
         action,
@@ -407,6 +409,7 @@ class IndexedFile(object):
         file_name=None,
         user_ids_from_passports=None,
     ):
+        authorized_user_id = None
         if self.index_document.get("authz"):
             action_to_permission = {
                 "upload": "write-storage",
@@ -422,6 +425,7 @@ class IndexedFile(object):
                     f"{action_to_permission[action]} permission "
                     f"on authz resource: {self.index_document['authz']}"
                 )
+            authorized_user_id = authorized_user_id if isinstance(authorized_user_id, str) else None
         else:
             if self.public_acl and action == "upload":
                 raise Unauthorized(
@@ -435,7 +439,6 @@ class IndexedFile(object):
                 raise Unauthorized(
                     f"You don't have access permission on this file: {self.file_id}"
                 )
-
         if action is not None and action not in SUPPORTED_ACTIONS:
             raise NotSupported("action {} is not supported".format(action))
         return self._get_signed_url(
@@ -517,6 +520,7 @@ class IndexedFile(object):
         )
 
         # handle multiple GA4GH passports as a means of authn/z
+        
         if user_ids_from_passports:
             for user_id in user_ids_from_passports:
                 authorized = flask.current_app.arborist.auth_request(
@@ -1458,7 +1462,6 @@ def _get_user_info(sub_type=str, user=None):
     # TODO Update to support POSTed passport
     try:
         if user:
-            print("-------------user true-----------")
             if hasattr(flask.current_app, "db"):
                 with flask.current_app.db.session as session:
                     result = query_for_user(session, user)

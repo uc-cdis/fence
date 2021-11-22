@@ -391,3 +391,5 @@ def test_get_presigned_url_with_passport_for_non_public_acl(
         data=json.dumps(data),
     )
     assert res.status_code == 200
+
+    flask.current_app.jwt_public_keys = {}
