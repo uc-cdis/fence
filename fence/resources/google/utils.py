@@ -3,7 +3,6 @@ import json
 import os
 from cryptography.fernet import Fernet
 import flask
-from sqlalchemy.sql.functions import user
 from flask_sqlalchemy_session import current_session
 from sqlalchemy import desc, func
 
