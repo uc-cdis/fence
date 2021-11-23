@@ -169,10 +169,11 @@ class RASCallback(DefaultOAuth2Callback):
             dbGaP = os.environ.get("dbGaP") or config.get("dbGaP")
             if not isinstance(dbGaP, list):
                 dbGaP = [dbGaP]
+            storage_creds = config["STORAGE_CREDENTIALS"]
 
             sync = fence.scripting.fence_create.init_syncer(
                 dbGaP,
-                None,
+                storage_creds,
                 DB,
                 arborist=arborist,
             )
