@@ -83,8 +83,6 @@ def get_signed_url_for_file(
     if ga4gh_passports:
         # TODO change this to usernames
         user_ids_from_passports = get_gen3_users_from_ga4gh_passports(ga4gh_passports)
-        print("------------user idss from passports---------------")
-        print(user_ids_from_passports)
 
     # add the user details to `flask.g.audit_data` first, so they are
     # included in the audit log if `IndexedFile(file_id)` raises a 404
@@ -425,7 +423,9 @@ class IndexedFile(object):
                     f"{action_to_permission[action]} permission "
                     f"on authz resource: {self.index_document['authz']}"
                 )
-            authorized_user_id = authorized_user_id if isinstance(authorized_user_id, str) else None
+            authorized_user_id = (
+                authorized_user_id if isinstance(authorized_user_id, str) else None
+            )
         else:
             if self.public_acl and action == "upload":
                 raise Unauthorized(
@@ -520,7 +520,7 @@ class IndexedFile(object):
         )
 
         # handle multiple GA4GH passports as a means of authn/z
-        
+
         if user_ids_from_passports:
             for user_id in user_ids_from_passports:
                 authorized = flask.current_app.arborist.auth_request(

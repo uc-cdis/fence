@@ -1,4 +1,5 @@
 import flask
+import httpx
 import json
 import jwt
 import pytest
@@ -239,9 +240,13 @@ def test_get_presigned_url_with_query_params(
 
 @responses.activate
 @pytest.mark.parametrize("indexd_client", ["s3", "gs"], indirect=True)
+@patch("httpx.get")
+@patch("fence.resources.google.utils._create_proxy_group")
 @patch("fence.resources.ga4gh.passports.ArboristClient")
 def test_get_presigned_url_with_passport_for_non_public_acl(
     mock_arborist,
+    mock_google_proxy_group,
+    mock_httpx_get,
     client,
     indexd_client,
     kid,
@@ -274,6 +279,7 @@ def test_get_presigned_url_with_passport_for_non_public_acl(
     )
     mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
     mock_arborist.return_value = MagicMock(ArboristClient)
+    mock_google_proxy_group.return_value = google_proxy_group
 
     # Prepare Passport/Visa
     headers = {"kid": kid}
@@ -377,11 +383,8 @@ def test_get_presigned_url_with_passport_for_non_public_acl(
 
     data = {"passports": passports}
 
-    flask.current_app.jwt_public_keys = {
-        "https://stsstg.nih.gov": {
-            kid: rsa_public_key,
-        }
-    }
+    keys = [keypair.public_key_to_jwk() for keypair in flask.current_app.keypairs]
+    mock_httpx_get.return_value = httpx.Response(200, json={"keys": keys})
 
     res = client.post(
         "/ga4gh/drs/v1/objects/" + test_guid + "/access/" + access_id,
@@ -391,5 +394,3 @@ def test_get_presigned_url_with_passport_for_non_public_acl(
         data=json.dumps(data),
     )
     assert res.status_code == 200
-
-    flask.current_app.jwt_public_keys = {}

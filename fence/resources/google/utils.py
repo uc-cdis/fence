@@ -575,9 +575,7 @@ def _get_proxy_group_id(user_id=None):
 
     if not proxy_group_id:
         user_id = user_id or current_token["sub"]
-        user = (
-            current_session.query(User).filter(User.id == user_id).first()
-        )
+        user = current_session.query(User).filter(User.id == user_id).first()
         proxy_group_id = user.google_proxy_group_id
 
     return proxy_group_id
@@ -607,10 +605,6 @@ def _create_proxy_group(user_id, username):
 
     # link proxy group to user
     user = current_session.query(User).filter_by(id=user_id).first()
-    print("----------proxy grou id----------------  ")
-    print(proxy_group)
-    print(proxy_group.id)
-    print(user)
     user.google_proxy_group_id = proxy_group.id
 
     current_session.add(proxy_group)
