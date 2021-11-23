@@ -1666,7 +1666,7 @@ class UserSyncer(object):
         policy_id_list = []
         policies = []
 
-        if expires:
+        if expires is not None:
             expires = datetime.datetime.fromtimestamp(expires)
 
         for username, user_project_info in user_projects.items():
