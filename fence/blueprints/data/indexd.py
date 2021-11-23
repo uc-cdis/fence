@@ -532,6 +532,7 @@ class IndexedFile(object):
                 )
                 # if any passport provides access, user is authorized
                 if authorized:
+                     # for google proxy groups we need to know which user_id gave access
                     return user_id
                 return authorized
         else:
