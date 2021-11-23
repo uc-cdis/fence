@@ -1666,6 +1666,9 @@ class UserSyncer(object):
         policy_id_list = []
         policies = []
 
+        if expires:
+            expires = datetime.datetime.fromtimestamp(expires)
+
         for username, user_project_info in user_projects.items():
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
@@ -1737,7 +1740,7 @@ class UserSyncer(object):
                         self.arborist_client.grant_user_policy(
                             username,
                             policy_id,
-                            expires_at=datetime.datetime.fromtimestamp(expires),
+                            expires_at=expires,
                         )
 
             # TODO As of 10-11-2021, there's no endpoint yet in Arborist to
@@ -1771,7 +1774,11 @@ class UserSyncer(object):
             #
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
-                    self.arborist_client.grant_user_policy(username, policy)
+                    self.arborist_client.grant_user_policy(
+                        username,
+                        policy,
+                        expires_at=expires,
+                    )
 
         if user_yaml:
             for client_name, client_details in user_yaml.clients.items():
