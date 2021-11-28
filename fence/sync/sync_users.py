@@ -1613,8 +1613,8 @@ class UserSyncer(object):
         Args:
             user_projects (dict)
             user_yaml (UserYAML) optional, if there are policies for users in a user.yaml
-            TODO update this
-            expires (datetime.datetime): expiration time
+            single_user_sync (bool) whether authz update is for a single user
+            expires (int) time at which authz info in Arborist should expire
 
         Return:
             bool: success
@@ -1667,7 +1667,7 @@ class UserSyncer(object):
         policies = []
 
         if expires is not None:
-            expires = datetime.datetime.fromtimestamp(expires)
+            expires = datetime.datetime.utcfromtimestamp(expires)
 
         for username, user_project_info in user_projects.items():
             self.logger.info("processing user `{}`".format(username))

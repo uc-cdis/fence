@@ -206,7 +206,11 @@ class RASOauth2Client(Oauth2ClientBase):
                         "from the DRS endpoint. Changing said user's username"
                         f' to "{username}".'
                     )
-                    # TODO also change username in Arborist
+                    flask.current_app.arborist.update_user(
+                        iss_sub_pair_to_user.user.username,
+                        new_username=username,
+                        new_email=email,
+                    )
                     iss_sub_pair_to_user.user.username = username
                     iss_sub_pair_to_user.user.email = email
                     db_session.commit()

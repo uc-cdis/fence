@@ -677,7 +677,9 @@ def test_map_iss_sub_pair_to_user_with_no_prior_DRS_access(db_session):
     assert len(iss_sub_pair_to_user_records) == 1
 
 
-def test_map_iss_sub_pair_to_user_with_prior_DRS_access(db_session):
+def test_map_iss_sub_pair_to_user_with_prior_DRS_access(
+    db_session, mock_arborist_requests
+):
     """
     Test RASOauth2Client.map_iss_sub_pair_to_user when the username passed in
     (e.g. eRA username) does not already exist in the Fence database but that
@@ -686,6 +688,8 @@ def test_map_iss_sub_pair_to_user_with_prior_DRS_access(db_session):
     existing user's username is changed from sub+iss to the username passed
     in.
     """
+    mock_arborist_requests({"arborist/user/123_abcdomain.tld": {"PATCH": (None, 204)}})
+
     iss = "https://domain.tld"
     sub = "123_abc"
     username = "johnsmith"
