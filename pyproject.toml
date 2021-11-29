@@ -27,6 +27,7 @@ flask-cors = "^3.0.3"
 flask-restful = "^0.3.6"
 flask_sqlalchemy_session = "^1.1"
 email_validator = "^1.1.1"
+# TODO USE ^1.4.0 WHEN RELEASED. LOCAL COPY ONLY FOR DEVELOPMENT AND TESTING PURPOSES
 gen3authz = {path = "./gen3authz-1.4.0.tar.gz"}
 gen3cirrus = "^2.0.0"
 gen3config = "^0.1.7"
