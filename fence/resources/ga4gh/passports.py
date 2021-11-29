@@ -334,9 +334,7 @@ def sync_validated_visa_authorization(gen3_user, ga4gh_visas, expiration):
         None
     """
     default_args = fence.scripting.fence_create.get_default_init_syncer_inputs()
-    syncer = fence.scripting.fence_create.init_syncer(
-        STORAGE_CREDENTIALS=None, **default_args
-    )
+    syncer = fence.scripting.fence_create.init_syncer(**default_args)
 
     with flask.current_app.db.session as db_session:
         synced_visas = syncer.sync_single_user_visas(

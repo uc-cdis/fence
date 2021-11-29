@@ -219,10 +219,13 @@ def get_default_init_syncer_inputs():
     if not isinstance(dbGaP, list):
         dbGaP = [dbGaP]
 
+    storage_creds = config["STORAGE_CREDENTIALS"]
+
     return {
         "DB": DB,
         "arborist": arborist,
         "dbGaP": dbGaP,
+        "STORAGE_CREDENTIALS": storage_creds,
     }
 
 
