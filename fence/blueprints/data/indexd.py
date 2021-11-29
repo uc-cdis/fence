@@ -1466,7 +1466,6 @@ def _get_user_info(sub_type=str, user=None):
     populated information about an anonymous user.
     By default, cast `sub` to str. Use `sub_type` to override this behavior.
     """
-    # TODO Update to support POSTed passport
     try:
         if user:
             if hasattr(flask.current_app, "db"):
