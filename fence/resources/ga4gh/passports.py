@@ -339,8 +339,9 @@ def sync_visa_authorization(gen3_user, ga4gh_visas, expiration):
             from fence.settings import DB
         except ImportError:
             pass
+    storage_creds = config["STORAGE_CREDENTIALS"]
     syncer = fence.scripting.fence_create.init_syncer(
-        dbgap_config, None, DB, arborist=arborist_client
+        dbgap_config, storage_creds, DB, arborist=arborist_client
     )
 
     with flask.current_app.db.session as db_session:
