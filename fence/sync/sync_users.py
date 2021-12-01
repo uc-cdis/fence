@@ -1601,6 +1601,7 @@ class UserSyncer(object):
         user_yaml=None,
         single_user_sync=False,
         expires=None,
+        user_info=None,
     ):
         """
         Assign users policies in arborist from the information in
@@ -1615,6 +1616,7 @@ class UserSyncer(object):
             user_yaml (UserYAML) optional, if there are policies for users in a user.yaml
             single_user_sync (bool) whether authz update is for a single user
             expires (int) time at which authz info in Arborist should expire
+            user_info (dict): NOTE: Passing this just to get a user's access expiration for now.
 
         Return:
             bool: success
@@ -1733,6 +1735,9 @@ class UserSyncer(object):
                                     "not creating policy in arborist; {}".format(str(e))
                                 )
                             self._created_policies.add(policy_id)
+
+                        if not expires and user_info:
+                            expires = user_info.get(username).get("expires", None)
 
                         self.arborist_client.grant_user_policy(
                             username,
@@ -1920,7 +1925,8 @@ class UserSyncer(object):
                         'email': 'email@mail.com',
                         'display_name': 'display name',
                         'phone_number': '123-456-789',
-                        'tags': {'dbgap_role': 'PI'}
+                        'tags': {'dbgap_role': 'PI'},
+                        'expires': 12345,
                     }
                 },
             )
@@ -1934,8 +1940,10 @@ class UserSyncer(object):
         for user in users:
             projects = {}
             info = {}
+            visa_expirations = [] 
             if user.ga4gh_visas_v1:
                 for visa in user.ga4gh_visas_v1:
+                    visa_expirations.append(visa.expires)
                     project = {}
                     visa_type = self._pick_sync_type(visa)
                     encoded_visa = visa.ga4gh_visa
@@ -1951,6 +1959,7 @@ class UserSyncer(object):
                     self.auth_source[user.username].add("visas")
                 user_projects[user.username] = projects
                 user_info[user.username] = info
+                user_info[user.username]["expires"] = min(visa_expirations)
 
         return (user_projects, user_info)
 
@@ -2104,7 +2113,12 @@ class UserSyncer(object):
         # update arborist db (user access)
         if self.arborist_client:
             self.logger.info("Synchronizing arborist with authorization info...")
-            success = self._update_authz_in_arborist(sess, user_projects, user_yaml)
+            success = self._update_authz_in_arborist(
+                sess,
+                user_projects,
+                user_yaml,
+                user_info=user_info,
+            )
             if success:
                 self.logger.info(
                     "Finished synchronizing authorization info to arborist"
