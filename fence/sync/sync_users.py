@@ -1666,9 +1666,6 @@ class UserSyncer(object):
         policy_id_list = []
         policies = []
 
-        if expires is not None:
-            expires = datetime.datetime.utcfromtimestamp(expires)
-
         for username, user_project_info in user_projects.items():
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
