@@ -1940,7 +1940,7 @@ class UserSyncer(object):
         for user in users:
             projects = {}
             info = {}
-            visa_expirations = [] 
+            visa_expirations = []
             if user.ga4gh_visas_v1:
                 for visa in user.ga4gh_visas_v1:
                     visa_expirations.append(visa.expires)
