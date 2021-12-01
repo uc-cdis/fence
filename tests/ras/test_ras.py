@@ -4,6 +4,7 @@ import httpx
 import time
 import mock
 import jwt
+import pytest
 
 from cdislogging import get_logger
 
@@ -19,6 +20,7 @@ from fence.models import (
 )
 from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
 from fence.resources.ga4gh.passports import get_or_create_gen3_user_from_iss_sub
+from fence.errors import InternalError
 
 from tests.dbgap_sync.conftest import add_visa_manually
 from fence.job.visa_update_cronjob import Visa_Token_Update
@@ -650,7 +652,7 @@ def test_map_iss_sub_pair_to_user_with_no_prior_DRS_access(db_session):
     Test RASOauth2Client.map_iss_sub_pair_to_user when the username passed in
     (e.g. eRA username) does not already exist in the Fence database and that
     user's <iss, sub> combination has not already been mapped through a prior
-    DRS/data access request.
+    DRS access request.
     """
     iss = "https://domain.tld"
     sub = "123_abc"
@@ -677,15 +679,19 @@ def test_map_iss_sub_pair_to_user_with_no_prior_DRS_access(db_session):
     assert len(iss_sub_pair_to_user_records) == 1
 
 
-def test_map_iss_sub_pair_to_user_with_prior_DRS_access(db_session):
+def test_map_iss_sub_pair_to_user_with_prior_DRS_access(
+    db_session, mock_arborist_requests
+):
     """
     Test RASOauth2Client.map_iss_sub_pair_to_user when the username passed in
     (e.g. eRA username) does not already exist in the Fence database but that
     user's <iss, sub> combination has already been mapped to an existing user
-    created during a prior DRS/data access request. In this case, that
+    created during a prior DRS access request. In this case, that
     existing user's username is changed from sub+iss to the username passed
     in.
     """
+    mock_arborist_requests({"arborist/user/123_abcdomain.tld": {"PATCH": (None, 204)}})
+
     iss = "https://domain.tld"
     sub = "123_abc"
     username = "johnsmith"
@@ -713,6 +719,31 @@ def test_map_iss_sub_pair_to_user_with_prior_DRS_access(db_session):
     assert iss_sub_pair_to_user.user.email == email
 
 
+def test_map_iss_sub_pair_to_user_with_prior_DRS_access_and_arborist_error(
+    db_session, mock_arborist_requests
+):
+    """
+    Test that RASOauth2Client.map_iss_sub_pair_to_user raises an internal error
+    when Arborist fails to return a successful response.
+    """
+    mock_arborist_requests({"arborist/user/123_abcdomain.tld": {"PATCH": (None, 500)}})
+
+    iss = "https://domain.tld"
+    sub = "123_abc"
+    username = "johnsmith"
+    email = "johnsmith@domain.tld"
+    oidc = config.get("OPENID_CONNECT", {})
+    ras_client = RASClient(
+        oidc["ras"],
+        HTTP_PROXY=config.get("HTTP_PROXY"),
+        logger=logger,
+    )
+    get_or_create_gen3_user_from_iss_sub(iss, sub)
+
+    with pytest.raises(InternalError):
+        ras_client.map_iss_sub_pair_to_user(iss, sub, username, email)
+
+
 def test_map_iss_sub_pair_to_user_with_prior_login_and_prior_DRS_access(
     db_session,
 ):
@@ -720,7 +751,7 @@ def test_map_iss_sub_pair_to_user_with_prior_login_and_prior_DRS_access(
     Test RASOauth2Client.map_iss_sub_pair_to_user when the username passed in
     (e.g. eRA username) already exists in the Fence database and that
     user's <iss, sub> combination has already been mapped to a separate user
-    created during a prior DRS/data access request. In this case,
+    created during a prior DRS access request. In this case,
     map_iss_sub_pair_to_user returns the user created from prior DRS/data
     access, rendering the other user (e.g. the eRA one) inaccessible.
     """

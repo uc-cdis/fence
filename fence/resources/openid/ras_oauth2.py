@@ -13,6 +13,7 @@ from jose import jwt as jose_jwt
 
 from authutils.errors import JWTError
 from authutils.token.core import get_iss, get_kid
+from gen3authz.client.arborist.errors import ArboristError
 
 
 from fence.config import config
@@ -26,6 +27,7 @@ from fence.models import (
 )
 from fence.jwt.validate import validate_jwt
 from fence.utils import DEFAULT_BACKOFF_SETTINGS
+from fence.errors import InternalError
 from .idp_oauth2 import Oauth2ClientBase
 
 
@@ -175,6 +177,8 @@ class RASOauth2Client(Oauth2ClientBase):
             flask.g.tokens = token
             flask.g.keys = keys
 
+        except InternalError:
+            raise
         except Exception as e:
             self.logger.exception("{}: {}".format(err_msg, e))
             return {"error": err_msg}
@@ -221,9 +225,33 @@ class RASOauth2Client(Oauth2ClientBase):
                         "from the DRS endpoint. Changing said user's username"
                         f' to "{username}".'
                     )
-                    # TODO also change username in Arborist
+
+                    tries = 2
+                    for i in range(tries):
+                        try:
+                            flask.current_app.arborist.update_user(
+                                iss_sub_pair_to_user.user.username,
+                                new_username=username,
+                                new_email=email,
+                            )
+                        except ArboristError as e:
+                            self.logger.warning(
+                                f"Try {i+1}: could not update user's username in Arborist: {e}"
+                            )
+                            if i == tries - 1:
+                                err_msg = f"Failed to update user's username in Arborist after {tries} tries"
+                                self.logger.exception(err_msg)
+                                raise InternalError(err_msg)
+                        else:
+                            self.logger.info(
+                                "Successfully changed Arborist user's username from "
+                                f'"{iss_sub_pair_to_user.user.username}" to "{username}"'
+                            )
+                            break
+
                     iss_sub_pair_to_user.user.username = username
-                    iss_sub_pair_to_user.user.email = email
+                    if email:
+                        iss_sub_pair_to_user.user.email = email
                     db_session.commit()
                 elif iss_sub_pair_to_user.user.username != username:
                     self.logger.warning(
