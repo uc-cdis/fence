@@ -1599,9 +1599,9 @@ class UserSyncer(object):
         session,
         user_projects,
         user_yaml=None,
-        user_info=None,
         single_user_sync=False,
         expires=None,
+        user_info=None,
     ):
         """
         Assign users policies in arborist from the information in
@@ -2114,7 +2114,7 @@ class UserSyncer(object):
         if self.arborist_client:
             self.logger.info("Synchronizing arborist with authorization info...")
             success = self._update_authz_in_arborist(
-                sess, user_projects, user_yaml, user_info
+                sess, user_projects, user_yaml, user_info=user_info,
             )
             if success:
                 self.logger.info(
