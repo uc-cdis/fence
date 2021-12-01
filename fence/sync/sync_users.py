@@ -5,6 +5,7 @@ import re
 import subprocess as sp
 import yaml
 import copy
+import datetime
 
 from contextlib import contextmanager
 from collections import defaultdict
@@ -1612,7 +1613,8 @@ class UserSyncer(object):
         Args:
             user_projects (dict)
             user_yaml (UserYAML) optional, if there are policies for users in a user.yaml
-            expiration (datetime.datetime): expiration time
+            single_user_sync (bool) whether authz update is for a single user
+            expires (int) time at which authz info in Arborist should expire
 
         Return:
             bool: success
@@ -1731,9 +1733,12 @@ class UserSyncer(object):
                                     "not creating policy in arborist; {}".format(str(e))
                                 )
                             self._created_policies.add(policy_id)
-                        self.arborist_client.grant_user_policy(username, policy_id)
-                        # TODO need to add expiration to this function in gen3authz
-                        # self.arborist_client.grant_user_policy(username, policy_id, expiration=expiration)
+
+                        self.arborist_client.grant_user_policy(
+                            username,
+                            policy_id,
+                            expires_at=expires,
+                        )
 
             # TODO As of 10-11-2021, there's no endpoint yet in Arborist to
             # support the creation of policies in bulk. When syncing RAS
@@ -1766,7 +1771,11 @@ class UserSyncer(object):
             #
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
-                    self.arborist_client.grant_user_policy(username, policy)
+                    self.arborist_client.grant_user_policy(
+                        username,
+                        policy,
+                        expires_at=expires,
+                    )
 
         if user_yaml:
             for client_name, client_details in user_yaml.clients.items():
