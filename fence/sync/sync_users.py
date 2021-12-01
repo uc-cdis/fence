@@ -1737,9 +1737,7 @@ class UserSyncer(object):
                             self._created_policies.add(policy_id)
 
                         if not expires and user_info:
-                            print("-------expiration-----------")
                             expires = user_info.get(username).get("expires", None)
-                            print(expires)
 
                         self.arborist_client.grant_user_policy(
                             username,
