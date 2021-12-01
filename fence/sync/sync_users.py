@@ -2114,7 +2114,10 @@ class UserSyncer(object):
         if self.arborist_client:
             self.logger.info("Synchronizing arborist with authorization info...")
             success = self._update_authz_in_arborist(
-                sess, user_projects, user_yaml, user_info=user_info,
+                sess,
+                user_projects,
+                user_yaml,
+                user_info=user_info,
             )
             if success:
                 self.logger.info(
