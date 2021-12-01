@@ -30,8 +30,6 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
 
 WORKDIR /$appname
 
-# TODO TAKE OUT: ONLY FOR DEVELOPMENT AND TESTING PURPOSES
-COPY gen3authz-1.4.0.tar.gz /$appname/
 # copy ONLY poetry artifact and install
 # this will make sure than the dependencies is cached
 COPY poetry.lock pyproject.toml /$appname/
