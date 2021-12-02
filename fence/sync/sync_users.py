@@ -39,9 +39,12 @@ from fence.sync import utils
 from fence.sync.passport_sync.ras_sync import RASVisa
 
 
-def _format_policy_id(path, privilege):
+def _format_policy_id(path, privilege, prefix=None):
     resource = ".".join(name for name in path.split("/") if name)
-    return "{}-{}".format(resource, privilege)
+    parts = [resource, privilege]
+    if prefix:
+        parts.insert(0, prefix)
+    return "-".join(parts)
 
 
 def download_dir(sftp, remote_dir, local_dir):
@@ -1490,8 +1493,21 @@ class UserSyncer(object):
         self.logger.debug("user_yaml resources: {}".format(resources))
         self.logger.debug("dbgap resource paths: {}".format(dbgap_resource_paths))
 
+        # existing resources are also added to prevent resources created from
+        # DRS endpoint from being overwritten
+        try:
+            existing_resources = self.arborist_client.list_resources()
+        except ArboristError as e:
+            self.logger.error("could not list Arborist resources: {}".format(e))
+            # intentionally fail; avoid overwriting of resources
+            raise
+
+        existing_paths = [r["path"] for r in existing_resources.get("resources", [])]
         combined_resources = utils.combine_provided_and_dbgap_resources(
-            resources, dbgap_resource_paths
+            resources, existing_paths
+        )
+        combined_resources = utils.combine_provided_and_dbgap_resources(
+            combined_resources, dbgap_resource_paths
         )
 
         for resource in combined_resources:
@@ -1601,6 +1617,7 @@ class UserSyncer(object):
         user_yaml=None,
         single_user_sync=False,
         expires=None,
+        policy_prefix=None,
     ):
         """
         Assign users policies in arborist from the information in
@@ -1615,6 +1632,7 @@ class UserSyncer(object):
             user_yaml (UserYAML) optional, if there are policies for users in a user.yaml
             single_user_sync (bool) whether authz update is for a single user
             expires (int) time at which authz info in Arborist should expire
+            policy_prefix (str) prefix to prepend policy names with
 
         Return:
             bool: success
@@ -1715,7 +1733,9 @@ class UserSyncer(object):
 
                         # format project '/x/y/z' -> 'x.y.z'
                         # so the policy id will be something like 'x.y.z-create'
-                        policy_id = _format_policy_id(path, permission)
+                        policy_id = _format_policy_id(
+                            path, permission, prefix=policy_prefix
+                        )
 
                         if policy_id not in self._created_policies:
                             try:
@@ -2129,7 +2149,9 @@ class UserSyncer(object):
                 self._sync_visas(s)
         # if returns with some failure use telemetry file
 
-    def sync_single_user_visas(self, user, ga4gh_visas, sess=None, expires=None):
+    def sync_single_user_visas(
+        self, user, ga4gh_visas, sess=None, expires=None, policy_prefix=None
+    ):
         """
         Sync a single user's visas during login or DRS/data access
 
@@ -2141,6 +2163,7 @@ class UserSyncer(object):
             sess (sqlalchemy.orm.session.Session): database session
             expires (int): time at which synced Arborist policies and
                            inclusion in any GBAG are set to expire
+            policy_prefix (str): prefix to prepend policy names with
 
         Return:
             None
@@ -2221,6 +2244,7 @@ class UserSyncer(object):
                 user_yaml=user_yaml,
                 single_user_sync=True,
                 expires=expires,
+                policy_prefix=policy_prefix,
             )
             if success:
                 self.logger.info(
