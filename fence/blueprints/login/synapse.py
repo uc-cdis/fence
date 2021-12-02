@@ -22,10 +22,10 @@ class SynapseCallback(DefaultOAuth2Callback):
             idp_name=IdentityProvider.synapse,
             client=flask.current_app.synapse_client,
             username_field="fence_username",
+            id_from_idp_field="sub",
         )
 
-    def post_login(self, user=None, token_result=None):
-        user.id_from_idp = token_result["sub"]
+    def post_login(self, user=None, token_result=None, id_from_idp=None):
         user.email = token_result["email"]
         user.display_name = "{given_name} {family_name}".format(**token_result)
         info = {}
@@ -53,4 +53,4 @@ class SynapseCallback(DefaultOAuth2Callback):
                     user.username, config["DREAM_CHALLENGE_GROUP"]
                 )
 
-        super(SynapseCallback, self).post_login()
+        super(SynapseCallback, self).post_login(id_from_idp=id_from_idp)

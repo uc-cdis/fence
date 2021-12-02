@@ -128,7 +128,7 @@ def app_register_blueprints(app):
         fence.blueprints.well_known.blueprint, url_prefix="/.well-known"
     )
 
-    login_blueprint = fence.blueprints.login.make_login_blueprint(app)
+    login_blueprint = fence.blueprints.login.make_login_blueprint()
     app.register_blueprint(login_blueprint, url_prefix="/login")
 
     link_blueprint = fence.blueprints.link.make_link_blueprint()
