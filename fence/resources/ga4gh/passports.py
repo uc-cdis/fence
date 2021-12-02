@@ -327,7 +327,7 @@ def sync_visa_authorization(gen3_user, ga4gh_visas, expiration):
         None
     """
     arborist_client = ArboristClient(
-        arborist_base_url=config["ARBORIST"], logger=logger, authz_provider="GA4GH"
+        arborist_base_url=config["ARBORIST"], logger=logger, authz_provider="GA4GH.DRS"
     )
 
     dbgap_config = os.environ.get("dbGaP") or config["dbGaP"]
@@ -346,7 +346,11 @@ def sync_visa_authorization(gen3_user, ga4gh_visas, expiration):
 
     with flask.current_app.db.session as db_session:
         syncer.sync_single_user_visas(
-            gen3_user, ga4gh_visas, db_session, expires=expiration
+            gen3_user,
+            ga4gh_visas,
+            db_session,
+            expires=expiration,
+            policy_prefix="GA4GH.DRS",
         )
 
 
