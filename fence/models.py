@@ -61,9 +61,13 @@ from fence.config import config
 def query_for_user(session, username):
     return (
         session.query(User)
-        .filter(func.lower(User.username) == username.lower())
+        .filter(func.lower(User.username) == str(username).lower())
         .first()
     )
+
+
+def query_for_user_by_id(session, user_id):
+    return session.query(User).filter(User.id == user_id).first()
 
 
 def create_user(session, logger, username, email=None, idp_name=None):

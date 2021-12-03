@@ -28,6 +28,8 @@ from fence.models import (
     UserServiceAccount,
     ServiceAccountAccessPrivilege,
     ServiceAccountToGoogleBucketAccessGroup,
+    query_for_user,
+    query_for_user_by_id,
 )
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
 from fence.errors import NotSupported, NotFound
@@ -515,23 +517,40 @@ def _update_service_account_db_entry(
     return service_account_db_entry
 
 
-def get_or_create_proxy_group_id(expires=None, user_id=None):
+def get_or_create_proxy_group_id(expires=None, user_id=None, username=None):
     """
     If no username returned from token or database, create a new proxy group
-    for the give user. Also, add the access privileges.
+    for the given user. Also, add the access privileges.
 
     Returns:
         int: id of (possibly newly created) proxy group associated with user
     """
-    proxy_group_id = _get_proxy_group_id(user_id=user_id)
+    proxy_group_id = _get_proxy_group_id(user_id=user_id, username=username)
     if not proxy_group_id:
-        if user_id:
-            user = current_session.query(User).filter_by(id=int(user_id)).first()
+        try:
+            user_by_id = query_for_user_by_id(current_session, user_id)
+            user_by_username = query_for_user(
+                session=current_session, username=username
+            )
+        except Exception:
+            user_by_id = None
+            user_by_username = None
+
+        if user_by_id:
             user_id = user_id
-            username = user.username
-        else:
+            username = user_by_id.username
+        elif user_by_username:
+            user_id = user_by_username.id
+            username = username
+        elif current_token:
             user_id = current_token["sub"]
             username = current_token.get("context", {}).get("user", {}).get("name", "")
+        else:
+            raise Exception(
+                f"could not find user given input user_id={user_id} or "
+                f"username={username}, nor was there a current_token"
+            )
+
         proxy_group_id = _create_proxy_group(user_id, username).id
 
         privileges = current_session.query(AccessPrivilege).filter(
@@ -562,7 +581,7 @@ def get_or_create_proxy_group_id(expires=None, user_id=None):
     return proxy_group_id
 
 
-def _get_proxy_group_id(user_id=None):
+def _get_proxy_group_id(user_id=None, username=None):
     """
     Get users proxy group id from the current token, if possible.
     Otherwise, check the database for it.
@@ -574,8 +593,16 @@ def _get_proxy_group_id(user_id=None):
 
     if not proxy_group_id:
         user_id = user_id or current_token["sub"]
-        user = current_session.query(User).filter(User.id == user_id).first()
-        proxy_group_id = user.google_proxy_group_id
+
+        try:
+            user = query_for_user_by_id(current_session, user_id)
+            if not user:
+                user = query_for_user(current_session, username)
+        except Exception:
+            user = None
+
+        if user:
+            proxy_group_id = user.google_proxy_group_id
 
     return proxy_group_id
 
