@@ -1113,7 +1113,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     ):
         resource_path = self.get_resource_path()
 
-        user_info = _get_user_info(user=user_id)
+        user_info = _get_user_info(user_id=user_id)
 
         if public_data and not force_signed_url:
             url = "https://storage.cloud.google.com/" + resource_path
