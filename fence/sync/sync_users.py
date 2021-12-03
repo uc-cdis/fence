@@ -1055,7 +1055,9 @@ class UserSyncer(object):
                         project = self._get_or_create(sess, Project, **data)
                     except IntegrityError as e:
                         sess.rollback()
-                        self.logger.error(str(e))
+                        self.logger.error(
+                            f"Project {auth_id} already exists. Detail {str(e)}"
+                        )
                         raise Exception(
                             "Project {} already exists. Detail {}. Please contact your system administrator.".format(
                                 auth_id, str(e)
@@ -1941,7 +1943,6 @@ class UserSyncer(object):
                         encoded_visa,
                         visa.expires,
                         self.parse_consent_code,
-                        db_session,
                     )
                     projects = {**projects, **project}
                 if projects:
@@ -2005,7 +2006,6 @@ class UserSyncer(object):
                     encoded_visa,
                     visa.expires,
                     self.parse_consent_code,
-                    sess,
                 )
             except Exception:
                 logging.warning(
@@ -2040,7 +2040,7 @@ class UserSyncer(object):
             )
 
         if user_projects:
-            self.logger.info("Sync to db and storage backend")
+            self.logger.info("Sync to db and storage backend [sync_single_user_visas]")
             self.sync_to_db_and_storage_backend(
                 user_projects, user_info, sess, single_visa_sync=True, expires=expires
             )

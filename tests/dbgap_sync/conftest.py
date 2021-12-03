@@ -221,8 +221,8 @@ def add_visa_manually(db_session, user, rsa_private_key, kid):
         "ga4gh_visa_v1": {
             "type": "https://ras.nih.gov/visas/v1",
             "asserted": int(time.time()),
-            "value": "https://nig/passport/dbgap",
-            "source": "https://ncbi/gap",
+            "value": "https://stsstg.nih.gov/passport/dbgap/v1.1",
+            "source": "https://ncbi.nlm.nih.gov/gap",
         },
         "ras_dbgap_permissions": [
             {
@@ -305,3 +305,5 @@ def add_visa_manually(db_session, user, rsa_private_key, kid):
 
     db_session.add(visa)
     db_session.commit()
+
+    return encoded_visa

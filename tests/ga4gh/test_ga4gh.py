@@ -11,31 +11,39 @@ from fence.resources.ga4gh.passports import get_or_create_gen3_user_from_iss_sub
 logger = get_logger(__name__, log_level="debug")
 
 
-def test_get_or_create_gen3_user_from_iss_sub_without_prior_login(db_session):
+def test_get_or_create_gen3_user_from_iss_sub_without_prior_login(
+    db_session, mock_arborist_requests
+):
     """
     Test get_or_create_gen3_user_from_iss_sub when the visa's <iss, sub>
     combination are not present in the mapping table beforehand (i.e. the user
     has not previously logged in)
     """
-    iss = "https://sts.nih.gov"
+    mock_arborist_requests({"arborist/user/": {"PATCH": (None, 204)}})
+
+    iss = "https://stsstg.nih.gov"
     sub = "123_abc"
 
-    user = get_or_create_gen3_user_from_iss_sub(iss, sub)
+    user = get_or_create_gen3_user_from_iss_sub(iss, sub, db_session=db_session)
 
-    assert user.username == "123_abcsts.nih.gov"
+    assert user.username == "123_abcstsstg.nih.gov"
     assert user.identity_provider.name == IdentityProvider.ras
     iss_sub_pair_to_user_records = db_session.query(IssSubPairToUser).all()
     assert len(iss_sub_pair_to_user_records) == 1
-    assert iss_sub_pair_to_user_records[0].user.username == "123_abcsts.nih.gov"
+    assert iss_sub_pair_to_user_records[0].user.username == "123_abcstsstg.nih.gov"
 
 
-def test_get_or_create_gen3_user_from_iss_sub_after_prior_login(db_session):
+def test_get_or_create_gen3_user_from_iss_sub_after_prior_login(
+    db_session, mock_arborist_requests
+):
     """
     Test get_or_create_gen3_user_from_iss_sub when the visa's <iss, sub>
     combination are present in the mapping table beforehand (i.e. the user
     has previously logged in)
     """
-    iss = "https://sts.nih.gov"
+    mock_arborist_requests({"arborist/user/": {"PATCH": (None, 204)}})
+
+    iss = "https://stsstg.nih.gov"
     sub = "123_abc"
     username = "johnsmith"
     email = "johnsmith@domain.tld"
@@ -50,7 +58,7 @@ def test_get_or_create_gen3_user_from_iss_sub_after_prior_login(db_session):
     assert len(iss_sub_pair_to_user_records) == 1
     assert iss_sub_pair_to_user_records[0].user.username == username
 
-    user = get_or_create_gen3_user_from_iss_sub(iss, sub)
+    user = get_or_create_gen3_user_from_iss_sub(iss, sub, db_session=db_session)
 
     iss_sub_pair_to_user_records = db_session.query(IssSubPairToUser).all()
     assert len(iss_sub_pair_to_user_records) == 1

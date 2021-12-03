@@ -39,16 +39,8 @@ class RASCallback(DefaultOAuth2Callback):
         )
 
     def post_login(self, user=None, token_result=None, id_from_idp=None):
-        # TODO: I'm not convinced this code should be in post_login.
-        # Just putting it in here for now, but might refactor later.
-        # This saves us a call to RAS /userinfo, but will not make sense
-        # when there is more than one visa issuer.
-
-        # Clear all of user's visas, to avoid having duplicate visas
-        # where only iss/exp/jti differ
-        # TODO: This is not IdP-specific and will need a rethink when
-        # we have multiple IdPs
-        current_session.commit()
+        parsed_url = urlparse(flask.session.get("redirect"))
+        query_params = parse_qs(parsed_url.query)
 
         userinfo = flask.g.userinfo
 
@@ -65,7 +57,8 @@ class RASCallback(DefaultOAuth2Callback):
         # do an on-the-fly usersync for this user to give them instant access after logging in through RAS
         # if GLOBAL_PARSE_VISAS_ON_LOGIN is true then we want to run it regardless of whether or not the client sent parse_visas on request
         if parse_visas:
-            # Close previous db sessions. Leaving it open causes a race condition where we're viewing user.project_access while trying to update it in usersync
+            # Close previous db sessions. Leaving it open causes a race condition where we're
+            # viewing user.project_access while trying to update it in usersync
             # not closing leads to partially updated records
             current_session.close()
 
@@ -82,9 +75,11 @@ class RASCallback(DefaultOAuth2Callback):
                 raise
 
             # now sync authz updates
-            user_ids_from_passports = fence.resources.ga4gh.passports.sync_gen3_users_authz_from_ga4gh_passports(
-                [passport], pkey_cache=pkey_cache
+            users_from_passports = fence.resources.ga4gh.passports.sync_gen3_users_authz_from_ga4gh_passports(
+                [passport], pkey_cache=pkey_cache, db_session=current_session
             )
+            user_ids_from_passports = [user.id for user in users_from_passports]
+            logger.debug(f"user_ids_from_passports: {user_ids_from_passports}")
 
             # TODO?
             # put_gen3_usernames_for_passport_into_cache(
@@ -104,8 +99,6 @@ class RASCallback(DefaultOAuth2Callback):
         expires = config["RAS_REFRESH_EXPIRATION"]
 
         # User definied RAS refresh token expiration time
-        parsed_url = urlparse(flask.session.get("redirect"))
-        query_params = parse_qs(parsed_url.query)
         if query_params.get("upstream_expires_in"):
             custom_refresh_expiration = query_params.get("upstream_expires_in")[0]
             expires = get_valid_expiration(

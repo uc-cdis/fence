@@ -85,12 +85,13 @@ def get_signed_url_for_file(
             "is not supported by this instance of Gen3."
         )
 
-    user_ids_from_passports = None
+    user_ids_from_passports = []
     if ga4gh_passports:
-        # TODO change this to usernames
-        user_ids_from_passports = sync_gen3_users_authz_from_ga4gh_passports(
-            ga4gh_passports
+        users_from_passports = sync_gen3_users_authz_from_ga4gh_passports(
+            ga4gh_passports, db_session=db_session
         )
+        user_ids_from_passports = [user.id for user in users_from_passports]
+        logger.debug(f"user_ids_from_passports: {user_ids_from_passports}")
 
     # add the user details to `flask.g.audit_data` first, so they are
     # included in the audit log if `IndexedFile(file_id)` raises a 404
@@ -421,19 +422,20 @@ class IndexedFile(object):
                 "upload": "write-storage",
                 "download": "read-storage",
             }
-            authorized_user_id = self.check_authz(
+            is_authorized, authorized_user_id = self.get_authorized_and_user_id(
                 action_to_permission[action],
                 user_ids_from_passports=user_ids_from_passports,
             )
-            if not authorized_user_id:
-                raise Unauthorized(
-                    f"Either you weren't logged in or you don't have "
+            if not is_authorized:
+                msg = (
+                    f"Either you weren't authenticated successfully or you don't have "
                     f"{action_to_permission[action]} permission "
-                    f"on authz resource: {self.index_document['authz']}"
+                    f"on authorization resource: {self.index_document['authz']}."
                 )
-            authorized_user_id = (
-                authorized_user_id if isinstance(authorized_user_id, str) else None
-            )
+                logger.debug(
+                    f"denied. authorized_user_id: {authorized_user_id}\nmsg:\n{msg}"
+                )
+                raise Unauthorized(msg)
         else:
             if self.public_acl and action == "upload":
                 raise Unauthorized(
@@ -519,12 +521,28 @@ class IndexedFile(object):
         else:
             raise Unauthorized("This file is not accessible")
 
-    def check_authz(self, action, user_ids_from_passports=None):
+    def get_authorized_and_user_id(self, action, user_ids_from_passports=None):
+        """
+        Return a tuple of (boolean, str) which represents whether they're authorized
+        and their user_id. user_id is only returned if `user_ids_from_passports`
+        is provided and one of the ids from the passports is authorized.
+
+        Args:
+            action (str): Authorization action being performed
+            user_ids_from_passports (list[str], optional): List of user ids parsed
+                from validated passports
+
+        Returns:
+            tuple of (boolean, str): which represents whether they're authorized
+        and their user_id. user_id is only returned if `user_ids_from_passports`
+        is provided and one of the ids from the passports is authorized.
+        """
         if not self.index_document.get("authz"):
             raise ValueError("index record missing `authz`")
 
         logger.debug(
-            f"authz check can user {action} on {self.index_document['authz']} for fence?"
+            f"authz check can user {action} on {self.index_document['authz']} for fence? "
+            f"if passport provided, IDs parsed: {user_ids_from_passports}"
         )
 
         # handle multiple GA4GH passports as a means of authn/z
@@ -541,8 +559,8 @@ class IndexedFile(object):
                 # if any passport provides access, user is authorized
                 if authorized:
                     # for google proxy groups we need to know which user_id gave access
-                    return user_id
-                return authorized
+                    return authorized, user_id
+                return authorized, None
         else:
             try:
                 token = get_jwt()
@@ -552,11 +570,14 @@ class IndexedFile(object):
                 #  public data, we still make the request to Arborist
                 token = None
 
-            return flask.current_app.arborist.auth_request(
-                jwt=token,
-                service="fence",
-                methods=action,
-                resources=self.index_document["authz"],
+            return (
+                flask.current_app.arborist.auth_request(
+                    jwt=token,
+                    service="fence",
+                    methods=action,
+                    resources=self.index_document["authz"],
+                ),
+                None,
             )
 
     @cached_property

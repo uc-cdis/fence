@@ -14,9 +14,7 @@ class RASVisa(DefaultVisa):
             logger=logger,
         )
 
-    def _parse_single_visa(
-        self, user, encoded_visa, expires, parse_consent_code, db_session
-    ):
+    def _parse_single_visa(self, user, encoded_visa, expires, parse_consent_code):
         """
         Return user information from the visa.
 
