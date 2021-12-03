@@ -2,11 +2,9 @@ import re
 import time
 import json
 from urllib.parse import urlparse, ParseResult, urlunparse
-
 from datetime import datetime, timedelta
 
 from sqlalchemy.sql.functions import user
-
 from cached_property import cached_property
 import cirrus
 from cirrus import GoogleCloudManager
@@ -14,6 +12,7 @@ from cdislogging import get_logger
 from cdispyutils.config import get_value
 from cdispyutils.hmac4 import generate_aws_presigned_url
 import flask
+from flask_sqlalchemy_session import current_session
 import requests
 from azure.storage.blob import (
     BlobServiceClient,
@@ -49,7 +48,7 @@ from fence.resources.google.utils import (
 from fence.resources.ga4gh.passports import sync_gen3_users_authz_from_ga4gh_passports
 from fence.utils import get_valid_expiration_from_request
 from . import multipart_upload
-from ...models import AssumeRoleCacheAWS, query_for_user
+from ...models import AssumeRoleCacheAWS, query_for_user, query_for_user_by_id
 from ...models import AssumeRoleCacheGCP
 
 logger = get_logger(__name__)
@@ -62,15 +61,21 @@ ACTION_DICT = {
 
 SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs", "az"]
 SUPPORTED_ACTIONS = ["upload", "download"]
-ANONYMOUS_USER_ID = "anonymous"
+ANONYMOUS_USER_ID = "-1"
 ANONYMOUS_USERNAME = "anonymous"
 
 
 def get_signed_url_for_file(
-    action, file_id, file_name=None, requested_protocol=None, ga4gh_passports=None
+    action,
+    file_id,
+    file_name=None,
+    requested_protocol=None,
+    ga4gh_passports=None,
+    db_session=None,
 ):
     requested_protocol = requested_protocol or flask.request.args.get("protocol", None)
     r_pays_project = flask.request.args.get("userProject", None)
+    db_session = db_session or current_session
 
     # default to signing the url even if it's a public object
     # this will work so long as we're provided a user token
@@ -1174,8 +1179,9 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         username,
         r_pays_project=None,
     ):
-
-        proxy_group_id = get_or_create_proxy_group_id(user_id=user_id)
+        proxy_group_id = get_or_create_proxy_group_id(
+            user_id=user_id, username=username
+        )
         expiration_time = int(time.time()) + expires_in
 
         is_cached = False
@@ -1483,35 +1489,43 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
             return ("Failed to delete data file.", status_code)
 
 
-def _get_user_info(sub_type=str, user=None):
+def _get_user_info(sub_type=str, user_id=None):
     """
-    Attempt to parse the request for token to authenticate the user. fallback to
+    Attempt to parse the request to get information about user. fallback to
     populated information about an anonymous user.
     By default, cast `sub` to str. Use `sub_type` to override this behavior.
+
+    WARNING: This does NOT actually check authorization information and always falls
+             back on anonymous user information. DO NOT USE THIS AS A MEANS TO AUTHORIZE,
+             IT WILL ALWAYS GIVE YOU BACK ANONYMOUS USER INFO. Only use this
+             after you've authorized the access to the data via other means.
     """
     try:
-        if user:
+        if user_id:
             if hasattr(flask.current_app, "db"):
                 with flask.current_app.db.session as session:
-                    result = query_for_user(session, user)
-                    username = result.username
-                    user_id = result.id
+                    result = query_for_user_by_id(session, user_id)
+                    final_username = result.username
+                    final_user_id = result.id
         else:
             set_current_token(
                 validate_request(scope={"user"}, audience=config.get("BASE_URL"))
             )
-            user_id = current_token["sub"]
+            final_user_id = current_token["sub"]
             if sub_type:
-                user_id = sub_type(user_id)
-            username = current_token["context"]["user"]["name"]
-    except JWTError:
+                final_user_id = sub_type(final_user_id)
+            final_username = current_token["context"]["user"]["name"]
+    except Exception as exc:
+        logger.info(
+            "could not determine user info from request. setting anonymous user information."
+        )
         # this is fine b/c it might be public data, sign with anonymous username/id
-        user_id = None
+        final_user_id = None
         if sub_type == str:
-            user_id = ANONYMOUS_USER_ID
-        username = ANONYMOUS_USERNAME
+            final_user_id = sub_type(ANONYMOUS_USER_ID)
+        final_username = ANONYMOUS_USERNAME
 
-    return {"user_id": user_id, "username": username}
+    return {"user_id": final_user_id, "username": final_username}
 
 
 def _is_anonymous_user(user_info):
@@ -1519,7 +1533,7 @@ def _is_anonymous_user(user_info):
     Check if there's a current user authenticated or if request is anonymous
     """
     user_info = user_info or _get_user_info()
-    return user_info.get("user_id") == ANONYMOUS_USER_ID
+    return str(user_info.get("user_id")) == ANONYMOUS_USER_ID
 
 
 def filter_auth_ids(action, list_auth_ids):
