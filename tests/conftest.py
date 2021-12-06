@@ -157,7 +157,7 @@ class FakeAzureCredential:
     """
 
     def __init__(self):
-        self.account_key = "FakefakeAccountKey"
+        self.account_key = "FakefakeAccountKey"  # pragma: allowlist secret
 
 
 class FakeBlobServiceClient:
@@ -454,6 +454,12 @@ def db_session(db, patch_app_db_session):
     patch_app_db_session(session)
 
     yield session
+
+    # clear out user and project tables upon function close in case unit test didn't
+    session.query(models.User).delete()
+    session.query(models.IssSubPairToUser).delete()
+    session.query(models.Project).delete()
+    session.commit()
 
     session.close()
     transaction.rollback()

@@ -651,8 +651,12 @@ def test_update_visa_fetch_pkey(
     flask.has_app_context = temp_app_context
 
     # Check that the new visa passed validation, indicating a successful pkey fetch
-    query_visa = db_session.query(GA4GHVisaV1).first()
-    assert query_visa and query_visa.ga4gh_visa == encoded_visa
+    query_visas = [
+        item.ga4gh_visa
+        for item in db_session.query(GA4GHVisaV1).filter_by(user=test_user)
+    ]
+    for visa in query_visas:
+        assert visa == encoded_visa
 
 
 @mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_userinfo")
