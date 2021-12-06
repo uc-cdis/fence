@@ -48,6 +48,7 @@ from fence.models import (
     ServiceAccountToGoogleBucketAccessGroup,
     query_for_user,
     migrate,
+    GA4GHVisaV1,
 )
 from fence.scripting.google_monitor import email_users_without_access, validation_check
 from fence.config import config
@@ -694,6 +695,48 @@ def delete_users(DB, usernames):
         for user in users_to_delete:
             session.delete(user)
         session.commit()
+
+
+def cleanup_expired_ga4gh_information(DB):
+    """
+    Remove any expired passports/visas from the database if they're expired.
+
+    IMPORTANT NOTE: This DOES NOT actually remove authorization, it assumes that the
+                    same expiration was set and honored in the authorization system.
+    """
+    driver = SQLAlchemyDriver(DB)
+    with driver.session as session:
+        current_time = int(time.time())
+
+        # Get expires field from db, if None default to NOT expired
+        records_to_delete = (
+            session.query(GA4GHVisaV1)
+            .filter(
+                and_(
+                    GA4GHVisaV1.expires.isnot(None),
+                    GA4GHVisaV1.expires < current_time,
+                )
+            )
+            .all()
+        )
+        num_deleted_records = 0
+        if records_to_delete:
+            for record in records_to_delete:
+                try:
+                    session.delete(record)
+                    session.commit()
+
+                    num_deleted_records += 1
+                except Exception as e:
+                    logger.error(
+                        "ERROR: Could not remove GA4GHVisaV1 with id={}. Detail {}".format(
+                            record.id, e
+                        )
+                    )
+
+        logger.info(
+            f"Removed {num_deleted_records} expired GA4GHVisaV1 records from db."
+        )
 
 
 def delete_expired_google_access(DB):

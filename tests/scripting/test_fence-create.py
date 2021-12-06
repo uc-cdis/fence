@@ -28,6 +28,7 @@ from fence.models import (
     GoogleProxyGroupToGoogleBucketAccessGroup,
     GoogleServiceAccountKey,
     StorageAccess,
+    GA4GHVisaV1,
 )
 from fence.scripting.fence_create import (
     delete_users,
@@ -45,8 +46,10 @@ from fence.scripting.fence_create import (
     modify_client_action,
     create_projects,
     create_group,
+    cleanup_expired_ga4gh_information,
 )
-
+from tests.dbgap_sync.conftest import add_visa_manually
+from tests.utils import add_test_ras_user
 
 ROOT_DIR = "./"
 
@@ -385,6 +388,29 @@ def test_create_refresh_token_with_found_user(
         .first()
     )
     assert db_token is not None
+
+
+def _setup_ga4gh_info(
+    db_session, rsa_private_key, kid, access_1_expires=None, access_2_expires=None
+):
+    """
+    Setup some testing data.
+
+    Args:
+        access_1_expires (str, optional): expiration for the Proxy Group ->
+            Google Bucket Access Group for user 1, defaults to None
+        access_2_expires (str, optional): expiration for the Proxy Group ->
+            Google Bucket Access Group for user 2, defaults to None
+    """
+    test_user = add_test_ras_user(db_session)
+    _, visa1 = add_visa_manually(
+        db_session, test_user, rsa_private_key, kid, expires=access_1_expires
+    )
+    _, visa2 = add_visa_manually(
+        db_session, test_user, rsa_private_key, kid, expires=access_2_expires
+    )
+
+    return {"ga4gh_visas": {"1": visa1.id, "2": visa2.id, "test_user": test_user}}
 
 
 def _setup_google_access(db_session, access_1_expires=None, access_2_expires=None):
@@ -816,6 +842,45 @@ def test_delete_expired_google_access_with_one_fail_first(
     assert len(google_access) == pre_deletion_google_access_size
     assert len(google_proxy_groups) == pre_deletion_google_proxy_groups_size
     assert len(google_bucket_access_grps) == pre_deletion_google_bucket_access_grps_size
+
+
+def test_cleanup_expired_ga4gh_information(app, db_session, rsa_private_key, kid):
+    """
+    Test removal of expired ga4gh info
+    """
+    import fence
+
+    current_time = int(time.time())
+    # 1 expired, 2 not expired
+    access_1_expires = current_time - 3600
+    access_2_expires = current_time + 3600
+    setup_results = _setup_ga4gh_info(
+        db_session,
+        rsa_private_key,
+        kid,
+        access_1_expires=access_1_expires,
+        access_2_expires=access_2_expires,
+    )
+
+    ga4gh_visas = db_session.query(GA4GHVisaV1).all()
+
+    # check database to make sure all the service accounts exist
+    pre_deletion_ga4gh_visas_size = len(ga4gh_visas)
+
+    # call function to delete expired service account
+    cleanup_expired_ga4gh_information(config["DB"])
+
+    ga4gh_visas = db_session.query(GA4GHVisaV1).all()
+
+    # check database again. Expect 1 access is deleted - proxy group and gbag should be intact
+    assert len(ga4gh_visas) == pre_deletion_ga4gh_visas_size - 1
+    remaining_ids = [str(item.id) for item in ga4gh_visas]
+
+    # b/c expired
+    assert str(setup_results["ga4gh_visas"]["1"]) not in remaining_ids
+
+    # b/c not expired
+    assert str(setup_results["ga4gh_visas"]["2"]) in remaining_ids
 
 
 def test_verify_bucket_access_group_no_interested_accounts(

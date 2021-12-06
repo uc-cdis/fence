@@ -205,18 +205,19 @@ def syncer(db_session, request, rsa_private_key, kid):
     return syncer_obj
 
 
-def add_visa_manually(db_session, user, rsa_private_key, kid):
-
+def add_visa_manually(db_session, user, rsa_private_key, kid, expires=None):
+    expires = expires or int(time.time()) + 1000
     headers = {"kid": kid}
 
     decoded_visa = {
         "iss": "https://stsstg.nih.gov",
         "sub": "abcde12345aspdij",
         "iat": int(time.time()),
-        "exp": int(time.time()) + 1000,
+        "exp": expires,
         "scope": "openid ga4gh_passport_v1 email profile",
-        "jti": "jtiajoidasndokmasdl",
-        "txn": "sapidjspa.asipidja",
+        "jti": "jtiajoidasndokmasdl"
+        + str(expires),  # expires to make unique from others
+        "txn": "sapidjspa.asipidja" + str(expires),
         "name": "",
         "ga4gh_visa_v1": {
             "type": "https://ras.nih.gov/visas/v1",
@@ -232,7 +233,7 @@ def add_visa_manually(db_session, user, rsa_private_key, kid):
                 "participant_set": "p1",
                 "consent_group": "c1",
                 "role": "designated user",
-                "expiration": int(time.time()) + 1001,
+                "expiration": expires,
             },
             {
                 "consent_name": "General Research Use (IRB, PUB)",
@@ -241,7 +242,7 @@ def add_visa_manually(db_session, user, rsa_private_key, kid):
                 "participant_set": "p1",
                 "consent_group": "c1",
                 "role": "designated user",
-                "expiration": int(time.time()) + 1001,
+                "expiration": expires,
             },
             {
                 "consent_name": "Disease-Specific (Cardiovascular Disease)",
@@ -250,7 +251,7 @@ def add_visa_manually(db_session, user, rsa_private_key, kid):
                 "participant_set": "p1",
                 "consent_group": "c1",
                 "role": "designated user",
-                "expiration": int(time.time()) + 1001,
+                "expiration": expires,
             },
             {
                 "consent_name": "Health/Medical/Biomedical (IRB)",
@@ -259,7 +260,7 @@ def add_visa_manually(db_session, user, rsa_private_key, kid):
                 "participant_set": "p2",
                 "consent_group": "c3",
                 "role": "designated user",
-                "expiration": int(time.time()) + 1001,
+                "expiration": expires,
             },
             {
                 "consent_name": "Disease-Specific (Focused Disease Only, IRB, NPU)",
@@ -268,7 +269,7 @@ def add_visa_manually(db_session, user, rsa_private_key, kid):
                 "participant_set": "p2",
                 "consent_group": "c2",
                 "role": "designated user",
-                "expiration": int(time.time()) + 1001,
+                "expiration": expires,
             },
             {
                 "consent_name": "Disease-Specific (Autism Spectrum Disorder)",
@@ -277,7 +278,7 @@ def add_visa_manually(db_session, user, rsa_private_key, kid):
                 "participant_set": "p3",
                 "consent_group": "c1",
                 "role": "designated user",
-                "expiration": int(time.time()) + 1001,
+                "expiration": expires,
             },
         ],
     }
@@ -306,4 +307,4 @@ def add_visa_manually(db_session, user, rsa_private_key, kid):
     db_session.add(visa)
     db_session.commit()
 
-    return encoded_visa
+    return encoded_visa, visa

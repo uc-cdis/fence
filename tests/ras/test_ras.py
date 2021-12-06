@@ -23,26 +23,12 @@ from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
 from fence.resources.ga4gh.passports import get_or_create_gen3_user_from_iss_sub
 from fence.errors import InternalError
 
+from tests.utils import add_test_ras_user, TEST_RAS_USERNAME, TEST_RAS_SUB
 from tests.dbgap_sync.conftest import add_visa_manually
 from fence.job.visa_update_cronjob import Visa_Token_Update
 import tests.utils
 
 logger = get_logger(__name__, log_level="debug")
-
-TEST_USERNAME = "admin_user"
-TEST_RAS_SUB = "abcd-asdj-sajpiasj12iojd-asnoin"
-
-
-def add_test_user(db_session, username=TEST_USERNAME, is_admin=True):
-    # pre-populate mapping table, as login would do
-    test_user = get_or_create_gen3_user_from_iss_sub(
-        issuer="https://stsstg.nih.gov", subject_id=TEST_RAS_SUB, db_session=db_session
-    )
-    test_user.username = username
-    test_user.is_admin = is_admin
-    db_session.add(test_user)
-    db_session.commit()
-    return test_user
 
 
 def add_refresh_token(db_session, user):
@@ -64,7 +50,7 @@ def test_store_refresh_token(db_session):
     Test to check if store_refresh_token replaces the existing token with a new one in the db
     """
 
-    test_user = add_test_user(db_session)
+    test_user = add_test_ras_user(db_session)
     add_refresh_token(db_session, test_user)
     initial_query = db_session.query(UpstreamRefreshToken).first()
     assert initial_query.refresh_token
@@ -126,7 +112,9 @@ def test_update_visa_token(
 
     flask.has_app_context = return_false
 
-    mock_arborist_requests({f"arborist/user/{TEST_USERNAME}": {"PATCH": (None, 204)}})
+    mock_arborist_requests(
+        {f"arborist/user/{TEST_RAS_USERNAME}": {"PATCH": (None, 204)}}
+    )
 
     mock_discovery.return_value = "https://ras/token_endpoint"
     new_token = "refresh12345abcdefg"
@@ -142,12 +130,12 @@ def test_update_visa_token(
         "name": "",
         "preferred_username": "someuser@era.com",
         "UID": "",
-        "UserID": TEST_USERNAME,
+        "UserID": TEST_RAS_USERNAME,
         "email": "",
     }
 
-    test_user = add_test_user(db_session)
-    existing_encoded_visa = add_visa_manually(
+    test_user = add_test_ras_user(db_session)
+    existing_encoded_visa, _ = add_visa_manually(
         db_session, test_user, rsa_private_key, kid
     )
     add_refresh_token(db_session, test_user)
@@ -251,7 +239,9 @@ def test_update_visa_empty_passport_returned(
     """
     Test to handle empty passport sent from RAS
     """
-    mock_arborist_requests({f"arborist/user/{TEST_USERNAME}": {"PATCH": (None, 204)}})
+    mock_arborist_requests(
+        {f"arborist/user/{TEST_RAS_USERNAME}": {"PATCH": (None, 204)}}
+    )
 
     mock_discovery.return_value = "https://ras/token_endpoint"
     new_token = "refresh12345abcdefg"
@@ -267,14 +257,14 @@ def test_update_visa_empty_passport_returned(
         "name": "",
         "preferred_username": "someuser@era.com",
         "UID": "",
-        "UserID": TEST_USERNAME,
+        "UserID": TEST_RAS_USERNAME,
         "email": "",
         "passport_jwt_v11": "",
     }
     mock_userinfo.return_value = userinfo_response
 
-    test_user = add_test_user(db_session)
-    existing_encoded_visa = add_visa_manually(
+    test_user = add_test_ras_user(db_session)
+    existing_encoded_visa, _ = add_visa_manually(
         db_session, test_user, rsa_private_key, kid
     )
     add_refresh_token(db_session, test_user)
@@ -327,7 +317,9 @@ def test_update_visa_empty_visa_returned(
     """
     Test to check if the db is emptied if the ras userinfo sends back an empty visa
     """
-    mock_arborist_requests({f"arborist/user/{TEST_USERNAME}": {"PATCH": (None, 204)}})
+    mock_arborist_requests(
+        {f"arborist/user/{TEST_RAS_USERNAME}": {"PATCH": (None, 204)}}
+    )
 
     mock_discovery.return_value = "https://ras/token_endpoint"
     new_token = "refresh12345abcdefg"
@@ -343,7 +335,7 @@ def test_update_visa_empty_visa_returned(
         "name": "",
         "preferred_username": "someuser@era.com",
         "UID": "",
-        "UserID": TEST_USERNAME,
+        "UserID": TEST_RAS_USERNAME,
         "email": "",
     }
 
@@ -367,8 +359,8 @@ def test_update_visa_empty_visa_returned(
     userinfo_response["passport_jwt_v11"] = encoded_passport
     mock_userinfo.return_value = userinfo_response
 
-    test_user = add_test_user(db_session)
-    existing_encoded_visa = add_visa_manually(
+    test_user = add_test_ras_user(db_session)
+    existing_encoded_visa, _ = add_visa_manually(
         db_session, test_user, rsa_private_key, kid
     )
     add_refresh_token(db_session, test_user)
@@ -438,7 +430,9 @@ def test_update_visa_token_with_invalid_visa(
 
     flask.has_app_context = return_false
 
-    mock_arborist_requests({f"arborist/user/{TEST_USERNAME}": {"PATCH": (None, 204)}})
+    mock_arborist_requests(
+        {f"arborist/user/{TEST_RAS_USERNAME}": {"PATCH": (None, 204)}}
+    )
 
     mock_discovery.return_value = "https://ras/token_endpoint"
     new_token = "refresh12345abcdefg"
@@ -454,12 +448,12 @@ def test_update_visa_token_with_invalid_visa(
         "name": "",
         "preferred_username": "someuser@era.com",
         "UID": "",
-        "UserID": TEST_USERNAME,
+        "UserID": TEST_RAS_USERNAME,
         "email": "",
     }
 
-    test_user = add_test_user(db_session)
-    existing_encoded_visa = add_visa_manually(
+    test_user = add_test_ras_user(db_session)
+    existing_encoded_visa, _ = add_visa_manually(
         db_session, test_user, rsa_private_key, kid
     )
     add_refresh_token(db_session, test_user)
@@ -575,7 +569,9 @@ def test_update_visa_fetch_pkey(
 
     flask.has_app_context = return_false
 
-    mock_arborist_requests({f"arborist/user/{TEST_USERNAME}": {"PATCH": (None, 204)}})
+    mock_arborist_requests(
+        {f"arborist/user/{TEST_RAS_USERNAME}": {"PATCH": (None, 204)}}
+    )
 
     mock_discovery.return_value = "https://ras/token_endpoint"
     mock_get_token.return_value = {
@@ -639,7 +635,7 @@ def test_update_visa_fetch_pkey(
         HTTP_PROXY=config.get("HTTP_PROXY"),
         logger=logger,
     )
-    test_user = add_test_user(db_session)
+    test_user = add_test_ras_user(db_session)
 
     # Pass in an empty pkey cache so that the client will have to hit the jwks endpoint.
     ras_client.update_user_authorization(
@@ -677,7 +673,9 @@ def dont_test_visa_update_cronjob(
     """
     Test to check visa table is updated when updating visas using cronjob
     """
-    mock_arborist_requests({f"arborist/user/{TEST_USERNAME}": {"PATCH": (None, 204)}})
+    mock_arborist_requests(
+        {f"arborist/user/{TEST_RAS_USERNAME}": {"PATCH": (None, 204)}}
+    )
 
     n_users = 20
     n_users_no_visa = 15
@@ -696,18 +694,18 @@ def dont_test_visa_update_cronjob(
         "name": "",
         "preferred_username": "someuser@era.com",
         "UID": "",
-        "UserID": TEST_USERNAME,
+        "UserID": TEST_RAS_USERNAME,
         "email": "",
     }
 
     for i in range(n_users):
         username = "user_{}".format(i)
-        test_user = add_test_user(db_session, username, i)
+        test_user = add_test_ras_user(db_session, username, i)
         add_visa_manually(db_session, test_user, rsa_private_key, kid)
         add_refresh_token(db_session, test_user)
     for j in range(n_users_no_visa):
         username = "no_visa_{}".format(j)
-        test_user = add_test_user(db_session, username, j + n_users)
+        test_user = add_test_ras_user(db_session, username, j + n_users)
 
     query_visas = db_session.query(GA4GHVisaV1).all()
 
