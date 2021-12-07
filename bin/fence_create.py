@@ -462,6 +462,8 @@ def main():
         verify_bucket_access_group(DB)
     elif args.action == "delete-expired-google-access":
         delete_expired_google_access(DB)
+    elif args.action == "cleanup-expired-ga4gh-information":
+        cleanup_expired_ga4gh_information(DB)
     elif args.action == "sync":
         sync_users(
             dbGaP,
