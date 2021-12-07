@@ -18,8 +18,7 @@ class CognitoOauth2Client(Oauth2ClientBase):
         super(CognitoOauth2Client, self).__init__(
             settings,
             logger,
-            scope="openid email",
-            discovery_url=settings["discovery_url"],
+            scope=settings.get("scope") or "openid email",
             idp="Amazon Cognito",
             HTTP_PROXY=HTTP_PROXY,
         )

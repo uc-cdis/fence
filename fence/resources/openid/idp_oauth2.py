@@ -13,18 +13,31 @@ class Oauth2ClientBase(object):
     An generic oauth2 client class for interacting with an Identity Provider
     """
 
-    def __init__(self, settings, logger, scope, discovery_url, idp, HTTP_PROXY=None):
+    def __init__(
+        self, settings, logger, idp, scope=None, discovery_url=None, HTTP_PROXY=None
+    ):
         self.logger = logger
         self.settings = settings
         self.session = OAuth2Session(
             client_id=settings["client_id"],
             client_secret=settings["client_secret"],
-            scope=scope,
+            scope=scope or settings.get("scope") or "openid",
             redirect_uri=settings["redirect_url"],
         )
-        self.discovery_url = discovery_url
+        self.discovery_url = (
+            discovery_url
+            or settings.get("discovery_url")
+            or getattr(self, "DISCOVERY_URL", None)
+            or ""
+        )
         self.idp = idp
         self.HTTP_PROXY = HTTP_PROXY
+
+        if not self.discovery_url:
+            self.logger.warning(
+                f"OAuth2 Client for {self.idp} does not have a valid discovery_url. "
+                f"Some calls for this client may fail if they rely on the OIDC Discovery page."
+            )
 
     @cached_property
     def discovery_doc(self):
