@@ -145,6 +145,7 @@ OPENID_CONNECT:
     shibboleth_discovery_url: 'https://login.bionimbus.org/Shibboleth.sso/DiscoFeed'
   # you can setup up an orcid client here: https://orcid.org/developer-tools
   orcid:
+    discovery_url: 'https://orcid.org/.well-known/openid-configuration'
     client_id: ''
     client_secret: ''
     # make sure you put the FULL url for this deployment in the allowed redirects in
