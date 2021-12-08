@@ -348,7 +348,11 @@ def sync_validated_visa_authorization(
     syncer = fence.scripting.fence_create.init_syncer(**default_args)
 
     synced_visas = syncer.sync_single_user_visas(
-        gen3_user, ga4gh_visas, db_session, expires=expiration
+        gen3_user,
+        ga4gh_visas,
+        db_session,
+        expires=expiration,
+        policy_prefix="GA4GH.DRS",
     )
 
     # after syncing authorization, perist the visas that were parsed successfully.
