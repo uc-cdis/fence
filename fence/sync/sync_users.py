@@ -292,7 +292,6 @@ class UserSyncer(object):
         sync_from_local_yaml_file=None,
         arborist=None,
         folder=None,
-        fallback_to_dbgap_sftp=False,
     ):
         """
         Syncs ACL files from dbGap to auth database and storage backends
@@ -307,7 +306,6 @@ class UserSyncer(object):
                 ArboristClient instance if the syncer should also create
                 resources in arborist
             folder: a local folder where dbgap telemetry files will sync to
-            fallback_to_dbgap_sftp: fallback to telemetry files when visa sync fails
         """
         self.sync_from_local_csv_dir = sync_from_local_csv_dir
         self.sync_from_local_yaml_file = sync_from_local_yaml_file
@@ -326,7 +324,6 @@ class UserSyncer(object):
         )
         self.arborist_client = arborist
         self.folder = folder
-        self.fallback_to_dbgap_sftp = fallback_to_dbgap_sftp
 
         self.auth_source = defaultdict(set)
         # auth_source used for logging. username : [source1, source2]
@@ -686,7 +683,12 @@ class UserSyncer(object):
                 self.auth_source[user].add(source2)
 
     def sync_to_db_and_storage_backend(
-        self, user_project, user_info, sess, single_visa_sync=False, expires=None
+        self,
+        user_project,
+        user_info,
+        sess,
+        do_not_revoke_from_db_and_storage=False,
+        expires=None,
     ):
         """
         sync user access control to database and storage backend
@@ -746,7 +748,7 @@ class UserSyncer(object):
         # pass the original, non-lowered user_info dict
         self._upsert_userinfo(sess, user_info)
 
-        if not single_visa_sync:
+        if not do_not_revoke_from_db_and_storage:
             self._revoke_from_storage(
                 to_delete, sess, google_bulk_mapping=google_bulk_mapping
             )
@@ -778,8 +780,76 @@ class UserSyncer(object):
         )
         self._update_from_db(sess, to_update, user_project_lowercase)
 
-        if not single_visa_sync:
+        if not do_not_revoke_from_db_and_storage:
             self._validate_and_update_user_admin(sess, user_info_lowercase)
+
+        if config["GOOGLE_BULK_UPDATES"]:
+            self.logger.info("Doing bulk Google update...")
+            bulk_update_google_groups(google_bulk_mapping)
+            self.logger.info("Bulk Google update done!")
+
+        sess.commit()
+
+    def sync_to_storage_backend(self, user_project, user_info, sess, expires):
+        """
+        sync user access control to storage backend with given expiration
+
+        Args:
+            user_project (dict): a dictionary of
+
+                {
+                    username: {
+                        'project1': {'read-storage','write-storage'},
+                        'project2': {'read-storage'}
+                    }
+                }
+
+            user_info (dict): a dictionary of {username: user_info{}}
+            sess: a sqlalchemy session
+
+        Return:
+            None
+        """
+        if not expires:
+            raise Exception(
+                f"sync to storage backend requires an expiration. you provided: {expires}"
+            )
+
+        google_bulk_mapping = None
+        if config["GOOGLE_BULK_UPDATES"]:
+            google_bulk_mapping = {}
+
+        # TODO: eventually it'd be nice to remove this step but it's required
+        #       so that grant_from_storage can determine what storage backends
+        #       are needed for a project.
+        self._init_projects(user_project, sess)
+
+        # we need to compare db -> whitelist case-insensitively for username.
+        # db stores case-sensitively, but we need to query case-insensitively
+        user_project_lowercase = {}
+        syncing_user_project_list = set()
+        for username, projects in user_project.items():
+            user_project_lowercase[username.lower()] = projects
+            for project, _ in projects.items():
+                syncing_user_project_list.add((username.lower(), project))
+
+        user_info_lowercase = {
+            username.lower(): info for username, info in user_info.items()
+        }
+
+        to_add = set(syncing_user_project_list)
+
+        # when updating users we want to maintain case sesitivity in the username so
+        # pass the original, non-lowered user_info dict
+        self._upsert_userinfo(sess, user_info)
+
+        self._grant_from_storage(
+            to_add,
+            user_project_lowercase,
+            sess,
+            google_bulk_mapping=google_bulk_mapping,
+            expires=expires,
+        )
 
         if config["GOOGLE_BULK_UPDATES"]:
             self.logger.info("Doing bulk Google update...")
@@ -2040,9 +2110,9 @@ class UserSyncer(object):
             )
 
         if user_projects:
-            self.logger.info("Sync to db and storage backend [sync_single_user_visas]")
-            self.sync_to_db_and_storage_backend(
-                user_projects, user_info, sess, single_visa_sync=True, expires=expires
+            self.logger.info("Sync to storage backend [sync_single_user_visas]")
+            self.sync_to_storage_backend(
+                user_projects, user_info, sess, expires=expires
             )
         else:
             self.logger.info("No users for syncing")
