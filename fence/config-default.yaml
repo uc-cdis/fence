@@ -1,6 +1,6 @@
 ---
 ############################### Fence Configuration ####################################
-# This file contains various configurations for the fence microservice.
+# This file contains various configurations for the Fence microservice.
 #
 # README:
 # - This is initially configured for minimal local development with reasonable defaults.
