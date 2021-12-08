@@ -6,14 +6,13 @@ class CilogonOauth2Client(Oauth2ClientBase):
     client for interacting with CILogon OIDC
     """
 
-    CILOGON_DISCOVERY_URL = "https://cilogon.org/.well-known/openid-configuration"
+    DISCOVERY_URL = "https://cilogon.org/.well-known/openid-configuration"
 
     def __init__(self, settings, logger, HTTP_PROXY=None):
         super(CilogonOauth2Client, self).__init__(
             settings,
             logger,
-            scope="openid email profile",
-            discovery_url=self.CILOGON_DISCOVERY_URL,
+            scope=settings.get("scope") or "openid email profile",
             idp="CILogon",
             HTTP_PROXY=HTTP_PROXY,
         )

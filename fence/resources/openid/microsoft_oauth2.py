@@ -10,14 +10,13 @@ class MicrosoftOauth2Client(Oauth2ClientBase):
 
     """
 
-    MICROSOFT_DISCOVERY_URL = "https://login.microsoftonline.com/organizations/v2.0/.well-known/openid-configuration"
+    DISCOVERY_URL = "https://login.microsoftonline.com/organizations/v2.0/.well-known/openid-configuration"
 
     def __init__(self, settings, logger, HTTP_PROXY=None):
         super(MicrosoftOauth2Client, self).__init__(
             settings,
             logger,
-            scope="openid email",
-            discovery_url=self.MICROSOFT_DISCOVERY_URL,
+            scope=settings.get("scope") or "openid email",
             idp="Microsoft",
             HTTP_PROXY=HTTP_PROXY,
         )
