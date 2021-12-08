@@ -99,6 +99,7 @@ OPENID_CONNECT:
     redirect_url: '{{BASE_URL}}/login/ras/callback'
     discovery_url: 'https://sts.nih.gov/.well-known/openid-configuration'
   microsoft:
+    discovery_url: ''
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/cognito/login/'

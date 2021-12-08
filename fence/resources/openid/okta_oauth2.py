@@ -8,8 +8,7 @@ class OktaOauth2Client(Oauth2ClientBase):
         super(OktaOauth2Client, self).__init__(
             settings,
             logger,
-            scope="openid email",
-            discovery_url=settings["discovery_url"],
+            scope=settings.get("scope") or "openid email",
             idp="Okta",
             HTTP_PROXY=HTTP_PROXY,
         )
