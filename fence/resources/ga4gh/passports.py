@@ -286,7 +286,7 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id):
             username = subject_id + issuer[len("https://") :]
             gen3_user = query_for_user(session=db_session, username=username)
             if not gen3_user:
-                idp_name = flask.current_app.issuer_to_idp.get(issuer)
+                idp_name = IssSubPairToUser.ISSUER_TO_IDP.get(issuer)
                 gen3_user = create_user(db_session, logger, username, idp_name=idp_name)
                 if not idp_name:
                     logger.info(

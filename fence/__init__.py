@@ -401,7 +401,6 @@ def _set_authlib_cfgs(app):
 
 def _setup_oidc_clients(app):
     oidc = config.get("OPENID_CONNECT", {})
-    app.issuer_to_idp = {}
 
     # Add OIDC client for Google if configured.
     if "google" in oidc:
@@ -426,12 +425,6 @@ def _setup_oidc_clients(app):
             HTTP_PROXY=config.get("HTTP_PROXY"),
             logger=logger,
         )
-        for allowed_issuer in config["GA4GH_VISA_ISSUER_ALLOWLIST"]:
-            if app.ras_client.discovery_url.startswith(allowed_issuer):
-                app.issuer_to_idp[allowed_issuer] = IdentityProvider.ras
-                break
-        else:
-            logger.warn("Could not determine issuer for the RAS OIDC client")
 
     # Add OIDC client for Synapse if configured.
     if "synapse" in oidc:
