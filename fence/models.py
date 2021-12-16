@@ -652,27 +652,44 @@ class IssSubPairToUser(Base):
     # dump whatever idp provides in here
     extra_info = Column(JSONB(), server_default=text("'{}'"))
 
+    def _get_issuer_to_idp():
+        possibly_matching_idps = [IdentityProvider.ras]
+        issuer_to_idp = {}
+
+        oidc = config.get("OPENID_CONNECT", {})
+        for idp in possibly_matching_idps:
+            discovery_url = oidc.get(idp, {}).get("discovery_url")
+            if discovery_url:
+                for allowed_issuer in config["GA4GH_VISA_ISSUER_ALLOWLIST"]:
+                    if discovery_url.startswith(allowed_issuer):
+                        issuer_to_idp[allowed_issuer] = idp
+                        break
+
+        return issuer_to_idp
+
+    ISSUER_TO_IDP = _get_issuer_to_idp()
+
+    del _get_issuer_to_idp
+
 
 @event.listens_for(IssSubPairToUser.__table__, "after_create")
 def populate_iss_sub_pair_to_user_table(target, connection, **kw):
-    idp_name = IdentityProvider.ras
-    issuer = "https://stsstg.nih.gov"
-
-    transaction = connection.begin()
-    result = connection.execute(
-        text(
-            """
-            WITH identity_provider_id AS (SELECT id FROM identity_provider WHERE name=:idp_name)
-            INSERT INTO iss_sub_pair_to_user (iss, sub, "fk_to_User", extra_info)
-            SELECT :iss, id_from_idp, id, additional_info
-            FROM "User"
-            WHERE idp_id IN (SELECT * FROM identity_provider_id) AND id_from_idp IS NOT NULL;
-            """
-        ),
-        idp_name=idp_name,
-        iss=issuer,
-    )
-    transaction.commit()
+    for issuer, idp_name in IssSubPairToUser.ISSUER_TO_IDP.items():
+        transaction = connection.begin()
+        result = connection.execute(
+            text(
+                """
+                WITH identity_provider_id AS (SELECT id FROM identity_provider WHERE name=:idp_name)
+                INSERT INTO iss_sub_pair_to_user (iss, sub, "fk_to_User", extra_info)
+                SELECT :iss, id_from_idp, id, additional_info
+                FROM "User"
+                WHERE idp_id IN (SELECT * FROM identity_provider_id) AND id_from_idp IS NOT NULL;
+                """
+            ),
+            idp_name=idp_name,
+            iss=issuer,
+        )
+        transaction.commit()
 
 
 to_timestamp = (
