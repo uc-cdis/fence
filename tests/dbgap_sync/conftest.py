@@ -5,19 +5,30 @@ import jwt
 from unittest.mock import MagicMock, patch
 from yaml import safe_load as yaml_load
 
+from cdislogging import get_logger
 from cirrus import GoogleCloudManager
 from cdisutilstest.code.storage_client_mock import get_client, StorageClientMocker
 import pytest
 from userdatamodel import Base
 from userdatamodel.models import *
 from userdatamodel.driver import SQLAlchemyDriver
+from gen3authz.client.arborist.client import ArboristClient
 
+from fence.config import config
+from fence.resources.openid.ras_oauth2 import RASOauth2Client
+from fence.auth import login_user
 from fence.sync.sync_users import UserSyncer
 from fence.resources import userdatamodel as udm
+from fence.models import (
+    AccessPrivilege,
+    AuthorizationProvider,
+    User,
+    GA4GHVisaV1,
+    create_user,
+    User,
+)
 
-from fence.models import AccessPrivilege, AuthorizationProvider, User, GA4GHVisaV1
-
-from gen3authz.client.arborist.client import ArboristClient
+logger = get_logger(__name__)
 
 LOCAL_CSV_DIR = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data/csv")
 
@@ -72,6 +83,11 @@ def storage_client():
 
 @pytest.fixture
 def syncer(db_session, request, rsa_private_key, kid):
+    # reset GA4GH visas and users table
+    db_session.query(User).delete()
+    db_session.query(GA4GHVisaV1).delete()
+    db_session.commit()
+
     if request.param == "google":
         backend = "google"
     else:
@@ -82,28 +98,47 @@ def syncer(db_session, request, rsa_private_key, kid):
     provider = [{"name": backend_name, "backend": backend}]
 
     users = [
-        {"username": "TESTUSERB", "is_admin": True, "email": "userA@gmail.com"},
-        {"username": "USER_1", "is_admin": True, "email": "user1@gmail.com"},
+        {
+            "username": "TESTUSERB",
+            "is_admin": True,
+            "email": "userA@gmail.com",
+            "idp_name": "ras",
+        },
+        {
+            "username": "USER_1",
+            "is_admin": True,
+            "email": "user1@gmail.com",
+            "idp_name": "ras",
+        },
         {
             "username": "test_user1@gmail.com",
             "is_admin": False,
             "email": "test_user1@gmail.com",
+            "idp_name": "ras",
         },
         {
             "username": "deleted_user@gmail.com",
             "is_admin": True,
             "email": "deleted_user@gmail.com",
+            "idp_name": "ras",
         },
-        {"username": "TESTUSERD", "is_admin": True, "email": "userD@gmail.com"},
+        {
+            "username": "TESTUSERD",
+            "is_admin": True,
+            "email": "userD@gmail.com",
+            "idp_name": "ras",
+        },
         {
             "username": "expired_visa_user",
             "is_admin": False,
             "email": "expired@expired.com",
+            "idp_name": "ras",
         },
         {
             "username": "invalid_visa_user",
             "is_admin": False,
             "email": "invalid@invalid.com",
+            "idp_name": "ras",
         },
     ]
 
@@ -195,23 +230,30 @@ def syncer(db_session, request, rsa_private_key, kid):
                     sa["name"], db_session, bucket, p
                 )
 
-    for user in users:
-        user = User(**user)
-        db_session.add(user)
-        add_visa_manually(db_session, user, rsa_private_key, kid)
-
     db_session.commit()
 
     return syncer_obj
 
 
-def add_visa_manually(db_session, user, rsa_private_key, kid, expires=None):
+def get_test_encoded_decoded_visa_and_exp(
+    db_session,
+    user,
+    rsa_private_key,
+    kid,
+    expires=None,
+    sub=None,
+    make_invalid=False,
+):
+    """
+    user can be a db user object or just a username
+    """
     expires = expires or int(time.time()) + 1000
     headers = {"kid": kid}
+    sub = sub or "abcde12345aspdij"
 
     decoded_visa = {
         "iss": "https://stsstg.nih.gov",
-        "sub": "abcde12345aspdij",
+        "sub": sub,
         "iat": int(time.time()),
         "exp": expires,
         "scope": "openid ga4gh_passport_v1 email profile",
@@ -288,12 +330,32 @@ def add_visa_manually(db_session, user, rsa_private_key, kid, expires=None):
     ).decode("utf-8")
 
     expires = int(decoded_visa["exp"])
-    if user.username == "expired_visa_user":
+
+    if make_invalid:
+        encoded_visa = encoded_visa[: len(encoded_visa) // 2]
+
+    return encoded_visa, decoded_visa, expires
+
+
+def add_visa_manually(db_session, user, rsa_private_key, kid, expires=None):
+    expires = expires or int(time.time()) + 1000
+    make_invalid = False
+
+    if getattr(user, "username", user) == "expired_visa_user":
         expires -= 100000
-    if user.username == "invalid_visa_user":
-        encoded_visa = encoded_visa[: len(encoded_visa) // 2]
-    if user.username == "TESTUSERD":
-        encoded_visa = encoded_visa[: len(encoded_visa) // 2]
+    if getattr(user, "username", user) == "invalid_visa_user":
+        make_invalid = True
+    if getattr(user, "username", user) == "TESTUSERD":
+        make_invalid = True
+
+    encoded_visa, decoded_visa, expires = get_test_encoded_decoded_visa_and_exp(
+        db_session,
+        user,
+        rsa_private_key,
+        kid,
+        expires=expires,
+        make_invalid=make_invalid,
+    )
 
     visa = GA4GHVisaV1(
         user=user,
@@ -308,3 +370,34 @@ def add_visa_manually(db_session, user, rsa_private_key, kid, expires=None):
     db_session.commit()
 
     return encoded_visa, visa
+
+
+def fake_ras_login(username, subject, email=None, db_session=None):
+    """
+    Mock a login by creating a sub/iss mapping in the db and logging them into a
+    session.
+
+    Args:
+        username (str): Username from IdP
+        subject (str): sub id in tokens from IdP
+        email (None, optional): email if provided
+        db_session (None, optional): db session to use
+    """
+    ras_client = RASOauth2Client(
+        config["OPENID_CONNECT"]["ras"],
+        HTTP_PROXY=config["HTTP_PROXY"],
+        logger=logger,
+    )
+    actual_username = ras_client.map_iss_sub_pair_to_user(
+        issuer="https://stsstg.nih.gov",
+        subject_id=subject,
+        username=username,
+        email=email,
+        db_session=db_session,
+    )
+    logger.debug(
+        f"subject: {subject}, username: {username}, actual_username: {actual_username}"
+    )
+    login_user(actual_username, provider="ras", email=None, id_from_idp=subject)
+
+    # todo sub to iss table

@@ -27,6 +27,7 @@ from tests.utils import add_test_ras_user, TEST_RAS_USERNAME, TEST_RAS_SUB
 from tests.dbgap_sync.conftest import add_visa_manually
 from fence.job.visa_update_cronjob import Visa_Token_Update
 import tests.utils
+from tests.conftest import get_subjects_to_passports
 
 logger = get_logger(__name__, log_level="debug")
 
@@ -79,9 +80,7 @@ def test_store_refresh_token(db_session):
 @mock.patch(
     "fence.resources.openid.ras_oauth2.RASOauth2Client.get_value_from_discovery_doc"
 )
-@mock.patch("fence.resources.ga4gh.passports.validate_jwt")
 def test_update_visa_token(
-    mock_validate_jwt,
     mock_discovery,
     mock_get_token,
     mock_userinfo,
@@ -91,6 +90,7 @@ def test_update_visa_token(
     rsa_public_key,
     kid,
     mock_arborist_requests,
+    no_app_context_no_public_keys,
 ):
     """
     Test to check visa table is updated when getting new visa
@@ -99,8 +99,6 @@ def test_update_visa_token(
     def validate_jwt_no_key_refresh(*args, **kwargs):
         kwargs.update({"attempt_refresh": False})
         return validate_jwt(*args, **kwargs)
-
-    mock_validate_jwt.side_effect = validate_jwt_no_key_refresh
 
     # ensure there is no application context or cached keys
     temp_stored_public_keys = flask.current_app.jwt_public_keys
@@ -151,48 +149,14 @@ def test_update_visa_token(
         logger=logger,
     )
 
-    new_visa = {
-        "iss": "https://stsstg.nih.gov",
-        "sub": TEST_RAS_SUB,
-        "iat": int(time.time()),
-        "exp": int(time.time()) + 1000,
-        "scope": "openid ga4gh_passport_v1 email profile",
-        "jti": "jtiajoidasndokmasdl",
-        "txn": "sapidjspa.asipidja",
-        "name": "",
-        "ga4gh_visa_v1": {
-            "type": "https://ras.nih.gov/visas/v1",
-            "asserted": int(time.time()),
-            "value": "https://stsstg.nih.gov/passport/dbgap/v1.1",
-            "source": "https://ncbi.nlm.nih.gov/gap",
-        },
-    }
+    # use default user and passport
+    subjects_to_passports = get_subjects_to_passports(
+        kid=kid, rsa_private_key=rsa_private_key
+    )
 
-    headers = {"kid": kid}
-
-    encoded_visa = jwt.encode(
-        new_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
-    ).decode("utf-8")
-
-    passport_header = {
-        "type": "JWT",
-        "alg": "RS256",
-        "kid": kid,
-    }
-    new_passport = {
-        "iss": "https://stsstg.nih.gov",
-        "sub": TEST_RAS_SUB,
-        "iat": int(time.time()),
-        "scope": "openid ga4gh_passport_v1 email profile",
-        "exp": int(time.time()) + 1000,
-        "ga4gh_passport_v1": [encoded_visa],
-    }
-
-    encoded_passport = jwt.encode(
-        new_passport, key=rsa_private_key, headers=passport_header, algorithm="RS256"
-    ).decode("utf-8")
-
-    userinfo_response["passport_jwt_v11"] = encoded_passport
+    userinfo_response["passport_jwt_v11"] = subjects_to_passports[TEST_RAS_SUB][
+        "encoded_passport"
+    ]
     mock_userinfo.return_value = userinfo_response
 
     pkey_cache = {
@@ -217,7 +181,8 @@ def test_update_visa_token(
     # and the new visa should also show up
     assert len(query_visas) == 2
     assert existing_encoded_visa in query_visas
-    assert encoded_visa in query_visas
+    for visa in subjects_to_passports[TEST_RAS_SUB]["encoded_visas"]:
+        assert visa in query_visas
 
 
 @mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_userinfo")
@@ -397,7 +362,6 @@ def test_update_visa_empty_visa_returned(
 )
 @mock.patch("fence.resources.ga4gh.passports.validate_jwt")
 def test_update_visa_token_with_invalid_visa(
-    mock_validate_jwt,
     mock_discovery,
     mock_get_token,
     mock_userinfo,
@@ -407,29 +371,13 @@ def test_update_visa_token_with_invalid_visa(
     rsa_public_key,
     kid,
     mock_arborist_requests,
+    no_app_context_no_public_keys,
 ):
     """
     Test to check the following case:
     Received visa: [good1, bad2, good3]
     Processed/stored visa: [good1, good3]
     """
-    # ensure we don't actually try to reach out to external sites to refresh public keys
-    def validate_jwt_no_key_refresh(*args, **kwargs):
-        kwargs.update({"attempt_refresh": False})
-        return validate_jwt(*args, **kwargs)
-
-    mock_validate_jwt.side_effect = validate_jwt_no_key_refresh
-
-    # ensure there is no application context or cached keys
-    temp_stored_public_keys = flask.current_app.jwt_public_keys
-    temp_app_context = flask.has_app_context
-    del flask.current_app.jwt_public_keys
-
-    def return_false():
-        return False
-
-    flask.has_app_context = return_false
-
     mock_arborist_requests(
         {f"arborist/user/{TEST_RAS_USERNAME}": {"PATCH": (None, 204)}}
     )
@@ -522,11 +470,6 @@ def test_update_visa_token_with_invalid_visa(
     ras_client.update_user_authorization(
         test_user, pkey_cache=pkey_cache, db_session=db_session
     )
-
-    # restore public keys and context
-    flask.current_app.jwt_public_keys = temp_stored_public_keys
-    flask.has_app_context = temp_app_context
-
     # at this point we expect the existing visa to stay around (since it hasn't expired)
     # and 2 new good visas
     query_visas = [
@@ -660,7 +603,7 @@ def test_update_visa_fetch_pkey(
 @mock.patch(
     "fence.resources.openid.ras_oauth2.RASOauth2Client.get_value_from_discovery_doc"
 )
-def dont_test_visa_update_cronjob(
+def test_visa_update_cronjob(
     mock_discovery,
     mock_get_token,
     mock_userinfo,
@@ -676,6 +619,9 @@ def dont_test_visa_update_cronjob(
     mock_arborist_requests(
         {f"arborist/user/{TEST_RAS_USERNAME}": {"PATCH": (None, 204)}}
     )
+    # reset users table
+    db_session.query(User).delete()
+    db_session.commit()
 
     n_users = 20
     n_users_no_visa = 15
@@ -700,12 +646,12 @@ def dont_test_visa_update_cronjob(
 
     for i in range(n_users):
         username = "user_{}".format(i)
-        test_user = add_test_ras_user(db_session, username, i)
+        test_user = add_test_ras_user(db_session, username)
         add_visa_manually(db_session, test_user, rsa_private_key, kid)
         add_refresh_token(db_session, test_user)
     for j in range(n_users_no_visa):
         username = "no_visa_{}".format(j)
-        test_user = add_test_ras_user(db_session, username, j + n_users)
+        test_user = add_test_ras_user(db_session, username)
 
     query_visas = db_session.query(GA4GHVisaV1).all()
 
@@ -780,6 +726,10 @@ def test_map_iss_sub_pair_to_user_with_no_prior_DRS_access(db_session):
     user's <iss, sub> combination has not already been mapped through a prior
     DRS access request.
     """
+    # reset users table
+    db_session.query(User).delete()
+    db_session.commit()
+
     iss = "https://domain.tld"
     sub = "123_abc"
     username = "johnsmith"
@@ -795,7 +745,9 @@ def test_map_iss_sub_pair_to_user_with_no_prior_DRS_access(db_session):
     iss_sub_pair_to_user_records = db_session.query(IssSubPairToUser).all()
     assert len(iss_sub_pair_to_user_records) == 0
 
-    username_to_log_in = ras_client.map_iss_sub_pair_to_user(iss, sub, username, email)
+    username_to_log_in = ras_client.map_iss_sub_pair_to_user(
+        iss, sub, username, email, db_session=db_session
+    )
 
     assert username_to_log_in == username
     iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get((iss, sub))
@@ -818,6 +770,10 @@ def test_map_iss_sub_pair_to_user_with_prior_DRS_access(
     """
     mock_arborist_requests({"arborist/user/123_abcdomain.tld": {"PATCH": (None, 204)}})
 
+    # reset users table
+    db_session.query(User).delete()
+    db_session.commit()
+
     iss = "https://domain.tld"
     sub = "123_abc"
     username = "johnsmith"
@@ -835,7 +791,9 @@ def test_map_iss_sub_pair_to_user_with_prior_DRS_access(
     iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get((iss, sub))
     assert iss_sub_pair_to_user.user.username == "123_abcdomain.tld"
 
-    username_to_log_in = ras_client.map_iss_sub_pair_to_user(iss, sub, username, email)
+    username_to_log_in = ras_client.map_iss_sub_pair_to_user(
+        iss, sub, username, email, db_session=db_session
+    )
 
     assert username_to_log_in == username
     iss_sub_pair_to_user_records = db_session.query(IssSubPairToUser).all()
@@ -854,6 +812,10 @@ def test_map_iss_sub_pair_to_user_with_prior_DRS_access_and_arborist_error(
     """
     mock_arborist_requests({"arborist/user/123_abcdomain.tld": {"PATCH": (None, 500)}})
 
+    # reset users table
+    db_session.query(User).delete()
+    db_session.commit()
+
     iss = "https://domain.tld"
     sub = "123_abc"
     username = "johnsmith"
@@ -867,7 +829,9 @@ def test_map_iss_sub_pair_to_user_with_prior_DRS_access_and_arborist_error(
     get_or_create_gen3_user_from_iss_sub(iss, sub, db_session=db_session)
 
     with pytest.raises(InternalError):
-        ras_client.map_iss_sub_pair_to_user(iss, sub, username, email)
+        ras_client.map_iss_sub_pair_to_user(
+            iss, sub, username, email, db_session=db_session
+        )
 
 
 def test_map_iss_sub_pair_to_user_with_prior_login_and_prior_DRS_access(
@@ -891,12 +855,19 @@ def test_map_iss_sub_pair_to_user_with_prior_login_and_prior_DRS_access(
         HTTP_PROXY=config.get("HTTP_PROXY"),
         logger=logger,
     )
+
+    # reset users table
+    db_session.query(User).delete()
+    db_session.commit()
+
     user = User(username=username, email=email)
     db_session.add(user)
     db_session.commit()
 
     get_or_create_gen3_user_from_iss_sub(iss, sub, db_session=db_session)
-    username_to_log_in = ras_client.map_iss_sub_pair_to_user(iss, sub, username, email)
+    username_to_log_in = ras_client.map_iss_sub_pair_to_user(
+        iss, sub, username, email, db_session=db_session
+    )
     assert username_to_log_in == "123_abcdomain.tld"
     iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get((iss, sub))
     assert iss_sub_pair_to_user.user.username == "123_abcdomain.tld"
