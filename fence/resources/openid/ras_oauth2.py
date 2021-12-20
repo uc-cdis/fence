@@ -188,7 +188,9 @@ class RASOauth2Client(Oauth2ClientBase):
             "sub": userinfo.get("sub"),
         }
 
-    def map_iss_sub_pair_to_user(self, issuer, subject_id, username, email):
+    def map_iss_sub_pair_to_user(
+        self, issuer, subject_id, username, email, db_session=None
+    ):
         """
         Map <issuer, subject_id> combination to a Fence user whose username
         equals the username argument passed into this function.
@@ -210,78 +212,78 @@ class RASOauth2Client(Oauth2ClientBase):
                  username that was passed in in all cases except for the
                  exception noted above
         """
-        with flask.current_app.db.session as db_session:
-            iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get(
-                (issuer, subject_id)
-            )
-            user = query_for_user(db_session, username)
-            if iss_sub_pair_to_user:
-                if not user:
-                    self.logger.info(
-                        f'Issuer ("{issuer}") and subject id ("{subject_id}") '
-                        "have already been mapped to a Fence user "
-                        f'("{iss_sub_pair_to_user.user.username}") created '
-                        "from the DRS endpoint. Changing said user's username"
-                        f' to "{username}".'
-                    )
-
-                    tries = 2
-                    for i in range(tries):
-                        try:
-                            flask.current_app.arborist.update_user(
-                                iss_sub_pair_to_user.user.username,
-                                new_username=username,
-                                new_email=email,
-                            )
-                        except ArboristError as e:
-                            self.logger.warning(
-                                f"Try {i+1}: could not update user's username in Arborist: {e}"
-                            )
-                            if i == tries - 1:
-                                err_msg = f"Failed to update user's username in Arborist after {tries} tries"
-                                self.logger.exception(err_msg)
-                                raise InternalError(err_msg)
-                        else:
-                            self.logger.info(
-                                "Successfully changed Arborist user's username from "
-                                f'"{iss_sub_pair_to_user.user.username}" to "{username}"'
-                            )
-                            break
-
-                    iss_sub_pair_to_user.user.username = username
-                    if email:
-                        iss_sub_pair_to_user.user.email = email
-                    db_session.commit()
-                elif iss_sub_pair_to_user.user.username != username:
-                    self.logger.warning(
-                        "Two users exist in the Fence database corresponding "
-                        "to the user who is currently trying to log in: one "
-                        f'created from an earlier login ("{username}") and '
-                        f"one created from the DRS endpoint "
-                        f'("{iss_sub_pair_to_user.user.username}"). '
-                        f'"{iss_sub_pair_to_user.user.username}" will be '
-                        f'logged in, rendering "{username}" inaccessible.'
-                    )
-                return iss_sub_pair_to_user.user.username
-
+        db_session = db_session or current_session
+        iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get(
+            (issuer, subject_id)
+        )
+        user = query_for_user(db_session, username)
+        if iss_sub_pair_to_user:
             if not user:
-                user = create_user(
-                    db_session,
-                    self.logger,
-                    username,
-                    email=email,
-                    idp_name=IdentityProvider.ras,
+                self.logger.info(
+                    f'Issuer ("{issuer}") and subject id ("{subject_id}") '
+                    "have already been mapped to a Fence user "
+                    f'("{iss_sub_pair_to_user.user.username}") created '
+                    "from the DRS endpoint. Changing said user's username"
+                    f' to "{username}".'
                 )
 
-            self.logger.info(
-                f'Mapping issuer ("{issuer}") and subject id ("{subject_id}") '
-                f'combination to Fence user "{user.username}"'
-            )
-            iss_sub_pair_to_user = IssSubPairToUser(iss=issuer, sub=subject_id)
-            iss_sub_pair_to_user.user = user
-            db_session.add(iss_sub_pair_to_user)
-            db_session.commit()
+                tries = 2
+                for i in range(tries):
+                    try:
+                        flask.current_app.arborist.update_user(
+                            iss_sub_pair_to_user.user.username,
+                            new_username=username,
+                            new_email=email,
+                        )
+                    except ArboristError as e:
+                        self.logger.warning(
+                            f"Try {i+1}: could not update user's username in Arborist: {e}"
+                        )
+                        if i == tries - 1:
+                            err_msg = f"Failed to update user's username in Arborist after {tries} tries"
+                            self.logger.exception(err_msg)
+                            raise InternalError(err_msg)
+                    else:
+                        self.logger.info(
+                            "Successfully changed Arborist user's username from "
+                            f'"{iss_sub_pair_to_user.user.username}" to "{username}"'
+                        )
+                        break
+
+                iss_sub_pair_to_user.user.username = username
+                if email:
+                    iss_sub_pair_to_user.user.email = email
+                db_session.commit()
+            elif iss_sub_pair_to_user.user.username != username:
+                self.logger.warning(
+                    "Two users exist in the Fence database corresponding "
+                    "to the user who is currently trying to log in: one "
+                    f'created from an earlier login ("{username}") and '
+                    f"one created from the DRS endpoint "
+                    f'("{iss_sub_pair_to_user.user.username}"). '
+                    f'"{iss_sub_pair_to_user.user.username}" will be '
+                    f'logged in, rendering "{username}" inaccessible.'
+                )
             return iss_sub_pair_to_user.user.username
+
+        if not user:
+            user = create_user(
+                db_session,
+                self.logger,
+                username,
+                email=email,
+                idp_name=IdentityProvider.ras,
+            )
+
+        self.logger.info(
+            f'Mapping issuer ("{issuer}") and subject id ("{subject_id}") '
+            f'combination to Fence user "{user.username}"'
+        )
+        iss_sub_pair_to_user = IssSubPairToUser(iss=issuer, sub=subject_id)
+        iss_sub_pair_to_user.user = user
+        db_session.add(iss_sub_pair_to_user)
+        db_session.commit()
+        return iss_sub_pair_to_user.user.username
 
     @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
     def update_user_authorization(self, user, pkey_cache, db_session=current_session):
@@ -291,6 +293,8 @@ class RASOauth2Client(Oauth2ClientBase):
         """
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
+
+            # this get_access_token also persists the refresh token in the db
             token = self.get_access_token(user, token_endpoint, db_session)
             userinfo = self.get_userinfo(token)
             passport = self.get_encoded_passport_v11_userinfo(userinfo)

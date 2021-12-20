@@ -145,30 +145,43 @@ class Visa_Token_Update(object):
         """
         while True:
             user = await updater_queue.get()
-            # IF WE NEED TO UPDATE THEIR VISAS, DETERMINE WHICH CLIENT TO USE
-            # if idp is RAS then update visas? use that info to determine client?
-            if user.ga4gh_visas_v1:
-                for visa in user.ga4gh_visas_v1:
-                    client = self._pick_client(visa)
+            try:
+                client = self._pick_client(user)
+                if client:
                     self.logger.info(
-                        "Updater {} updating visa for user {}".format(
+                        "Updater {} updating authorization for user {}".format(
                             name, user.username
                         )
                     )
+                    # when getting access token, this persists new refresh token
                     client.update_user_authorization(user, self.pkey_cache, db_session)
-            else:
-                # clear expired refresh tokens
-                if user.upstream_refresh_tokens:
-                    user.upstream_refresh_tokens = []
-                    db_session.commit()
-
-                self.logger.info(
-                    "User {} doesn't have visa. Skipping . . .".format(user.username)
+                else:
+                    self.logger.debug(
+                        f"Updater {name} NOT updating authorization for "
+                        f"user {user.username} because no client was found for IdP: {user.identity_provider}"
+                    )
+            except Exception as exc:
+                self.logger.error(
+                    f"Updater {name} could not update authorization "
+                    f"for {user.username}. Error: {exc}. Continuing."
                 )
+                pass
 
             updater_queue.task_done()
 
-    def _pick_client(self, visa):
+    def _pick_client(self, user):
+        """
+        Pick oidc client according to the identity provider
+        """
+        client = None
+        if (
+            user.identity_provider
+            and getattr(user.identity_provider, "name") == self.ras_client.idp
+        ):
+            client = self.ras_client
+        return client
+
+    def _pick_client_from_visa(self, visa):
         """
         Pick oidc client according to the visa provider
         """

@@ -292,13 +292,16 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id, db_session=None):
         userdatamodel.user.User: the Fence user corresponding to issuer and subject_id
     """
     db_session = db_session or current_session
+    logger.debug(
+        f"get_or_create_gen3_user_from_iss_sub: issuer: {issuer} & subject_id: {subject_id}"
+    )
     iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get((issuer, subject_id))
     if not iss_sub_pair_to_user:
         username = subject_id + issuer[len("https://") :]
         gen3_user = query_for_user(session=db_session, username=username)
+        idp_name = flask.current_app.issuer_to_idp.get(issuer)
+        logger.debug(f"issuer_to_idp: {flask.current_app.issuer_to_idp}")
         if not gen3_user:
-            idp_name = flask.current_app.issuer_to_idp.get(issuer)
-            logger.debug(f"issuer_to_idp: {flask.current_app.issuer_to_idp}")
             gen3_user = create_user(db_session, logger, username, idp_name=idp_name)
             if not idp_name:
                 logger.info(
@@ -307,10 +310,21 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id, db_session=None):
                     f"the issuer {issuer}"
                 )
 
+        # ensure user has an associated identity provider
+        if not gen3_user.identity_provider:
+            idp = (
+                db_session.query(IdentityProvider)
+                .filter(IdentityProvider.name == idp_name)
+                .first()
+            )
+            if not idp:
+                idp = IdentityProvider(name=idp_name)
+            gen3_user.identity_provider = idp
+
         logger.info(
             f'Mapping subject id ("{subject_id}") and issuer '
             f'("{issuer}") combination to Fence user '
-            f'"{gen3_user.username}"'
+            f'"{gen3_user.username}" with IdP = "{idp_name}"'
         )
         iss_sub_pair_to_user = IssSubPairToUser(iss=issuer, sub=subject_id)
         iss_sub_pair_to_user.user = gen3_user

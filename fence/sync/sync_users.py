@@ -32,6 +32,7 @@ from fence.models import (
     User,
     query_for_user,
     Client,
+    IdentityProvider,
 )
 from fence.resources.storage import StorageManager
 from fence.resources.google.access_utils import bulk_update_google_groups
@@ -1001,6 +1002,17 @@ class UserSyncer(object):
             u.display_name = user_info[username].get("display_name", "")
             u.phone_number = user_info[username].get("phone_number", "")
             u.is_admin = user_info[username].get("admin", False)
+
+            idp_name = user_info[username].get("idp_name", "")
+            if idp_name and not u.identity_provider:
+                idp = (
+                    sess.query(IdentityProvider)
+                    .filter(IdentityProvider.name == idp_name)
+                    .first()
+                )
+                if not idp:
+                    idp = IdentityProvider(name=idp_name)
+                u.identity_provider = idp
 
             # do not update if there is no tag
             if not user_info[username].get("tags"):
@@ -2101,7 +2113,7 @@ class UserSyncer(object):
                     self.parse_consent_code,
                 )
             except Exception:
-                logging.warning(
+                self.logger.warning(
                     f"ignoring unsuccessfully parsed or expired visa: {encoded_visa}"
                 )
                 continue
