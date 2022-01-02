@@ -31,6 +31,10 @@ import requests
 from sqlalchemy.ext.compiler import compiles
 from sqlalchemy.schema import DropTable
 
+# Set FENCE_CONFIG_PATH *before* loading the configuration
+CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
+os.environ["FENCE_CONFIG_PATH"] = os.path.join(CURRENT_DIR, "test-fence-config.yaml")
+
 import fence
 from fence import app_init
 from fence import models

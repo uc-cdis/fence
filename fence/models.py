@@ -57,9 +57,6 @@ from userdatamodel.models import (
 import warnings
 
 from fence.config import config
-from fence.settings import CONFIG_SEARCH_FOLDERS
-
-config.load(search_folders=CONFIG_SEARCH_FOLDERS)
 
 
 def query_for_user(session, username):
