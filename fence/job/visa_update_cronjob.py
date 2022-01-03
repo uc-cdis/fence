@@ -153,7 +153,8 @@ class Visa_Token_Update(object):
                             name, user.username
                         )
                     )
-                    # when getting access token, this persists new refresh token
+                    # when getting access token, this persists new refresh token,
+                    # it also persists validated visa(s) in the database
                     client.update_user_authorization(user, self.pkey_cache, db_session)
                 else:
                     self.logger.debug(

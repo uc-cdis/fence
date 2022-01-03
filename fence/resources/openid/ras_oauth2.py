@@ -303,7 +303,8 @@ class RASOauth2Client(Oauth2ClientBase):
             self.logger.exception("{}: {}".format(err_msg, e))
             raise
 
-        # now sync authz updates
+        # now sync authz updates (this includes persisting new valid visas into the
+        # database)
         users_from_passports = (
             fence.resources.ga4gh.passports.sync_gen3_users_authz_from_ga4gh_passports(
                 [passport], pkey_cache=pkey_cache, db_session=db_session

@@ -337,7 +337,7 @@ def get_test_encoded_decoded_visa_and_exp(
     return encoded_visa, decoded_visa, expires
 
 
-def add_visa_manually(db_session, user, rsa_private_key, kid, expires=None):
+def add_visa_manually(db_session, user, rsa_private_key, kid, expires=None, sub=None):
     expires = expires or int(time.time()) + 1000
     make_invalid = False
 
@@ -355,6 +355,7 @@ def add_visa_manually(db_session, user, rsa_private_key, kid, expires=None):
         kid,
         expires=expires,
         make_invalid=make_invalid,
+        sub=sub,
     )
 
     visa = GA4GHVisaV1(

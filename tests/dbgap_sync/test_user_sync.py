@@ -781,11 +781,6 @@ def test_user_sync_with_visa_sync_job(
         mock_arborist_requests,
     )
 
-    # reset GA4GH visas table
-    # db_session.query(models.User).delete()
-    # db_session.query(models.GA4GHVisaV1).delete()
-    # db_session.commit()
-
     # Usersync
     syncer.sync()
 

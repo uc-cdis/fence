@@ -360,7 +360,6 @@ def test_update_visa_empty_visa_returned(
 @mock.patch(
     "fence.resources.openid.ras_oauth2.RASOauth2Client.get_value_from_discovery_doc"
 )
-@mock.patch("fence.resources.ga4gh.passports.validate_jwt")
 def test_update_visa_token_with_invalid_visa(
     mock_discovery,
     mock_get_token,
@@ -612,6 +611,7 @@ def test_visa_update_cronjob(
     rsa_public_key,
     kid,
     mock_arborist_requests,
+    no_app_context_no_public_keys,
 ):
     """
     Test to check visa table is updated when updating visas using cronjob
@@ -621,85 +621,90 @@ def test_visa_update_cronjob(
     )
     # reset users table
     db_session.query(User).delete()
+    db_session.query(GA4GHVisaV1).delete()
     db_session.commit()
 
-    n_users = 20
-    n_users_no_visa = 15
+    n_users = 3
+    n_users_no_visas = 2
 
     mock_discovery.return_value = "https://ras/token_endpoint"
     new_token = "refresh12345abcdefg"
-    token_response = {
-        "access_token": "abcdef12345",
-        "id_token": "id12345abcdef",
-        "refresh_token": new_token,
-    }
-    mock_get_token.return_value = token_response
 
-    userinfo_response = {
-        "sub": TEST_RAS_SUB,
-        "name": "",
-        "preferred_username": "someuser@era.com",
-        "UID": "",
-        "UserID": TEST_RAS_USERNAME,
-        "email": "",
-    }
+    def _get_token_response_for_user(*args, **kwargs):
+        token_response = {
+            "access_token": f"{args[0].id}",
+            "id_token": f"{args[0].id}-id12345abcdef",
+            "refresh_token": f"{args[0].id}-refresh12345abcdefg",
+        }
+        return token_response
 
-    for i in range(n_users):
+    mock_get_token.side_effect = _get_token_response_for_user
+
+    user_id_to_ga4gh_info = {}
+
+    for i in range(1, n_users + 1):
         username = "user_{}".format(i)
-        test_user = add_test_ras_user(db_session, username)
-        add_visa_manually(db_session, test_user, rsa_private_key, kid)
+        test_user = add_test_ras_user(db_session, username, subject_id=username)
+        encoded_visa, visa = add_visa_manually(
+            db_session, test_user, rsa_private_key, kid, sub=username
+        )
+        user_id_to_ga4gh_info[str(test_user.id)] = {"encoded_visa": encoded_visa}
+
+        passport_header = {
+            "type": "JWT",
+            "alg": "RS256",
+            "kid": kid,
+        }
+        new_passport = {
+            "iss": "https://stsstg.nih.gov",
+            "sub": username,
+            "iat": int(time.time()),
+            "scope": "openid ga4gh_passport_v1 email profile",
+            "exp": int(time.time()) + 1000,
+            "ga4gh_passport_v1": [
+                user_id_to_ga4gh_info[str(test_user.id)]["encoded_visa"]
+            ],
+        }
+
+        userinfo_response = {
+            "sub": username,
+            "name": "",
+            "preferred_username": "someuser@era.com",
+            "UID": "",
+            "UserID": username + "_USERNAME",
+            "email": "",
+        }
+        encoded_passport = jwt.encode(
+            new_passport,
+            key=rsa_private_key,
+            headers=passport_header,
+            algorithm="RS256",
+        ).decode("utf-8")
+        user_id_to_ga4gh_info[str(test_user.id)]["encoded_passport"] = encoded_passport
+
+        userinfo_response["passport_jwt_v11"] = encoded_passport
+        user_id_to_ga4gh_info[str(test_user.id)][
+            "userinfo_response"
+        ] = userinfo_response
+
         add_refresh_token(db_session, test_user)
-    for j in range(n_users_no_visa):
-        username = "no_visa_{}".format(j)
-        test_user = add_test_ras_user(db_session, username)
+
+    for j in range(1, n_users_no_visas + 1):
+        username = "no_existing_visa_{}".format(j)
+        test_user = add_test_ras_user(db_session, username, subject_id=username)
 
     query_visas = db_session.query(GA4GHVisaV1).all()
 
     assert len(query_visas) == n_users
 
-    new_visa = {
-        "iss": "https://stsstg.nih.gov",
-        "sub": TEST_RAS_SUB,
-        "iat": int(time.time()),
-        "exp": int(time.time()) + 1000,
-        "scope": "openid ga4gh_passport_v1 email profile",
-        "jti": "jtiajoidasndokmasdl",
-        "txn": "sapidjspa.asipidja",
-        "name": "",
-        "ga4gh_visa_v1": {
-            "type": "https://ras.nih.gov/visas/v1",
-            "asserted": int(time.time()),
-            "value": "https://stsstg.nih.gov/passport/dbgap/v1.1",
-            "source": "https://ncbi.nlm.nih.gov/gap",
-        },
-    }
+    def _get_userinfo(*args, **kwargs):
+        # b/c of the setup in _get_token_response_for_user we know the
+        # access token will be the user.id
+        return user_id_to_ga4gh_info.get(str(args[0].get("access_token", {})), {})[
+            "userinfo_response"
+        ]
 
-    headers = {"kid": kid}
-
-    encoded_visa = jwt.encode(
-        new_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
-    ).decode("utf-8")
-
-    passport_header = {
-        "type": "JWT",
-        "alg": "RS256",
-        "kid": kid,
-    }
-    new_passport = {
-        "iss": "https://stsstg.nih.gov",
-        "sub": TEST_RAS_SUB,
-        "iat": int(time.time()),
-        "scope": "openid ga4gh_passport_v1 email profile",
-        "exp": int(time.time()) + 1000,
-        "ga4gh_passport_v1": [encoded_visa],
-    }
-
-    encoded_passport = jwt.encode(
-        new_passport, key=rsa_private_key, headers=passport_header, algorithm="RS256"
-    ).decode("utf-8")
-
-    userinfo_response["passport_jwt_v11"] = encoded_passport
-    mock_userinfo.return_value = userinfo_response
+    mock_userinfo.side_effect = _get_userinfo
 
     # test "fence-create update-visa"
     job = Visa_Token_Update()
@@ -713,10 +718,14 @@ def test_visa_update_cronjob(
 
     query_visas = db_session.query(GA4GHVisaV1).all()
 
-    assert len(query_visas) == n_users
+    # this should not disturb previous manually added visas
+    # and should add a new visa per user (including users without existing visas)
+    assert len(query_visas) == n_users * 2
 
     for visa in query_visas:
-        assert visa.ga4gh_visa == encoded_visa
+        assert (
+            visa.ga4gh_visa == user_id_to_ga4gh_info[str(visa.user.id)]["encoded_visa"]
+        )
 
 
 def test_map_iss_sub_pair_to_user_with_no_prior_DRS_access(db_session):
