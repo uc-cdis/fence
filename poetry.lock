@@ -1506,6 +1506,7 @@ lock-version = "1.1"
 python-versions = "^3.6"
 content-hash = "43f3be30215be01158c35d88488b77683c2353f3f230ab0fb3ec2ee6c9c0652a"
 
+
 [metadata.files]
 addict = [
     {file = "addict-2.4.0-py3-none-any.whl", hash = "sha256:249bb56bbfd3cdc2a004ea0ff4c2b6ddc84d53bc2194761636eb314d5cfa5dfc"},
