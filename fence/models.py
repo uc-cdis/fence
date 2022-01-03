@@ -675,6 +675,10 @@ class IssSubPairToUser(Base):
 
 @event.listens_for(IssSubPairToUser.__table__, "after_create")
 def populate_iss_sub_pair_to_user_table(target, connection, **kw):
+    """
+    Populate iss_sub_pair_to_user table using User table's id_from_idp
+    column.
+    """
     for issuer, idp_name in IssSubPairToUser.ISSUER_TO_IDP.items():
         logger.info(
             'Attempting to populate iss_sub_pair_to_user table for users with "{}" idp and "{}" issuer'.format(
