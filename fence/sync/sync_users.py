@@ -32,6 +32,7 @@ from fence.models import (
     User,
     query_for_user,
     Client,
+    get_project_to_authz_mapping,
 )
 from fence.resources.storage import StorageManager
 from fence.resources.google.access_utils import bulk_update_google_groups
@@ -280,6 +281,24 @@ class UserYAML(object):
             project_to_resource=project_to_resource,
             logger=logger,
         )
+
+    def persist_project_to_resource(self, db_session):
+        """
+        Store the mappings from Project.auth_id to authorization resource (Project.authz)
+
+        The mapping comes from an external source, this function persists what was parsed
+        into memory into the database for future use.
+        """
+        for auth_id, authz_resource in self.project_to_resource.items():
+            project = (
+                db_session.query(Project).filter(Project.auth_id == auth_id).first()
+            )
+            if project:
+                project.authz = authz_resource
+            else:
+                project = Project(name=auth_id, auth_id=auth_id, authz=authz_resource)
+                db_session.add(project)
+        db_session.commit()
 
 
 class UserSyncer(object):
@@ -1410,6 +1429,11 @@ class UserSyncer(object):
         for u, s in self.auth_source.items():
             self.logger.info("Access for user {} from {}".format(u, s))
 
+        self.logger.info(
+            f"Persisting authz mapping to database: {user_yaml.project_to_resource}"
+        )
+        user_yaml.persist_project_to_resource(db_session=sess)
+
     def _grant_all_consents_to_c999_users(
         self, user_projects, user_yaml_project_to_resources
     ):
@@ -1684,6 +1708,20 @@ class UserSyncer(object):
         policy_id_list = []
         policies = []
 
+        # prefer in-memory if available from user_yaml, if not, get from database
+        if user_yaml and user_yaml.project_to_resource:
+            project_to_authz_mapping = user_yaml.project_to_resource
+            self.logger.debug(
+                f"using in-memory project to authz resource mapping from "
+                f"user.yaml (instead of database): {project_to_authz_mapping}"
+            )
+        else:
+            project_to_authz_mapping = get_project_to_authz_mapping(session)
+            self.logger.debug(
+                f"using persisted project to authz resource mapping from database "
+                f"(instead of user.yaml - as it may not be available): {project_to_authz_mapping}"
+            )
+
         for username, user_project_info in user_projects.items():
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
@@ -1700,12 +1738,11 @@ class UserSyncer(object):
                 # resource path, otherwise just use given project as path
                 paths = self._dbgap_study_to_resources.get(project, [project])
 
-                if user_yaml:
-                    try:
-                        # check if project is in mapping and convert accordingly
-                        paths = [user_yaml.project_to_resource[project]]
-                    except KeyError:
-                        pass
+                try:
+                    # check if project is in mapping and convert accordingly
+                    paths = [project_to_authz_mapping[project]]
+                except KeyError:
+                    pass
 
                 self.logger.info(
                     "resource paths for project {}: {}".format(project, paths)
