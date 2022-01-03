@@ -1247,6 +1247,7 @@ def oauth_test_client_public(client, oauth_client_public):
 @pytest.fixture(scope="session")
 def microsoft_oauth2_client():
     settings = MagicMock()
+    settings.get.return_value = None
     logger = MagicMock()
     client = MicrosoftOauth2Client(settings=settings, logger=logger)
 

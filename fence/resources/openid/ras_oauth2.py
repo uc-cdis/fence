@@ -34,14 +34,13 @@ class RASOauth2Client(Oauth2ClientBase):
     as openid connect is supported under oauth2
     """
 
+    DISCOVERY_URL = "https://sts.nih.gov/.well-known/openid-configuration"
+
     def __init__(self, settings, logger, HTTP_PROXY=None):
         super(RASOauth2Client, self).__init__(
             settings,
             logger,
-            scope="openid ga4gh_passport_v1 email profile",
-            discovery_url=settings.get(
-                "discovery_url", "https://sts.nih.gov/.well-known/openid-configuration"
-            ),
+            scope=settings.get("scope") or "openid ga4gh_passport_v1 email profile",
             idp="ras",
             HTTP_PROXY=HTTP_PROXY,
         )
