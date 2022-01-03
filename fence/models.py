@@ -56,6 +56,7 @@ from userdatamodel.models import (
 )
 import warnings
 
+from fence import logger
 from fence.config import config
 
 
@@ -675,21 +676,34 @@ class IssSubPairToUser(Base):
 @event.listens_for(IssSubPairToUser.__table__, "after_create")
 def populate_iss_sub_pair_to_user_table(target, connection, **kw):
     for issuer, idp_name in IssSubPairToUser.ISSUER_TO_IDP.items():
-        transaction = connection.begin()
-        result = connection.execute(
-            text(
-                """
-                WITH identity_provider_id AS (SELECT id FROM identity_provider WHERE name=:idp_name)
-                INSERT INTO iss_sub_pair_to_user (iss, sub, "fk_to_User", extra_info)
-                SELECT :iss, id_from_idp, id, additional_info
-                FROM "User"
-                WHERE idp_id IN (SELECT * FROM identity_provider_id) AND id_from_idp IS NOT NULL;
-                """
-            ),
-            idp_name=idp_name,
-            iss=issuer,
+        logger.info(
+            'Attempting to populate iss_sub_pair_to_user table for users with "{}" idp and "{}" issuer'.format(
+                idp_name, issuer
+            )
         )
-        transaction.commit()
+        transaction = connection.begin()
+        try:
+            connection.execute(
+                text(
+                    """
+                    WITH identity_provider_id AS (SELECT id FROM identity_provider WHERE name=:idp_name)
+                    INSERT INTO iss_sub_pair_to_user (iss, sub, "fk_to_User", extra_info)
+                    SELECT :iss, id_from_idp, id, additional_info
+                    FROM "User"
+                    WHERE idp_id IN (SELECT * FROM identity_provider_id) AND id_from_idp IS NOT NULL;
+                    """
+                ),
+                idp_name=idp_name,
+                iss=issuer,
+            )
+        except Exception as e:
+            transaction.rollback()
+            logger.warning(
+                "Could not populate iss_sub_pair_to_user table: {}".format(e)
+            )
+        else:
+            transaction.commit()
+            logger.info("Population was successful")
 
 
 to_timestamp = (
