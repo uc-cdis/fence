@@ -482,6 +482,9 @@ def _setup_oidc_clients(app):
 
 def _setup_arborist_client(app):
     if app.config.get("ARBORIST"):
+        print("LUCCAAAAAAAAAA")
+        print(app.config["ARBORIST"])
+        print(config["ARBORIST"])
         app.arborist = ArboristClient(arborist_base_url=config["ARBORIST"])
 
 def _setup_hubspot_key(app):
