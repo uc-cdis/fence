@@ -369,7 +369,7 @@ def sync_validated_visa_authorization(
         policy_prefix="GA4GH.DRS",
     )
 
-    # after syncing authorization, perist the visas that were parsed successfully.
+    # after syncing authorization, persist the visas that were parsed successfully.
     for visa in ga4gh_visas:
         if visa not in synced_visas:
             db_session.remove(visa)
