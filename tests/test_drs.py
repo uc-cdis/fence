@@ -244,7 +244,7 @@ def test_get_presigned_url_with_query_params(
 @pytest.mark.parametrize("indexd_client", ["s3", "gs"], indirect=True)
 @patch("httpx.get")
 @patch("fence.resources.google.utils._create_proxy_group")
-@patch("fence.resources.ga4gh.passports.ArboristClient")
+@patch("fence.scripting.fence_create.ArboristClient")
 def test_passport_use_disabled(
     mock_arborist,
     mock_google_proxy_group,
@@ -403,7 +403,7 @@ def test_passport_use_disabled(
 @pytest.mark.parametrize("indexd_client", ["s3", "gs"], indirect=True)
 @patch("httpx.get")
 @patch("fence.resources.google.utils._create_proxy_group")
-@patch("fence.resources.ga4gh.passports.ArboristClient")
+@patch("fence.scripting.fence_create.ArboristClient")
 def test_get_presigned_url_for_non_public_data_with_passport(
     mock_arborist,
     mock_google_proxy_group,
@@ -562,7 +562,7 @@ def test_get_presigned_url_for_non_public_data_with_passport(
 @pytest.mark.parametrize("indexd_client", ["s3", "gs"], indirect=True)
 @patch("httpx.get")
 @patch("fence.resources.google.utils._create_proxy_group")
-@patch("fence.resources.ga4gh.passports.ArboristClient")
+@patch("fence.scripting.fence_create.ArboristClient")
 def test_get_presigned_url_with_passport_with_incorrect_authz(
     mock_arborist,
     mock_google_proxy_group,
@@ -720,7 +720,7 @@ def test_get_presigned_url_with_passport_with_incorrect_authz(
 @pytest.mark.parametrize("indexd_client", ["s3", "gs"], indirect=True)
 @patch("httpx.get")
 @patch("fence.resources.google.utils._create_proxy_group")
-@patch("fence.resources.ga4gh.passports.ArboristClient")
+@patch("fence.scripting.fence_create.ArboristClient")
 def test_get_presigned_url_for_public_data_with_no_passport(
     mock_arborist,
     mock_google_proxy_group,
@@ -780,7 +780,7 @@ def test_get_presigned_url_for_public_data_with_no_passport(
 @pytest.mark.parametrize("indexd_client", ["s3", "gs"], indirect=True)
 @patch("httpx.get")
 @patch("fence.resources.google.utils._create_proxy_group")
-@patch("fence.resources.ga4gh.passports.ArboristClient")
+@patch("fence.scripting.fence_create.ArboristClient")
 def test_get_presigned_url_for_non_public_data_with_no_passport(
     mock_arborist,
     mock_google_proxy_group,

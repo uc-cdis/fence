@@ -96,7 +96,7 @@ def get_signed_url_for_file(
             ga4gh_passports, db_session=db_session
         )
         # the keys are User.username's
-        user_ids_from_passports = users_from_passports.keys()
+        user_ids_from_passports = list(users_from_passports.keys())
         logger.debug(f"user_ids_from_passports: {user_ids_from_passports}")
 
     # add the user details to `flask.g.audit_data` first, so they are
@@ -107,9 +107,9 @@ def get_signed_url_for_file(
                 "audit service doesn't support multiple user_ids for a "
                 "single request yet, so just log userinfo here"
             )
-            for user_id in user_ids_from_passports:
+            for username in user_ids_from_passports:
                 user_info = _get_user_info_for_id_or_from_request(
-                    sub_type=int, user_id=user_id
+                    sub_type=int, user_id=username, db_session=db_session
                 )
                 audit_data = {
                     "username": user_info["username"],
@@ -120,14 +120,16 @@ def get_signed_url_for_file(
                 )
         else:
             user_info = _get_user_info_for_id_or_from_request(
-                sub_type=int, user_id=user_ids_from_passports[0]
+                sub_type=int, user_id=user_ids_from_passports[0], db_session=db_session
             )
             flask.g.audit_data = {
                 "username": user_info["username"],
                 "sub": user_info["user_id"],
             }
     else:
-        user_info = _get_user_info_for_id_or_from_request(sub_type=int)
+        user_info = _get_user_info_for_id_or_from_request(
+            sub_type=int, db_session=db_session
+        )
         flask.g.audit_data = {
             "username": user_info["username"],
             "sub": user_info["user_id"],
@@ -155,7 +157,7 @@ def get_signed_url_for_file(
     # users info
     if passport_user_id_used:
         user_info = _get_user_info_for_id_or_from_request(
-            sub_type=int, user_id=passport_user_id_used
+            sub_type=int, user_id=passport_user_id_used, db_session=db_session
         )
         flask.g.audit_data = {
             "username": user_info["username"],
@@ -598,6 +600,7 @@ class IndexedFile(object):
             for user_id in user_ids_from_passports:
                 authorized = flask.current_app.arborist.auth_request(
                     jwt=None,
+                    # NOTE: This is actually the fence user.username, not user.id
                     user_id=user_id,
                     service="fence",
                     methods=action,
@@ -1531,7 +1534,7 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
             return ("Failed to delete data file.", status_code)
 
 
-def _get_user_info_for_id_or_from_request(sub_type=str, user_id=None):
+def _get_user_info_for_id_or_from_request(sub_type=str, user_id=None, db_session=None):
     """
     Attempt to parse the request to get information about user. fallback to
     populated information about an anonymous user. If a GA4GH passport was provided,
@@ -1544,13 +1547,13 @@ def _get_user_info_for_id_or_from_request(sub_type=str, user_id=None):
              IT WILL ALWAYS GIVE YOU BACK ANONYMOUS USER INFO. Only use this
              after you've authorized the access to the data via other means.
     """
+    db_session = db_session or current_session
+
     try:
         if user_id:
-            if hasattr(flask.current_app, "db"):
-                with flask.current_app.db.session as session:
-                    result = query_for_user_by_id(session, user_id)
-                    final_username = result.username
-                    final_user_id = result.id
+            result = query_for_user(db_session, user_id)
+            final_username = result.username
+            final_user_id = result.id
         else:
             set_current_token(
                 validate_request(scope={"user"}, audience=config.get("BASE_URL"))
