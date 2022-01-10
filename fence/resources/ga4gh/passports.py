@@ -11,7 +11,6 @@ import fence.scripting.fence_create
 from authutils.errors import JWTError
 from authutils.token.core import get_iss, get_kid
 from cdislogging import get_logger
-from gen3authz.client.arborist.client import ArboristClient
 from flask_sqlalchemy_session import current_session
 
 from fence.jwt.validate import validate_jwt
@@ -19,8 +18,8 @@ from fence.config import config
 from fence.models import (
     create_user,
     query_for_user,
+    query_for_user_by_id,
     GA4GHVisaV1,
-    User,
     IdentityProvider,
     IssSubPairToUser,
 )
@@ -49,15 +48,19 @@ def sync_gen3_users_authz_from_ga4gh_passports(
     """
     db_session = db_session or current_session
     logger.info("Getting gen3 users from passports")
-    users_from_all_passports = []
+
+    # {"username": user, "username2": user2}
+    users_from_all_passports = {}
     for passport in passports:
         try:
-            # TODO check cache
-            cached_usernames = get_gen3_usernames_for_passport_from_cache(passport)
-            if cached_usernames:
-                users_from_all_passports.extend(cached_usernames)
+            cached_users = get_gen3_usernames_for_passport_from_cache(passport)
+            if cached_users:
+                # TODO get user from id - perhaps we can avoid this?
+                for user_id in cached_users:
+                    user = query_for_user_by_id(session=db_session, user_id=user_id)
+                    users_from_all_passports[user.username] = user
                 # existence in the cache means that this passport was validated
-                # previously
+                # previously (expiration was also checked)
                 continue
 
             # below function also validates passport (or raises exception)
@@ -128,18 +131,26 @@ def sync_gen3_users_authz_from_ga4gh_passports(
             users_from_current_passport.append(gen3_user)
 
         put_gen3_usernames_for_passport_into_cache(
-            passport, users_from_current_passport
+            passport,
+            [user.id for user in users_from_current_passport],
+            expires_at=min_visa_expiration,
         )
-        users_from_all_passports.extend(users_from_current_passport)
+        for user in users_from_current_passport:
+            users_from_all_passports[user.username] = user
 
     db_session.commit()
-    return list(set(users_from_all_passports))
+
+    return users_from_all_passports
 
 
-def get_gen3_usernames_for_passport_from_cache(passport):
-    cached_user_ids = []
-    # TODO
-    return cached_user_ids
+def get_gen3_usernames_for_passport_from_cache(passport, db_session=None):
+    return
+
+
+def put_gen3_usernames_for_passport_into_cache(
+    passport, user_ids_from_passports, expires_at, db_session=None
+):
+    return
 
 
 def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
@@ -375,10 +386,6 @@ def sync_validated_visa_authorization(
             db_session.remove(visa)
         else:
             db_session.add(visa)
-
-
-def put_gen3_usernames_for_passport_into_cache(passport, usernames_from_passports):
-    pass
 
 
 # TODO to be called after login

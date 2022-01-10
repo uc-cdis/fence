@@ -321,7 +321,7 @@ def no_app_context_no_public_keys():
     mock_validate_jwt.side_effect = validate_jwt_no_key_refresh
 
     # ensure there is no application context or cached keys
-    if flask.current_app:
+    if flask.current_app and flask.current_app.jwt_public_keys:
         temp_stored_public_keys = flask.current_app.jwt_public_keys
         temp_app_context = flask.has_app_context
         flask.current_app.jwt_public_keys = {}

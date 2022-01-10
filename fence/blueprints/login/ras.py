@@ -78,7 +78,7 @@ class RASCallback(DefaultOAuth2Callback):
             users_from_passports = fence.resources.ga4gh.passports.sync_gen3_users_authz_from_ga4gh_passports(
                 [passport], pkey_cache=pkey_cache, db_session=current_session
             )
-            user_ids_from_passports = [user.id for user in users_from_passports]
+            user_ids_from_passports = users_from_passports.keys()
             logger.debug(f"user_ids_from_passports: {user_ids_from_passports}")
 
             # TODO?

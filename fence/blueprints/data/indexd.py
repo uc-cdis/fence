@@ -95,16 +95,43 @@ def get_signed_url_for_file(
         users_from_passports = sync_gen3_users_authz_from_ga4gh_passports(
             ga4gh_passports, db_session=db_session
         )
-        user_ids_from_passports = [user.id for user in users_from_passports]
+        # the keys are User.username's
+        user_ids_from_passports = users_from_passports.keys()
         logger.debug(f"user_ids_from_passports: {user_ids_from_passports}")
 
     # add the user details to `flask.g.audit_data` first, so they are
     # included in the audit log if `IndexedFile(file_id)` raises a 404
-    user_info = _get_user_info(sub_type=int)
-    flask.g.audit_data = {
-        "username": user_info["username"],
-        "sub": user_info["user_id"],
-    }
+    if user_ids_from_passports:
+        if len(user_ids_from_passports) > 1:
+            logger.warning(
+                "audit service doesn't support multiple user_ids for a "
+                "single request yet, so just log userinfo here"
+            )
+            for user_id in user_ids_from_passports:
+                user_info = _get_user_info_for_id_or_from_request(
+                    sub_type=int, user_id=user_id
+                )
+                audit_data = {
+                    "username": user_info["username"],
+                    "sub": user_info["user_id"],
+                }
+                logger.info(
+                    f"passport with multiple user ids is attempting data access. audit log: {audit_data}"
+                )
+        else:
+            user_info = _get_user_info_for_id_or_from_request(
+                sub_type=int, user_id=user_ids_from_passports[0]
+            )
+            flask.g.audit_data = {
+                "username": user_info["username"],
+                "sub": user_info["user_id"],
+            }
+    else:
+        user_info = _get_user_info_for_id_or_from_request(sub_type=int)
+        flask.g.audit_data = {
+            "username": user_info["username"],
+            "sub": user_info["user_id"],
+        }
 
     indexed_file = IndexedFile(file_id)
     default_expires_in = config.get("MAX_PRESIGNED_URL_TTL", 3600)
@@ -114,7 +141,7 @@ def get_signed_url_for_file(
     )
 
     prepare_presigned_url_audit_log(requested_protocol, indexed_file)
-    signed_url = indexed_file.get_signed_url(
+    signed_url, passport_user_id_used = indexed_file.get_signed_url(
         requested_protocol,
         action,
         expires_in,
@@ -123,6 +150,17 @@ def get_signed_url_for_file(
         file_name=file_name,
         user_ids_from_passports=user_ids_from_passports,
     )
+
+    # a single user from the list was authorized so update the audit log to reflect that
+    # users info
+    if passport_user_id_used:
+        user_info = _get_user_info_for_id_or_from_request(
+            sub_type=int, user_id=passport_user_id_used
+        )
+        flask.g.audit_data = {
+            "username": user_info["username"],
+            "sub": user_info["user_id"],
+        }
 
     # increment counter for gen3-metrics
     counter = flask.current_app.prometheus_counters.get("pre_signed_url_req")
@@ -456,13 +494,16 @@ class IndexedFile(object):
                 )
         if action is not None and action not in SUPPORTED_ACTIONS:
             raise NotSupported("action {} is not supported".format(action))
-        return self._get_signed_url(
-            protocol,
-            action,
-            expires_in,
-            force_signed_url,
-            r_pays_project,
-            file_name,
+        return (
+            self._get_signed_url(
+                protocol,
+                action,
+                expires_in,
+                force_signed_url,
+                r_pays_project,
+                file_name,
+                authorized_user_id,
+            ),
             authorized_user_id,
         )
 
@@ -553,6 +594,7 @@ class IndexedFile(object):
         # handle multiple GA4GH passports as a means of authn/z
 
         if user_ids_from_passports:
+            authorized = False
             for user_id in user_ids_from_passports:
                 authorized = flask.current_app.arborist.auth_request(
                     jwt=None,
@@ -565,13 +607,13 @@ class IndexedFile(object):
                 if authorized:
                     # for google proxy groups we need to know which user_id gave access
                     return authorized, user_id
-                return authorized, None
+            return authorized, None
         else:
             try:
                 token = get_jwt()
             except Unauthorized:
                 #  get_jwt raises an Unauthorized error when user is anonymous (no
-                #  availble token), so to allow anonymous users possible access to
+                #  available token), so to allow anonymous users possible access to
                 #  public data, we still make the request to Arborist
                 token = None
 
@@ -986,7 +1028,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 self.parsed_url.netloc, credential
             )
 
-        user_info = _get_user_info()
+        user_info = _get_user_info_for_id_or_from_request()
 
         url = generate_aws_presigned_url(
             http_url,
@@ -1113,7 +1155,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     ):
         resource_path = self.get_resource_path()
 
-        user_info = _get_user_info(user_id=user_id)
+        user_info = _get_user_info_for_id_or_from_request(user_id=user_id)
 
         if public_data and not force_signed_url:
             url = "https://storage.cloud.google.com/" + resource_path
@@ -1428,7 +1470,7 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
 
         container_name, blob_name = self._get_container_and_blob()
 
-        user_info = _get_user_info()
+        user_info = _get_user_info_for_id_or_from_request()
         if user_info and user_info.get("user_id") == ANONYMOUS_USER_ID:
             logger.info(f"Attempting to get a signed url an anonymous user")
 
@@ -1489,10 +1531,12 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
             return ("Failed to delete data file.", status_code)
 
 
-def _get_user_info(sub_type=str, user_id=None):
+def _get_user_info_for_id_or_from_request(sub_type=str, user_id=None):
     """
     Attempt to parse the request to get information about user. fallback to
-    populated information about an anonymous user.
+    populated information about an anonymous user. If a GA4GH passport was provided,
+    this will handled elsewhere (or id passed into user_id here).
+
     By default, cast `sub` to str. Use `sub_type` to override this behavior.
 
     WARNING: This does NOT actually check authorization information and always falls
@@ -1532,7 +1576,7 @@ def _is_anonymous_user(user_info):
     """
     Check if there's a current user authenticated or if request is anonymous
     """
-    user_info = user_info or _get_user_info()
+    user_info = user_info or _get_user_info_for_id_or_from_request()
     return str(user_info.get("user_id")) == ANONYMOUS_USER_ID
 
 
