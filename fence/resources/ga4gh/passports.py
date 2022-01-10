@@ -125,7 +125,9 @@ def sync_gen3_users_authz_from_ga4gh_passports(
                 for raw_visa, validated_decoded_visa in visas
             ]
             # NOTE: does not validate, assumes validation occurs above.
-            sync_validated_visa_authorization(
+            #       This adds the visas to the database session but doesn't commit until
+            #       the end of this function
+            _sync_validated_visa_authorization(
                 gen3_user, ga4gh_visas, min_visa_expiration, db_session=db_session
             )
             users_from_current_passport.append(gen3_user)
@@ -346,7 +348,7 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id, db_session=None):
     return iss_sub_pair_to_user.user
 
 
-def sync_validated_visa_authorization(
+def _sync_validated_visa_authorization(
     gen3_user, ga4gh_visas, expiration, db_session=None
 ):
     """
