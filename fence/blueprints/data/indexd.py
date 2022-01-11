@@ -90,41 +90,34 @@ def get_signed_url_for_file(
             "is not supported by this instance of Gen3."
         )
 
-    user_ids_from_passports = []
+    users_from_passports = {}
     if ga4gh_passports:
+        # users_from_passports = {"username": Fence.User}
         users_from_passports = sync_gen3_users_authz_from_ga4gh_passports(
             ga4gh_passports, db_session=db_session
         )
-        # the keys are User.username's
-        user_ids_from_passports = list(users_from_passports.keys())
-        logger.debug(f"user_ids_from_passports: {user_ids_from_passports}")
 
     # add the user details to `flask.g.audit_data` first, so they are
     # included in the audit log if `IndexedFile(file_id)` raises a 404
-    if user_ids_from_passports:
-        if len(user_ids_from_passports) > 1:
+    if users_from_passports:
+        if len(list(users_from_passports.keys())) > 1:
             logger.warning(
-                "audit service doesn't support multiple user_ids for a "
+                "audit service doesn't support multiple users for a "
                 "single request yet, so just log userinfo here"
             )
-            for username in user_ids_from_passports:
-                user_info = _get_user_info_for_id_or_from_request(
-                    sub_type=int, user_id=username, db_session=db_session
-                )
+            for username, user in users_from_passports:
                 audit_data = {
-                    "username": user_info["username"],
-                    "sub": user_info["user_id"],
+                    "username": username,
+                    "sub": user.id,
                 }
                 logger.info(
                     f"passport with multiple user ids is attempting data access. audit log: {audit_data}"
                 )
         else:
-            user_info = _get_user_info_for_id_or_from_request(
-                sub_type=int, user_id=user_ids_from_passports[0], db_session=db_session
-            )
+            username, user = next(iter(users_from_passports.items()))
             flask.g.audit_data = {
-                "username": user_info["username"],
-                "sub": user_info["user_id"],
+                "username": username,
+                "sub": user.id,
             }
     else:
         user_info = _get_user_info_for_id_or_from_request(
@@ -143,25 +136,22 @@ def get_signed_url_for_file(
     )
 
     prepare_presigned_url_audit_log(requested_protocol, indexed_file)
-    signed_url, passport_user_id_used = indexed_file.get_signed_url(
+    signed_url, authorized_user_from_passport = indexed_file.get_signed_url(
         requested_protocol,
         action,
         expires_in,
         force_signed_url=force_signed_url,
         r_pays_project=r_pays_project,
         file_name=file_name,
-        user_ids_from_passports=user_ids_from_passports,
+        users_from_passports=users_from_passports,
     )
 
     # a single user from the list was authorized so update the audit log to reflect that
     # users info
-    if passport_user_id_used:
-        user_info = _get_user_info_for_id_or_from_request(
-            sub_type=int, user_id=passport_user_id_used, db_session=db_session
-        )
+    if authorized_user_from_passport:
         flask.g.audit_data = {
-            "username": user_info["username"],
-            "sub": user_info["user_id"],
+            "username": authorized_user_from_passport.username,
+            "sub": authorized_user_from_passport.id,
         }
 
     # increment counter for gen3-metrics
@@ -378,7 +368,7 @@ class BlankIndex(object):
                 "fence not configured with data upload bucket; can't create signed URL"
             )
         s3_url = "s3://{}/{}".format(bucket, key)
-        return S3IndexedFileLocation(s3_url).generate_presigne_url_for_part_upload(
+        return S3IndexedFileLocation(s3_url).generate_presigned_url_for_part_upload(
             uploadId, partNumber, expires_in
         )
 
@@ -459,17 +449,19 @@ class IndexedFile(object):
         force_signed_url=True,
         r_pays_project=None,
         file_name=None,
-        user_ids_from_passports=None,
+        users_from_passports=None,
     ):
-        authorized_user_id = None
+        users_from_passports = users_from_passports or {}
+        authorized_user = None
         if self.index_document.get("authz"):
             action_to_permission = {
                 "upload": "write-storage",
                 "download": "read-storage",
             }
-            is_authorized, authorized_user_id = self.get_authorized_and_user_id(
+            is_authorized, authorized_username = self.get_authorized_with_username(
                 action_to_permission[action],
-                user_ids_from_passports=user_ids_from_passports,
+                # keys are usernames
+                usernames_from_passports=list(users_from_passports.keys()),
             )
             if not is_authorized:
                 msg = (
@@ -478,9 +470,10 @@ class IndexedFile(object):
                     f"on authorization resource: {self.index_document['authz']}."
                 )
                 logger.debug(
-                    f"denied. authorized_user_id: {authorized_user_id}\nmsg:\n{msg}"
+                    f"denied. authorized_username: {authorized_username}\nmsg:\n{msg}"
                 )
                 raise Unauthorized(msg)
+            authorized_user = users_from_passports.get(authorized_username)
         else:
             if self.public_acl and action == "upload":
                 raise Unauthorized(
@@ -488,12 +481,11 @@ class IndexedFile(object):
                 )
             # don't check the authorization if the file is public
             # (downloading public files with no auth is fine)
-            if not self.public_acl and not self.check_authorization(
-                action, user_ids_from_passports=user_ids_from_passports
-            ):
+            if not self.public_acl and not self.check_legacy_authorization(action):
                 raise Unauthorized(
                     f"You don't have access permission on this file: {self.file_id}"
                 )
+
         if action is not None and action not in SUPPORTED_ACTIONS:
             raise NotSupported("action {} is not supported".format(action))
         return (
@@ -504,9 +496,9 @@ class IndexedFile(object):
                 force_signed_url,
                 r_pays_project,
                 file_name,
-                authorized_user_id,
+                authorized_user,
             ),
-            authorized_user_id,
+            authorized_user,
         )
 
     def _get_signed_url(
@@ -517,7 +509,7 @@ class IndexedFile(object):
         force_signed_url,
         r_pays_project,
         file_name,
-        user_id=None,
+        authorized_user=None,
     ):
         if action == "upload":
             # NOTE: self.index_document ensures the GUID exists in indexd and raises
@@ -537,6 +529,7 @@ class IndexedFile(object):
                     public_data=self.public,
                     force_signed_url=force_signed_url,
                     r_pays_project=r_pays_project,
+                    authorized_user=authorized_user,
                 )
             except IndexError:
                 raise NotFound("Can't find any file locations.")
@@ -552,7 +545,7 @@ class IndexedFile(object):
                     public_data=self.public,
                     force_signed_url=force_signed_url,
                     r_pays_project=r_pays_project,
-                    user_id=user_id,
+                    authorized_user=authorized_user,
                 )
 
         raise NotFound(
@@ -569,47 +562,46 @@ class IndexedFile(object):
         else:
             raise Unauthorized("This file is not accessible")
 
-    def get_authorized_and_user_id(self, action, user_ids_from_passports=None):
+    def get_authorized_with_username(self, action, usernames_from_passports=None):
         """
         Return a tuple of (boolean, str) which represents whether they're authorized
-        and their user_id. user_id is only returned if `user_ids_from_passports`
-        is provided and one of the ids from the passports is authorized.
+        and their username. username is only returned if `usernames_from_passports`
+        is provided and one of the usernames from the passports is authorized.
 
         Args:
             action (str): Authorization action being performed
-            user_ids_from_passports (list[str], optional): List of user ids parsed
+            usernames_from_passports (list[str], optional): List of user usernames parsed
                 from validated passports
 
         Returns:
             tuple of (boolean, str): which represents whether they're authorized
-        and their user_id. user_id is only returned if `user_ids_from_passports`
-        is provided and one of the ids from the passports is authorized.
+        and their username. username is only returned if `usernames_from_passports`
+        is provided and one of the usernames from the passports is authorized.
         """
         if not self.index_document.get("authz"):
             raise ValueError("index record missing `authz`")
 
         logger.debug(
             f"authz check can user {action} on {self.index_document['authz']} for fence? "
-            f"if passport provided, IDs parsed: {user_ids_from_passports}"
+            f"if passport provided, IDs parsed: {usernames_from_passports}"
         )
 
         # handle multiple GA4GH passports as a means of authn/z
-
-        if user_ids_from_passports:
+        if usernames_from_passports:
             authorized = False
-            for user_id in user_ids_from_passports:
+            for username in usernames_from_passports:
                 authorized = flask.current_app.arborist.auth_request(
                     jwt=None,
-                    # NOTE: This is actually the fence user.username, not user.id
-                    user_id=user_id,
+                    user_id=username,
                     service="fence",
                     methods=action,
                     resources=self.index_document["authz"],
                 )
                 # if any passport provides access, user is authorized
                 if authorized:
-                    # for google proxy groups we need to know which user_id gave access
-                    return authorized, user_id
+                    # for google proxy groups and future use: we need to know which
+                    # user_id actually gave access
+                    return authorized, username
             return authorized, None
         else:
             try:
@@ -650,7 +642,7 @@ class IndexedFile(object):
         return "/open" in self.index_document.get("authz", [])
 
     @login_required({"data"})
-    def check_authorization(self, action, user_ids_from_passports=None):
+    def check_legacy_authorization(self, action):
         # if we have a data file upload without corresponding metadata, the record can
         # have just the `uploader` field and no ACLs. in this just check that the
         # current user's username matches the uploader field
@@ -665,29 +657,8 @@ class IndexedFile(object):
             )
             return self.index_document.get("uploader") == username
 
-        # handle multiple GA4GH passports as a means of authn/z
-        project_accesses = []
-        if user_ids_from_passports:
-            for user_id in user_ids_from_passports:
-                new_project_access = _get_project_access_for_user_id(user_id)
-                if new_project_access:
-                    project_accesses.append(new_project_access)
-
-        if not project_accesses:
-            # if we didn't get anything from passports, assume old JWT, get from flask context
-            project_accesses.append(flask.g.user.project_access)
-
-        has_access = False
-        for project_access in project_accesses:
-            given_acls = set(filter_auth_ids(action, project_access))
-            has_access = len(self.set_acls & given_acls) > 0
-
-            # if any of the project_access information results in a success,
-            # this user has access
-            if has_access:
-                break
-
-        return has_access
+        given_acls = set(filter_auth_ids(action, flask.g.user.project_access))
+        return len(self.set_acls & given_acls) > 0
 
     @login_required({"data"})
     def delete_files(self, urls=None, delete_all=True):
@@ -790,7 +761,7 @@ class IndexedFileLocation(object):
         expires_in,
         public_data=False,
         force_signed_url=True,
-        user_ids_from_passports=None,
+        users_from_passports=None,
         **kwargs,
     ):
         return self.url
@@ -986,7 +957,13 @@ class S3IndexedFileLocation(IndexedFileLocation):
             return bucket_cred["region"]
 
     def get_signed_url(
-        self, action, expires_in, public_data=False, force_signed_url=True, **kwargs
+        self,
+        action,
+        expires_in,
+        public_data=False,
+        force_signed_url=True,
+        authorized_user=None,
+        **kwargs,
     ):
 
         aws_creds = get_value(
@@ -1031,7 +1008,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 self.parsed_url.netloc, credential
             )
 
-        user_info = _get_user_info_for_id_or_from_request()
+        user_info = _get_user_info_for_id_or_from_request(user=authorized_user)
 
         url = generate_aws_presigned_url(
             http_url,
@@ -1066,7 +1043,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             self.parsed_url.netloc, self.parsed_url.path.strip("/"), credentials
         )
 
-    def generate_presigne_url_for_part_upload(self, uploadId, partNumber, expires_in):
+    def generate_presigned_url_for_part_upload(self, uploadId, partNumber, expires_in):
         """
         Generate presigned url for uploading object part given uploadId and part number
 
@@ -1154,11 +1131,11 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         public_data=False,
         force_signed_url=True,
         r_pays_project=None,
-        user_id=None,
+        authorized_user=None,
     ):
         resource_path = self.get_resource_path()
 
-        user_info = _get_user_info_for_id_or_from_request(user_id=user_id)
+        user_info = _get_user_info_for_id_or_from_request(user=authorized_user)
 
         if public_data and not force_signed_url:
             url = "https://storage.cloud.google.com/" + resource_path
@@ -1437,7 +1414,13 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
         return urlunparse(new_parsed_url)
 
     def get_signed_url(
-        self, action, expires_in, public_data=False, force_signed_url=True, **kwargs
+        self,
+        action,
+        expires_in,
+        public_data=False,
+        force_signed_url=True,
+        authorized_user=None,
+        **kwargs,
     ):
         """
         Get a signed url for a given action
@@ -1473,7 +1456,7 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
 
         container_name, blob_name = self._get_container_and_blob()
 
-        user_info = _get_user_info_for_id_or_from_request()
+        user_info = _get_user_info_for_id_or_from_request(user=authorized_user)
         if user_info and user_info.get("user_id") == ANONYMOUS_USER_ID:
             logger.info(f"Attempting to get a signed url an anonymous user")
 
@@ -1534,11 +1517,12 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
             return ("Failed to delete data file.", status_code)
 
 
-def _get_user_info_for_id_or_from_request(sub_type=str, user_id=None, db_session=None):
+def _get_user_info_for_id_or_from_request(
+    sub_type=str, user=None, username=None, db_session=None
+):
     """
     Attempt to parse the request to get information about user. fallback to
-    populated information about an anonymous user. If a GA4GH passport was provided,
-    this will handled elsewhere (or id passed into user_id here).
+    populated information about an anonymous user.
 
     By default, cast `sub` to str. Use `sub_type` to override this behavior.
 
@@ -1550,17 +1534,19 @@ def _get_user_info_for_id_or_from_request(sub_type=str, user_id=None, db_session
     db_session = db_session or current_session
 
     try:
-        if user_id:
-            result = query_for_user(db_session, user_id)
+        if user:
+            final_username = user.username
+            final_user_id = sub_type(user.id)
+        elif username:
+            result = query_for_user(db_session, username)
             final_username = result.username
-            final_user_id = result.id
+            final_user_id = sub_type(result.id)
         else:
             set_current_token(
                 validate_request(scope={"user"}, audience=config.get("BASE_URL"))
             )
             final_user_id = current_token["sub"]
-            if sub_type:
-                final_user_id = sub_type(final_user_id)
+            final_user_id = sub_type(final_user_id)
             final_username = current_token["context"]["user"]["name"]
     except Exception as exc:
         logger.info(
@@ -1594,8 +1580,3 @@ def filter_auth_ids(action, list_auth_ids):
         if checked_permission in values:
             authorized_dbgaps.append(key)
     return authorized_dbgaps
-
-
-def _get_project_access_for_user_id(user_id):
-    # TODO
-    return {}
