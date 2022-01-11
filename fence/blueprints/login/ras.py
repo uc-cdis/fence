@@ -45,7 +45,6 @@ class RASCallback(DefaultOAuth2Callback):
         userinfo = flask.g.userinfo
 
         global_parse_visas_on_login = config["GLOBAL_PARSE_VISAS_ON_LOGIN"]
-        usersync = config.get("USERSYNC", {})
         parse_visas = global_parse_visas_on_login or (
             global_parse_visas_on_login == None
             and (

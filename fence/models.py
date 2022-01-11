@@ -61,7 +61,7 @@ from fence.config import config
 def query_for_user(session, username):
     return (
         session.query(User)
-        .filter(func.lower(User.username) == str(username).lower())
+        .filter(func.lower(User.username) == username.lower())
         .first()
     )
 

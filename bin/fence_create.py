@@ -407,7 +407,6 @@ def main():
     STORAGE_CREDENTIALS = os.environ.get("STORAGE_CREDENTIALS") or config.get(
         "STORAGE_CREDENTIALS"
     )
-    usersync = config.get("USERSYNC", {})
 
     arborist = None
     if args.arborist:
