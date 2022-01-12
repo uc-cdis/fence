@@ -670,6 +670,7 @@ class IssSubPairToUser(Base):
 
     ISSUER_TO_IDP = _get_issuer_to_idp()
 
+    # no longer need function since results stored in var
     del _get_issuer_to_idp
 
 
