@@ -102,6 +102,27 @@ def create_user(session, logger, username, email=None, idp_name=None):
     return user
 
 
+def get_project_to_authz_mapping(session):
+    """
+    Get the mappings for Project.auth_id to authorization resource (Project.authz)
+    from the database if a mapping exists. e.g. will only return if Project.authz is
+    populated.
+
+    Args:
+        session (sqlalchemy.orm.session.Session): database session
+
+    Returns:
+        dict{str:str}: Mapping from Project.auth_id to Project.authz
+    """
+    output = {}
+
+    query_results = session.query(Project.auth_id, Project.authz)
+    if query_results:
+        output = {item.auth_id: item.authz for item in query_results if item.authz}
+
+    return output
+
+
 class ClientAuthType(Enum):
     """
     List the possible types of OAuth client authentication, which are
