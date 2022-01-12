@@ -21,17 +21,13 @@ from urllib.parse import urlparse
 logger = get_logger(__name__, log_level="debug")
 
 # Load the configuration *before* importing modules that rely on it
-from fence.config import config, DEFAULT_CFG_PATH
+from fence.config import config
 from fence.settings import CONFIG_SEARCH_FOLDERS
 
-try:
-    if os.environ.get("FENCE_CONFIG_PATH"):
-        config.load(config_path=os.environ["FENCE_CONFIG_PATH"])
-    else:
-        config.load(search_folders=CONFIG_SEARCH_FOLDERS)
-except:
-    logger.warning("Unable to load config, using default config...", exc_info=True)
-    config.load(config_path=DEFAULT_CFG_PATH)
+config.load(
+    config_path=os.environ.get("FENCE_CONFIG_PATH"),
+    search_folders=CONFIG_SEARCH_FOLDERS,
+)
 
 from fence.auth import logout, build_redirect_url
 from fence.blueprints.data.indexd import S3IndexedFileLocation
