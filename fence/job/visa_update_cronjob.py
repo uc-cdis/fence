@@ -155,7 +155,12 @@ class Visa_Token_Update(object):
                     )
                     # when getting access token, this persists new refresh token,
                     # it also persists validated visa(s) in the database
-                    client.update_user_authorization(user, self.pkey_cache, db_session)
+                    client.update_user_authorization(
+                        user,
+                        pkey_cache=self.pkey_cache,
+                        authz_policy_prefix="TOKEN.POLLING",
+                        db_session=db_session,
+                    )
                 else:
                     self.logger.debug(
                         f"Updater {name} NOT updating authorization for "

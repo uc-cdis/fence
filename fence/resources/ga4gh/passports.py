@@ -28,7 +28,10 @@ logger = get_logger(__name__)
 
 
 def sync_gen3_users_authz_from_ga4gh_passports(
-    passports, pkey_cache=None, db_session=None
+    passports,
+    authz_policy_prefix,
+    pkey_cache=None,
+    db_session=None,
 ):
     """
     Validate passports and embedded visas, using each valid visa's identity
@@ -128,7 +131,11 @@ def sync_gen3_users_authz_from_ga4gh_passports(
             #       This adds the visas to the database session but doesn't commit until
             #       the end of this function
             _sync_validated_visa_authorization(
-                gen3_user, ga4gh_visas, min_visa_expiration, db_session=db_session
+                gen3_user=gen3_user,
+                ga4gh_visas=ga4gh_visas,
+                expiration=min_visa_expiration,
+                policy_prefix=authz_policy_prefix,
+                db_session=db_session,
             )
             users_from_current_passport.append(gen3_user)
 
@@ -349,7 +356,7 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id, db_session=None):
 
 
 def _sync_validated_visa_authorization(
-    gen3_user, ga4gh_visas, expiration, db_session=None
+    gen3_user, ga4gh_visas, expiration, policy_prefix, db_session=None
 ):
     """
     Wrapper around UserSyncer.sync_single_user_visas method, which parses
@@ -379,7 +386,7 @@ def _sync_validated_visa_authorization(
         ga4gh_visas,
         db_session,
         expires=expiration,
-        policy_prefix="GA4GH.DRS",
+        policy_prefix=policy_prefix,
     )
 
     # after syncing authorization, persist the visas that were parsed successfully.

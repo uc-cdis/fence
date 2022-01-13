@@ -165,7 +165,10 @@ def test_update_visa_token(
         }
     }
     ras_client.update_user_authorization(
-        test_user, pkey_cache=pkey_cache, db_session=db_session
+        test_user,
+        authz_policy_prefix="TEST",
+        pkey_cache=pkey_cache,
+        db_session=db_session,
     )
 
     # restore public keys and context
@@ -251,7 +254,10 @@ def test_update_visa_empty_passport_returned(
         }
     }
     ras_client.update_user_authorization(
-        test_user, pkey_cache=pkey_cache, db_session=db_session
+        test_user,
+        authz_policy_prefix="TEST",
+        pkey_cache=pkey_cache,
+        db_session=db_session,
     )
 
     # at this point we expect the existing visa to stay around (since it hasn't expired)
@@ -342,7 +348,7 @@ def test_update_visa_empty_visa_returned(
     )
 
     ras_client.update_user_authorization(
-        test_user, pkey_cache={}, db_session=db_session
+        test_user, authz_policy_prefix="TEST", pkey_cache={}, db_session=db_session
     )
 
     # at this point we expect the existing visa to stay around (since it hasn't expired)
@@ -467,7 +473,10 @@ def test_update_visa_token_with_invalid_visa(
     }
 
     ras_client.update_user_authorization(
-        test_user, pkey_cache=pkey_cache, db_session=db_session
+        test_user,
+        authz_policy_prefix="TEST",
+        pkey_cache=pkey_cache,
+        db_session=db_session,
     )
     # at this point we expect the existing visa to stay around (since it hasn't expired)
     # and 2 new good visas
@@ -581,7 +590,7 @@ def test_update_visa_fetch_pkey(
 
     # Pass in an empty pkey cache so that the client will have to hit the jwks endpoint.
     ras_client.update_user_authorization(
-        test_user, pkey_cache={}, db_session=db_session
+        test_user, authz_policy_prefix="TEST", pkey_cache={}, db_session=db_session
     )
 
     # restore public keys and context

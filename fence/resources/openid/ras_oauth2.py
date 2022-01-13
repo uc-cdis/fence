@@ -286,7 +286,9 @@ class RASOauth2Client(Oauth2ClientBase):
         return iss_sub_pair_to_user.user.username
 
     @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
-    def update_user_authorization(self, user, pkey_cache, db_session=current_session):
+    def update_user_authorization(
+        self, user, pkey_cache, authz_policy_prefix, db_session=current_session
+    ):
         """
         Updates user's RAS refresh token and uses the new access token to retrieve new visas from
         RAS's /userinfo endpoint and update access
@@ -307,11 +309,13 @@ class RASOauth2Client(Oauth2ClientBase):
         # database)
         users_from_passports = (
             fence.resources.ga4gh.passports.sync_gen3_users_authz_from_ga4gh_passports(
-                [passport], pkey_cache=pkey_cache, db_session=db_session
+                [passport],
+                authz_policy_prefix=authz_policy_prefix,
+                pkey_cache=pkey_cache,
+                db_session=db_session,
             )
         )
         user_ids_from_passports = list(users_from_passports.keys())
-        self.logger.debug(f"user_ids_from_passports:{user_ids_from_passports}")
 
         # TODO?
         # put_gen3_usernames_for_passport_into_cache(
