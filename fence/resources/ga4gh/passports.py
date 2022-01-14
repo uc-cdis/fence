@@ -378,7 +378,9 @@ def _sync_validated_visa_authorization(
         None
     """
     db_session = db_session or current_session
-    default_args = fence.scripting.fence_create.get_default_init_syncer_inputs()
+    default_args = fence.scripting.fence_create.get_default_init_syncer_inputs(
+        authz_provider=policy_prefix
+    )
     syncer = fence.scripting.fence_create.init_syncer(**default_args)
 
     synced_visas = syncer.sync_single_user_visas(

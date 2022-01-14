@@ -203,7 +203,7 @@ def _remove_client_service_accounts(db_session, client):
                     )
 
 
-def get_default_init_syncer_inputs():
+def get_default_init_syncer_inputs(authz_provider):
     DB = os.environ.get("FENCE_DB") or config.get("DB")
     if DB is None:
         try:
@@ -214,7 +214,7 @@ def get_default_init_syncer_inputs():
     arborist = ArboristClient(
         arborist_base_url=config["ARBORIST"],
         logger=get_logger("user_syncer.arborist_client"),
-        authz_provider="ras",
+        authz_provider=authz_provider,
     )
     dbGaP = os.environ.get("dbGaP") or config.get("dbGaP")
     if not isinstance(dbGaP, list):
