@@ -100,7 +100,7 @@ def get_signed_url_for_file(
     # add the user details to `flask.g.audit_data` first, so they are
     # included in the audit log if `IndexedFile(file_id)` raises a 404
     if users_from_passports:
-        if len(list(users_from_passports.keys())) > 1:
+        if len(users_from_passports) > 1:
             logger.warning(
                 "audit service doesn't support multiple users for a "
                 "single request yet, so just log userinfo here"
