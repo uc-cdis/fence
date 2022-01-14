@@ -105,7 +105,7 @@ def get_signed_url_for_file(
                 "audit service doesn't support multiple users for a "
                 "single request yet, so just log userinfo here"
             )
-            for username, user in users_from_passports:
+            for username, user in users_from_passports.items():
                 audit_data = {
                     "username": username,
                     "sub": user.id,
