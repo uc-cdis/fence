@@ -114,7 +114,7 @@ def login_user(
 
         if id_from_idp:
             user.id_from_idp = id_from_idp
-            # TODO: do we need to update iss_sub mapping table?
+            # TODO: update iss_sub mapping table?
 
     # setup idp connection for new user (or existing user w/o it setup)
     idp = (
