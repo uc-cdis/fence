@@ -33,12 +33,19 @@ class RASVisa(DefaultVisa):
 
         if time.time() < expires:
             for permission in ras_dbgap_permissions:
-                phsid = str(permission.get("phs_id", ""))
-                consent_group = str(permission.get("consent_group", ""))
-                full_phsid = phsid
-                if parse_consent_code and consent_group:
-                    full_phsid += "." + consent_group
-                privileges = {"read-storage", "read"}
+                phsid = permission.get("phs_id", "")
+                consent_group = permission.get("consent_group", "")
+                
+                if not phsid or not consent_group:
+                    self.logger.error(
+                        f"cannot determine visa permission for phsid {phsid} "
+                        f"and consent_group {consent_group}. Ignoring this permission."
+                    )
+                else:
+                    full_phsid = str(phsid)
+                    if parse_consent_code and consent_group:
+                        full_phsid += "." + str(consent_group)
+                    privileges = {"read-storage", "read"}
 
                 permission_expiration = None
                 try:
