@@ -33,8 +33,8 @@ class RASVisa(DefaultVisa):
 
         if time.time() < expires:
             for permission in ras_dbgap_permissions:
-                phsid = permission.get("phs_id", "")
-                consent_group = permission.get("consent_group", "")
+                phsid = str(permission.get("phs_id", ""))
+                consent_group = str(permission.get("consent_group", ""))
                 full_phsid = phsid
                 if parse_consent_code and consent_group:
                     full_phsid += "." + consent_group
