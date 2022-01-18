@@ -39,7 +39,16 @@ class RASVisa(DefaultVisa):
                 if parse_consent_code and consent_group:
                     full_phsid += "." + consent_group
                 privileges = {"read-storage", "read"}
-                permission_expiration = permission.get("expiration")
+
+                permission_expiration = None
+                try:
+                    permission_expiration = int(permission.get("expiration", 0))
+                except Exception as exc:
+                    self.logger.error(
+                        f"cannot determine visa expiration for {full_phsid} "
+                        f"from: {permission.get('expiration')}. Ignoring this permission."
+                    )
+
                 if permission_expiration and expires <= permission_expiration:
                     project[full_phsid] = privileges
                     info["tags"] = {"dbgap_role": permission.get("role", "")}
