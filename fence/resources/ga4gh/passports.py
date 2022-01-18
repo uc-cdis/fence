@@ -394,7 +394,7 @@ def _sync_validated_visa_authorization(
     # after syncing authorization, persist the visas that were parsed successfully.
     for visa in ga4gh_visas:
         if visa not in synced_visas:
-            db_session.remove(visa)
+            db_session.delete(visa)
         else:
             db_session.add(visa)
 
