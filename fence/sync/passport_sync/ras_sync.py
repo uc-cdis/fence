@@ -35,7 +35,7 @@ class RASVisa(DefaultVisa):
             for permission in ras_dbgap_permissions:
                 phsid = permission.get("phs_id", "")
                 consent_group = permission.get("consent_group", "")
-                
+
                 if not phsid or not consent_group:
                     self.logger.error(
                         f"cannot determine visa permission for phsid {phsid} "
@@ -47,18 +47,18 @@ class RASVisa(DefaultVisa):
                         full_phsid += "." + str(consent_group)
                     privileges = {"read-storage", "read"}
 
-                permission_expiration = None
-                try:
-                    permission_expiration = int(permission.get("expiration", 0))
-                except Exception as exc:
-                    self.logger.error(
-                        f"cannot determine visa expiration for {full_phsid} "
-                        f"from: {permission.get('expiration')}. Ignoring this permission."
-                    )
+                    permission_expiration = None
+                    try:
+                        permission_expiration = int(permission.get("expiration", 0))
+                    except Exception as exc:
+                        self.logger.error(
+                            f"cannot determine visa expiration for {full_phsid} "
+                            f"from: {permission.get('expiration')}. Ignoring this permission."
+                        )
 
-                if permission_expiration and expires <= permission_expiration:
-                    project[full_phsid] = privileges
-                    info["tags"] = {"dbgap_role": permission.get("role", "")}
+                    if permission_expiration and expires <= permission_expiration:
+                        project[full_phsid] = privileges
+                        info["tags"] = {"dbgap_role": permission.get("role", "")}
         else:
             # Remove visas if its invalid or expired
             user.ga4gh_visas_v1 = []
