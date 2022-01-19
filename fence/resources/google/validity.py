@@ -1,7 +1,7 @@
 """
 Objects with validity checking for Google service account registration.
 """
-from collections import Mapping
+from collections.abc import Mapping
 from fence.errors import NotFound
 
 from fence.resources.google.utils import (
