@@ -914,5 +914,5 @@ USERSYNC:
   # fallback to dbgap sftp when there are no valid visas for a user i.e. if they're expired or if they're malformed
   fallback_to_dbgap_sftp: false
   visa_types:
-    ras: [https://ras.nih.gov/visas/v1, https://ras.nih.gov/visas/v1.1]
+    ras: ["https://ras.nih.gov/visas/v1", "https://ras.nih.gov/visas/v1.1"]
 RAS_USERINFO_ENDPOINT: '/openid/connect/v1.1/userinfo'
