@@ -32,20 +32,38 @@ class RASVisa(DefaultVisa):
         info = {}
         info["tags"] = {}
 
-        if time.time() >= expires:
-            raise Exception("visa is expired")
+        if time.time() < expires:
+            for permission in ras_dbgap_permissions:
+                phsid = permission.get("phs_id", "")
+                consent_group = permission.get("consent_group", "")
 
-        for permission in ras_dbgap_permissions:
-            phsid = permission.get("phs_id", "")
-            consent_group = permission.get("consent_group", "")
-            full_phsid = phsid
-            if parse_consent_code and consent_group:
-                full_phsid += "." + consent_group
-            privileges = {"read-storage", "read"}
-            permission_expiration = permission.get("expiration")
-            if permission_expiration and expires <= permission_expiration:
-                project[full_phsid] = privileges
-                info["tags"] = {"dbgap_role": permission.get("role", "")}
+                if not phsid or not consent_group:
+                    self.logger.error(
+                        f"cannot determine visa permission for phsid {phsid} "
+                        f"and consent_group {consent_group}. Ignoring this permission."
+                    )
+                else:
+                    full_phsid = str(phsid)
+                    if parse_consent_code and consent_group:
+                        full_phsid += "." + str(consent_group)
+                    privileges = {"read-storage", "read"}
+
+                    permission_expiration = None
+                    try:
+                        permission_expiration = int(permission.get("expiration", 0))
+                    except Exception as exc:
+                        self.logger.error(
+                            f"cannot determine visa expiration for {full_phsid} "
+                            f"from: {permission.get('expiration')}. Ignoring this permission."
+                        )
+
+                    if permission_expiration and expires <= permission_expiration:
+                        project[full_phsid] = privileges
+                        info["tags"] = {"dbgap_role": permission.get("role", "")}
+        else:
+            # Remove visas if its invalid or expired
+            user.ga4gh_visas_v1 = []
+            db_session.commit()
 
         info["email"] = user.email or ""
         info["display_name"] = user.display_name or ""
