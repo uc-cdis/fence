@@ -18,6 +18,7 @@ from fence.scripting.fence_create import (
     delete_client_action,
     delete_users,
     delete_expired_google_access,
+    cleanup_expired_ga4gh_information,
     google_init,
     list_client_action,
     link_external_bucket,
