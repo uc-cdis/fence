@@ -149,6 +149,7 @@ def parse_arguments():
     subparsers.add_parser("expired-service-account-delete")
     subparsers.add_parser("bucket-access-group-verify")
     subparsers.add_parser("delete-expired-google-access")
+    subparsers.add_parser("cleanup-expired-ga4gh-information")
 
     hmac_create = subparsers.add_parser("hmac-create")
     hmac_create.add_argument("yaml-input")
