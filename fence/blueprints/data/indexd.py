@@ -77,8 +77,7 @@ def get_signed_url_for_file(
     r_pays_project = flask.request.args.get("userProject", None)
     db_session = db_session or current_session
 
-    # default to signing the url even if it's a public object
-    # this will work so long as we're provided a user token
+    # default to signing the url
     force_signed_url = True
     no_force_sign_param = flask.request.args.get("no_force_sign")
     if no_force_sign_param and no_force_sign_param.lower() == "true":
@@ -526,7 +525,6 @@ class IndexedFile(object):
                 return self.indexed_file_locations[0].get_signed_url(
                     action,
                     expires_in,
-                    public_data=self.public,
                     force_signed_url=force_signed_url,
                     r_pays_project=r_pays_project,
                     authorized_user=authorized_user,
@@ -542,7 +540,6 @@ class IndexedFile(object):
                 return file_location.get_signed_url(
                     action,
                     expires_in,
-                    public_data=self.public,
                     force_signed_url=force_signed_url,
                     r_pays_project=r_pays_project,
                     authorized_user=authorized_user,
@@ -627,19 +624,8 @@ class IndexedFile(object):
         return self.index_document.get("metadata", {})
 
     @cached_property
-    def public(self):
-        if self.index_document.get("authz", []):
-            return self.public_authz
-        else:
-            return self.public_acl
-
-    @cached_property
     def public_acl(self):
         return "*" in self.set_acls
-
-    @cached_property
-    def public_authz(self):
-        return "/open" in self.index_document.get("authz", [])
 
     @login_required({"data"})
     def check_legacy_authorization(self, action):
@@ -759,7 +745,6 @@ class IndexedFileLocation(object):
         self,
         action,
         expires_in,
-        public_data=False,
         force_signed_url=True,
         users_from_passports=None,
         **kwargs,
@@ -960,7 +945,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
         self,
         action,
         expires_in,
-        public_data=False,
         force_signed_url=True,
         authorized_user=None,
         **kwargs,
@@ -989,7 +973,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             bucket_name, aws_creds, expires_in
         )
 
-        # if it's public and we don't need to force the signed url, just return the raw
+        # if we don't need to force the signed url, just return the raw
         # s3 url
         aws_access_key_id = get_value(
             credential,
@@ -999,7 +983,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         # `aws_access_key_id == "*"` is a special case to support public buckets
         # where we do *not* want to try signing at all. the other case is that the
         # data is public and user requested to not sign the url
-        if aws_access_key_id == "*" or (public_data and not force_signed_url):
+        if aws_access_key_id == "*" or (not force_signed_url):
             return http_url
 
         region = self.get_bucket_region()
@@ -1128,7 +1112,6 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         self,
         action,
         expires_in,
-        public_data=False,
         force_signed_url=True,
         r_pays_project=None,
         authorized_user=None,
@@ -1137,9 +1120,9 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
 
         user_info = _get_user_info_for_id_or_from_request(user=authorized_user)
 
-        if public_data and not force_signed_url:
+        if not force_signed_url:
             url = "https://storage.cloud.google.com/" + resource_path
-        elif public_data and _is_anonymous_user(user_info):
+        elif _is_anonymous_user(user_info):
             url = self._generate_anonymous_google_storage_signed_url(
                 ACTION_DICT["gs"][action], resource_path, int(expires_in)
             )
@@ -1417,7 +1400,6 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
         self,
         action,
         expires_in,
-        public_data=False,
         force_signed_url=True,
         authorized_user=None,
         **kwargs,
@@ -1439,11 +1421,6 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
             Get a signed url for an action like "upload" or "download".
         :param int expires_in:
             The SAS token will expire in a given number of seconds from datetime.utcnow()
-        :param bool public_data:
-            Indicate if the Azure Blob Storage Account has public access.
-            If it's public and we don't need to force the signed url, just return the raw
-            url.
-            The default for public_data is False.
         :param bool force_signed_url:
             Enforce signing the URL for the Azure Blob Storage Account using a SAS token.
             The default is True.
@@ -1457,7 +1434,7 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
         container_name, blob_name = self._get_container_and_blob()
 
         user_info = _get_user_info_for_id_or_from_request(user=authorized_user)
-        if user_info and user_info.get("user_id") == ANONYMOUS_USER_ID:
+        if _is_anonymous_user(user_info):
             logger.info(f"Attempting to get a signed url an anonymous user")
 
         # if it's public and we don't need to force the signed url, just return the raw
@@ -1465,7 +1442,7 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
         # `azure_creds == "*"` is a special case to support public buckets
         # where we do *not* want to try signing at all. the other case is that the
         # data is public and user requested to not sign the url
-        if azure_creds == "*" or (public_data and not force_signed_url):
+        if azure_creds == "*" or (not force_signed_url):
             return self._get_converted_url()
 
         url = self._generate_azure_blob_storage_sas(
