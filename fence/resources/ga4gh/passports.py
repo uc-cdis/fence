@@ -1,8 +1,10 @@
 import flask
 import os
 import collections
+import hashlib
 import time
 import datetime
+import uuid
 import jwt
 
 # the whole fence_create module is imported to avoid issue with circular imports
@@ -20,11 +22,18 @@ from fence.models import (
     query_for_user,
     query_for_user_by_id,
     GA4GHVisaV1,
+    GA4GHPassportCache,
     IdentityProvider,
     IssSubPairToUser,
 )
 
 logger = get_logger(__name__)
+
+# cache will be in following format
+#   passport: ([user_id_0, user_id_1, ...], expires_at)
+#
+# NOTE: we'll want to watch the memory usage on this since passports can be pretty large
+PASSPORT_CACHE = {}
 
 
 def sync_gen3_users_authz_from_ga4gh_passports(
@@ -50,21 +59,32 @@ def sync_gen3_users_authz_from_ga4gh_passports(
               embedded within the passports passed in
     """
     db_session = db_session or current_session
-    logger.info("Getting gen3 users from passports")
 
     # {"username": user, "username2": user2}
     users_from_all_passports = {}
     for passport in passports:
         try:
-            cached_users = get_gen3_usernames_for_passport_from_cache(passport)
-            if cached_users:
-                # TODO get user from id - perhaps we can avoid this?
-                for user_id in cached_users:
-                    user = query_for_user_by_id(session=db_session, user_id=user_id)
-                    users_from_all_passports[user.username] = user
-                # existence in the cache means that this passport was validated
-                # previously (expiration was also checked)
-                continue
+            cached_usernames = get_gen3_usernames_for_passport_from_cache(
+                passport=passport, db_session=db_session
+            )
+            if cached_usernames:
+                # there's a chance a given username exists in the cache but no longer in
+                # the database. if not all are in db, ignore the cache and actually parse
+                # and validate the passport
+                all_users_exist_in_db = True
+                usernames_to_update = {}
+                for username in cached_usernames:
+                    user = query_for_user(session=db_session, username=username)
+                    if not user:
+                        all_users_exist_in_db = False
+                        continue
+                    usernames_to_update[user.username] = user
+
+                if all_users_exist_in_db:
+                    users_from_all_passports.update(usernames_to_update)
+                    # existence in the cache and a user in db means that this passport
+                    # was validated previously (expiration was also checked)
+                    continue
 
             # below function also validates passport (or raises exception)
             raw_visas = get_unvalidated_visas_from_valid_passport(
@@ -139,27 +159,22 @@ def sync_gen3_users_authz_from_ga4gh_passports(
             )
             users_from_current_passport.append(gen3_user)
 
-        put_gen3_usernames_for_passport_into_cache(
-            passport,
-            [user.id for user in users_from_current_passport],
-            expires_at=min_visa_expiration,
-        )
         for user in users_from_current_passport:
             users_from_all_passports[user.username] = user
 
+        put_gen3_usernames_for_passport_into_cache(
+            passport=passport,
+            user_ids_from_passports=list(users_from_all_passports.keys()),
+            expires_at=min_visa_expiration,
+            db_session=db_session,
+        )
+
     db_session.commit()
 
+    logger.info(
+        f"Got Gen3 usernames from passport(s): {list(users_from_all_passports.keys())}"
+    )
     return users_from_all_passports
-
-
-def get_gen3_usernames_for_passport_from_cache(passport, db_session=None):
-    return
-
-
-def put_gen3_usernames_for_passport_into_cache(
-    passport, user_ids_from_passports, expires_at, db_session=None
-):
-    return
 
 
 def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
@@ -399,6 +414,130 @@ def _sync_validated_visa_authorization(
         else:
             logger.debug(f"adding visa with id={visa.id} to db session")
             db_session.add(visa)
+
+
+def get_gen3_usernames_for_passport_from_cache(passport, db_session=None):
+    """
+    Attempt to retrieve a cached list of users ids for a previously validated and
+    non-expired passport.
+
+    Args:
+        passport (str): ga4gh encoded passport JWT
+        db_session (None, sqlalchemy session): optional database session to use
+
+    Returns:
+        list[str]: list of usernames for users referred to by the previously validated
+                   and non-expired passport
+    """
+    db_session = db_session or current_session
+    user_ids_from_passports = None
+    current_time = int(time.time())
+
+    # try to retrieve from local in-memory cache
+
+    if passport in PASSPORT_CACHE:
+        user_ids_from_passports, expires = PASSPORT_CACHE[passport]
+        if expires > current_time:
+            logger.debug(
+                f"Got users {user_ids_from_passports} for provided passport from in-memory cache. "
+                f"Expires: {expires}, Current Time: {current_time}"
+            )
+            return user_ids_from_passports
+        else:
+            # expired, so remove it
+            del PASSPORT_CACHE[passport]
+
+    # try to retrieve from database cache
+
+    # get an md5 hash of passport (which is 128 bits) and convert to UUID (which is 128 bits)
+    # for optimal usage of database's underlying UUID column type
+    passport_hash_as_uuid = uuid.UUID(hashlib.md5(passport.encode("utf-8")).hexdigest())
+    cached_passport = (
+        db_session.query(GA4GHPassportCache)
+        .filter(GA4GHPassportCache.passport_hash == passport_hash_as_uuid)
+        .first()
+    )
+    # we retrieved based on hash, which has a small chance of collision. Mitigate that by
+    # now verifying that the full passport in the db matches what was provided
+    if cached_passport and cached_passport.passport == passport:
+        if cached_passport.expires_at > current_time:
+            user_ids_from_passports = cached_passport.user_ids
+
+            # update local cache
+            PASSPORT_CACHE[passport] = (
+                user_ids_from_passports,
+                cached_passport.expires_at,
+            )
+
+            logger.debug(
+                f"Got users {user_ids_from_passports} for provided passport from "
+                f"database cache and placed in in-memory cache. "
+                f"Expires: {cached_passport.expires_at}, Current Time: {current_time}"
+            )
+            return user_ids_from_passports
+        else:
+            # expired, so remove it
+            db_session.remove(cached_passport)
+            db_session.commit()
+
+    return user_ids_from_passports
+
+
+def put_gen3_usernames_for_passport_into_cache(
+    passport, user_ids_from_passports, expires_at, db_session=None
+):
+    """
+    Cache a validated and non-expired passport and map to the user_ids referenced
+    by the content.
+
+    Args:
+        passport (str): ga4gh encoded passport JWT
+        db_session (None, sqlalchemy session): optional database session to use
+        user_ids_from_passports (list[str]): list of user identifiers referred to by
+            the previously validated and non-expired passport
+        expires_at (int): expiration time in unix time
+    """
+    db_session = db_session or current_session
+    # stores back to cache and db
+    PASSPORT_CACHE[passport] = user_ids_from_passports, expires_at
+
+    # get an md5 hash of passport (which is 128 bits) and convert to UUID (which is 128 bits)
+    # for optimal usage of database's underlying UUID column type
+    passport_hash_as_uuid = uuid.UUID(hashlib.md5(passport.encode("utf-8")).hexdigest())
+
+    # the improbable collision of hash on 2 different passports will result in an overwrite
+    # of the previous passport information and the discrepancy will raise an error on
+    # retrieval (after a comparison of the full stored passport vs provided). e.g. this
+    # collision will NOT get caught here but instead on the "GET" from cache functionality
+    db_session.execute(
+        """\
+        INSERT INTO ga4gh_passport_cache (
+            passport_hash,
+            passport,
+            expires_at,
+            user_ids
+        ) VALUES (
+            :passport_hash,
+            :passport,
+            :expires_at,
+            :user_ids
+        ) ON CONFLICT (passport_hash) DO UPDATE SET
+            passport = EXCLUDED.passport,
+            expires_at = EXCLUDED.expires_at,
+            user_ids = EXCLUDED.user_ids;""",
+        dict(
+            passport_hash=passport_hash_as_uuid,
+            passport=passport,
+            expires_at=expires_at,
+            user_ids=user_ids_from_passports,
+        ),
+    )
+
+    logger.debug(
+        f"Cached users {user_ids_from_passports} for provided passport in "
+        f"database cache and placed in in-memory cache. "
+        f"Expires: {expires_at}"
+    )
 
 
 # TODO to be called after login
