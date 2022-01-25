@@ -476,8 +476,8 @@ def get_gen3_usernames_for_passport_from_cache(passport, db_session=None):
             )
             return user_ids_from_passports
         else:
-            # expired, so remove it
-            db_session.remove(cached_passport)
+            # expired, so delete it
+            db_session.delete(cached_passport)
             db_session.commit()
 
     return user_ids_from_passports
