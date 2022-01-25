@@ -57,11 +57,6 @@ class RASCallback(DefaultOAuth2Callback):
         # do an on-the-fly usersync for this user to give them instant access after logging in through RAS
         # if GLOBAL_PARSE_VISAS_ON_LOGIN is true then we want to run it regardless of whether or not the client sent parse_visas on request
         if parse_visas:
-            # Close previous db sessions. Leaving it open causes a race condition where we're
-            # viewing user.project_access while trying to update it in usersync
-            # not closing leads to partially updated records
-            current_session.close()
-
             # get passport then call sync on it
             try:
                 passport = (
