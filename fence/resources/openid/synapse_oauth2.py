@@ -36,10 +36,11 @@ class SynapseOauth2Client(Oauth2ClientBase):
         super(SynapseOauth2Client, self).__init__(
             settings,
             logger,
-            scope="openid",
+            scope=settings.get("scope") or "openid",
             # The default discovery URL on Synapse staging is not serving the correct
             # info. Providing a workaround here for overwriting.
-            discovery_url=config["SYNAPSE_DISCOVERY_URL"]
+            discovery_url=settings.get("discovery_url")
+            or config["SYNAPSE_DISCOVERY_URL"]
             or (config["SYNAPSE_URI"] + "/.well-known/openid-configuration"),
             idp="Synapse",
             HTTP_PROXY=HTTP_PROXY,
