@@ -461,7 +461,7 @@ paths:
           required: false
           in: query
           description: >-
-            if `no_force_sign=True` and the file requested is actually public, this will
+            if `no_force_sign=True`, this will
             request to *not* sign the resulting URL (i.e. just provide the
             public url without using anonymous signing creds).
           schema:
