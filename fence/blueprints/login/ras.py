@@ -21,6 +21,7 @@ import fence.resources.ga4gh.passports
 
 
 logger = get_logger(__name__)
+PKEY_CACHE = {}
 
 
 class RASLogin(DefaultOAuth2Login):
@@ -72,7 +73,7 @@ class RASCallback(DefaultOAuth2Callback):
             users_from_passports = fence.resources.ga4gh.passports.sync_gen3_users_authz_from_ga4gh_passports(
                 [passport],
                 authz_policy_prefix="POST.LOGIN",
-                pkey_cache=pkey_cache,
+                pkey_cache=PKEY_CACHE,
                 db_session=current_session,
             )
             user_ids_from_passports = list(users_from_passports.keys())
