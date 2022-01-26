@@ -147,9 +147,8 @@ class Oauth2ClientBase(object):
         raise NotImplementedError()
 
     def get_access_token(self, user, token_endpoint, db_session=None):
-
         """
-        Get access_token using a refresh_token and store it in upstream_refresh_token table.
+        Get access_token using a refresh_token and store new refresh in upstream_refresh_token table.
         """
         refresh_token = None
         expires = None
@@ -160,7 +159,7 @@ class Oauth2ClientBase(object):
             expires = row.expires
 
         if not refresh_token:
-            raise AuthError("User doesnt have a refresh token")
+            raise AuthError("User doesn't have a refresh token")
         if time.time() > expires:
             raise AuthError("Refresh token expired. Please login again.")
 

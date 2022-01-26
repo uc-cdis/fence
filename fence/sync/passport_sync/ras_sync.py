@@ -9,24 +9,25 @@ class RASVisa(DefaultVisa):
     Class representing RAS visas
     """
 
-    def _init__(self, logger):
+    def __init__(self, logger):
         super(RASVisa, self).__init__(
             logger=logger,
         )
 
-    def _parse_single_visa(
-        self, user, encoded_visa, expires, parse_consent_code, db_session
-    ):
+    def _parse_single_visa(self, user, encoded_visa, expires, parse_consent_code):
+        """
+        Return user information from the visa.
+
+        IMPORTANT NOTE: THIS DOES NOT VALIDATE THE ENCODED VISA. ENSURE THIS IS DONE
+                        BEFORE THIS.
+        """
         decoded_visa = {}
-        try:
-            decoded_visa = jwt.decode(encoded_visa, verify=False)
-        except Exception as e:
-            self.logger.warning("Couldn't decode visa {}".format(e))
-            # Remove visas if its invalid or expired
-            user.ga4gh_visas_v1 = []
-            db_session.commit()
-        finally:
-            ras_dbgap_permissions = decoded_visa.get("ras_dbgap_permissions", [])
+
+        # do not verify again, assume this happens upstream
+        # note that this can fail, upstream should handle the case that parsing fails
+        decoded_visa = jwt.decode(encoded_visa, verify=False)
+
+        ras_dbgap_permissions = decoded_visa.get("ras_dbgap_permissions", [])
         project = {}
         info = {}
         info["tags"] = {}

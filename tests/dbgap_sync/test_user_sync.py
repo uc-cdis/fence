@@ -2,12 +2,23 @@ import os
 import pytest
 import yaml
 
+import asyncio
+import flask
 from unittest.mock import MagicMock
+import mock
 
 from fence import models
 from fence.sync.sync_users import _format_policy_id
 from fence.config import config
+from fence.job.visa_update_cronjob import Visa_Token_Update
 from tests.dbgap_sync.conftest import LOCAL_YAML_DIR
+
+from tests.utils import TEST_RAS_USERNAME, TEST_RAS_SUB
+from tests.dbgap_sync.conftest import (
+    get_test_encoded_decoded_visa_and_exp,
+    fake_ras_login,
+)
+from tests.conftest import get_subjects_to_passports
 
 
 def equal_project_access(d1, d2):
@@ -76,7 +87,9 @@ def test_sync(
     syncer.sync()
 
     users = db_session.query(models.User).all()
-    assert len(users) == 14
+
+    # 5 from user.yaml, 4 from fake dbgap SFTP
+    assert len(users) == 9
 
     if parse_consent_code_config:
         user = models.query_for_user(session=db_session, username="USERC")
@@ -152,12 +165,8 @@ def test_sync(
     }
     assert len(user_access) == 1
 
-    # TODO: check user policy access (add in user sync changes)
-
     user = models.query_for_user(session=db_session, username="deleted_user@gmail.com")
-    assert not user.is_admin
-    user_access = db_session.query(models.AccessPrivilege).filter_by(user=user).all()
-    assert not user_access
+    assert not user
 
 
 @pytest.mark.parametrize("syncer", ["google"], indirect=True)
@@ -613,136 +622,234 @@ def test_process_additional_dbgap_servers(syncer, monkeypatch, db_session):
     assert syncer._process_dbgap_files.call_count == 2
 
 
-@pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)
-@pytest.mark.parametrize("parse_consent_code_config", [False, True])
-@pytest.mark.parametrize("fallback_to_dbgap_sftp", [False, True])
-def test_user_sync_with_visas(
-    syncer,
+def setup_ras_sync_testing(
+    mock_discovery,
+    mock_get_token,
     db_session,
-    storage_client,
-    parse_consent_code_config,
-    fallback_to_dbgap_sftp,
-    monkeypatch,
-):
-    # patch the sync to use the parameterized config value
-    monkeypatch.setitem(
-        syncer.dbGaP[0], "parse_consent_code", parse_consent_code_config
-    )
-    monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
-    monkeypatch.setattr(syncer, "fallback_to_dbgap_sftp", fallback_to_dbgap_sftp)
-    monkeypatch.setattr(syncer, "sync_from_visas", True)
-
-    syncer.sync_visas()
-
-    users = db_session.query(models.User).all()
-
-    user = models.query_for_user(
-        session=db_session, username="TESTUSERB"
-    )  # contains only visa information
-
-    backup_user = models.query_for_user(
-        session=db_session, username="TESTUSERD"
-    )  # Contains invalid visa and also in telemetry file
-
-    expired_user = models.query_for_user(
-        session=db_session,
-        username="expired_visa_user",
-    )
-    invalid_user = models.query_for_user(
-        session=db_session, username="invalid_visa_user"
-    )
-
-    assert len(invalid_user.project_access) == 0
-    assert len(expired_user.project_access) == 0
-
-    assert len(invalid_user.ga4gh_visas_v1) == 0
-    assert len(expired_user.ga4gh_visas_v1) == 0
-
-    if fallback_to_dbgap_sftp:
-        assert len(users) == 14
-
-        if parse_consent_code_config:
-            assert equal_project_access(
-                user.project_access,
-                {
-                    "phs000991.c1": ["read", "read-storage"],
-                    "phs000961.c1": ["read", "read-storage"],
-                    "phs000279.c1": ["read", "read-storage"],
-                    "phs000286.c3": ["read", "read-storage"],
-                    "phs000289.c2": ["read", "read-storage"],
-                    "phs000298.c1": ["read", "read-storage"],
-                },
-            )
-            assert equal_project_access(
-                backup_user.project_access,
-                {
-                    "phs000179.c1": ["read", "read-storage"],
-                },
-            )
-        else:
-            assert equal_project_access(
-                user.project_access,
-                {
-                    "phs000991": ["read", "read-storage"],
-                    "phs000961": ["read", "read-storage"],
-                    "phs000279": ["read", "read-storage"],
-                    "phs000286": ["read", "read-storage"],
-                    "phs000289": ["read", "read-storage"],
-                    "phs000298": ["read", "read-storage"],
-                },
-            )
-            assert equal_project_access(
-                backup_user.project_access,
-                {
-                    "phs000179": ["read", "read-storage"],
-                },
-            )
-
-    else:
-        assert len(users) == 12
-        assert len(backup_user.project_access) == 0
-        if parse_consent_code_config:
-            assert equal_project_access(
-                user.project_access,
-                {
-                    "phs000991.c1": ["read", "read-storage"],
-                    "phs000961.c1": ["read", "read-storage"],
-                    "phs000279.c1": ["read", "read-storage"],
-                    "phs000286.c3": ["read", "read-storage"],
-                    "phs000289.c2": ["read", "read-storage"],
-                    "phs000298.c1": ["read", "read-storage"],
-                },
-            )
-        else:
-            assert equal_project_access(
-                user.project_access,
-                {
-                    "phs000991": ["read", "read-storage"],
-                    "phs000961": ["read", "read-storage"],
-                    "phs000279": ["read", "read-storage"],
-                    "phs000286": ["read", "read-storage"],
-                    "phs000289": ["read", "read-storage"],
-                    "phs000298": ["read", "read-storage"],
-                },
-            )
-
-
-@pytest.mark.parametrize("syncer", ["google"], indirect=True)
-def test_sync_in_login(
-    syncer,
-    db_session,
-    storage_client,
     rsa_private_key,
     kid,
-    monkeypatch,
+    mock_userinfo,
+    mock_arborist_requests,
 ):
-    user = models.query_for_user(
-        session=db_session, username="TESTUSERB"
-    )  # contains no information
-    syncer.sync_single_user_visas(user, user.ga4gh_visas_v1, db_session)
-    user = models.query_for_user(
-        session=db_session, username="TESTUSERB"
-    )  # contains only visa information
-    user1 = models.query_for_user(session=db_session, username="USER_1")
-    assert len(user1.project_access) == 0  # other users are not affected
-    assert len(user.project_access) == 6
+    """
+    BEGIN Setup
+    - make sure no app context
+    - setup mock RAS responses for various users
+        - setup fake access tokens
+        - make userinfo respond with passport and visas (some valid, some expired, some invalid)
+    """
+    setup_info = {}
+
+    mock_arborist_requests({"arborist/user/TESTUSERB": {"PATCH": (None, 204)}})
+    mock_arborist_requests(
+        {"arborist/user/test_user1@gmail.com": {"PATCH": (None, 204)}}
+    )
+    mock_arborist_requests({"arborist/user/TESTUSERD": {"PATCH": (None, 204)}})
+    mock_arborist_requests({"arborist/user/USERF": {"PATCH": (None, 204)}})
+
+    mock_discovery.return_value = "https://ras/token_endpoint"
+
+    def get_token_response_for_user(*args, **kwargs):
+        token_response = {
+            "access_token": f"{args[0].username}",
+            "id_token": f"{args[0].username}-id12345abcdef",
+            "refresh_token": f"{args[0].username}-refresh12345abcdefg",
+        }
+        return token_response
+
+    mock_get_token.side_effect = get_token_response_for_user
+
+    usernames_to_ras_subjects = {
+        "TESTUSERB": "sub-TESTUSERB-1234",
+        "test_user1@gmail.com": "sub-test_user1@gmail.com-1234",
+        "TESTUSERD": "sub-TESTUSERD-1234",
+        "USERF": "sub-USERF-1234",
+    }
+
+    setup_info["usernames_to_ras_subjects"] = usernames_to_ras_subjects
+
+    subjects_to_encoded_visas = {
+        usernames_to_ras_subjects["TESTUSERB"]: [
+            get_test_encoded_decoded_visa_and_exp(
+                db_session,
+                "TESTUSERB",
+                rsa_private_key,
+                kid,
+                sub=usernames_to_ras_subjects["TESTUSERB"],
+            )[0]
+        ],
+        usernames_to_ras_subjects["test_user1@gmail.com"]: [
+            get_test_encoded_decoded_visa_and_exp(
+                db_session,
+                "test_user1@gmail.com",
+                rsa_private_key,
+                kid,
+                expires=1,
+                sub=usernames_to_ras_subjects["test_user1@gmail.com"],
+            )[0]
+        ],
+        # note: get_test_encoded_decoded_visa_and_exp makes the visas for the next 2 users completely invalid
+        usernames_to_ras_subjects["TESTUSERD"]: [
+            get_test_encoded_decoded_visa_and_exp(
+                db_session,
+                "TESTUSERD",
+                rsa_private_key,
+                kid,
+                sub=usernames_to_ras_subjects["TESTUSERD"],
+                make_invalid=True,
+            )[0]
+        ],
+        usernames_to_ras_subjects["USERF"]: [
+            get_test_encoded_decoded_visa_and_exp(
+                db_session,
+                "USERF",
+                rsa_private_key,
+                kid,
+                sub=usernames_to_ras_subjects["USERF"],
+                make_invalid=True,
+            )[0]
+        ],
+    }
+
+    setup_info["subjects_to_encoded_visas"] = subjects_to_encoded_visas
+
+    subjects_to_passports = get_subjects_to_passports(
+        subjects_to_encoded_visas, kid=kid, rsa_private_key=rsa_private_key
+    )
+
+    setup_info["subjects_to_passports"] = subjects_to_passports
+
+    def get_userinfo_for_user(*args, **kwargs):
+        # username is the access token only b/c of the way the mocks are setup
+        username = args[0]["access_token"]
+
+        # sub is likely different than username
+        sub = f"sub-{username}-1234"
+        userinfo_response = {
+            "sub": sub,
+            "name": "",
+            "preferred_username": "someuser@era.com",
+            "UID": "",
+            "UserID": username,
+            "email": "",
+        }
+        subject_to_passports = subjects_to_passports.get(sub) or {}
+        userinfo_response["passport_jwt_v11"] = subject_to_passports.get(
+            "encoded_passport"
+        )
+        return userinfo_response
+
+    mock_userinfo.side_effect = get_userinfo_for_user
+    return setup_info
+
+
+@pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)
+@mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_userinfo")
+@mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_access_token")
+@mock.patch(
+    "fence.resources.openid.ras_oauth2.RASOauth2Client.get_value_from_discovery_doc"
+)
+def test_user_sync_with_visa_sync_job(
+    mock_discovery,
+    mock_get_token,
+    mock_userinfo,
+    syncer,
+    db_session,
+    storage_client,
+    monkeypatch,
+    kid,
+    rsa_public_key,
+    rsa_private_key,
+    mock_arborist_requests,
+    no_app_context_no_public_keys,
+):
+    """
+    Test that visas and authorization from them only get added to the database
+    after visa sync job and not by usersync alone. Ensure usersync does not
+    alter visa information.
+
+    NOTE: syncer above creates users as if they already exist before this usersync
+          and they have a specified IdP == RAS (e.g. they should get visas synced)
+    """
+    setup_info = setup_ras_sync_testing(
+        mock_discovery,
+        mock_get_token,
+        db_session,
+        rsa_private_key,
+        kid,
+        mock_userinfo,
+        mock_arborist_requests,
+    )
+
+    # Usersync
+    syncer.sync()
+
+    users_after = db_session.query(models.User).all()
+
+    # 5 from user.yaml, 4 from fake dbgap SFTP
+    assert len(users_after) == 9
+
+    for user in users_after:
+        if user.username in setup_info["usernames_to_ras_subjects"]:
+            # at this point, we will mock a login event by the user (at which point we'd get
+            # a refresh token we can update visas with later)
+            fake_ras_login(
+                user.username,
+                setup_info["usernames_to_ras_subjects"][user.username],
+                db_session=db_session,
+            )
+
+        # make sure no one has visas yet
+        assert not user.ga4gh_visas_v1
+
+    # use refresh tokens from users to call access token polling "fence-create update-visa"
+    # and sync authorization from visas
+    job = Visa_Token_Update()
+    job.pkey_cache = {
+        "https://stsstg.nih.gov": {
+            kid: rsa_public_key,
+        }
+    }
+    loop = asyncio.get_event_loop()
+    loop.run_until_complete(job.update_tokens(db_session))
+
+    users_after_visas_sync = db_session.query(models.User).all()
+
+    # now let's check that actual authorization / visas got added as expected
+    valid_user = models.query_for_user(session=db_session, username="TESTUSERB")
+
+    user_with_invalid_visa_also_in_telemetry_file = models.query_for_user(
+        session=db_session, username="TESTUSERD"
+    )
+
+    user_with_invalid_visa_also_in_telemetry_file_2 = models.query_for_user(
+        session=db_session, username="USERF"
+    )
+
+    user_with_expired_visa_also_in_telemetry_file = models.query_for_user(
+        session=db_session,
+        username="test_user1@gmail.com",
+    )
+
+    # make sure no access or visas for users not expected to have any
+    assert (
+        user_with_invalid_visa_also_in_telemetry_file
+        and len(user_with_invalid_visa_also_in_telemetry_file.ga4gh_visas_v1) == 0
+    )
+    assert (
+        user_with_invalid_visa_also_in_telemetry_file_2
+        and len(user_with_invalid_visa_also_in_telemetry_file_2.ga4gh_visas_v1) == 0
+    )
+    assert (
+        user_with_expired_visa_also_in_telemetry_file
+        and len(user_with_expired_visa_also_in_telemetry_file.ga4gh_visas_v1) == 0
+    )
+
+    assert valid_user and valid_user.ga4gh_visas_v1
+    assert len(valid_user.ga4gh_visas_v1) == 1
+    assert (
+        valid_user.ga4gh_visas_v1[0].ga4gh_visa
+        in setup_info["subjects_to_encoded_visas"][
+            setup_info["usernames_to_ras_subjects"][valid_user.username]
+        ]
+    )

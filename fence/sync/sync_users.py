@@ -32,6 +32,7 @@ from fence.models import (
     User,
     query_for_user,
     Client,
+    IdentityProvider,
     get_project_to_authz_mapping,
 )
 from fence.resources.storage import StorageManager
@@ -314,8 +315,6 @@ class UserSyncer(object):
         sync_from_local_yaml_file=None,
         arborist=None,
         folder=None,
-        sync_from_visas=False,
-        fallback_to_dbgap_sftp=False,
     ):
         """
         Syncs ACL files from dbGap to auth database and storage backends
@@ -330,8 +329,6 @@ class UserSyncer(object):
                 ArboristClient instance if the syncer should also create
                 resources in arborist
             folder: a local folder where dbgap telemetry files will sync to
-            sync_from_visas: use visa for sync instead of dbgap
-            fallback_to_dbgap_sftp: fallback to telemetry files when visa sync fails
         """
         self.sync_from_local_csv_dir = sync_from_local_csv_dir
         self.sync_from_local_yaml_file = sync_from_local_yaml_file
@@ -350,8 +347,6 @@ class UserSyncer(object):
         )
         self.arborist_client = arborist
         self.folder = folder
-        self.sync_from_visas = sync_from_visas
-        self.fallback_to_dbgap_sftp = fallback_to_dbgap_sftp
 
         self.auth_source = defaultdict(set)
         # auth_source used for logging. username : [source1, source2]
@@ -711,7 +706,12 @@ class UserSyncer(object):
                 self.auth_source[user].add(source2)
 
     def sync_to_db_and_storage_backend(
-        self, user_project, user_info, sess, single_visa_sync=False, expires=None
+        self,
+        user_project,
+        user_info,
+        sess,
+        do_not_revoke_from_db_and_storage=False,
+        expires=None,
     ):
         """
         sync user access control to database and storage backend
@@ -771,7 +771,7 @@ class UserSyncer(object):
         # pass the original, non-lowered user_info dict
         self._upsert_userinfo(sess, user_info)
 
-        if not single_visa_sync:
+        if not do_not_revoke_from_db_and_storage:
             self._revoke_from_storage(
                 to_delete, sess, google_bulk_mapping=google_bulk_mapping
             )
@@ -803,8 +803,76 @@ class UserSyncer(object):
         )
         self._update_from_db(sess, to_update, user_project_lowercase)
 
-        if not single_visa_sync:
+        if not do_not_revoke_from_db_and_storage:
             self._validate_and_update_user_admin(sess, user_info_lowercase)
+
+        if config["GOOGLE_BULK_UPDATES"]:
+            self.logger.info("Doing bulk Google update...")
+            bulk_update_google_groups(google_bulk_mapping)
+            self.logger.info("Bulk Google update done!")
+
+        sess.commit()
+
+    def sync_to_storage_backend(self, user_project, user_info, sess, expires):
+        """
+        sync user access control to storage backend with given expiration
+
+        Args:
+            user_project (dict): a dictionary of
+
+                {
+                    username: {
+                        'project1': {'read-storage','write-storage'},
+                        'project2': {'read-storage'}
+                    }
+                }
+
+            user_info (dict): a dictionary of {username: user_info{}}
+            sess: a sqlalchemy session
+
+        Return:
+            None
+        """
+        if not expires:
+            raise Exception(
+                f"sync to storage backend requires an expiration. you provided: {expires}"
+            )
+
+        google_bulk_mapping = None
+        if config["GOOGLE_BULK_UPDATES"]:
+            google_bulk_mapping = {}
+
+        # TODO: eventually it'd be nice to remove this step but it's required
+        #       so that grant_from_storage can determine what storage backends
+        #       are needed for a project.
+        self._init_projects(user_project, sess)
+
+        # we need to compare db -> whitelist case-insensitively for username.
+        # db stores case-sensitively, but we need to query case-insensitively
+        user_project_lowercase = {}
+        syncing_user_project_list = set()
+        for username, projects in user_project.items():
+            user_project_lowercase[username.lower()] = projects
+            for project, _ in projects.items():
+                syncing_user_project_list.add((username.lower(), project))
+
+        user_info_lowercase = {
+            username.lower(): info for username, info in user_info.items()
+        }
+
+        to_add = set(syncing_user_project_list)
+
+        # when updating users we want to maintain case sesitivity in the username so
+        # pass the original, non-lowered user_info dict
+        self._upsert_userinfo(sess, user_info)
+
+        self._grant_from_storage(
+            to_add,
+            user_project_lowercase,
+            sess,
+            google_bulk_mapping=google_bulk_mapping,
+            expires=expires,
+        )
 
         if config["GOOGLE_BULK_UPDATES"]:
             self.logger.info("Doing bulk Google update...")
@@ -954,6 +1022,17 @@ class UserSyncer(object):
             u.phone_number = user_info[username].get("phone_number", "")
             u.is_admin = user_info[username].get("admin", False)
 
+            idp_name = user_info[username].get("idp_name", "")
+            if idp_name and not u.identity_provider:
+                idp = (
+                    sess.query(IdentityProvider)
+                    .filter(IdentityProvider.name == idp_name)
+                    .first()
+                )
+                if not idp:
+                    idp = IdentityProvider(name=idp_name)
+                u.identity_provider = idp
+
             # do not update if there is no tag
             if not user_info[username].get("tags"):
                 continue
@@ -1080,7 +1159,9 @@ class UserSyncer(object):
                         project = self._get_or_create(sess, Project, **data)
                     except IntegrityError as e:
                         sess.rollback()
-                        self.logger.error(str(e))
+                        self.logger.error(
+                            f"Project {auth_id} already exists. Detail {str(e)}"
+                        )
                         raise Exception(
                             "Project {} already exists. Detail {}. Please contact your system administrator.".format(
                                 auth_id, str(e)
@@ -2001,7 +2082,6 @@ class UserSyncer(object):
                         encoded_visa,
                         visa.expires,
                         self.parse_consent_code,
-                        db_session,
                     )
                     projects = {**projects, **project}
                 if projects:
@@ -2011,199 +2091,27 @@ class UserSyncer(object):
 
         return (user_projects, user_info)
 
-    def _sync_visas(self, sess):
-
-        self.logger.info("Running usersync with Visas")
-        self.logger.info(
-            "Fallback to telemetry files: {}".format(self.fallback_to_dbgap_sftp)
-        )
-
-        self.ras_sync_client = RASVisa(logger=self.logger)
-
-        dbgap_config = self.dbGaP[0]
-        user_projects, user_info = self.parse_user_visas(sess)
-        enable_common_exchange_area_access = dbgap_config.get(
-            "enable_common_exchange_area_access", False
-        )
-        study_common_exchange_areas = dbgap_config.get(
-            "study_common_exchange_areas", {}
-        )
-
-        try:
-            user_yaml = UserYAML.from_file(
-                self.sync_from_local_yaml_file, encrypted=False, logger=self.logger
-            )
-        except (EnvironmentError, AssertionError) as e:
-            self.logger.error(str(e))
-            self.logger.error("aborting early")
-            return
-
-        # parse projects
-        user_projects = self.parse_projects(user_projects)
-        user_yaml.projects = self.parse_projects(user_yaml.projects)
-
-        if self.fallback_to_dbgap_sftp:
-            # Collect user_info and user_projects from telemetry
-            user_projects_telemetry = {}
-            user_info_telemetry = {}
-            if self.is_sync_from_dbgap_server:
-                self.logger.debug(
-                    "Pulling telemetry files from {} dbgap sftp servers".format(
-                        len(self.dbGaP)
-                    )
-                )
-                (
-                    user_projects_telemetry,
-                    user_info_telemetry,
-                ) = self._merge_multiple_dbgap_sftp(self.dbGaP, sess)
-            local_csv_file_list = []
-            if self.sync_from_local_csv_dir:
-                local_csv_file_list = glob.glob(
-                    os.path.join(self.sync_from_local_csv_dir, "*")
-                )
-
-            # if syncing from local csv dir dbgap configurations
-            # come from the first dbgap instance in the fence config file
-            user_projects_csv, user_info_csv = self._get_user_permissions_from_csv_list(
-                local_csv_file_list,
-                encrypted=False,
-                session=sess,
-                dbgap_config=self.dbGaP[0],
-            )
-            user_projects_csv = self.parse_projects(user_projects_csv)
-            user_projects_telemetry = self.parse_projects(user_projects_telemetry)
-
-            # merge all user info dicts into "user_info".
-            # the user info (such as email) in the user.yaml files
-            # overrides the user info from the CSV files.
-            self.sync_two_user_info_dict(user_info_csv, user_info_telemetry)
-
-            # merge all access info dicts into "user_projects".
-            # the access info is combined - if the user.yaml access is
-            # ["read"] and the CSV file access is ["read-storage"], the
-            # resulting access is ["read", "read-storage"].
-            self.sync_two_phsids_dict(
-                user_projects_csv,
-                user_projects_telemetry,
-                source1="local_csv",
-                source2="dbgap",
-            )
-
-            # sync phsids so that this adds projects if visas were invalid or adds users that dont have visas.
-            # `phsids2_overrides_phsids1=True` because We want visa to be the source of truth when its available and not merge any telemetry file info into this.
-            # We only want visa to be used when visa is not valid or available
-            self.sync_two_phsids_dict(
-                user_projects_telemetry,
-                user_projects,
-                source1="dbgap",
-                source2="visa",
-                phsids2_overrides_phsids1=False,
-            )
-            self.sync_two_user_info_dict(user_info_telemetry, user_info)
-
-        if self.parse_consent_code and enable_common_exchange_area_access:
-            self.logger.info(
-                f"using study to common exchange area mapping: {study_common_exchange_areas}"
-            )
-
-        # merge all user info dicts into "user_info".
-        # the user info (such as email) in the user.yaml files
-        # overrides the user info from the CSV files.
-        self.sync_two_user_info_dict(user_yaml.user_info, user_info)
-
-        # merge all access info dicts into "user_projects".
-        # the access info is combined - if the user.yaml access is
-        # ["read"] and the CSV file access is ["read-storage"], the
-        # resulting access is ["read", "read-storage"].
-        self.sync_two_phsids_dict(
-            user_yaml.projects, user_projects, source1="user_yaml", source2="visa"
-        )
-
-        self._process_user_projects(
-            user_projects,
-            enable_common_exchange_area_access,
-            study_common_exchange_areas,
-            dbgap_config,
-            sess,
-        )
-
-        # Note: if there are multiple dbgap sftp servers configured
-        # this parameter is always from the config for the first dbgap sftp server
-        # not any additional ones
-        if self.parse_consent_code:
-            self._grant_all_consents_to_c999_users(
-                user_projects, user_yaml.project_to_resource
-            )
-        # update fence db
-        if user_projects:
-            self.logger.info("Sync to db and storage backend")
-            self.sync_to_db_and_storage_backend(user_projects, user_info, sess)
-        else:
-            self.logger.info("No users for syncing")
-
-        # update the Arborist DB (resources, roles, policies, groups)
-        if user_yaml.authz:
-            if not self.arborist_client:
-                raise EnvironmentError(
-                    "yaml file contains authz section but sync is not configured with"
-                    " arborist client--did you run sync with --arborist <arborist client> arg?"
-                )
-            self.logger.info("Synchronizing arborist...")
-            success = self._update_arborist(sess, user_yaml)
-            if success:
-                self.logger.info("Finished synchronizing arborist")
-            else:
-                self.logger.error("Could not synchronize successfully")
-                exit(1)
-        else:
-            self.logger.info("No `authz` section; skipping arborist sync")
-
-        # update arborist db (user access)
-        if self.arborist_client:
-            self.logger.info("Synchronizing arborist with authorization info...")
-            success = self._update_authz_in_arborist(sess, user_projects, user_yaml)
-            if success:
-                self.logger.info(
-                    "Finished synchronizing authorization info to arborist"
-                )
-            else:
-                self.logger.error(
-                    "Could not synchronize authorization info successfully to arborist"
-                )
-                exit(1)
-        else:
-            self.logger.error("No arborist client set; skipping arborist sync")
-
-        # Logging authz source
-        for u, s in self.auth_source.items():
-            self.logger.info("Access for user {} from {}".format(u, s))
-
-    def sync_visas(self):
-        if self.session:
-            self._sync_visas(self.session)
-        else:
-            with self.driver.session as s:
-                self._sync_visas(s)
-        # if returns with some failure use telemetry file
-
     def sync_single_user_visas(
         self, user, ga4gh_visas, sess=None, expires=None, policy_prefix=None
     ):
         """
         Sync a single user's visas during login or DRS/data access
 
+        IMPORTANT NOTE: THIS DOES NOT VALIDATE THE VISA. ENSURE THIS IS DONE
+                        BEFORE THIS.
+
         Args:
             user (userdatamodel.user.User): Fence user whose visas'
                                             authz info is being synced
             ga4gh_visas (list): a list of fence.models.GA4GHVisaV1 objects
-                                that are parsed and synced
+                                that are ALREADY VALIDATED
             sess (sqlalchemy.orm.session.Session): database session
             expires (int): time at which synced Arborist policies and
                            inclusion in any GBAG are set to expire
             policy_prefix (str): prefix to prepend policy names with
 
         Return:
-            None
+            list of successfully parsed visas
         """
         self.ras_sync_client = RASVisa(logger=self.logger)
         dbgap_config = self.dbGaP[0]
@@ -2227,19 +2135,29 @@ class UserSyncer(object):
         user_info = dict()
         projects = {}
         info = {}
+        parsed_visas = []
 
         for visa in ga4gh_visas:
             project = {}
             visa_type = self._pick_sync_type(visa)
             encoded_visa = visa.ga4gh_visa
-            project, info = visa_type._parse_single_visa(
-                user,
-                encoded_visa,
-                visa.expires,
-                self.parse_consent_code,
-                sess,
-            )
+
+            try:
+                project, info = visa_type._parse_single_visa(
+                    user,
+                    encoded_visa,
+                    visa.expires,
+                    self.parse_consent_code,
+                )
+            except Exception:
+                self.logger.warning(
+                    f"ignoring unsuccessfully parsed or expired visa: {encoded_visa}"
+                )
+                continue
+
             projects = {**projects, **project}
+            parsed_visas.append(visa)
+
         user_projects[user.username] = projects
         user_info[user.username] = info
 
@@ -2263,11 +2181,10 @@ class UserSyncer(object):
                 user_projects, user_yaml.project_to_resource
             )
 
-        # update fence db
         if user_projects:
-            self.logger.info("Sync to db and storage backend")
-            self.sync_to_db_and_storage_backend(
-                user_projects, user_info, sess, single_visa_sync=True, expires=expires
+            self.logger.info("Sync to storage backend [sync_single_user_visas]")
+            self.sync_to_storage_backend(
+                user_projects, user_info, sess, expires=expires
             )
         else:
             self.logger.info("No users for syncing")
@@ -2293,3 +2210,5 @@ class UserSyncer(object):
                 )
         else:
             self.logger.error("No arborist client set; skipping arborist sync")
+
+        return parsed_visas

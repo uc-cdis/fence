@@ -63,8 +63,8 @@ class Visa_Token_Update(object):
         Producer: Collects users from db and feeds it to the workers
           Worker: Takes in the users from the Producer and passes it to the Updater to
                   update the tokens and passes those updated tokens for JWT validation
-         Updater: Updates refresh_tokens and visas by calling the update_user_visas from
-                  the correct client
+         Updater: Updates refresh_tokens and visas by calling the update_user_authorization
+                  from the correct client
 
         """
         start_time = time.time()
@@ -145,28 +145,49 @@ class Visa_Token_Update(object):
         """
         while True:
             user = await updater_queue.get()
-            if user.ga4gh_visas_v1:
-                for visa in user.ga4gh_visas_v1:
-                    client = self._pick_client(visa)
+            try:
+                client = self._pick_client(user)
+                if client:
                     self.logger.info(
-                        "Updater {} updating visa for user {}".format(
+                        "Updater {} updating authorization for user {}".format(
                             name, user.username
                         )
                     )
-                    client.update_user_visas(user, self.pkey_cache, db_session)
-            else:
-                # clear expired refresh tokens
-                if user.upstream_refresh_tokens:
-                    user.upstream_refresh_tokens = []
-                    db_session.commit()
-
-                self.logger.info(
-                    "User {} doesnt have visa. Skipping . . .".format(user.username)
+                    # when getting access token, this persists new refresh token,
+                    # it also persists validated visa(s) in the database
+                    client.update_user_authorization(
+                        user,
+                        pkey_cache=self.pkey_cache,
+                        authz_policy_prefix="TOKEN.POLLING",
+                        db_session=db_session,
+                    )
+                else:
+                    self.logger.debug(
+                        f"Updater {name} NOT updating authorization for "
+                        f"user {user.username} because no client was found for IdP: {user.identity_provider}"
+                    )
+            except Exception as exc:
+                self.logger.error(
+                    f"Updater {name} could not update authorization "
+                    f"for {user.username}. Error: {exc}. Continuing."
                 )
+                pass
 
             updater_queue.task_done()
 
-    def _pick_client(self, visa):
+    def _pick_client(self, user):
+        """
+        Pick oidc client according to the identity provider
+        """
+        client = None
+        if (
+            user.identity_provider
+            and getattr(user.identity_provider, "name") == self.ras_client.idp
+        ):
+            client = self.ras_client
+        return client
+
+    def _pick_client_from_visa(self, visa):
         """
         Pick oidc client according to the visa provider
         """

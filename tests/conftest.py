@@ -9,6 +9,7 @@ import json
 import os
 import copy
 import time
+import flask
 from datetime import datetime
 import mock
 
@@ -42,10 +43,12 @@ from fence.jwt.keys import Keypair
 from fence.config import config
 from fence.errors import NotFound
 from fence.resources.openid.microsoft_oauth2 import MicrosoftOauth2Client
+from fence.jwt.validate import validate_jwt
 
 import tests
 from tests import test_settings
 from tests import utils
+from tests.utils import TEST_RAS_USERNAME, TEST_RAS_SUB
 from tests.utils.oauth2.client import OAuth2TestClient
 
 
@@ -161,7 +164,7 @@ class FakeAzureCredential:
     """
 
     def __init__(self):
-        self.account_key = "FakefakeAccountKey"
+        self.account_key = "FakefakeAccountKey"  # pragma: allowlist secret
 
 
 class FakeBlobServiceClient:
@@ -238,6 +241,111 @@ def kid():
 def kid_2():
     """Return a second JWT key ID to use for tests."""
     return "test-keypair-2"
+
+
+def get_subjects_to_passports(
+    subject_to_encoded_visas=None, passport_exp=None, kid=None, rsa_private_key=None
+):
+    subject_to_encoded_visas = subject_to_encoded_visas or {}
+    passport_exp = passport_exp or int(time.time()) + 1000
+    subjects = subject_to_encoded_visas.keys() or [TEST_RAS_SUB]
+
+    output = {}
+    for subject in subjects:
+        visas = []
+        encoded_visas = subject_to_encoded_visas.get(subject)
+        if not encoded_visas:
+            visas = [
+                {
+                    "iss": "https://stsstg.nih.gov",
+                    "sub": subject,
+                    "iat": int(time.time()),
+                    "exp": int(time.time()) + 1000,
+                    "scope": "openid ga4gh_passport_v1 email profile",
+                    "jti": "jtiajoidasndokmasdl",
+                    "txn": "sapidjspa.asipidja",
+                    "name": "",
+                    "ga4gh_visa_v1": {
+                        "type": "https://ras.nih.gov/visas/v1",
+                        "asserted": int(time.time()),
+                        "value": "https://stsstg.nih.gov/passport/dbgap/v1.1",
+                        "source": "https://ncbi.nlm.nih.gov/gap",
+                    },
+                }
+            ]
+
+            headers = {"kid": kid}
+            encoded_visas = []
+
+            for visa in visas:
+                encoded_visa = jwt.encode(
+                    visa, key=rsa_private_key, headers=headers, algorithm="RS256"
+                ).decode("utf-8")
+                encoded_visas.append(encoded_visa)
+
+        passport_header = {
+            "type": "JWT",
+            "alg": "RS256",
+            "kid": kid,
+        }
+        new_passport = {
+            "iss": "https://stsstg.nih.gov",
+            "sub": subject,
+            "iat": int(time.time()),
+            "scope": "openid ga4gh_passport_v1 email profile",
+            "exp": int(time.time()) + 1000,
+            "ga4gh_passport_v1": encoded_visas,
+        }
+
+        encoded_passport = jwt.encode(
+            new_passport,
+            key=rsa_private_key,
+            headers=passport_header,
+            algorithm="RS256",
+        ).decode("utf-8")
+
+        output[subject] = {
+            "visas": visas,
+            "encoded_visas": encoded_visas,
+            "new_passport": new_passport,
+            "encoded_passport": encoded_passport,
+        }
+    return output
+
+
+@pytest.fixture(scope="function")
+def no_app_context_no_public_keys():
+    mock_validate_jwt = MagicMock()()
+
+    # ensure we don't actually try to reach out to external sites to refresh public keys
+    def validate_jwt_no_key_refresh(*args, **kwargs):
+        kwargs.update({"attempt_refresh": False})
+        return validate_jwt(*args, **kwargs)
+
+    mock_validate_jwt.side_effect = validate_jwt_no_key_refresh
+
+    # ensure there is no application context or cached keys
+    if flask.current_app and flask.current_app.jwt_public_keys:
+        temp_stored_public_keys = flask.current_app.jwt_public_keys
+        temp_app_context = flask.has_app_context
+        flask.current_app.jwt_public_keys = {}
+
+    def return_false():
+        return False
+
+    flask.has_app_context = return_false
+
+    patcher = patch("fence.resources.ga4gh.passports.validate_jwt", mock_validate_jwt)
+    patcher.start()
+
+    yield mock_validate_jwt
+
+    patcher.stop()
+
+    # restore public keys and context
+    if flask.current_app:
+        flask.current_app.jwt_public_keys = temp_stored_public_keys
+        flask.has_app_context = temp_app_context
 
 
 @pytest.fixture(scope="function")
@@ -459,8 +567,14 @@ def db_session(db, patch_app_db_session):
 
     yield session
 
+    # clear out user and project tables upon function close in case unit test didn't
+    session.query(models.User).delete()
+    session.query(models.IssSubPairToUser).delete()
+    session.query(models.Project).delete()
+    session.query(models.GA4GHVisaV1).delete()
+    session.commit()
+
     session.close()
-    transaction.rollback()
     connection.close()
 
 

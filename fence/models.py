@@ -68,6 +68,10 @@ def query_for_user(session, username):
     )
 
 
+def query_for_user_by_id(session, user_id):
+    return session.query(User).filter(User.id == user_id).first()
+
+
 def create_user(session, logger, username, email=None, idp_name=None):
     """
     Create a new user in the database.
@@ -82,7 +86,10 @@ def create_user(session, logger, username, email=None, idp_name=None):
     Return:
         userdatamodel.user.User: the created user
     """
-    logger.info(f'Creating a new Fence user with username "{username}"')
+    logger.info(
+        f"Creating a new user with username: {username}, "
+        f"email: {email}, and idp_name: {idp_name}"
+    )
 
     user = User(username=username)
     if email:

@@ -48,11 +48,14 @@ from fence.models import (
     ServiceAccountToGoogleBucketAccessGroup,
     query_for_user,
     migrate,
+    GA4GHVisaV1,
 )
 from fence.scripting.google_monitor import email_users_without_access, validation_check
 from fence.config import config
 from fence.sync.sync_users import UserSyncer
 from fence.utils import create_client, get_valid_expiration
+
+from gen3authz.client.arborist.client import ArboristClient
 
 logger = get_logger(__name__)
 
@@ -200,6 +203,33 @@ def _remove_client_service_accounts(db_session, client):
                     )
 
 
+def get_default_init_syncer_inputs(authz_provider):
+    DB = os.environ.get("FENCE_DB") or config.get("DB")
+    if DB is None:
+        try:
+            from fence.settings import DB
+        except ImportError:
+            pass
+
+    arborist = ArboristClient(
+        arborist_base_url=config["ARBORIST"],
+        logger=get_logger("user_syncer.arborist_client"),
+        authz_provider=authz_provider,
+    )
+    dbGaP = os.environ.get("dbGaP") or config.get("dbGaP")
+    if not isinstance(dbGaP, list):
+        dbGaP = [dbGaP]
+
+    storage_creds = config["STORAGE_CREDENTIALS"]
+
+    return {
+        "DB": DB,
+        "arborist": arborist,
+        "dbGaP": dbGaP,
+        "STORAGE_CREDENTIALS": storage_creds,
+    }
+
+
 def init_syncer(
     dbGaP,
     STORAGE_CREDENTIALS,
@@ -210,8 +240,6 @@ def init_syncer(
     sync_from_local_yaml_file=None,
     arborist=None,
     folder=None,
-    sync_from_visas=False,
-    fallback_to_dbgap_sftp=False,
 ):
     """
     sync ACL files from dbGap to auth db and storage backends
@@ -270,8 +298,6 @@ def init_syncer(
         sync_from_local_yaml_file=sync_from_local_yaml_file,
         arborist=arborist,
         folder=folder,
-        sync_from_visas=sync_from_visas,
-        fallback_to_dbgap_sftp=fallback_to_dbgap_sftp,
     )
 
 
@@ -313,8 +339,6 @@ def sync_users(
     sync_from_local_yaml_file=None,
     arborist=None,
     folder=None,
-    sync_from_visas=False,
-    fallback_to_dbgap_sftp=False,
 ):
     syncer = init_syncer(
         dbGaP,
@@ -326,15 +350,10 @@ def sync_users(
         sync_from_local_yaml_file,
         arborist,
         folder,
-        sync_from_visas,
-        fallback_to_dbgap_sftp,
     )
     if not syncer:
         exit(1)
-    if sync_from_visas:
-        syncer.sync_visas()
-    else:
-        syncer.sync()
+    syncer.sync()
 
 
 def create_sample_data(DB, yaml_file_path):
@@ -672,6 +691,48 @@ def delete_users(DB, usernames):
         for user in users_to_delete:
             session.delete(user)
         session.commit()
+
+
+def cleanup_expired_ga4gh_information(DB):
+    """
+    Remove any expired passports/visas from the database if they're expired.
+
+    IMPORTANT NOTE: This DOES NOT actually remove authorization, it assumes that the
+                    same expiration was set and honored in the authorization system.
+    """
+    driver = SQLAlchemyDriver(DB)
+    with driver.session as session:
+        current_time = int(time.time())
+
+        # Get expires field from db, if None default to NOT expired
+        records_to_delete = (
+            session.query(GA4GHVisaV1)
+            .filter(
+                and_(
+                    GA4GHVisaV1.expires.isnot(None),
+                    GA4GHVisaV1.expires < current_time,
+                )
+            )
+            .all()
+        )
+        num_deleted_records = 0
+        if records_to_delete:
+            for record in records_to_delete:
+                try:
+                    session.delete(record)
+                    session.commit()
+
+                    num_deleted_records += 1
+                except Exception as e:
+                    logger.error(
+                        "ERROR: Could not remove GA4GHVisaV1 with id={}. Detail {}".format(
+                            record.id, e
+                        )
+                    )
+
+        logger.info(
+            f"Removed {num_deleted_records} expired GA4GHVisaV1 records from db."
+        )
 
 
 def delete_expired_google_access(DB):
@@ -1573,7 +1634,7 @@ def google_list_authz_groups(db):
         return google_authz
 
 
-def update_user_visas(
+def access_token_polling_job(
     db, chunk_size=None, concurrency=None, thread_pool_size=None, buffer_size=None
 ):
     """
