@@ -491,7 +491,7 @@ def _update_service_account_db_entry(
                 "{}. Removing from db. Keys should still have access in Google until "
                 "cronjob removes them (e.g. fence-create google-manage-keys). NOTE: "
                 "the SA will still exist in Google but fence will use new SA {} for "
-                "new keys.".format(old_sa_email, new_service_account["email"])
+                "new keys.".format(username, new_service_account["email"])
             )
 
             old_service_account_keys_db_entries = (
