@@ -28,6 +28,7 @@ RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2
     && /bin/rm -rf awscliv2.zip ./aws
 
 WORKDIR /$appname
+COPY gen3authz-fix.tar.gz /$appname
 
 # copy ONLY poetry artifact, install the dependencies but not fence
 # this will make sure than the dependencies is cached
