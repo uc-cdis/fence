@@ -6,6 +6,11 @@ import subprocess as sp
 import yaml
 import copy
 import datetime
+import uuid
+import collections
+
+# TODO take out
+import time
 
 from contextlib import contextmanager
 from collections import defaultdict
@@ -1813,6 +1818,7 @@ class UserSyncer(object):
             if not single_user_sync:
                 # TODO make this smarter - it should do a diff, not revoke all and add
                 self.arborist_client.revoke_all_policies_for_user(username)
+
             for project, permissions in user_project_info.items():
 
                 # check if this is a dbgap project, if it is, we need to get the right
@@ -1940,6 +1946,127 @@ class UserSyncer(object):
 
         return True
 
+    def _grant_multi_role_arborist_policies(
+        self,
+        session,
+        user_studies,
+        expires=None,
+        policy_prefix=None,
+    ):
+        for username, studies in user_studies.items():
+            # TODO wrapper with logs
+            user = query_for_user(session=session, username=username)
+            if user:
+                username = user.username
+            self.arborist_client.create_user_if_not_exist(username)
+
+            roles_to_resources = collections.defaultdict(list)
+            for study, roles in studies.items():
+                ordered_roles = tuple(sorted(roles))
+                # TODO also check project_to_authz_mapping
+                study_authz_paths = self._dbgap_study_to_resources.get(study, [study])
+                roles_to_resources[ordered_roles].extend(study_authz_paths)
+
+            for roles in roles_to_resources.keys():
+                for role in roles:
+                    self._create_arborist_role(role)
+
+            all_resources = []
+            for resources in roles_to_resources.values():
+                all_resources.extend(resources)
+            for resources_request_body in utils.combine_provided_and_dbgap_resources(
+                {}, all_resources
+            ):
+                self._create_arborist_resources(resources_request_body)
+
+            for roles, resources in roles_to_resources.items():
+                policy_id = "-".join([policy_prefix, str(uuid.uuid4()), str(expires)])
+                self._create_arborist_policy(policy_id, roles, resources)
+                self._grant_arborist_policy(username, policy_id, expires=expires)
+
+    def _create_arborist_role(self, role):
+        if role in self._created_roles:
+            return
+        try:
+            self.arborist_client.create_role(
+                # TODO rename
+                arborist_role_for_permission(role)
+            )
+        except ArboristError as e:
+            # TODO str(e) necessary as opposed to just e?
+            self.logger.error(
+                "could not create `{}` role in Arborist: {}".format(role, str(e))
+            )
+        else:
+            self._created_roles.add(role)
+            self.logger.info(
+                "`{}` Arborist role already exists or was created".format(role)
+            )
+
+    def _create_arborist_resources(self, request_body):
+        try:
+            start = time.time()
+            response_json = self.arborist_client.update_resource(
+                "/", request_body, merge=True
+            )
+            end = time.time()
+            self.logger.info("update_resource took {} seconds".format(end - start))
+        except ArboristError as e:
+            # TODO str(e) necessary as opposed to just e?
+            self.logger.error(
+                "could not update resource in Arborist: {}".format(str(e))
+            )
+        else:
+            self.logger.debug(
+                "created Arborist resource. response json: {}".format(response_json)
+            )
+
+    def _create_arborist_policy(self, policy_id, roles, resources):
+        try:
+            start = time.time()
+            response_json = self.arborist_client.create_policy(
+                {
+                    "id": policy_id,
+                    "role_ids": roles,
+                    "resource_paths": resources,
+                }
+            )
+            end = time.time()
+            self.logger.info("create_policy took {} seconds".format(end - start))
+        except ArboristError as e:
+            self.logger.error(
+                "could not create policy `{}` in Arborist: {}".format(policy_id, e)
+            )
+        else:
+            self.logger.debug(
+                "created Arborist policy `{}`. response json: {}".format(
+                    policy_id, response_json
+                )
+            )
+
+    def _grant_arborist_policy(self, username, policy_id, expires=None):
+        try:
+            start = time.time()
+            response_json = self.arborist_client.grant_user_policy(
+                username,
+                policy_id,
+                expires_at=expires,
+            )
+            end = time.time()
+            self.logger.info("grant_user_policy took {} seconds".format(end - start))
+        except ArboristError as e:
+            self.logger.error(
+                "could not grant policy `{}` to user `{}`: {}".format(
+                    policy_id, username, e
+                )
+            )
+        else:
+            self.logger.debug(
+                "granted policy `{}` to user `{}`. response json: {}".format(
+                    policy_id, username, response_json
+                )
+            )
+
     def _add_dbgap_study_to_arborist(self, dbgap_study, dbgap_config):
         """
         Return the arborist resource path after adding the specified dbgap study
@@ -1952,9 +2079,9 @@ class UserSyncer(object):
         Returns:
             str: arborist resource path for study
         """
-        healthy = self._is_arborist_healthy()
-        if not healthy:
-            return False
+        # healthy = self._is_arborist_healthy()
+        # if not healthy:
+        #     return False
 
         default_namespaces = dbgap_config.get("study_to_resource_namespaces", {}).get(
             "_default", ["/"]
@@ -1975,24 +2102,24 @@ class UserSyncer(object):
                 # existing resources. Therefore, only create if get_resource returns
                 # the resource doesn't exist.
                 full_resource_path = resource_namespace + dbgap_study
-                if not self.arborist_client.get_resource(full_resource_path):
-                    response = self.arborist_client.update_resource(
-                        resource_namespace,
-                        {"name": dbgap_study, "description": "synced from dbGaP"},
-                        create_parents=True,
-                    )
-                    self.logger.info(
-                        "added arborist resource under parent path: {} for dbgap project {}.".format(
-                            resource_namespace, dbgap_study
-                        )
-                    )
-                    self.logger.debug("Arborist response: {}".format(response))
-                else:
-                    self.logger.debug(
-                        "Arborist resource already exists: {}".format(
-                            full_resource_path
-                        )
-                    )
+                # if not self.arborist_client.get_resource(full_resource_path):
+                #     response = self.arborist_client.update_resource(
+                #         resource_namespace,
+                #         {"name": dbgap_study, "description": "synced from dbGaP"},
+                #         create_parents=True,
+                #     )
+                #     self.logger.info(
+                #         "added arborist resource under parent path: {} for dbgap project {}.".format(
+                #             resource_namespace, dbgap_study
+                #         )
+                #     )
+                #     self.logger.debug("Arborist response: {}".format(response))
+                # else:
+                #     self.logger.debug(
+                #         "Arborist resource already exists: {}".format(
+                #             full_resource_path
+                #         )
+                #     )
 
                 if dbgap_study not in self._dbgap_study_to_resources:
                     self._dbgap_study_to_resources[dbgap_study] = []
@@ -2192,11 +2319,9 @@ class UserSyncer(object):
         # update arborist db (user access)
         if self.arborist_client:
             self.logger.info("Synchronizing arborist with authorization info...")
-            success = self._update_authz_in_arborist(
+            success = self._grant_multi_role_arborist_policies(
                 sess,
                 user_projects,
-                user_yaml=user_yaml,
-                single_user_sync=True,
                 expires=expires,
                 policy_prefix=policy_prefix,
             )
