@@ -416,7 +416,28 @@ def get_service_account(client_id, user_id, username):
 
     for sa in service_accounts:
         if sa.email == service_account_id:
-            return sa
+            service_account = sa
+        else:
+            logger.info(
+                "Found Google Service Account using invalid/old name: "
+                "{}. Removing from db. Keys should still have access in Google until "
+                "cronjob removes them (e.g. fence-create google-manage-keys). NOTE: "
+                "the SA will still exist in Google but fence will use new SA {} for "
+                "new keys.".format(sa.email, service_account_id)
+            )
+
+            old_service_account_keys_db_entries = (
+                current_session.query(GoogleServiceAccountKey)
+                .filter(GoogleServiceAccountKey.service_account_id == sa.id)
+                .all()
+            )
+
+            # remove the keys then the sa itself from db
+            for old_key in old_service_account_keys_db_entries:
+                current_session.delete(old_key)
+
+            current_session.commit()
+            current_session.delete(sa)
 
     return service_account
 
@@ -450,7 +471,7 @@ def get_or_create_service_account(client_id, user_id, username, proxy_group_id):
             )
 
         return _update_service_account_db_entry(
-            client_id, user_id, username, proxy_group_id, new_service_account
+            client_id, user_id, proxy_group_id, new_service_account
         )
     else:
         flask.abort(
@@ -460,55 +481,11 @@ def get_or_create_service_account(client_id, user_id, username, proxy_group_id):
 
 
 def _update_service_account_db_entry(
-    client_id, user_id, username, proxy_group_id, new_service_account
+    client_id, user_id, proxy_group_id, new_service_account
 ):
     """
     Now that SA exists in Google so lets check our db and update/add as necessary
     """
-
-    # there may be an old SA for this user before their username got updated,
-    # let's find it and remove it so we can use a new one
-    old_service_accounts = []
-    old_service_account_db_entries = (
-        current_session.query(GoogleServiceAccount)
-        .filter(
-            GoogleServiceAccount.user_id == user_id
-            and GoogleServiceAccount.client_id == client_id
-        )
-        .all()
-    )
-    for sa in old_service_account_db_entries:
-        # if there's already a match for user_id, client_id, let's check for any that
-        # DON'T include the new username
-        if username not in sa.email:
-            old_service_accounts.append(sa)
-
-    # clear out old SA and keys if there are any
-    if old_service_accounts:
-        for old_service_account_db_entry in old_service_accounts:
-            logger.info(
-                "Found Google Service Account using old username: "
-                "{}. Removing from db. Keys should still have access in Google until "
-                "cronjob removes them (e.g. fence-create google-manage-keys). NOTE: "
-                "the SA will still exist in Google but fence will use new SA {} for "
-                "new keys.".format(username, new_service_account["email"])
-            )
-
-            old_service_account_keys_db_entries = (
-                current_session.query(GoogleServiceAccountKey)
-                .filter(
-                    GoogleServiceAccountKey.service_account_id
-                    == old_service_account_db_entry.id
-                )
-                .all()
-            )
-
-            # remove the keys then the sa itself from db
-            for old_key in old_service_account_keys_db_entries:
-                current_session.delete(old_key)
-
-            current_session.commit()
-            current_session.delete(old_service_account_db_entry)
 
     # if we're now using a prefix for SAs, cleanup the db
     if config["GOOGLE_SERVICE_ACCOUNT_PREFIX"]:
