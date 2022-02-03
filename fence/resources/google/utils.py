@@ -415,7 +415,7 @@ def get_service_account(client_id, user_id, username):
         )
 
     for sa in service_accounts:
-        if sa.email == service_account_id:
+        if service_account_id in sa.email:
             service_account = sa
         else:
             logger.info(
