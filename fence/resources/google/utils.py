@@ -436,8 +436,10 @@ def get_service_account(client_id, user_id, username):
             for old_key in old_service_account_keys_db_entries:
                 current_session.delete(old_key)
 
+            # commit the deletion of keys first, then do SA deletion
             current_session.commit()
             current_session.delete(sa)
+            current_session.commit()
 
     return service_account
 
