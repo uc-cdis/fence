@@ -8,6 +8,7 @@ import copy
 import datetime
 import uuid
 import collections
+import hashlib
 
 # TODO take out
 import time
@@ -1832,16 +1833,30 @@ class UserSyncer(object):
                 for role in roles:
                     self._create_arborist_role(role)
 
-            self._create_arborist_resources(
+            if not self._create_arborist_resources(
                 [r for resources in roles_to_resources.values() for r in resources]
-            )
+            ):
+                return False
 
             if single_user_sync:
-                for roles, resources in roles_to_resources.items():
-                    # handle unlikely uuid collisions
-                    policy_id = str(uuid.uuid4())
-                    self._create_arborist_policy(policy_id, roles, resources)
-                    self._grant_arborist_policy(username, policy_id, expires=expires)
+                for ordered_roles, resources in roles_to_resources.items():
+                    ordered_resources = tuple(sorted(resources))
+                    # TODO handle unlikely uuid collisions
+                    # policy_id = str(uuid.uuid4())
+                    policy_hash = self._hash_policy_contents(
+                        ordered_roles, ordered_resources
+                    )
+                    if not self._create_arborist_policy(
+                        policy_hash,
+                        ordered_roles,
+                        ordered_resources,
+                        skip_if_exists=True,
+                    ):
+                        return False
+                    if not self._grant_arborist_policy(
+                        username, policy_hash, expires=expires
+                    ):
+                        return False
             else:
                 for roles, resources in roles_to_resources.items():
                     for role in roles:
@@ -1905,46 +1920,56 @@ class UserSyncer(object):
 
         return True
 
+    # TODO docstring
     def _create_arborist_role(self, role):
         if role in self._created_roles:
-            return
+            return True
         try:
-            self.arborist_client.create_role(
-                # TODO rename
+            response_json = self.arborist_client.create_role(
                 arborist_role_for_permission(role)
             )
         except ArboristError as e:
-            # TODO str(e) necessary as opposed to just e?
             self.logger.error(
-                "could not create `{}` role in Arborist: {}".format(role, str(e))
+                "could not create `{}` role in Arborist: {}".format(role, e)
             )
-        else:
-            self._created_roles.add(role)
-            self.logger.info(
-                "`{}` Arborist role already exists or was created".format(role)
-            )
+            return False
+        self._created_roles.add(role)
 
+        if response_json is None:
+            self.logger.info("role `{}` already exists in Arborist".format(role))
+        else:
+            self.logger.info("created role `{}` in Arborist".format(role))
+        return True
+
+    # TODO docstring
     def _create_arborist_resources(self, resources):
+        root = "/"
         for request_body in utils.combine_provided_and_dbgap_resources({}, resources):
             try:
                 # TODO take out timing
                 start = time.time()
                 response_json = self.arborist_client.update_resource(
-                    "/", request_body, merge=True
+                    root, request_body, merge=True
                 )
                 end = time.time()
                 self.logger.info("update_resource took {} seconds".format(end - start))
             except ArboristError as e:
-                # TODO str(e) necessary as opposed to just e?
                 self.logger.error(
-                    "could not update resource in Arborist: {}".format(str(e))
+                    "could not update resource `{}` with request body `{}` in Arborist. error: {}".format(
+                        root, request_body, e
+                    )
                 )
-            else:
-                self.logger.debug(
-                    "created Arborist resource. response json: {}".format(response_json)
-                )
+                return False
 
-    def _create_arborist_policy(self, policy_id, roles, resources):
+        self.logger.debug(
+            "created {} resource(s) in Arborist: `{}`".format(len(resources), resources)
+        )
+        return True
+
+    # TODO docstring
+    def _create_arborist_policy(
+        self, policy_id, roles, resources, skip_if_exists=False
+    ):
         try:
             # TODO take out timing
             start = time.time()
@@ -1953,7 +1978,8 @@ class UserSyncer(object):
                     "id": policy_id,
                     "role_ids": roles,
                     "resource_paths": resources,
-                }
+                },
+                skip_if_exists=skip_if_exists,
             )
             end = time.time()
             self.logger.info("create_policy took {} seconds".format(end - start))
@@ -1961,12 +1987,26 @@ class UserSyncer(object):
             self.logger.error(
                 "could not create policy `{}` in Arborist: {}".format(policy_id, e)
             )
-        else:
+            return False
+
+        if response_json is None:
             self.logger.debug(
-                "created Arborist policy `{}`. response json: {}".format(
-                    policy_id, response_json
-                )
+                "policy `{}` already exists in Arborist".format(policy_id)
             )
+        else:
+            self.logger.debug("created policy `{}` in Arborist".format(policy_id))
+        return True
+
+    # TODO docstring
+    def _hash_policy_contents(self, roles, resources):
+        def escape(s):
+            return s.replace(",", "\,")
+
+        canonical_roles = ",".join(tuple(escape(r) for r in roles))
+        canonical_resources = ",".join(tuple(escape(r) for r in resources))
+        canonical_policy = f"{canonical_roles},,f{canonical_resources}"
+        policy_hash = hashlib.sha256(canonical_policy.encode("utf-8")).hexdigest()
+        return policy_hash
 
     def _grant_arborist_policy(self, username, policy_id, expires=None):
         try:
@@ -1985,12 +2025,12 @@ class UserSyncer(object):
                     policy_id, username, e
                 )
             )
-        else:
-            self.logger.debug(
-                "granted policy `{}` to user `{}`. response json: {}".format(
-                    policy_id, username, response_json
-                )
-            )
+            return False
+
+        self.logger.debug(
+            "granted policy `{}` to user `{}`".format(policy_id, username)
+        )
+        return True
 
     # TODO rename and update docstring
     def _add_dbgap_study_to_arborist(self, dbgap_study, dbgap_config):
