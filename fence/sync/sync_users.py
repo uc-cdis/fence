@@ -1809,6 +1809,15 @@ class UserSyncer(object):
                 f"(instead of user.yaml - as it may not be available): {project_to_authz_mapping}"
             )
 
+        all_resources = [
+            r
+            for resources in self._dbgap_study_to_resources.values()
+            for r in resources
+        ]
+        all_resources.extend(r for r in project_to_authz_mapping.values())
+        if not self._create_arborist_resources(all_resources):
+            return False
+
         for username, user_project_info in user_projects.items():
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
@@ -1833,16 +1842,9 @@ class UserSyncer(object):
                 for role in roles:
                     self._create_arborist_role(role)
 
-            if not self._create_arborist_resources(
-                [r for resources in roles_to_resources.values() for r in resources]
-            ):
-                return False
-
             if single_user_sync:
                 for ordered_roles, resources in roles_to_resources.items():
                     ordered_resources = tuple(sorted(resources))
-                    # TODO handle unlikely uuid collisions
-                    # policy_id = str(uuid.uuid4())
                     policy_hash = self._hash_policy_contents(
                         ordered_roles, ordered_resources
                     )
