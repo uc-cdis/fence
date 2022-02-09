@@ -1,5 +1,6 @@
 import flask
 import httpx
+import hashlib
 import json
 import jwt
 import pytest
@@ -1004,14 +1005,16 @@ def test_passport_cache_valid_passport(
     keys = [keypair.public_key_to_jwk() for keypair in flask.current_app.keypairs]
     mock_httpx_get.return_value = httpx.Response(200, json={"keys": keys})
 
+    passport_hash = hashlib.sha256(encoded_passport.encode("utf-8")).hexdigest()
+
     # check database cache
     cached_passports = [
-        item.passport for item in db_session.query(GA4GHPassportCache).all()
+        item.passport_hash for item in db_session.query(GA4GHPassportCache).all()
     ]
-    assert encoded_passport not in cached_passports
+    assert passport_hash not in cached_passports
 
     # check in-memory cache
-    assert not PASSPORT_CACHE.get(encoded_passport)
+    assert not PASSPORT_CACHE.get(passport_hash)
 
     before_cache_start = time.time()
     res = client.post(
@@ -1027,12 +1030,12 @@ def test_passport_cache_valid_passport(
 
     # check that database cache populated
     cached_passports = [
-        item.passport for item in db_session.query(GA4GHPassportCache).all()
+        item.passport_hash for item in db_session.query(GA4GHPassportCache).all()
     ]
-    assert encoded_passport in cached_passports
+    assert passport_hash in cached_passports
 
     # check that in-memory cache populated
-    assert PASSPORT_CACHE.get(encoded_passport)
+    assert PASSPORT_CACHE.get(passport_hash)
 
     after_cache_start = time.time()
     res = client.post(
@@ -1215,14 +1218,16 @@ def test_passport_cache_invalid_passport(
     keys = [keypair.public_key_to_jwk() for keypair in flask.current_app.keypairs]
     mock_httpx_get.return_value = httpx.Response(200, json={"keys": keys})
 
+    passport_hash = hashlib.sha256(invalid_encoded_passport.encode("utf-8")).hexdigest()
+
     # check database cache
     cached_passports = [
-        item.passport for item in db_session.query(GA4GHPassportCache).all()
+        item.passport_hash for item in db_session.query(GA4GHPassportCache).all()
     ]
-    assert invalid_encoded_passport not in cached_passports
+    assert passport_hash not in cached_passports
 
     # check in-memory cache
-    assert not PASSPORT_CACHE.get(invalid_encoded_passport)
+    assert not PASSPORT_CACHE.get(passport_hash)
 
     res = client.post(
         "/ga4gh/drs/v1/objects/" + test_guid + "/access/" + access_id,
@@ -1235,12 +1240,12 @@ def test_passport_cache_invalid_passport(
 
     # check that database cache NOT populated
     cached_passports = [
-        item.passport for item in db_session.query(GA4GHPassportCache).all()
+        item.passport_hash for item in db_session.query(GA4GHPassportCache).all()
     ]
-    assert invalid_encoded_passport not in cached_passports
+    assert passport_hash not in cached_passports
 
     # check that in-memory cache NOT populated
-    assert not PASSPORT_CACHE.get(invalid_encoded_passport)
+    assert not PASSPORT_CACHE.get(passport_hash)
 
     res = client.post(
         "/ga4gh/drs/v1/objects/" + test_guid + "/access/" + access_id,
@@ -1430,6 +1435,8 @@ def test_passport_cache_expired_in_memory_valid_in_db(
     keys = [keypair.public_key_to_jwk() for keypair in flask.current_app.keypairs]
     mock_httpx_get.return_value = httpx.Response(200, json={"keys": keys})
 
+    passport_hash = hashlib.sha256(encoded_passport.encode("utf-8")).hexdigest()
+
     # simulate db cache with a valid passport by first calling the endpoint to cache
     # res = client.post(
     #     "/ga4gh/drs/v1/objects/" + test_guid + "/access/" + access_id,
@@ -1446,7 +1453,7 @@ def test_passport_cache_expired_in_memory_valid_in_db(
     # double-check database cache
     cached_passport = (
         db_session.query(GA4GHPassportCache)
-        .filter(GA4GHPassportCache.passport == encoded_passport)
+        .filter(GA4GHPassportCache.passport_hash == passport_hash)
         .first()
     )
     # greater and NOT == b/c of logic to set internal expiration less than real to allow
@@ -1456,8 +1463,8 @@ def test_passport_cache_expired_in_memory_valid_in_db(
     # simulate in-memory cache with an expired passport by overriding the in-memory cache
     from fence.resources.ga4gh import passports as passports_module
 
-    PASSPORT_CACHE = {f"{encoded_passport}": ([test_username], current_time - 1)}
-    assert PASSPORT_CACHE.get(encoded_passport, ("", 0))[1] == current_time - 1
+    PASSPORT_CACHE = {f"{passport_hash}": ([test_username], current_time - 1)}
+    assert PASSPORT_CACHE.get(passport_hash, ("", 0))[1] == current_time - 1
     monkeypatch.setattr(passports_module, "PASSPORT_CACHE", PASSPORT_CACHE)
 
     res = client.post(
@@ -1468,15 +1475,15 @@ def test_passport_cache_expired_in_memory_valid_in_db(
         data=json.dumps(data),
     )
     assert res.status_code == 200
-    # patch_method.stop()
 
     # check that database cache still populated
     assert (
-        len([item.passport for item in db_session.query(GA4GHPassportCache).all()]) == 1
+        len([item.passport_hash for item in db_session.query(GA4GHPassportCache).all()])
+        == 1
     )
     cached_passport = (
         db_session.query(GA4GHPassportCache)
-        .filter(GA4GHPassportCache.passport == encoded_passport)
+        .filter(GA4GHPassportCache.passport_hash == passport_hash)
         .first()
     )
     # greater and NOT == b/c of logic to set internal expiration less than real to allow
@@ -1486,11 +1493,11 @@ def test_passport_cache_expired_in_memory_valid_in_db(
     # check that in-memory cache populated with db expiration
     # greater and NOT == b/c of logic to set internal expiration less than real to allow
     # time for expiration job to run
-    if PASSPORT_CACHE.get(encoded_passport, ("", 0))[1] == 0:
+    if PASSPORT_CACHE.get(passport_hash, ("", 0))[1] == 0:
         from fence.resources.ga4gh.passports import PASSPORT_CACHE as import_cache
 
         assert PASSPORT_CACHE == None
-    assert PASSPORT_CACHE.get(encoded_passport, ("", 0))[1] > current_time
+    assert PASSPORT_CACHE.get(passport_hash, ("", 0))[1] > current_time
 
 
 @responses.activate
@@ -1659,14 +1666,16 @@ def test_passport_cache_expired(
     keys = [keypair.public_key_to_jwk() for keypair in flask.current_app.keypairs]
     mock_httpx_get.return_value = httpx.Response(200, json={"keys": keys})
 
+    passport_hash = hashlib.sha256(encoded_passport.encode("utf-8")).hexdigest()
+
     # check database cache
     cached_passports = [
-        item.passport for item in db_session.query(GA4GHPassportCache).all()
+        item.passport_hash for item in db_session.query(GA4GHPassportCache).all()
     ]
-    assert encoded_passport not in cached_passports
+    assert passport_hash not in cached_passports
 
     # check in-memory cache
-    assert not PASSPORT_CACHE.get(encoded_passport)
+    assert not PASSPORT_CACHE.get(passport_hash)
 
     res = client.post(
         "/ga4gh/drs/v1/objects/" + test_guid + "/access/" + access_id,

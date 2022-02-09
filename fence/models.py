@@ -24,7 +24,7 @@ from sqlalchemy import (
     text,
     event,
 )
-from sqlalchemy.dialects.postgresql import ARRAY, JSONB, UUID
+from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship, backref
 from sqlalchemy.sql import func
 from sqlalchemy import exc as sa_exc
@@ -619,8 +619,7 @@ class AssumeRoleCacheGCP(Base):
 class GA4GHPassportCache(Base):
     __tablename__ = "ga4gh_passport_cache"
 
-    passport_hash = Column(UUID(as_uuid=True), primary_key=True)
-    passport = Column(Text, nullable=False)
+    passport_hash = Column(String(64), primary_key=True)
     expires_at = Column(BigInteger, nullable=False)
     user_ids = Column(ARRAY(String(255)), nullable=False)
 

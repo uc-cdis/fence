@@ -4,7 +4,6 @@ import collections
 import hashlib
 import time
 import datetime
-import uuid
 import jwt
 
 # the whole fence_create module is imported to avoid issue with circular imports
@@ -30,9 +29,7 @@ from fence.models import (
 logger = get_logger(__name__)
 
 # cache will be in following format
-#   passport: ([user_id_0, user_id_1, ...], expires_at)
-#
-# NOTE: we'll want to watch the memory usage on this since passports can be pretty large
+#   passport_hash: ([user_id_0, user_id_1, ...], expires_at)
 PASSPORT_CACHE = {}
 
 
@@ -433,10 +430,11 @@ def get_gen3_usernames_for_passport_from_cache(passport, db_session=None):
     user_ids_from_passports = None
     current_time = int(time.time())
 
-    # try to retrieve from local in-memory cache
+    passport_hash = hashlib.sha256(passport.encode("utf-8")).hexdigest()
 
-    if passport in PASSPORT_CACHE:
-        user_ids_from_passports, expires = PASSPORT_CACHE[passport]
+    # try to retrieve from local in-memory cache
+    if passport_hash in PASSPORT_CACHE:
+        user_ids_from_passports, expires = PASSPORT_CACHE[passport_hash]
         if expires > current_time:
             logger.debug(
                 f"Got users {user_ids_from_passports} for provided passport from in-memory cache. "
@@ -445,26 +443,20 @@ def get_gen3_usernames_for_passport_from_cache(passport, db_session=None):
             return user_ids_from_passports
         else:
             # expired, so remove it
-            del PASSPORT_CACHE[passport]
+            del PASSPORT_CACHE[passport_hash]
 
     # try to retrieve from database cache
-
-    # get an md5 hash of passport (which is 128 bits) and convert to UUID (which is 128 bits)
-    # for optimal usage of database's underlying UUID column type
-    passport_hash_as_uuid = uuid.UUID(hashlib.md5(passport.encode("utf-8")).hexdigest())
     cached_passport = (
         db_session.query(GA4GHPassportCache)
-        .filter(GA4GHPassportCache.passport_hash == passport_hash_as_uuid)
+        .filter(GA4GHPassportCache.passport_hash == passport_hash)
         .first()
     )
-    # we retrieved based on hash, which has a small chance of collision. Mitigate that by
-    # now verifying that the full passport in the db matches what was provided
-    if cached_passport and cached_passport.passport == passport:
+    if cached_passport:
         if cached_passport.expires_at > current_time:
             user_ids_from_passports = cached_passport.user_ids
 
             # update local cache
-            PASSPORT_CACHE[passport] = (
+            PASSPORT_CACHE[passport_hash] = (
                 user_ids_from_passports,
                 cached_passport.expires_at,
             )
@@ -498,36 +490,27 @@ def put_gen3_usernames_for_passport_into_cache(
         expires_at (int): expiration time in unix time
     """
     db_session = db_session or current_session
+
+    passport_hash = hashlib.sha256(passport.encode("utf-8")).hexdigest()
+
     # stores back to cache and db
-    PASSPORT_CACHE[passport] = user_ids_from_passports, expires_at
+    PASSPORT_CACHE[passport_hash] = user_ids_from_passports, expires_at
 
-    # get an md5 hash of passport (which is 128 bits) and convert to UUID (which is 128 bits)
-    # for optimal usage of database's underlying UUID column type
-    passport_hash_as_uuid = uuid.UUID(hashlib.md5(passport.encode("utf-8")).hexdigest())
-
-    # the improbable collision of hash on 2 different passports will result in an overwrite
-    # of the previous passport information and the discrepancy will raise an error on
-    # retrieval (after a comparison of the full stored passport vs provided). e.g. this
-    # collision will NOT get caught here but instead on the "GET" from cache functionality
     db_session.execute(
         """\
         INSERT INTO ga4gh_passport_cache (
             passport_hash,
-            passport,
             expires_at,
             user_ids
         ) VALUES (
             :passport_hash,
-            :passport,
             :expires_at,
             :user_ids
         ) ON CONFLICT (passport_hash) DO UPDATE SET
-            passport = EXCLUDED.passport,
             expires_at = EXCLUDED.expires_at,
             user_ids = EXCLUDED.user_ids;""",
         dict(
-            passport_hash=passport_hash_as_uuid,
-            passport=passport,
+            passport_hash=passport_hash,
             expires_at=expires_at,
             user_ids=user_ids_from_passports,
         ),
