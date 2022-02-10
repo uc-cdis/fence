@@ -11,7 +11,6 @@ from enum import Enum
 
 from authlib.flask.oauth2.sqla import OAuth2AuthorizationCodeMixin, OAuth2ClientMixin
 import bcrypt
-import flask
 from sqlalchemy import (
     Integer,
     BigInteger,
@@ -615,6 +614,14 @@ class AssumeRoleCacheGCP(Base):
     expires_at = Column(Integer())
     gcp_private_key = Column(String())
     gcp_key_db_entry = Column(String())
+
+
+class GA4GHPassportCache(Base):
+    __tablename__ = "ga4gh_passport_cache"
+
+    passport_hash = Column(String(64), primary_key=True)
+    expires_at = Column(BigInteger, nullable=False)
+    user_ids = Column(ARRAY(String(255)), nullable=False)
 
 
 class GA4GHVisaV1(Base):
