@@ -617,7 +617,7 @@ class UserSyncer(object):
 
             # need to add dbgap project to arborist
             if self.arborist_client:
-                self._add_dbgap_study_to_arborist(dbgap_project, dbgap_config)
+                self._determine_arborist_resource(dbgap_project, dbgap_config)
 
             if project.name is None:
                 project.name = dbgap_project
@@ -1293,7 +1293,7 @@ class UserSyncer(object):
 
                 # need to add dbgap project to arborist
                 if self.arborist_client:
-                    self._add_dbgap_study_to_arborist(
+                    self._determine_arborist_resource(
                         element_dict["auth_id"], dbgap_config
                     )
 
@@ -2034,18 +2034,15 @@ class UserSyncer(object):
         )
         return True
 
-    # TODO rename and update docstring
-    def _add_dbgap_study_to_arborist(self, dbgap_study, dbgap_config):
+    def _determine_arborist_resource(self, dbgap_study, dbgap_config):
         """
-        Return the arborist resource path after adding the specified dbgap study
-        to arborist.
+        Determine the arborist resource path and add it to
+        _self._dbgap_study_to_resources
 
         Args:
             dbgap_study (str): study phs identifier
             dbgap_config (dict): dictionary of config for dbgap server
 
-        Returns:
-            str: arborist resource path for study
         """
         default_namespaces = dbgap_config.get("study_to_resource_namespaces", {}).get(
             "_default", ["/"]
