@@ -10,9 +10,6 @@ import uuid
 import collections
 import hashlib
 
-# TODO take out
-import time
-
 from contextlib import contextmanager
 from collections import defaultdict
 from csv import DictReader
@@ -1824,22 +1821,21 @@ class UserSyncer(object):
                 # TODO make this smarter - it should do a diff, not revoke all and add
                 self.arborist_client.revoke_all_policies_for_user(username)
 
-            # TODO comment
-            roles_to_resources = collections.defaultdict(list)
-            for study, roles in user_project_info.items():
-                ordered_roles = tuple(sorted(roles))
-                study_authz_paths = self._dbgap_study_to_resources.get(study, [study])
-                if study in project_to_authz_mapping:
-                    study_authz_paths = [project_to_authz_mapping[study]]
-                roles_to_resources[ordered_roles].extend(study_authz_paths)
+            # as of 2/11/2022, for single_user_sync, as RAS visa parsing has
+            # previously mapped each project to the same set of privileges
+            # (i.e.{'read', 'read-storage'}), unique_policies will just be a
+            # single policy with ('read', 'read-storage') being the single
+            # key
+            unique_policies = self._determine_unique_policies(
+                user_project_info, project_to_authz_mapping
+            )
 
-            for roles in roles_to_resources.keys():
+            for roles in unique_policies.keys():
                 for role in roles:
                     self._create_arborist_role(role)
 
             if single_user_sync:
-                for ordered_roles, resources in roles_to_resources.items():
-                    ordered_resources = tuple(sorted(resources))
+                for ordered_roles, ordered_resources in unique_policies.items():
                     policy_hash = self._hash_policy_contents(
                         ordered_roles, ordered_resources
                     )
@@ -1855,7 +1851,7 @@ class UserSyncer(object):
                     ):
                         return False
             else:
-                for roles, resources in roles_to_resources.items():
+                for roles, resources in unique_policies.items():
                     for role in roles:
                         for resource in resources:
                             # TODO comment about how policy id is formatted
@@ -1916,6 +1912,46 @@ class UserSyncer(object):
 
         return True
 
+    def _determine_unique_policies(self, user_project_info, project_to_authz_mapping):
+        """
+        Determine and return a dictionary of unique policies.
+
+        Args (examples):
+            user_project_info (dict):
+            {
+                'phs000002.c1': { 'read-storage', 'read' },
+                'phs000001.c1': { 'read', 'read-storage' },
+                'phs000004.c1': { 'write', 'read' },
+                'phs000003.c1': { 'read', 'write' },
+                'phs000006.c1': { 'write-storage', 'write', 'read-storage', 'read' }
+                'phs000005.c1': { 'read', 'read-storage', 'write', 'write-storage' },
+            }
+            project_to_authz_mapping (dict):
+            {
+                'phs000001.c1': '/programs/DEV/projects/phs000001.c1'
+            }
+
+        Return (for examples):
+            dict:
+            {
+                ('read', 'read-storage'): ('phs000001.c1', 'phs000002.c1'),
+                ('read', 'write'): ('phs000003.c1', 'phs000004.c1'),
+                ('read', 'read-storage', 'write', 'write-storage'): ('phs000005.c1', 'phs000006.c1'),
+            }
+        """
+        roles_to_resources = collections.defaultdict(list)
+        for study, roles in user_project_info.items():
+            ordered_roles = tuple(sorted(roles))
+            study_authz_paths = self._dbgap_study_to_resources.get(study, [study])
+            if study in project_to_authz_mapping:
+                study_authz_paths = [project_to_authz_mapping[study]]
+            roles_to_resources[ordered_roles].extend(study_authz_paths)
+
+        policies = {}
+        for ordered_roles, unordered_resources in roles_to_resources.items():
+            policies[ordered_roles] = tuple(sorted(unordered_resources))
+        return policies
+
     # TODO docstring
     def _create_arborist_role(self, role):
         if role in self._created_roles:
@@ -1942,13 +1978,9 @@ class UserSyncer(object):
         root = "/"
         for request_body in utils.combine_provided_and_dbgap_resources({}, resources):
             try:
-                # TODO take out timing
-                start = time.time()
                 response_json = self.arborist_client.update_resource(
                     root, request_body, merge=True
                 )
-                end = time.time()
-                self.logger.info("update_resource took {} seconds".format(end - start))
             except ArboristError as e:
                 self.logger.error(
                     "could not update resource `{}` with request body `{}` in Arborist. error: {}".format(
@@ -1967,8 +1999,6 @@ class UserSyncer(object):
         self, policy_id, roles, resources, skip_if_exists=False
     ):
         try:
-            # TODO take out timing
-            start = time.time()
             response_json = self.arborist_client.create_policy(
                 {
                     "id": policy_id,
@@ -1977,8 +2007,6 @@ class UserSyncer(object):
                 },
                 skip_if_exists=skip_if_exists,
             )
-            end = time.time()
-            self.logger.info("create_policy took {} seconds".format(end - start))
         except ArboristError as e:
             self.logger.error(
                 "could not create policy `{}` in Arborist: {}".format(policy_id, e)
@@ -2006,15 +2034,11 @@ class UserSyncer(object):
 
     def _grant_arborist_policy(self, username, policy_id, expires=None):
         try:
-            # TODO take out timing
-            start = time.time()
             response_json = self.arborist_client.grant_user_policy(
                 username,
                 policy_id,
                 expires_at=expires,
             )
-            end = time.time()
-            self.logger.info("grant_user_policy took {} seconds".format(end - start))
         except ArboristError as e:
             self.logger.error(
                 "could not grant policy `{}` to user `{}`: {}".format(
