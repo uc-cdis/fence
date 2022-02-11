@@ -1854,7 +1854,11 @@ class UserSyncer(object):
                 for roles, resources in unique_policies.items():
                     for role in roles:
                         for resource in resources:
-                            # TODO comment about how policy id is formatted
+                            # grant a policy to this user which is a single
+                            # role on a single resource
+
+                            # format project '/x/y/z' -> 'x.y.z'
+                            # so the policy id will be something like 'x.y.z-create'
                             policy_id = _format_policy_id(resource, role)
                             if policy_id not in self._created_policies:
                                 try:
@@ -1952,8 +1956,17 @@ class UserSyncer(object):
             policies[ordered_roles] = tuple(sorted(unordered_resources))
         return policies
 
-    # TODO docstring
     def _create_arborist_role(self, role):
+        """
+        Wrapper around gen3authz's create_role with additional logging
+
+        Args:
+            role (str): what the Arborist identity should be of the created role
+
+        Return:
+            bool: True if the role was created successfully or it already
+                  exists. False otherwise
+        """
         if role in self._created_roles:
             return True
         try:
@@ -1973,18 +1986,63 @@ class UserSyncer(object):
             self.logger.info("created role `{}` in Arborist".format(role))
         return True
 
-    # TODO docstring
     def _create_arborist_resources(self, resources):
-        root = "/"
+        """
+        Create resources in Arborist
+
+        Args:
+            resources (list): a list of full Arborist resource paths to create
+            [
+                "/programs/DEV/projects/phs000001.c1",
+                "/programs/DEV/projects/phs000002.c1",
+                "/programs/DEV/projects/phs000003.c1"
+            ]
+
+        Return:
+            bool: True if the resources were successfully created, False otherwise
+
+
+        As of 2/11/2022, for resources above,
+        utils.combine_provided_and_dbgap_resources({}, resources) returns:
+        [
+            { 'name': 'programs', 'subresources': [
+                { 'name': 'DEV', 'subresources': [
+                    { 'name': 'projects', 'subresources': [
+                        { 'name': 'phs000001.c1', 'subresources': []},
+                        { 'name': 'phs000002.c1', 'subresources': []},
+                        { 'name': 'phs000003.c1', 'subresources': []}
+                    ]}
+                ]}
+            ]}
+        ]
+        Because this list has a single object, only a single network request gets
+        sent to Arborist.
+
+        However, for resources = ["/phs000001.c1", "/phs000002.c1", "/phs000003.c1"],
+        utils.combine_provided_and_dbgap_resources({}, resources) returns:
+        [
+            {'name': 'phs000001.c1', 'subresources': []},
+            {'name': 'phs000002.c1', 'subresources': []},
+            {'name': 'phs000003.c1', 'subresources': []}
+        ]
+        Because this list has 3 objects, 3 network requests get sent to Arborist.
+
+        As a practical matter, for sync_single_user_visas, studies
+        should be nested under the `/programs` resource as in the former
+        example (i.e. only one network request gets made).
+
+        TODO for the sake of simplicity, it would be nice if only one network
+        request was made no matter the input.
+        """
         for request_body in utils.combine_provided_and_dbgap_resources({}, resources):
             try:
                 response_json = self.arborist_client.update_resource(
-                    root, request_body, merge=True
+                    "/", request_body, merge=True
                 )
             except ArboristError as e:
                 self.logger.error(
-                    "could not update resource `{}` with request body `{}` in Arborist. error: {}".format(
-                        root, request_body, e
+                    "could not create Arborist resources using request body `{}`. error: {}".format(
+                        request_body, e
                     )
                 )
                 return False
@@ -1994,10 +2052,22 @@ class UserSyncer(object):
         )
         return True
 
-    # TODO docstring
     def _create_arborist_policy(
         self, policy_id, roles, resources, skip_if_exists=False
     ):
+        """
+        Wrapper around gen3authz's create_policy with additional logging
+
+        Args:
+            policy_id (str): what the Arborist identity should be of the created policy
+            roles (iterable): what roles the create policy should have
+            resources (iterable): what resources the created policy should have
+            skip_if_exists (bool): if True, this function will not treat an already
+                                   existent policy as an error
+
+        Return:
+            bool: True if policy creation was successful. False otherwise
+        """
         try:
             response_json = self.arborist_client.create_policy(
                 {
@@ -2014,15 +2084,23 @@ class UserSyncer(object):
             return False
 
         if response_json is None:
-            self.logger.debug(
-                "policy `{}` already exists in Arborist".format(policy_id)
-            )
+            self.logger.info("policy `{}` already exists in Arborist".format(policy_id))
         else:
-            self.logger.debug("created policy `{}` in Arborist".format(policy_id))
+            self.logger.info("created policy `{}` in Arborist".format(policy_id))
         return True
 
-    # TODO docstring
     def _hash_policy_contents(self, roles, resources):
+        """
+        Generate a sha256 hexdigest representing roles and resources.
+
+        Args:
+            roles (iterable): policy roles
+            resources (iterable): policy resources
+
+        Return:
+            str: SHA256 hex digest
+        """
+
         def escape(s):
             return s.replace(",", "\,")
 
@@ -2033,6 +2111,18 @@ class UserSyncer(object):
         return policy_hash
 
     def _grant_arborist_policy(self, username, policy_id, expires=None):
+        """
+        Wrapper around gen3authz's grant_user_policy with additional logging
+
+        Args:
+            username (str): username of user in Arborist who policy should be
+                            granted to
+            policy_id (str): Arborist policy id
+            expires (int): POSIX timestamp for when policy should expire
+
+        Return:
+            bool: True if granting of policy was successful, False otherwise
+        """
         try:
             response_json = self.arborist_client.grant_user_policy(
                 username,
