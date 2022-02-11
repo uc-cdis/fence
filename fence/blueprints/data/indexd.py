@@ -93,7 +93,7 @@ def get_signed_url_for_file(
     if ga4gh_passports:
         # users_from_passports = {"username": Fence.User}
         users_from_passports = sync_gen3_users_authz_from_ga4gh_passports(
-            ga4gh_passports, authz_policy_prefix="GA4GH.DRS", db_session=db_session
+            ga4gh_passports, db_session=db_session
         )
 
     # add the user details to `flask.g.audit_data` first, so they are

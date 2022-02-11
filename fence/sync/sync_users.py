@@ -47,12 +47,9 @@ from fence.sync import utils
 from fence.sync.passport_sync.ras_sync import RASVisa
 
 
-def _format_policy_id(path, privilege, prefix=None):
+def _format_policy_id(path, privilege):
     resource = ".".join(name for name in path.split("/") if name)
-    parts = [resource, privilege]
-    if prefix:
-        parts.insert(0, prefix)
-    return "-".join(parts)
+    return "{}-{}".format(resource, privilege)
 
 
 def download_dir(sftp, remote_dir, local_dir):
@@ -1728,7 +1725,6 @@ class UserSyncer(object):
         user_yaml=None,
         single_user_sync=False,
         expires=None,
-        policy_prefix=None,
     ):
         """
         Assign users policies in arborist from the information in
@@ -1743,7 +1739,6 @@ class UserSyncer(object):
             user_yaml (UserYAML) optional, if there are policies for users in a user.yaml
             single_user_sync (bool) whether authz update is for a single user
             expires (int) time at which authz info in Arborist should expire
-            policy_prefix (str) prefix to prepend policy names with
 
         Return:
             bool: success
@@ -1863,9 +1858,8 @@ class UserSyncer(object):
                 for roles, resources in roles_to_resources.items():
                     for role in roles:
                         for resource in resources:
-                            policy_id = _format_policy_id(
-                                resource, role, prefix=policy_prefix
-                            )
+                            # TODO comment about how policy id is formatted
+                            policy_id = _format_policy_id(resource, role)
                             if policy_id not in self._created_policies:
                                 try:
                                     self.arborist_client.update_policy(
@@ -2151,9 +2145,7 @@ class UserSyncer(object):
 
         return (user_projects, user_info)
 
-    def sync_single_user_visas(
-        self, user, ga4gh_visas, sess=None, expires=None, policy_prefix=None
-    ):
+    def sync_single_user_visas(self, user, ga4gh_visas, sess=None, expires=None):
         """
         Sync a single user's visas during login or DRS/data access
 
@@ -2168,7 +2160,6 @@ class UserSyncer(object):
             sess (sqlalchemy.orm.session.Session): database session
             expires (int): time at which synced Arborist policies and
                            inclusion in any GBAG are set to expire
-            policy_prefix (str): prefix to prepend policy names with
 
         Return:
             list of successfully parsed visas
@@ -2258,7 +2249,6 @@ class UserSyncer(object):
                 user_yaml=user_yaml,
                 single_user_sync=True,
                 expires=expires,
-                policy_prefix=policy_prefix,
             )
             if success:
                 self.logger.info(

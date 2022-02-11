@@ -29,7 +29,6 @@ logger = get_logger(__name__)
 
 def sync_gen3_users_authz_from_ga4gh_passports(
     passports,
-    authz_policy_prefix,
     pkey_cache=None,
     db_session=None,
 ):
@@ -134,7 +133,6 @@ def sync_gen3_users_authz_from_ga4gh_passports(
                 gen3_user=gen3_user,
                 ga4gh_visas=ga4gh_visas,
                 expiration=min_visa_expiration,
-                policy_prefix=authz_policy_prefix,
                 db_session=db_session,
             )
             users_from_current_passport.append(gen3_user)
@@ -356,7 +354,7 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id, db_session=None):
 
 
 def _sync_validated_visa_authorization(
-    gen3_user, ga4gh_visas, expiration, policy_prefix, db_session=None
+    gen3_user, ga4gh_visas, expiration, db_session=None
 ):
     """
     Wrapper around UserSyncer.sync_single_user_visas method, which parses
@@ -379,7 +377,7 @@ def _sync_validated_visa_authorization(
     """
     db_session = db_session or current_session
     default_args = fence.scripting.fence_create.get_default_init_syncer_inputs(
-        authz_provider=policy_prefix
+        authz_provider="GA4GH"
     )
     syncer = fence.scripting.fence_create.init_syncer(**default_args)
 
@@ -388,7 +386,6 @@ def _sync_validated_visa_authorization(
         ga4gh_visas,
         db_session,
         expires=expiration,
-        policy_prefix=policy_prefix,
     )
 
     # after syncing authorization, persist the visas that were parsed successfully.
