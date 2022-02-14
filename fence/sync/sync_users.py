@@ -2089,13 +2089,13 @@ class UserSyncer(object):
             self.logger.info("created policy `{}` in Arborist".format(policy_id))
         return True
 
-    def _hash_policy_contents(self, roles, resources):
+    def _hash_policy_contents(self, ordered_roles, ordered_resources):
         """
-        Generate a sha256 hexdigest representing roles and resources.
+        Generate a sha256 hexdigest representing ordered_roles and ordered_resources.
 
         Args:
-            roles (iterable): policy roles
-            resources (iterable): policy resources
+            ordered_roles (iterable): policy roles in sorted order
+            ordered_resources (iterable): policy resources in sorted order
 
         Return:
             str: SHA256 hex digest
@@ -2104,10 +2104,11 @@ class UserSyncer(object):
         def escape(s):
             return s.replace(",", "\,")
 
-        canonical_roles = ",".join(tuple(escape(r) for r in roles))
-        canonical_resources = ",".join(tuple(escape(r) for r in resources))
+        canonical_roles = ",".join(escape(r) for r in ordered_roles)
+        canonical_resources = ",".join(escape(r) for r in ordered_resources)
         canonical_policy = f"{canonical_roles},,f{canonical_resources}"
         policy_hash = hashlib.sha256(canonical_policy.encode("utf-8")).hexdigest()
+
         return policy_hash
 
     def _grant_arborist_policy(self, username, policy_id, expires=None):
