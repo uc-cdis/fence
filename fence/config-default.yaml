@@ -1,6 +1,6 @@
 ---
 ############################### Fence Configuration ####################################
-# This file contains various configurations for the fence microservice.
+# This file contains various configurations for the Fence microservice.
 #
 # README:
 # - This is initially configured for minimal local development with reasonable defaults.
@@ -106,10 +106,12 @@ OPENID_CONNECT:
   # in Google to be '{{BASE_URL}}/login/google/login', but expand BASE_URL to
   # whatever you set it to above.
   google:
+    discovery_url: 'https://accounts.google.com/.well-known/openid-configuration'
     client_id: ''
     client_secret: ''
     # this is be the allowed redirect back to fence, should not need to change
     redirect_url: '{{BASE_URL}}/login/google/login/'
+    scope: 'openid email'
     # if mock is true, will fake a successful login response from Google in /login/google
     #     NOTE: this will also modify the behavior of /link/google endpoints
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
@@ -149,12 +151,14 @@ OPENID_CONNECT:
     shibboleth_discovery_url: 'https://login.bionimbus.org/Shibboleth.sso/DiscoFeed'
   # you can setup up an orcid client here: https://orcid.org/developer-tools
   orcid:
+    discovery_url: 'https://orcid.org/.well-known/openid-configuration'
     client_id: ''
     client_secret: ''
     # make sure you put the FULL url for this deployment in the allowed redirects in
     # ORCID.org. DO NOT include {{BASE_URL}} at ORCID.org, you need to actually put the
     # full url
     redirect_url: '{{BASE_URL}}/login/orcid/login/'
+    scope: 'openid'
     # if mock is true, will fake a successful login response for login
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
@@ -164,6 +168,7 @@ OPENID_CONNECT:
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/ras/callback'
+    scope: 'openid email profile ga4gh_passport_v1'
     # if mock is true, will fake a successful login response for login
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
@@ -174,6 +179,7 @@ OPENID_CONNECT:
   # Azure, make sure to select the `Accounts in any organizational directory` for
   # supported account types.
   microsoft:
+    discovery_url: 'https://login.microsoftonline.com/organizations/v2.0/.well-known/openid-configuration'
     # after registering a new appl, client_id can be found as
     # "APPLICATION (CLIENT) ID" in Microsoft Azure
     client_id: ''
@@ -184,6 +190,7 @@ OPENID_CONNECT:
     # your app in Azure. DO NOT include {{BASE_URL}} in Azure, you need to actually put the
     # full url
     redirect_url: '{{BASE_URL}}/login/microsoft/login/'
+    scope: 'openid email'
     # if mock is true, will fake a successful login response for login
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
@@ -195,12 +202,14 @@ OPENID_CONNECT:
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/okta/login/'
+    scope: 'openid email'
   cognito:
     # You must create a user pool in order to have a discovery url
     discovery_url: 'https://cognito-idp.{REGION}.amazonaws.com/{USER-POOL-ID}/.well-known/openid-configuration'
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/cognito/login/'
+    scope: 'openid email'
     # In the case where Cognito is being used solely as an intermediary to a single IdP,
     # and that IdP is a SAML IdP with no 'email_verified' outgoing claim, but it is safe
     # to assume all emails from this SAML IdP are in fact verified, we may set this to True
@@ -208,20 +217,24 @@ OPENID_CONNECT:
   # CILogon subscribers can create and manage OIDC clients using COmanage Registry.
   # Free tier users may request OIDC clients at https://cilogon.org/oauth2/register
   cilogon:
+    discovery_url: 'https://cilogon.org/.well-known/openid-configuration'
     client_id: ''
     client_secret: ''
     # When registering the Callback URLs for your CILogon OIDC client be
     # sure to include the FULL url for this deployment, including the https:// scheme
     # and server FQDN.
     redirect_url: '{{BASE_URL}}/login/cilogon/login/'
+    scope: 'openid email profile'
     # if mock is true, will fake a successful login response for login
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
     mock_default_user: 'http://cilogon.org/serverT/users/64703'
   synapse:
+    discovery_url: ''
     client_id: ''
     client_secret: ''
     redirect_url: ''
+    scope: 'openid'
   shibboleth:
     client_id: ''
     client_secret: ''
@@ -875,6 +888,7 @@ DREAM_CHALLENGE_TEAM: 'DREAM'
 DREAM_CHALLENGE_GROUP: 'DREAM'
 SYNAPSE_URI: 'https://repo-prod.prod.sagebase.org/auth/v1'
 SYNAPSE_JWKS_URI:
+# deprecated, use the discovery_url in the OPENID_CONNECT block for the synapse client
 SYNAPSE_DISCOVERY_URL:
 SYNAPSE_AUTHZ_TTL: 86400
 

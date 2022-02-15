@@ -10,16 +10,13 @@ class GoogleOauth2Client(Oauth2ClientBase):
     https://developers.google.com/api-client-library/python/guide/aaa_oauth
     """
 
-    GOOGLE_DISCOVERY_URL = (
-        "https://accounts.google.com/.well-known/openid-configuration"
-    )
+    DISCOVERY_URL = "https://accounts.google.com/.well-known/openid-configuration"
 
     def __init__(self, settings, logger, HTTP_PROXY=None):
         super(GoogleOauth2Client, self).__init__(
             settings,
             logger,
-            scope="openid email",
-            discovery_url=self.GOOGLE_DISCOVERY_URL,
+            scope=settings.get("scope") or "openid email",
             idp="Google",
             HTTP_PROXY=HTTP_PROXY,
         )
