@@ -158,7 +158,6 @@ class Visa_Token_Update(object):
                     client.update_user_authorization(
                         user,
                         pkey_cache=self.pkey_cache,
-                        authz_policy_prefix="TOKEN.POLLING",
                         db_session=db_session,
                     )
                 else:

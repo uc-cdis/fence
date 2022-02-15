@@ -1,6 +1,7 @@
 import os
 import pytest
 import yaml
+import collections
 
 import asyncio
 import flask
@@ -282,12 +283,15 @@ def test_dbgap_consent_codes(
             user.project_access, {"phs000179": ["read", "read-storage"]}
         )
 
-    resource_to_parent_paths = {}
-    for call in syncer.arborist_client.update_resource.call_args_list:
+    resource_to_parent_paths = collections.defaultdict(list)
+    for call in syncer._create_arborist_resources.call_args_list:
         args, kwargs = call
-        parent_path = args[0]
-        resource = args[1].get("name")
-        resource_to_parent_paths.setdefault(resource, []).append(parent_path)
+        full_paths = args[0]
+        for full_path in full_paths:
+            resource_begin = full_path.rfind("/") + 1
+            parent_path = full_path[:resource_begin]
+            resource = full_path[resource_begin:]
+            resource_to_parent_paths[resource].append(parent_path)
 
     if parse_consent_code_config:
         if enable_common_exchange_area:
@@ -549,12 +553,22 @@ def test_update_arborist(syncer, db_session):
         "data_file",  # comes from user.yaml file
     ]
 
-    resource_to_parent_paths = {}
+    resource_to_parent_paths = collections.defaultdict(list)
     for call in syncer.arborist_client.update_resource.call_args_list:
         args, kwargs = call
         parent_path = args[0]
         resource = args[1].get("name")
         resource_to_parent_paths.setdefault(resource, []).append(parent_path)
+    # usersync updates dbgap projects at once using _create_arborist_resources
+    # as opposed to individually with gen3authz's update_resource
+    for call in syncer._create_arborist_resources.call_args_list:
+        args, kwargs = call
+        full_paths = args[0]
+        for full_path in full_paths:
+            resource_begin = full_path.rfind("/") + 1
+            parent_path = full_path[:resource_begin]
+            resource = full_path[resource_begin:]
+            resource_to_parent_paths[resource].append(parent_path)
 
     for resource in expect_resources:
         assert resource in list(resource_to_parent_paths.keys())
