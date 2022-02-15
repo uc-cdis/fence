@@ -76,7 +76,6 @@ class RASCallback(DefaultOAuth2Callback):
                 db_session=current_session,
             )
             user_ids_from_passports = list(users_from_passports.keys())
-            logger.debug(f"user_ids_from_passports: {user_ids_from_passports}")
 
             # TODO?
             # put_gen3_usernames_for_passport_into_cache(

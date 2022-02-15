@@ -897,12 +897,12 @@ GA4GH_VISA_ISSUER_ALLOWLIST:
   - 'https://stsstg.nih.gov'
 GA4GH_VISA_V1_CLAIM_REQUIRED_FIELDS:
   type:
-    - "https://ras.nih.gov/visas/v1.1"
+    - 'https://ras.nih.gov/visas/v1.1'
   value:
-    - "https://sts.nih.gov/passport/dbgap/v1.1"
-    - "https://stsstg.nih.gov/passport/dbgap/v1.1"
+    - 'https://sts.nih.gov/passport/dbgap/v1.1'
+    - 'https://stsstg.nih.gov/passport/dbgap/v1.1'
   source:
-    - "https://ncbi.nlm.nih.gov/gap"
+    - 'https://ncbi.nlm.nih.gov/gap'
 EXPIRED_AUTHZ_REMOVAL_JOB_FREQ_IN_SECONDS: 300
 # Global sync visas during login
 # None(Default): Allow per client i.e. a fence client can pick whether or not to sync their visas during login with parse_visas param in /authorization endpoint
@@ -912,5 +912,5 @@ GLOBAL_PARSE_VISAS_ON_LOGIN:
 # Settings for usersync with visas
 USERSYNC:
   visa_types:
-    ras: ["https://ras.nih.gov/visas/v1", "https://ras.nih.gov/visas/v1.1"]
+    ras: ['https://ras.nih.gov/visas/v1', 'https://ras.nih.gov/visas/v1.1']
 RAS_USERINFO_ENDPOINT: '/openid/connect/v1.1/userinfo'

@@ -635,7 +635,7 @@ GA4GH_VISA_V1_CLAIM_REQUIRED_FIELDS:
     - "https://stsstg.nih.gov/passport/dbgap/v1.1"
   source:
     - "https://ncbi.nlm.nih.gov/gap"
-EXPIRED_AUTHZ_REMOVAL_JOB_FREQ_IN_SECONDS: 300
+EXPIRED_AUTHZ_REMOVAL_JOB_FREQ_IN_SECONDS: 1
 # Global sync visas during login
 # None(Default): Allow per client i.e. a fence client can pick whether or not to sync their visas during login with parse_visas param in /authorization endpoint
 # True: Parse for all clients i.e. a fence client will always sync their visas during login
