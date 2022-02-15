@@ -93,6 +93,13 @@ class ApiKeyList(Resource):
         for s in scope:
             if s not in config["USER_ALLOWED_SCOPES"]:
                 flask.abort(400, "Scope {} is not supported".format(s))
+
+        # add all scopes from the user's access token
+        scope.extend(current_token["scope"])
+
+        # a token created using an API key cannot be used to create a new API key
+        scope = [e for e in set(scope) if e != "credentials"]
+
         max_ttl = config.get("MAX_API_KEY_TTL", 2592000)
         expires_in = min(int(flask.request.args.get("expires_in", max_ttl)), max_ttl)
         api_key, claims = create_api_key(
