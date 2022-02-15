@@ -1807,8 +1807,7 @@ class UserSyncer(object):
             for r in resources
         ]
         all_resources.extend(r for r in project_to_authz_mapping.values())
-        if not self._create_arborist_resources(all_resources):
-            return False
+        self._create_arborist_resources(all_resources)
 
         for username, user_project_info in user_projects.items():
             self.logger.info("processing user `{}`".format(username))
@@ -1839,17 +1838,18 @@ class UserSyncer(object):
                     policy_hash = self._hash_policy_contents(
                         ordered_roles, ordered_resources
                     )
-                    if not self._create_arborist_policy(
+                    self._create_arborist_policy(
                         policy_hash,
                         ordered_roles,
                         ordered_resources,
                         skip_if_exists=True,
-                    ):
-                        return False
-                    if not self._grant_arborist_policy(
+                    )
+                    # return here as it is not expected single_user_sync
+                    # will need any of the remaining user_yaml operations
+                    # left in _update_authz_in_arborist
+                    return self._grant_arborist_policy(
                         username, policy_hash, expires=expires
-                    ):
-                        return False
+                    )
             else:
                 for roles, resources in unique_policies.items():
                     for role in roles:
