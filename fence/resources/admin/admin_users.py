@@ -77,6 +77,8 @@ def get_all_users(current_session):
     for user in users:
         new_user = {}
         new_user["name"] = user.username
+        new_user["id"] = user.id
+        new_user["last_auth"] = user._last_auth
         if user.is_admin:
             new_user["role"] = "admin"
         else:
