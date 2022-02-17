@@ -526,10 +526,6 @@ contextvars = {version = ">=2.4,<3.0", markers = "python_version < \"3.7\""}
 httpx = ">=0.20.0,<1.0.0"
 six = ">=1.16.0,<2.0.0"
 
-[package.source]
-type = "file"
-url = "gen3authz-1.5.1.tar.gz"
-
 [[package]]
 name = "gen3cirrus"
 version = "2.0.0"
@@ -1507,7 +1503,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "75a454e62e6833249828c3a34f349067ecf99fbaf9b7dadd765aa457c400f7a0"
+content-hash = "5c0ae6cc529d940e7f68498a5849ab702ab629c4a67a75b7043f40fed8121976"
 
 [metadata.files]
 addict = [
@@ -1797,7 +1793,8 @@ future = [
     {file = "future-0.18.2.tar.gz", hash = "sha256:b1bead90b70cf6ec3f0710ae53a525360fa360d306a86583adc6bf83a4db537d"},
 ]
 gen3authz = [
-    {file = "gen3authz-1.5.1.tar.gz", hash = "sha256:b6514803a720029228e546863dbb63a73ce7fe3541a145140b03a8e75f122d3a"},
+    {file = "gen3authz-1.5.1-py3-none-any.whl", hash = "sha256:249ab21471e1ae3c283a30f3e32819db218aaa63d8d7151ac7b6b83496ac3518"},
+    {file = "gen3authz-1.5.1.tar.gz", hash = "sha256:897f804a2f9d29181a6074fa14335fc9f18e757dd2e5dcec2a68bb9a008bfcb8"},
 ]
 gen3cirrus = [
     {file = "gen3cirrus-2.0.0.tar.gz", hash = "sha256:0bd590c407c42dad5f0b896da0fa30bd01ea6bef5ff7dd11324ec59f14a71793"},
