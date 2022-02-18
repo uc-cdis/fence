@@ -340,7 +340,7 @@ class UserSyncer(object):
             )
 
     @staticmethod
-    def _match_pattern(filepath, encrypted=True):
+    def _match_pattern(filepath, custom_id_patterns, encrypted=True):
         """
         Check if the filename matches dbgap access control file pattern
 
@@ -351,11 +351,15 @@ class UserSyncer(object):
         Returns:
             bool: whether the pattern matches
         """
-        pattern = r"authentication_file_phs(\d{6}).(csv|txt)"
-        if encrypted:
-            pattern += ".enc"
-        pattern += "$"
-        return re.match(pattern, os.path.basename(filepath))
+        custom_id_patterns.insert(0, "phs(\d{6})")
+        for pattern in custom_id_patterns:
+            pattern = r"authentication_file_{}.(csv|txt)".format(pattern)
+            if encrypted:
+                pattern += ".enc"
+            pattern += "$"
+            if re.match(pattern, os.path.basename(filepath)):
+                return True
+        return False
 
     def _get_from_sftp_with_proxy(self, server, path):
         """
@@ -472,6 +476,7 @@ class UserSyncer(object):
         # parse dbGaP sftp server information
         dbgap_key = dbgap_config.get("decrypt_key", None)
         parse_consent_code = dbgap_config.get("parse_consent_code", True)
+        custom_id_patterns = dbgap_config.get("allowed_custom_ids", [])
         enable_common_exchange_area_access = dbgap_config.get(
             "enable_common_exchange_area_access", False
         )
@@ -488,7 +493,7 @@ class UserSyncer(object):
             if os.stat(filepath).st_size == 0:
                 self.logger.warning("Empty file {}".format(filepath))
                 continue
-            if not self._match_pattern(filepath, encrypted=encrypted):
+            if not self._match_pattern(filepath, custom_id_patterns=custom_id_patterns, encrypted=encrypted):
                 self.logger.warning(
                     "Filename {} does not match dbgap access control filename pattern;"
                     " this could mean that the filename has an invalid format, or has"
