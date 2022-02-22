@@ -72,12 +72,10 @@ class RASCallback(DefaultOAuth2Callback):
             # now sync authz updates
             users_from_passports = fence.resources.ga4gh.passports.sync_gen3_users_authz_from_ga4gh_passports(
                 [passport],
-                authz_policy_prefix="POST.LOGIN",
                 pkey_cache=PKEY_CACHE,
                 db_session=current_session,
             )
             user_ids_from_passports = list(users_from_passports.keys())
-            logger.debug(f"user_ids_from_passports: {user_ids_from_passports}")
 
             # TODO?
             # put_gen3_usernames_for_passport_into_cache(

@@ -565,6 +565,9 @@ def db_session(db, patch_app_db_session):
 
     patch_app_db_session(session)
 
+    session.query(models.GA4GHPassportCache).delete()
+    session.commit()
+
     yield session
 
     # clear out user and project tables upon function close in case unit test didn't
@@ -572,6 +575,7 @@ def db_session(db, patch_app_db_session):
     session.query(models.IssSubPairToUser).delete()
     session.query(models.Project).delete()
     session.query(models.GA4GHVisaV1).delete()
+    session.query(models.GA4GHPassportCache).delete()
     session.commit()
 
     session.close()
@@ -1247,6 +1251,8 @@ def patch_app_db_session(app, monkeypatch):
             "fence.user",
             "fence.blueprints.login.synapse",
             "fence.blueprints.login.ras",
+            "fence.blueprints.data.indexd",
+            "fence.resources.ga4gh.passports",
         ]
         for module in modules_to_patch:
             monkeypatch.setattr("{}.current_session".format(module), session)

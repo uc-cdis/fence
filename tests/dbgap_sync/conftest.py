@@ -217,6 +217,8 @@ def syncer(db_session, request, rsa_private_key, kid):
 
     syncer_obj.arborist_client._user_url = "/user"
 
+    syncer_obj._create_arborist_resources = MagicMock()
+
     for element in provider:
         udm.create_provider(db_session, element["name"], backend=element["backend"])
 
