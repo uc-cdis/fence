@@ -90,7 +90,9 @@ def _get_primary_service_account_key(user_id, username, proxy_group_id):
     user_service_account_key = None
 
     # Note that client_id is None, which is how we store the user's SA
-    user_google_service_account = get_service_account(client_id=None, user_id=user_id)
+    user_google_service_account = get_service_account(
+        client_id=None, user_id=user_id, username=username
+    )
 
     if user_google_service_account:
         user_service_account_key = (
@@ -375,7 +377,7 @@ def add_custom_service_account_key_expiration(
     current_session.commit()
 
 
-def get_service_account(client_id, user_id):
+def get_service_account(client_id, user_id, username):
     """
     Return the service account (from Fence db) for given client.
 
@@ -388,11 +390,56 @@ def get_service_account(client_id, user_id):
     Returns:
         fence.models.GoogleServiceAccount: Client's service account
     """
-    service_account = (
+    service_accounts = (
         current_session.query(GoogleServiceAccount)
         .filter_by(client_id=client_id, user_id=user_id)
-        .first()
+        .all()
     )
+    if len(service_accounts) == 1:
+        return service_accounts[0]
+
+    # in rare cases there's a possible that 2 SA's exist for 1 user that haven't
+    # been cleaned up yet. This happens when a users username is changed. To ensure
+    # getting the newest SA, we need to check for the SA ID based off the current
+    # username
+    service_account = None
+
+    # determine expected SA name based off username
+    if client_id:
+        service_account_id = get_valid_service_account_id_for_client(
+            client_id, user_id, prefix=config["GOOGLE_SERVICE_ACCOUNT_PREFIX"]
+        )
+    else:
+        service_account_id = get_valid_service_account_id_for_user(
+            user_id, username, prefix=config["GOOGLE_SERVICE_ACCOUNT_PREFIX"]
+        )
+
+    for sa in service_accounts:
+        if service_account_id in sa.email:
+            service_account = sa
+        else:
+            logger.info(
+                "Found Google Service Account using invalid/old name: "
+                "{}. Removing from db. Keys should still have access in Google until "
+                "cronjob removes them (e.g. fence-create google-manage-keys). NOTE: "
+                "the SA will still exist in Google but fence will use new SA {} for "
+                "new keys.".format(sa.email, service_account_id)
+            )
+
+            old_service_account_keys_db_entries = (
+                current_session.query(GoogleServiceAccountKey)
+                .filter(GoogleServiceAccountKey.service_account_id == sa.id)
+                .all()
+            )
+
+            # remove the keys then the sa itself from db
+            for old_key in old_service_account_keys_db_entries:
+                current_session.delete(old_key)
+
+            # commit the deletion of keys first, then do SA deletion
+            current_session.commit()
+            current_session.delete(sa)
+            current_session.commit()
 
     return service_account
 
