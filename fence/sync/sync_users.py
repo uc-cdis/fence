@@ -493,7 +493,9 @@ class UserSyncer(object):
             if os.stat(filepath).st_size == 0:
                 self.logger.warning("Empty file {}".format(filepath))
                 continue
-            if not self._match_pattern(filepath, custom_id_patterns=custom_id_patterns, encrypted=encrypted):
+            if not self._match_pattern(
+                filepath, custom_id_patterns=custom_id_patterns, encrypted=encrypted
+            ):
                 self.logger.warning(
                     "Filename {} does not match dbgap access control filename pattern;"
                     " this could mean that the filename has an invalid format, or has"
