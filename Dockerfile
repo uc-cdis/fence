@@ -11,7 +11,7 @@ RUN apt-get update \
     && apt-get install -y --no-install-recommends curl bash git \
     libmcrypt4 libmhash2 mcrypt \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/
+    && rm -rf /var/lib/apt/lists/ \     
     && apt-get install vim
 
 RUN mkdir -p /var/www/$appname \
