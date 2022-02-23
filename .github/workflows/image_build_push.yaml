@@ -1,0 +1,8 @@
+name: Build Image and Push to Quay 
+
+on: push
+
+jobs:
+  ci:
+    name: Build Image and Push to Quay 
+    uses: uc-cdis/.github/.github/workflows/image_build_push.yaml@feat/build-push-image
