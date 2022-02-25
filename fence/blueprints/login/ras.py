@@ -2,7 +2,7 @@ import flask
 import jwt
 import os
 
-# the whole fence_create module is imported to avoid issue with circular imports
+# the whole fence_create module is imported to avoid issues with circular imports
 import fence.scripting.fence_create
 from distutils.util import strtobool
 from urllib.parse import urlparse, parse_qs

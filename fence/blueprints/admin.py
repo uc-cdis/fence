@@ -61,7 +61,8 @@ def get_user(username):
 @debug_log
 def get_all_users():
     """
-    Retrieve the information regarding the buckets created within a project.
+    Get the information of all users from our userdatamodel database
+
     Returns a json object.
     """
     return jsonify(admin.get_all_users(current_session))
