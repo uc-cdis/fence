@@ -195,8 +195,8 @@ def login_required(scope=None):
                 ]
             else:
                 # fall back on "providers"
-                enable_shib = "shibboleth" in config.get(
-                    "ENABLED_IDENTITY_PROVIDERS", {}
+                enable_shib = "shibboleth" in (
+                    config.get("ENABLED_IDENTITY_PROVIDERS") or {}
                 ).get("providers", {})
 
             if enable_shib and "SHIBBOLETH_HEADER" in config:
