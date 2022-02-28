@@ -1620,7 +1620,7 @@ class UserSyncer(object):
                 self.logger.debug(
                     "attempting to update arborist resource: {}".format(resource)
                 )
-                self.arborist_client.update_resource("/", resource)
+                self.arborist_client.update_resource("/", resource, merge=True)
             except ArboristError as e:
                 self.logger.error(e)
                 # keep going; maybe just some conflicts from things existing already
@@ -1801,6 +1801,9 @@ class UserSyncer(object):
                 f"(instead of user.yaml - as it may not be available): {project_to_authz_mapping}"
             )
 
+        self.logger.debug(
+            f"_dbgap_study_to_resources: {self._dbgap_study_to_resources}"
+        )
         all_resources = [
             r
             for resources in self._dbgap_study_to_resources.values()
