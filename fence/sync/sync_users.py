@@ -1090,6 +1090,7 @@ class UserSyncer(object):
         dbgap_file_list = []
         hostname = dbgap_config["info"]["host"]
         username = dbgap_config["info"]["username"]
+        encrypted = dbgap_config["ingo"].get("encrypted", True)
         folderdir = os.path.join(str(self.folder), str(hostname), str(username))
 
         try:
@@ -1098,13 +1099,14 @@ class UserSyncer(object):
                     os.path.join(folderdir, "*")
                 )  # get lists of file from folder
             else:
+                self.logger.info("Downloading files from: {}".format())
                 dbgap_file_list = self._download(dbgap_config)
         except Exception as e:
             self.logger.error(e)
             exit(1)
         self.logger.info("dbgap files: {}".format(dbgap_file_list))
         user_projects, user_info = self._get_user_permissions_from_csv_list(
-            dbgap_file_list, encrypted=True, session=sess, dbgap_config=dbgap_config
+            dbgap_file_list, encrypted=encrypted, session=sess, dbgap_config=dbgap_config
         )
 
         user_projects = self.parse_projects(user_projects)
