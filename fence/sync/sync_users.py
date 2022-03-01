@@ -1598,21 +1598,8 @@ class UserSyncer(object):
         self.logger.debug("user_yaml resources: {}".format(resources))
         self.logger.debug("dbgap resource paths: {}".format(dbgap_resource_paths))
 
-        # existing resources are also added to prevent resources created from
-        # DRS endpoint from being overwritten
-        try:
-            existing_resources = self.arborist_client.list_resources()
-        except ArboristError as e:
-            self.logger.error("could not list Arborist resources: {}".format(e))
-            # intentionally fail; avoid overwriting of resources
-            raise
-
-        existing_paths = [r["path"] for r in existing_resources.get("resources", [])]
         combined_resources = utils.combine_provided_and_dbgap_resources(
-            resources, existing_paths
-        )
-        combined_resources = utils.combine_provided_and_dbgap_resources(
-            combined_resources, dbgap_resource_paths
+            resources, dbgap_resource_paths
         )
 
         for resource in combined_resources:
