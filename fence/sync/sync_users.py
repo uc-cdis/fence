@@ -1090,7 +1090,7 @@ class UserSyncer(object):
         dbgap_file_list = []
         hostname = dbgap_config["info"]["host"]
         username = dbgap_config["info"]["username"]
-        encrypted = dbgap_config["ingo"].get("encrypted", True)
+        encrypted = dbgap_config["info"].get("encrypted", True)
         folderdir = os.path.join(str(self.folder), str(hostname), str(username))
 
         try:
