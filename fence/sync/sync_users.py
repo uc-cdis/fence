@@ -1099,7 +1099,7 @@ class UserSyncer(object):
                     os.path.join(folderdir, "*")
                 )  # get lists of file from folder
             else:
-                self.logger.info("Downloading files from: {}".format())
+                self.logger.info("Downloading files from: {}".format(hostname))
                 dbgap_file_list = self._download(dbgap_config)
         except Exception as e:
             self.logger.error(e)
