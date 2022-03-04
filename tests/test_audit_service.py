@@ -28,9 +28,9 @@ from unittest.mock import ANY, MagicMock, patch
 
 import fence
 from fence.config import config
-from fence.blueprints.login import IDP_URL_MAP
 from fence.resources.audit.utils import _clean_authorization_request_url
 from tests import utils
+from tests.conftest import LOGIN_IDPS
 
 
 def test_clean_authorization_request_url():
@@ -377,7 +377,7 @@ def test_presigned_url_log_unauthorized(client, indexd_client, db_session, monke
 ####################
 
 
-@pytest.mark.parametrize("idp", list(IDP_URL_MAP.values()))
+@pytest.mark.parametrize("idp", LOGIN_IDPS)
 @mock.patch(
     "fence.resources.openid.ras_oauth2.RASOauth2Client.get_value_from_discovery_doc"
 )

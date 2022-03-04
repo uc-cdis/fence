@@ -13,10 +13,10 @@ import mock
 import pytest
 from unittest.mock import MagicMock, patch
 
-from fence.blueprints.login import IDP_URL_MAP
+from tests.conftest import LOGIN_IDPS
 
 
-@pytest.mark.parametrize("idp", list(IDP_URL_MAP.values()))
+@pytest.mark.parametrize("idp", LOGIN_IDPS)
 @mock.patch(
     "fence.resources.openid.ras_oauth2.RASOauth2Client.get_value_from_discovery_doc"
 )
@@ -53,7 +53,7 @@ def test_valid_redirect_base(
     assert response.status_code == 302
 
 
-@pytest.mark.parametrize("idp", list(IDP_URL_MAP.values()))
+@pytest.mark.parametrize("idp", LOGIN_IDPS)
 @mock.patch(
     "fence.resources.openid.ras_oauth2.RASOauth2Client.get_value_from_discovery_doc"
 )
@@ -86,7 +86,7 @@ def test_valid_redirect_oauth(
     assert response.status_code == 302
 
 
-@pytest.mark.parametrize("idp", list(IDP_URL_MAP.values()))
+@pytest.mark.parametrize("idp", LOGIN_IDPS)
 def test_invalid_redirect_fails(client, idp):
     """
     Check that giving a bogus redirect to the login endpoint returns an error.

@@ -1,11 +1,13 @@
 from authlib.client import OAuth2Session
 from cached_property import cached_property
+from flask_sqlalchemy_session import current_session
 from jose import jwt
+import json
 import requests
 import time
+
 from fence.errors import AuthError
 from fence.models import UpstreamRefreshToken
-from flask_sqlalchemy_session import current_session
 
 
 class Oauth2ClientBase(object):
@@ -135,16 +137,38 @@ class Oauth2ClientBase(object):
 
     def get_auth_url(self):
         """
-        Must implement in inheriting class. Should return OAuth 2 Authorization URL.
+        Get authorization uri from discovery doc
         """
-        raise NotImplementedError()
+        authorization_endpoint = self.get_value_from_discovery_doc(
+            "authorization_endpoint", ""
+        )
+        uri, _ = self.session.create_authorization_url(
+            authorization_endpoint, prompt="login"
+        )
+        return uri
 
     def get_user_id(self, code):
         """
-        Must implement in inheriting class. Should return dictionary with necessary field(s)
-        for successfully logged in user OR "error" field with details of the error.
+        Exchange code for tokens, get user_id from id token claims.
+        Return dictionary with necessary field(s) for successfully logged in
+        user OR "error" field with details of the error.
         """
-        raise NotImplementedError()
+        user_id_field = self.settings.get("user_id_field", "sub")
+        try:
+            token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
+            jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
+            claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
+
+            if claims.get(user_id_field):
+                if user_id_field == "email" and not claims["email_verified"]:
+                    return {"error": "Email is not verified"}
+                return {"sub": claims.get(user_id_field)}
+            else:
+                return {"error": f"Can't get {user_id_field} from claims"}
+
+        except Exception as e:
+            self.logger.exception(f"Can't get user info from {self.idp}")
+            return {"error": f"Can't get user info from {self.idp}: {e}"}
 
     def get_access_token(self, user, token_endpoint, db_session=None):
 

@@ -54,6 +54,21 @@ def _compile_drop_table(element, compiler, **kwargs):
 os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "true"
 
 
+# all the IDPs we want to test
+LOGIN_IDPS = [
+    "fence",
+    "google",
+    "shib",
+    "orcid",
+    "synapse",
+    "microsoft",
+    "okta",
+    "cognito",
+    "ras",
+    "cilogon",
+]
+
+
 def mock_get_bucket_location(self, bucket, config):
     return "us-east-1"
 

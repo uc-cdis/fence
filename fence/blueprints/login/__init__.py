@@ -12,6 +12,7 @@ import requests
 
 from cdislogging import get_logger
 
+from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 from fence.blueprints.login.cilogon import CilogonLogin, CilogonCallback
 from fence.blueprints.login.cognito import CognitoLogin, CognitoCallback
 from fence.blueprints.login.fence_login import FenceLogin, FenceCallback
@@ -29,25 +30,19 @@ from fence.config import config
 
 logger = get_logger(__name__)
 
+
 # Mapping from IDP ID to the name in the URL on the blueprint (see below).
-IDP_URL_MAP = {
-    "fence": "fence",
-    "google": "google",
-    "shibboleth": "shib",
-    "orcid": "orcid",
-    "synapse": "synapse",
-    "microsoft": "microsoft",
-    "okta": "okta",
-    "cognito": "cognito",
-    "ras": "ras",
-    "cilogon": "cilogon",
-}
+def get_idp_route_name(idp):
+    special_routes = {
+        "shibboleth": "shib",
+    }
+    return special_routes.get(idp, idp.lower())
 
 
 def absolute_login_url(provider_id, fence_idp=None, shib_idp=None):
     """
     Args:
-        provider_id (str): provider to log in with; an IDP_URL_MAP key.
+        provider_id (str): provider to log in with.
         fence_idp (str, optional): if provider_id is "fence"
             (multi-tenant Fence setup), fence_idp can be any of the
             providers supported by the other Fence. If not specified,
@@ -63,7 +58,7 @@ def absolute_login_url(provider_id, fence_idp=None, shib_idp=None):
     """
     try:
         base_url = config["BASE_URL"].rstrip("/")
-        login_url = base_url + "/login/{}".format(IDP_URL_MAP[provider_id])
+        login_url = base_url + "/login/{}".format(get_idp_route_name(provider_id))
     except KeyError as e:
         raise InternalError("identity provider misconfigured: {}".format(str(e)))
 
@@ -249,60 +244,82 @@ def make_login_blueprint():
         )
 
     # Add identity provider login routes for IDPs enabled in the config.
-    configured_idps = config["OPENID_CONNECT"].keys()
+    configured_idps = set(config["OPENID_CONNECT"].keys())
 
-    if "fence" in configured_idps:
-        blueprint_api.add_resource(FenceLogin, "/fence", strict_slashes=False)
-        blueprint_api.add_resource(FenceCallback, "/fence/login", strict_slashes=False)
+    for idp in configured_idps:
+        logger.info(f"Setting up OIDC client for {idp}")
+        login_class = None
+        callback_class = None
+        if idp == "fence":
+            login_class = FenceLogin
+            callback_class = FenceCallback
+        elif idp == "google":
+            login_class = GoogleLogin
+            callback_class = GoogleCallback
+        elif idp == "orcid":
+            login_class = ORCIDLogin
+            callback_class = ORCIDCallback
+        elif idp == "ras":
+            login_class = RASLogin
+            # note that the callback endpoint is "/ras/callback", not "/ras/login" like other IDPs
+            blueprint_api.add_resource(
+                RASCallback,
+                f"/{get_idp_route_name(idp)}/callback",
+                strict_slashes=False,
+            )
+        elif idp == "synapse":
+            login_class = SynapseLogin
+            callback_class = SynapseCallback
+        elif idp == "microsoft":
+            login_class = MicrosoftLogin
+            callback_class = MicrosoftCallback
+        elif idp == "okta":
+            login_class = OktaLogin
+            callback_class = OktaCallback
+        elif idp == "cognito":
+            login_class = CognitoLogin
+            callback_class = CognitoCallback
+        elif idp == "shibboleth":
+            login_class = ShibbolethLogin
+            callback_class = ShibbolethCallback
+        elif idp == "cilogon":
+            login_class = CilogonLogin
+            callback_class = CilogonCallback
+        else:  # generic OIDC implementation
 
-    if "google" in configured_idps:
-        blueprint_api.add_resource(GoogleLogin, "/google", strict_slashes=False)
-        blueprint_api.add_resource(
-            GoogleCallback, "/google/login", strict_slashes=False
-        )
+            class GenericLogin(DefaultOAuth2Login):
+                def __init__(self):
+                    super().__init__(
+                        idp_name=idp.lower(),
+                        client=getattr(flask.current_app, f"{idp.lower()}_client"),
+                    )
 
-    if "orcid" in configured_idps:
-        blueprint_api.add_resource(ORCIDLogin, "/orcid", strict_slashes=False)
-        blueprint_api.add_resource(ORCIDCallback, "/orcid/login", strict_slashes=False)
+            class GenericCallback(DefaultOAuth2Callback):
+                def __init__(self):
+                    super().__init__(
+                        idp_name=idp.lower(),
+                        client=getattr(flask.current_app, f"{idp.lower()}_client"),
+                        username_field="sub",
+                    )
 
-    if "ras" in configured_idps:
-        blueprint_api.add_resource(RASLogin, "/ras", strict_slashes=False)
-        # note that the callback endpoint is "/ras/callback", not "/ras/login" like other IDPs
-        blueprint_api.add_resource(RASCallback, "/ras/callback", strict_slashes=False)
+            login_class = GenericLogin
+            callback_class = GenericCallback
 
-    if "synapse" in configured_idps:
-        blueprint_api.add_resource(SynapseLogin, "/synapse", strict_slashes=False)
-        blueprint_api.add_resource(
-            SynapseCallback, "/synapse/login", strict_slashes=False
-        )
-
-    if "microsoft" in configured_idps:
-        blueprint_api.add_resource(MicrosoftLogin, "/microsoft", strict_slashes=False)
-        blueprint_api.add_resource(
-            MicrosoftCallback, "/microsoft/login", strict_slashes=False
-        )
-
-    if "okta" in configured_idps:
-        blueprint_api.add_resource(OktaLogin, "/okta", strict_slashes=False)
-        blueprint_api.add_resource(OktaCallback, "/okta/login", strict_slashes=False)
-
-    if "cognito" in configured_idps:
-        blueprint_api.add_resource(CognitoLogin, "/cognito", strict_slashes=False)
-        blueprint_api.add_resource(
-            CognitoCallback, "/cognito/login", strict_slashes=False
-        )
-
-    if "shibboleth" in configured_idps:
-        blueprint_api.add_resource(ShibbolethLogin, "/shib", strict_slashes=False)
-        blueprint_api.add_resource(
-            ShibbolethCallback, "/shib/login", strict_slashes=False
-        )
-
-    if "cilogon" in configured_idps:
-        blueprint_api.add_resource(CilogonLogin, "/cilogon", strict_slashes=False)
-        blueprint_api.add_resource(
-            CilogonCallback, "/cilogon/login", strict_slashes=False
-        )
+        # create IDP routes
+        if login_class:
+            blueprint_api.add_resource(
+                login_class,
+                f"/{get_idp_route_name(idp)}",
+                strict_slashes=False,
+                endpoint=f"{get_idp_route_name(idp)}_login",
+            )
+        if callback_class:
+            blueprint_api.add_resource(
+                callback_class,
+                f"/{get_idp_route_name(idp)}/login",
+                strict_slashes=False,
+                endpoint=f"{get_idp_route_name(idp)}_callback",
+            )
 
     return blueprint
 
