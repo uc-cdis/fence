@@ -1,6 +1,6 @@
 #!groovy
 
-@Library('cdis-jenkins-lib@fix/skipQuayBuildLogic') _
+@Library('cdis-jenkins-lib@master') _
 
 testPipeline {
 }
