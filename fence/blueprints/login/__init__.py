@@ -178,7 +178,7 @@ def get_login_providers_info():
     # default login option
     if config.get("DEFAULT_LOGIN_IDP"):
         default_idp = config["DEFAULT_LOGIN_IDP"]
-    elif "default" in config.get("ENABLED_IDENTITY_PROVIDERS", {}):
+    elif "default" in (config.get("ENABLED_IDENTITY_PROVIDERS") or {}):
         # fall back on ENABLED_IDENTITY_PROVIDERS.default
         default_idp = config["ENABLED_IDENTITY_PROVIDERS"]["default"]
     else:
@@ -188,7 +188,7 @@ def get_login_providers_info():
     # other login options
     if config["LOGIN_OPTIONS"]:
         login_options = config["LOGIN_OPTIONS"]
-    elif "providers" in config.get("ENABLED_IDENTITY_PROVIDERS", {}):
+    elif "providers" in (config.get("ENABLED_IDENTITY_PROVIDERS") or {}):
         # fall back on "providers" and convert to "login_options" format
         enabled_providers = config["ENABLED_IDENTITY_PROVIDERS"]["providers"]
         login_options = [
