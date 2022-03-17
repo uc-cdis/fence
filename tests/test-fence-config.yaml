@@ -322,6 +322,8 @@ dbGaP:
       proxy_user: ''
     protocol: 'sftp'
     decrypt_key: ''
+    allow_non_dbGaP_whitelist: false
+    allowed_id_patterns: ['PROJECT-12345']
     # parse out the consent from the dbgap accession number such that something
     # like "phs000123.v1.p1.c2" becomes "phs000123.c2".
     #
@@ -349,6 +351,8 @@ dbGaP:
       'phs000178': ['/orgA/', '/orgB/', '/']
       # study when parsing consent codes
       'phs000178.c2': ['/orgA/', '/orgB/', '/']
+      # non dbgap study:
+      'PROJECT-12345': ['']
   - info:
       host: ''
       username: ''
