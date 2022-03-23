@@ -9,26 +9,40 @@ Mocking `get_value_from_discovery_doc` for RAS because
 https://sts.nih.gov is not stable and causes test failures.
 """
 
-import mock
 import pytest
 from unittest.mock import MagicMock, patch
 
 from tests.conftest import LOGIN_IDPS
 
 
+@pytest.fixture(scope="function")
+def get_value_from_discovery_doc_patcher():
+    mocks = []
+    to_patch = [e for e in LOGIN_IDPS if e not in ["fence", "shib"]]
+    for idp in to_patch:
+        mock = MagicMock()
+        mock.return_value = ""
+        if idp.startswith("generic"):
+            class_file = "idp_oauth2.Oauth2ClientBase"
+        elif idp == "ras":
+            class_file = "ras_oauth2.RASOauth2Client"
+        else:
+            class_file = f"{idp}_oauth2.{idp.title()}Oauth2Client"
+        mock_discovery = patch(
+            f"fence.resources.openid.{class_file}.get_value_from_discovery_doc",
+            mock,
+        )
+        mock_discovery.start()
+        mocks.append(mock_discovery)
+
+    yield
+
+    for mock in mocks:
+        mock.stop()
+
+
 @pytest.mark.parametrize("idp", LOGIN_IDPS)
-@mock.patch(
-    "fence.resources.openid.ras_oauth2.RASOauth2Client.get_value_from_discovery_doc"
-)
-@mock.patch(
-    "fence.resources.openid.okta_oauth2.OktaOauth2Client.get_value_from_discovery_doc"
-)
-@mock.patch(
-    "fence.resources.openid.cognito_oauth2.CognitoOauth2Client.get_value_from_discovery_doc"
-)
-def test_valid_redirect_base(
-    mock_cognito_discovery, mock_okta_discovery, mock_ras_discovery, app, client, idp
-):
+def test_valid_redirect_base(app, client, idp, get_value_from_discovery_doc_patcher):
     """
     Check that a valid redirect is allowed, using the base URL for this application as
     the destination for the redirect.
@@ -37,51 +51,30 @@ def test_valid_redirect_base(
         mocked_generate_authorize_redirect = MagicMock(
             return_value=("authorization_url", "state")
         )
-        patch(
+        mock = patch(
             f"flask.current_app.fence_client.generate_authorize_redirect",
             mocked_generate_authorize_redirect,
         ).start()
-    elif idp == "ras":
-        mock_ras_discovery.return_value = "https://ras/token_endpoint"
-    elif idp == "cognito":
-        mock_cognito_discovery.return_value = ""
-    elif idp == "okta":
-        mock_okta_discovery.return_value = ""
 
     redirect = app.config["BASE_URL"]
     response = client.get("/login/{}?redirect={}".format(idp, redirect))
     assert response.status_code == 302
 
+    if idp == "fence":
+        mock.stop()
+
 
 @pytest.mark.parametrize("idp", LOGIN_IDPS)
-@mock.patch(
-    "fence.resources.openid.ras_oauth2.RASOauth2Client.get_value_from_discovery_doc"
-)
-@mock.patch(
-    "fence.resources.openid.okta_oauth2.OktaOauth2Client.get_value_from_discovery_doc"
-)
-@mock.patch(
-    "fence.resources.openid.cognito_oauth2.CognitoOauth2Client.get_value_from_discovery_doc"
-)
 def test_valid_redirect_oauth(
-    mock_cognito_discovery,
-    mock_okta_discovery,
-    mock_ras_discovery,
     client,
     oauth_client,
     idp,
+    get_value_from_discovery_doc_patcher,
 ):
     """
     Check that a valid redirect is allowed. Here we use the URL from the test OAuth
     client.
     """
-    if idp == "ras":
-        mock_ras_discovery.return_value = "https://ras/token_endpoint"
-    elif idp == "cognito":
-        mock_cognito_discovery.return_value = ""
-    elif idp == "okta":
-        mock_okta_discovery.return_value = ""
-
     response = client.get("/login/{}?redirect={}".format(idp, oauth_client.url))
     assert response.status_code == 302
 

@@ -54,7 +54,9 @@ def _compile_drop_table(element, compiler, **kwargs):
 os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "true"
 
 
-# all the IDPs we want to test
+# all the IDPs we want to test.
+# any newly implemented custom OIDC IDP should be added here.
+# generic OIDC IDPs should start with "generic" so the tests work.
 LOGIN_IDPS = [
     "fence",
     "google",
@@ -66,6 +68,8 @@ LOGIN_IDPS = [
     "cognito",
     "ras",
     "cilogon",
+    "generic1",
+    "generic2",
 ]
 
 

@@ -26,16 +26,14 @@ from fence.oidc.server import server
 from fence.resources.audit.client import AuditServiceClient
 from fence.resources.aws.boto_manager import BotoManager
 from fence.resources.openid.idp_oauth2 import Oauth2ClientBase
-from fence.resources.openid.cilogon_oauth2 import CilogonOauth2Client as CilogonClient
-from fence.resources.openid.cognito_oauth2 import CognitoOauth2Client as CognitoClient
-from fence.resources.openid.google_oauth2 import GoogleOauth2Client as GoogleClient
-from fence.resources.openid.microsoft_oauth2 import (
-    MicrosoftOauth2Client as MicrosoftClient,
-)
-from fence.resources.openid.okta_oauth2 import OktaOauth2Client as OktaClient
-from fence.resources.openid.orcid_oauth2 import OrcidOauth2Client as ORCIDClient
-from fence.resources.openid.synapse_oauth2 import SynapseOauth2Client as SynapseClient
-from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
+from fence.resources.openid.cilogon_oauth2 import CilogonOauth2Client
+from fence.resources.openid.cognito_oauth2 import CognitoOauth2Client
+from fence.resources.openid.google_oauth2 import GoogleOauth2Client
+from fence.resources.openid.microsoft_oauth2 import MicrosoftOauth2Client
+from fence.resources.openid.okta_oauth2 import OktaOauth2Client
+from fence.resources.openid.orcid_oauth2 import OrcidOauth2Client
+from fence.resources.openid.synapse_oauth2 import SynapseOauth2Client
+from fence.resources.openid.ras_oauth2 import RASOauth2Client
 from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
 from fence.error_handler import get_error_response
@@ -402,50 +400,49 @@ def _set_authlib_cfgs(app):
 def _setup_oidc_clients(app):
     configured_idps = config.get("OPENID_CONNECT", {})
 
-    # set up configured OIDC clients
     for idp in set(configured_idps.keys()):
         logger.info(f"Setting up OIDC client for {idp}")
         settings = configured_idps[idp]
         if idp == "google":
-            app.google_client = GoogleClient(
+            app.google_client = GoogleOauth2Client(
                 settings,
                 HTTP_PROXY=config.get("HTTP_PROXY"),
                 logger=logger,
             )
         elif idp == "orcid":
-            app.orcid_client = ORCIDClient(
+            app.orcid_client = OrcidOauth2Client(
                 settings,
                 HTTP_PROXY=config.get("HTTP_PROXY"),
                 logger=logger,
             )
         elif idp == "ras":
-            app.ras_client = RASClient(
+            app.ras_client = RASOauth2Client(
                 settings,
                 HTTP_PROXY=config.get("HTTP_PROXY"),
                 logger=logger,
             )
         elif idp == "synapse":
-            app.synapse_client = SynapseClient(
+            app.synapse_client = SynapseOauth2Client(
                 settings, HTTP_PROXY=config.get("HTTP_PROXY"), logger=logger
             )
         elif idp == "microsoft":
-            app.microsoft_client = MicrosoftClient(
+            app.microsoft_client = MicrosoftOauth2Client(
                 settings,
                 HTTP_PROXY=config.get("HTTP_PROXY"),
                 logger=logger,
             )
         elif idp == "okta":
-            app.okta_client = OktaClient(
+            app.okta_client = OktaOauth2Client(
                 settings,
                 HTTP_PROXY=config.get("HTTP_PROXY"),
                 logger=logger,
             )
         elif idp == "cognito":
-            app.cognito_client = CognitoClient(
+            app.cognito_client = CognitoOauth2Client(
                 settings, HTTP_PROXY=config.get("HTTP_PROXY"), logger=logger
             )
         elif idp == "cilogon":
-            app.cilogon_client = CilogonClient(
+            app.cilogon_client = CilogonOauth2Client(
                 settings,
                 HTTP_PROXY=config.get("HTTP_PROXY"),
                 logger=logger,

@@ -90,7 +90,8 @@ ENABLE_DB_MIGRATION: true
 #              and optional functionality
 # //////////////////////////////////////////////////////////////////////////////////////
 OPENID_CONNECT:
-  # any OIDC IDP that does not differ from the generic implementation
+  # any OIDC IDP that does not differ from the generic implementation can be
+  # configured without code changes
   generic_oidc_idp: # choose a unique ID
     name: 'some_idp' # optional; display name for this IDP
     client_id: ''

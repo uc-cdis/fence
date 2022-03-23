@@ -221,6 +221,45 @@ def get_login_providers_info():
     return default_provider_info, all_provider_info
 
 
+def createLoginClass(idp_name):
+    """
+    Creates a subclass of DefaultOAuth2Login for the provided IDP.
+    """
+
+    def initiate(self):
+        super(self.__class__, self).__init__(
+            idp_name=idp_name,
+            client=getattr(flask.current_app, f"{idp_name}_client"),
+        )
+
+    return type(
+        f"GenericLogin_{idp_name}",
+        (DefaultOAuth2Login,),
+        {"__init__": initiate},
+    )
+
+
+def createCallbackClass(idp_name, settings):
+    """
+    Creates a subclass of DefaultOAuth2Callback for the provided IDP.
+    """
+
+    def initiate(self):
+        super(self.__class__, self).__init__(
+            idp_name=idp_name,
+            client=getattr(flask.current_app, f"{idp_name}_client"),
+            username_field=settings.get("user_id_field", "sub"),
+            email_field=settings.get("email_field", "email"),
+            id_from_idp_field=settings.get("id_from_idp_field", "sub"),
+        )
+
+    return type(
+        f"GenericCallback_{idp_name}",
+        (DefaultOAuth2Callback,),
+        {"__init__": initiate},
+    )
+
+
 def make_login_blueprint():
     """
     Return:
@@ -244,12 +283,11 @@ def make_login_blueprint():
         )
 
     # Add identity provider login routes for IDPs enabled in the config.
-    configured_idps = set(config["OPENID_CONNECT"].keys())
+    configured_idps = config.get("OPENID_CONNECT", {})
 
-    for idp in configured_idps:
-        logger.info(f"Setting up OIDC client for {idp}")
-        login_class = None
-        callback_class = None
+    for idp in set(configured_idps.keys()):
+        logger.info(f"Setting up login blueprint for {idp}")
+        custom_callback_endpoint = None
         if idp == "fence":
             login_class = FenceLogin
             callback_class = FenceCallback
@@ -261,12 +299,9 @@ def make_login_blueprint():
             callback_class = ORCIDCallback
         elif idp == "ras":
             login_class = RASLogin
+            callback_class = RASCallback
             # note that the callback endpoint is "/ras/callback", not "/ras/login" like other IDPs
-            blueprint_api.add_resource(
-                RASCallback,
-                f"/{get_idp_route_name(idp)}/callback",
-                strict_slashes=False,
-            )
+            custom_callback_endpoint = f"/{get_idp_route_name(idp)}/callback"
         elif idp == "synapse":
             login_class = SynapseLogin
             callback_class = SynapseCallback
@@ -286,40 +321,22 @@ def make_login_blueprint():
             login_class = CilogonLogin
             callback_class = CilogonCallback
         else:  # generic OIDC implementation
-
-            class GenericLogin(DefaultOAuth2Login):
-                def __init__(self):
-                    super().__init__(
-                        idp_name=idp.lower(),
-                        client=getattr(flask.current_app, f"{idp.lower()}_client"),
-                    )
-
-            class GenericCallback(DefaultOAuth2Callback):
-                def __init__(self):
-                    super().__init__(
-                        idp_name=idp.lower(),
-                        client=getattr(flask.current_app, f"{idp.lower()}_client"),
-                        username_field="sub",
-                    )
-
-            login_class = GenericLogin
-            callback_class = GenericCallback
+            login_class = createLoginClass(idp.lower())
+            callback_class = createCallbackClass(idp.lower(), configured_idps[idp])
 
         # create IDP routes
-        if login_class:
-            blueprint_api.add_resource(
-                login_class,
-                f"/{get_idp_route_name(idp)}",
-                strict_slashes=False,
-                endpoint=f"{get_idp_route_name(idp)}_login",
-            )
-        if callback_class:
-            blueprint_api.add_resource(
-                callback_class,
-                f"/{get_idp_route_name(idp)}/login",
-                strict_slashes=False,
-                endpoint=f"{get_idp_route_name(idp)}_callback",
-            )
+        blueprint_api.add_resource(
+            login_class,
+            f"/{get_idp_route_name(idp)}",
+            strict_slashes=False,
+            endpoint=f"{get_idp_route_name(idp)}_login",
+        )
+        blueprint_api.add_resource(
+            callback_class,
+            custom_callback_endpoint or f"/{get_idp_route_name(idp)}/login",
+            strict_slashes=False,
+            endpoint=f"{get_idp_route_name(idp)}_callback",
+        )
 
     return blueprint
 
