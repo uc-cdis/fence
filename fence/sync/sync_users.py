@@ -523,7 +523,7 @@ class UserSyncer(object):
                         continue
 
                     phsid_privileges = {}
-                    phsid = row.get("phsid", "").split(".")
+                    phsid = row.get("phsid", row.get("project_id", "")).split(".")
                     dbgap_project = phsid[0]
                     if len(phsid) > 1 and parse_consent_code:
                         consent_code = phsid[-1]
