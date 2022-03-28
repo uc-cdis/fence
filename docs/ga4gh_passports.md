@@ -14,7 +14,16 @@ Please refer to official documentation about RAS Milestones for all historic and
 
 ## Passport and Visa JSON Web Token (JWT) Handling
 
-Overview of the standards-based verification and validation flow for JWTs. This shows external DRS Client(s) communicating with Gen3 Framework Services (as a GA4GH DRS Server) and how G3FS interacts with Passport Brokers to validate and verify JWTs.
+Overview of the standards-based verification and validation flow for JWTs.
+
+References:
+
+* [GA4GH AAI](https://github.com/ga4gh/data-security/blob/master/AAI/AAIConnectProfile.md)
+* [GA4GH Passport](https://github.com/ga4gh-duri/ga4gh-duri.github.io/blob/master/researcher_ids/ga4gh_passport_v1.md)
+* [OpenID Connect Core](https://openid.net/specs/openid-connect-core-1_0.html)
+* [Internet Engineering Task Force (IETF) RCF: JSON Web Token (JWT)](https://datatracker.ietf.org/doc/html/rfc7519)
+
+This shows external DRS Client(s) communicating with Gen3 Framework Services (as a GA4GH DRS Server) and how G3FS interacts with Passport Brokers to validate and verify JWTs.
 
 ![Passport and Visa JWT Handling](images/ga4gh/passport_jwt_handling.png)
 
@@ -46,6 +55,12 @@ To illustrate the need for such a cache, see the images below for before and aft
 ![Before Caching](images/ga4gh/caching_before.png)
 
 ![After Caching](images/ga4gh/caching_after.png)
+
+## User Identities
+
+Different GA4GH Visas may refer to the same subject differently. In order to maintain the known mappings between different representations of the same identity, we are creating an Issuer+Subject to User mapping table. The primary key on this table is the combination of the `iss` and `sub` from JWTs.
+
+![User Identities](images/ga4gh/users.png)
 
 ## Backend Updates and Expiration
 
