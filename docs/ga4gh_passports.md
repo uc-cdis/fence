@@ -70,4 +70,4 @@ There is an argument here for event-based architecture, but Gen3 does not curren
 
 ![Cronjobs and Expirations](images/ga4gh/expiration.png)
 
-> _All diagrams are originally from an **internal** CTDS Document. The link to that document is [here](https://lucid.app/lucidchart/5c52b868-5cd2-4c6e-b53b-de2981f7da98) for internal people who need to edit the above diagrams._
+> _All diagrams are originally from an **internal** CTDS Document. The link to that document is [here](https://lucid.app/lucidchart/5c52b868-5cd2-4c6e-b53b-de2981f7da98/edit?invitationId=inv_9a757cb1-fc81-4189-934d-98c3db06d2fc) for internal people who need to edit the above diagrams._
