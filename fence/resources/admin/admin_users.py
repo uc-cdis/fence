@@ -22,6 +22,7 @@ __all__ = [
     "get_user_info",
     "get_all_users",
     "get_users",
+    "get_users_by_id",
     "get_user_groups",
     "create_user",
     "update_user",
@@ -94,6 +95,19 @@ def get_users(current_session, usernames):
         new_user = {}
         new_user['id'] = user.id
         new_user["name"] = user.username
+        users.append(new_user)
+    return {"users": users}
+
+def get_users_by_id(current_session, ids):
+    users_found = udm.get_users_by_id(current_session, ids)
+    users = []
+    for user in users_found:
+        new_user = {}
+        new_user['id'] = user.id
+        # new_user["name"] = user.username
+        new_user["first_name"] = user.additional_info["firstName"]
+        new_user["last_name"] = user.additional_info["lastName"]
+        new_user["institution"] = user.additional_info["institution"]
         users.append(new_user)
     return {"users": users}
 

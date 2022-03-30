@@ -22,6 +22,7 @@ __all__ = [
     "create_user_by_username_project",
     "get_all_users",
     "get_users",
+    "get_users_by_id",
     "get_user_groups",
     "update_user",
     "review_document",
@@ -95,6 +96,14 @@ def get_users(current_session, usernames:list):
         User.username.in_(usernames)
     ).all()
     # logger.debug(f"get_users users found: {users}")
+    return users
+
+def get_users_by_id(current_session, ids:list):
+    if not ids:
+        return []
+    users = current_session.query(User).filter(
+        User.id.in_(ids)
+    ).all()
     return users
 
 
