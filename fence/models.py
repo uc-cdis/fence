@@ -890,6 +890,13 @@ AFTER INSERT OR UPDATE OR DELETE ON certificate
     FOR EACH ROW EXECUTE PROCEDURE process_cert_audit();"""
         )
 
+    add_column_if_not_exist(
+        table_name=Project.__tablename__,
+        column=Column("authz", String),
+        driver=driver,
+        metadata=md,
+    )
+
 
 def add_foreign_key_column_if_not_exist(
     table_name,
