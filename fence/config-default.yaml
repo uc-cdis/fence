@@ -355,7 +355,7 @@ DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 LOGIN_REDIRECT_WHITELIST: []
 
 ### DEPRECATED and replaced by OPENID_CONNECT + LOGIN_OPTIONS configs
-ENABLED_IDENTITY_PROVIDERS:
+ENABLED_IDENTITY_PROVIDERS: {}
 
 
 # //////////////////////////////////////////////////////////////////////////////////////
