@@ -1052,7 +1052,7 @@ python-versions = "*"
 
 [[package]]
 name = "pcdcutils"
-version = "0.1.2"
+version = "0.1.3"
 description = "PCDC Utilities for Python"
 category = "main"
 optional = false
@@ -1067,7 +1067,7 @@ pycryptodome = "3.9.8"
 type = "git"
 url = "https://github.com/chicagopcdc/pcdcutils.git"
 reference = "pcdc_dev"
-resolved_reference = "c8f263a54b278e3cc4ea1d7893bb6cc76bfb9f92"
+resolved_reference = "ad9030eedd72bf84d62aefb31e2e949532b9c4e5"
 
 [[package]]
 name = "pluggy"
