@@ -1052,7 +1052,7 @@ python-versions = "*"
 
 [[package]]
 name = "pcdcutils"
-version = "0.1.0"
+version = "0.1.2"
 description = "PCDC Utilities for Python"
 category = "main"
 optional = false
@@ -1066,8 +1066,8 @@ pycryptodome = "3.9.8"
 [package.source]
 type = "git"
 url = "https://github.com/chicagopcdc/pcdcutils.git"
-reference = "0.1.1"
-resolved_reference = "b8543d072b682a505b85232787d800b59f40af56"
+reference = "pcdc_dev"
+resolved_reference = "c8f263a54b278e3cc4ea1d7893bb6cc76bfb9f92"
 
 [[package]]
 name = "pluggy"
@@ -1557,7 +1557,7 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "44aab3c8184352a68839c64b0b374edb977e5ad49b8b7f4f63b1d545008e929a"
+content-hash = "45b54e4437ae3cab8343f0c60c88f34c6b7d14f7ab023f86db092161b76662b5"
 
 [metadata.files]
 addict = [
