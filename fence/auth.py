@@ -273,7 +273,7 @@ def admin_required(f):
             g3rm = Gen3RequestManager(headers=flask.request.headers)
             if g3rm.is_gen3_signed():
                 data = flask.request.get_json()
-                if not g3rm.valid_gen3_signature(data, config):
+                if not g3rm.valid_gen3_signature(json.dump(data), config):
                     raise Unauthorized("Gen3 signed request is invalid")
             else:
                 raise Unauthorized("Require admin user")
