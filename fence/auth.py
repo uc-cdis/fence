@@ -1,6 +1,7 @@
 import urllib.error
 import urllib.parse
 import urllib.request
+import json
 import flask 
 from configparser import RawConfigParser
 from functools import wraps
@@ -199,8 +200,8 @@ def login_required(scope=None):
                 ]
             else:
                 # fall back on "providers"
-                enable_shib = "shibboleth" in config.get(
-                    "ENABLED_IDENTITY_PROVIDERS", {}
+                enable_shib = "shibboleth" in (
+                    config.get("ENABLED_IDENTITY_PROVIDERS") or {}
                 ).get("providers", {})
 
             if enable_shib and "SHIBBOLETH_HEADER" in config:
@@ -272,8 +273,8 @@ def admin_required(f):
             # logger.debug("Decorator admin required, wrapper: flask.g.user.is_admin is not True")
             g3rm = Gen3RequestManager(headers=flask.request.headers)
             if g3rm.is_gen3_signed():
-                data = flask.request.get_json.get('data', None)
-                if not g3rm.valid_gen3_signature(data, config):
+                data = flask.request.get_json()
+                if not g3rm.valid_gen3_signature(json.dumps(data), config):
                     raise Unauthorized("Gen3 signed request is invalid")
             else:
                 raise Unauthorized("Require admin user")

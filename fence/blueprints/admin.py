@@ -16,6 +16,7 @@ from fence.resources import admin
 from fence.scripting.fence_create import sync_users
 from fence.config import config
 from fence.models import User
+from fence.errors import UserError
 
 
 logger = get_logger(__name__)
@@ -63,7 +64,8 @@ def get_user(username):
 @debug_log
 def get_all_users():
     """
-    Retrieve the information regarding the buckets created within a project.
+    Get the information of all users from our userdatamodel database
+
     Returns a json object.
     """
     return jsonify(admin.get_all_users(current_session))
@@ -81,9 +83,18 @@ def get_users():
     Returns a json object of one or more user records
     """
     usernames = request.get_json().get('usernames', None)
-    # logger.debug(f"get_users usernames: {usernames}")
-    users = admin.get_users(current_session, usernames)
-    # logger.debug(f"get_users users returned: {users}")
+    ids = request.get_json().get('ids', None)
+    
+    if (ids and usernames):
+        raise UserError("Wrong params, only one among `ids` and `usernames` should be set.")
+
+    if usernames:
+        users = admin.get_users(current_session, usernames)
+    elif ids:
+        users = admin.get_users_by_id(current_session, ids)
+    else:
+        raise UserError("Wrong params, at least one among `ids` and `usernames` should be set.")
+        
     return jsonify(users)
 
 

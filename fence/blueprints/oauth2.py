@@ -78,8 +78,8 @@ def authorize(*args, **kwargs):
 
     login_url = None
     if not idp:
-        if not config.get("DEFAULT_LOGIN_IDP") and "default" not in config.get(
-            "ENABLED_IDENTITY_PROVIDERS", {}
+        if not config.get("DEFAULT_LOGIN_IDP") and "default" not in (
+            config.get("ENABLED_IDENTITY_PROVIDERS") or {}
         ):
             # fall back on deprecated DEFAULT_LOGIN_URL
             login_url = config.get("DEFAULT_LOGIN_URL")
