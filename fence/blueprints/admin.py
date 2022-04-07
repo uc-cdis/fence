@@ -12,11 +12,14 @@ from flask_sqlalchemy_session import current_session
 from cdislogging import get_logger
 
 from fence.auth import admin_login_required
+from fence.authz.errors import ArboristError
 from fence.resources import admin
 from fence.scripting.fence_create import sync_users
 from fence.config import config
 from fence.models import User
 from fence.errors import UserError
+
+from gen3authz.client.arborist.client import ArboristClient
 
 
 logger = get_logger(__name__)
@@ -220,7 +223,7 @@ def add_user_to_projects(username):
 
 
 @blueprint.route("/update_user_authz", methods=["POST"])
-# @admin_login_required
+@admin_login_required
 @debug_log
 def update_user_authz():
     """
@@ -252,6 +255,88 @@ def update_user_authz():
     # email = request.get_json().get("email", None)
     # return jsonify(admin.create_user(current_session, username, role, email))
     return jsonify("test")
+
+
+@blueprint.route("/add_resource", methods=["POST"])
+@admin_login_required
+@debug_log
+def add_resource():
+    """
+    from gen3authz.client.arborist.client import ArboristClient
+
+    # curl -XGET -H "Content-Type: application/json" https://portal.pedscommons.org/guppy/_status
+    url = "http://arborist-service"
+    arborist = ArboristClient(arborist_base_url=url)
+
+    username = "graglia01@gmail.com"
+    policy_name = "portal"
+
+    policy = arborist.get_policy(policy_name)
+    print(policy)
+    print("LUCA")
+    """
+
+    logger.warning("IN UPDATE")
+    # logger.warning(request.get_json())
+
+    parent_path = '/services/'
+    resource_json = {}
+    resource_json["name"] = "amanuensis"
+    resource_json["description"] = "Amanuensis admin resource"
+    res = current_app.arborist.create_resource(parent_path, resource_json)
+    print(res)
+    if res is None:
+        raise ArboristError(
+            "Resource {} has not been created.".format(
+                resource_json
+            )
+        )
+
+
+
+    role_json = {}
+    role_json["id"] = "amanuensis_admin"
+    role_json["description"] = "can do admin work on project/data request"
+    role_json["permissions"] = []
+    role_json["permissions"].append({"id": "amanuensis_admin_action", "action": {"service": "amanuensis", "method": "*"}})
+    res = current_app.arborist.create_role(role_json)
+    print(res)
+    if res is None:
+        raise ArboristError(
+            "Role {} has not been created.".format(
+                role_json
+            )
+        )
+
+
+    policy_json = {}
+    policy_json["id"] = "services.amanuensis-admin"
+    policy_json["description"] = "admin access to amanunsis"
+    policy_json["resource_paths"] = []
+    policy_json["resource_paths"].append('/services/amanuensis')
+    policy_json["role_ids"] = []
+    policy_json["role_ids"].append('amanuensis_admin')
+    res = current_app.arborist.create_policy(policy_json)
+    if res is None:
+        raise ArboristError(
+            "Policy {} has not been createsd.".format(
+                policy_json
+            )
+        )
+
+
+
+    username = "graglia01@gmail.com"
+    policy_name = "services.amanuensis-admin"
+    res = current_app.arborist.grant_user_policy(username, policy_name)
+    if res is None:
+        raise ArboristError(
+            "Policy {} has not been assigned.".format(
+                policy_name
+            )
+        )
+
+    return jsonify(res)
 
 #### PROJECTS ####
 
