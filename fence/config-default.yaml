@@ -96,7 +96,13 @@ OPENID_CONNECT:
     name: 'some_idp' # optional; display name for this IDP
     client_id: ''
     client_secret: ''
+    # use `discovery` to configure IDPs that do not expose a discovery
+    # endpoint. One of `discovery_url` or `discovery` should be configured
     discovery_url: ''
+    discovery:
+      authorization_endpoint:
+      token_endpoint:
+      jwks_uri:
     redirect_url: '{{BASE_URL}}/login/some_idp/login'
     user_id_field: ''  # optional (default "sub"); claims field to get the user_id from
   # These Google values must be obtained from Google's Cloud Console

@@ -34,10 +34,10 @@ class Oauth2ClientBase(object):
         self.idp = idp
         self.HTTP_PROXY = HTTP_PROXY
 
-        if not self.discovery_url:
+        if not self.discovery_url and not settings.get("discovery"):
             self.logger.warning(
-                f"OAuth2 Client for {self.idp} does not have a valid discovery_url. "
-                f"Some calls for this client may fail if they rely on the OIDC Discovery page."
+                f"OAuth2 Client for {self.idp} does not have a valid 'discovery_url'. "
+                f"Some calls for this client may fail if they rely on the OIDC Discovery page. Use 'discovery' to configure clients without a discovery page."
             )
 
     @cached_property
@@ -90,45 +90,51 @@ class Oauth2ClientBase(object):
         Given a key return a value by the recommended method of
         using their discovery url.
         """
-        return_value = default_value
-
-        if self.discovery_doc.status_code == requests.codes.ok:
-            return_value = self.discovery_doc.json().get(key)
-            if not return_value:
-                self.logger.warning(
-                    "could not retrieve `{}` from {} response {}. "
-                    "Defaulting to {}".format(
-                        key, self.idp, self.discovery_doc.json(), default_value
-                    )
-                )
-                return_value = default_value
-            elif return_value != default_value and default_value != "":
-                self.logger.info(
-                    "{}'s discovery doc {}, `{}`, differs from our "
-                    "default, `{}`. Using {}'s...".format(
-                        self.idp, key, return_value, default_value, self.idp
-                    )
-                )
-        else:
-            # invalidate the cache
-            del self.__dict__["discovery_doc"]
-
-            self.logger.error(
-                "{} ERROR from {} API, could not retrieve `{}` from response {}. Defaulting to {}".format(
-                    self.discovery_doc.status_code,
-                    self.idp,
-                    key,
-                    self.discovery_doc.json(),
-                    default_value,
-                )
-            )
+        if self.discovery_url:
             return_value = default_value
+            if self.discovery_doc.status_code == requests.codes.ok:
+                return_value = self.discovery_doc.json().get(key)
+                if not return_value:
+                    self.logger.warning(
+                        "could not retrieve `{}` from {} response {}. "
+                        "Defaulting to {}".format(
+                            key, self.idp, self.discovery_doc.json(), default_value
+                        )
+                    )
+                    return_value = default_value
+                elif return_value != default_value and default_value != "":
+                    self.logger.info(
+                        "{}'s discovery doc {}, `{}`, differs from our "
+                        "default, `{}`. Using {}'s...".format(
+                            self.idp, key, return_value, default_value, self.idp
+                        )
+                    )
+            else:
+                # invalidate the cache
+                del self.__dict__["discovery_doc"]
+
+                self.logger.error(
+                    "{} ERROR from {} API, could not retrieve `{}` from response {}. Defaulting to {}".format(
+                        self.discovery_doc.status_code,
+                        self.idp,
+                        key,
+                        self.discovery_doc.json(),
+                        default_value,
+                    )
+                )
+        else:  # no `discovery_url`, try to use `discovery` config instead
+            return_value = self.settings.get("discovery", {}).get(key, default_value)
 
         if not return_value:
+            discovery_data = (
+                self.discovery_doc.json()
+                if self.discovery_url
+                else self.settings.get("discovery")
+            )
             self.logger.error(
                 "Could not retrieve `{}` from {} discovery doc {} "
-                "and default value {} appears to not be set.".format(
-                    key, self.idp, self.discovery_doc.json(), default_value
+                "and default value ({}) appears to not be set.".format(
+                    key, self.idp, discovery_data, default_value
                 )
             )
 

@@ -133,10 +133,13 @@ OPENID_CONNECT:
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/generic1/login'
     user_id_field: 'generic1_username'
+    discovery_url: 'https://generic1/.well-known'
   generic2:
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/generic2/login'
+    discovery:
+      authorization_endpoint: 'https://generic2/authorization_endpoint'
 
 # these are the *possible* scopes a client can be given, NOT scopes that are
 # given to all clients. You can be more restrictive during client creation
