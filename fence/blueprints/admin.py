@@ -12,6 +12,7 @@ from flask_sqlalchemy_session import current_session
 from cdislogging import get_logger
 
 from fence.auth import admin_login_required
+from fence.authz.errors import ArboristError
 from fence.resources import admin
 from fence.scripting.fence_create import sync_users
 from fence.config import config
@@ -278,18 +279,12 @@ def add_resource():
     logger.warning("IN UPDATE")
     # logger.warning(request.get_json())
 
-    parent_path = '/'
-    resource_json = {
-                "name": "services",
-                "description": ""
-                "subresources": [
-                    {
-                        "name": "amanuensis",
-                        "description": "Amanuensis admin resource"
-                    }
-                ]
-            }
-    res = flask.current_app.arborist.create_resource(parent_path, resource_json)
+    parent_path = '/services/'
+    resource_json = {}
+    resource_json["name"] = "amanuensis"
+    resource_json["description"] = "Amanuensis admin resource"
+    res = current_app.arborist.create_resource(parent_path, resource_json)
+    print(res)
     if res is None:
         raise ArboristError(
             "Resource {} has not been created.".format(
@@ -298,20 +293,14 @@ def add_resource():
         )
 
 
-    role_json = {
-                "id": "amanuensis_admin",
-                "description": "can do admin work on project/data request",
-                "permissions": [
-                    {
-                        "id": "amanuensis_admin_action",
-                        "action": {
-                            "service": "amanuensis",
-                            "method": "*"
-                        }
-                    }
-                ]
-            }
-    res = flask.current_app.arborist.create_role(role_json)
+
+    role_json = {}
+    role_json["id"] = "amanuensis_admin"
+    role_json["description"] = "can do admin work on project/data request"
+    role_json["permissions"] = []
+    role_json["permissions"].append({"id": "amanuensis_admin_action", "action": {"service": "amanuensis", "method": "*"}})
+    res = current_app.arborist.create_role(role_json)
+    print(res)
     if res is None:
         raise ArboristError(
             "Role {} has not been created.".format(
@@ -320,17 +309,14 @@ def add_resource():
         )
 
 
-    policy_json = {
-                "id": "services.amanuensis-admin",
-                "description": "admin access to amanunsis",
-                "resource_paths": [
-                    '/services/amanuensis'
-                    ],
-                "role_ids": [
-                    'amanuensis_admin'
-                ]
-            }
-    res = flask.current_app.arborist.create_policy(policy_json)
+    policy_json = {}
+    policy_json["id"] = "services.amanuensis-admin"
+    policy_json["description"] = "admin access to amanunsis"
+    policy_json["resource_paths"] = []
+    policy_json["resource_paths"].append('/services/amanuensis')
+    policy_json["role_ids"] = []
+    policy_json["role_ids"].append('amanuensis_admin')
+    res = current_app.arborist.create_policy(policy_json)
     if res is None:
         raise ArboristError(
             "Policy {} has not been createsd.".format(
@@ -342,7 +328,7 @@ def add_resource():
 
     username = "graglia01@gmail.com"
     policy_name = "services.amanuensis-admin"
-    res = flask.current_app.arborist.grant_user_policy(username, policy_name)
+    res = current_app.arborist.grant_user_policy(username, policy_name)
     if res is None:
         raise ArboristError(
             "Policy {} has not been assigned.".format(
