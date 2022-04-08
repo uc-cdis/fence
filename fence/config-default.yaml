@@ -105,6 +105,7 @@ OPENID_CONNECT:
       token_endpoint: ''
       jwks_uri: ''
     user_id_field: ''  # optional (default "sub"); claims field to get the user_id from
+    email_field: ''  # optional (default "email"); claims field to get the user email from
     scope: '' # optional (default "openid")
   # These Google values must be obtained from Google's Cloud Console
   # Follow: https://developers.google.com/identity/protocols/OpenIDConnect

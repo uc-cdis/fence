@@ -16,6 +16,11 @@ from tests.conftest import LOGIN_IDPS
 
 
 def test_get_value_from_discovery_doc(app):
+    """
+    Test that both `discovery_url` and `discovery` can be used to configure
+    the discovery doc in `OPENID_CONNECT`, and that default values are used
+    when the requested key is not in the discovery doc.
+    """
     # Scenario: config with `discovery` and no `discovery_url` (IDP generic2)
     # - get a key that is in the discovery data
     authorization_endpoint = app.generic2_client.get_value_from_discovery_doc(

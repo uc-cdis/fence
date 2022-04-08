@@ -9,8 +9,9 @@ def test_contfest_idps():
     the list of IDPs to test (LOGIN_IDPS).
 
     If you added an IDP and this test fails, do not edit this test. Either the
-    new IDP is not in LOGIN_IDPS, or the new file names do not match the
-    convention and cannot be parsed by this test.
+    new IDP should be added to LOGIN_IDPS and test-fence-config.yaml's
+    OPENID_CONNECT, or the new file names do not match the convention and
+    cannot be parsed by this test.
     """
     current_dir = os.path.dirname(os.path.realpath(__file__))
     err_msg = "For IDP file '{}': IDP '{}' should be added to the tests' 'LOGIN_IDPS' to be tested"
