@@ -105,9 +105,9 @@ def get_users_by_id(current_session, ids):
         new_user = {}
         new_user['id'] = user.id
         # new_user["name"] = user.username
-        new_user["first_name"] = user.additional_info["firstName"] if "firstName" in user.additional_info else ""
-        new_user["last_name"] = user.additional_info["lastName"] if "lastName" in user.additional_info else ""
-        new_user["institution"] = user.additional_info["institution"] if "institution" in user.additional_info else ""
+        new_user["first_name"] = user.additional_info["firstName"] if user.additional_info and "firstName" in user.additional_info else ""
+        new_user["last_name"] = user.additional_info["lastName"] if user.additional_info and "lastName" in user.additional_info else ""
+        new_user["institution"] = user.additional_info["institution"] if user.additional_info and "institution" in user.additional_info else ""
         users.append(new_user)
     return {"users": users}
 

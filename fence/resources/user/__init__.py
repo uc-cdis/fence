@@ -84,7 +84,13 @@ def update_user(current_session, additional_info):
 
     #TODO check if user is already in the system - you can get create_user_if_not_exist with new gen3authz version. 
     # See if when you try to create a user with an email already in the system, it may throw an error
-    register_arborist_user(flask.g.user)
+    if additional_info_tmp == {}:
+        raise Exception(
+            "The user hasn't shared its information."
+        )
+    else:
+        register_arborist_user(flask.g.user)
+        
 
     return get_user_info(current_session, flask.g.user.username)
 
