@@ -133,8 +133,8 @@ class Oauth2ClientBase(object):
             )
             self.logger.error(
                 "Could not retrieve `{}` from {} discovery doc {} "
-                "and default value ({}) appears to not be set.".format(
-                    key, self.idp, discovery_data, default_value
+                "and default value appears to not be set.".format(
+                    key, self.idp, discovery_data
                 )
             )
 
@@ -172,8 +172,8 @@ class Oauth2ClientBase(object):
                 return {"error": f"Can't get {user_id_field} from claims"}
 
         except Exception as e:
-            self.logger.exception(f"Can't get user info from {self.idp}")
-            return {"error": f"Can't get user info from {self.idp}: {e}"}
+            self.logger.exception(f"Can't get user info from {self.idp}: {e}")
+            return {"error": f"Can't get user info from {self.idp}"}
 
     def get_access_token(self, user, token_endpoint, db_session=None):
 

@@ -121,7 +121,7 @@ class DefaultOAuth2Callback(Resource):
         username = result.get(self.username_field)
         if not username:
             raise UserError(
-                f"OAuth2 callbabk error: no '{self.username_field}' in {result}"
+                f"OAuth2 callback error: no '{self.username_field}' in {result}"
             )
 
         email = result.get(self.email_field)
