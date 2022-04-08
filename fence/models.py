@@ -817,6 +817,15 @@ def migrate(driver):
         metadata=md,
     )
 
+    update_column_default_value_if_exist(
+        table_name=User.__tablename__,
+        column_name="additional_info", 
+        default_value="'{}'", 
+        driver=driver, 
+        metadata=md
+    )
+
+
     with driver.session as session:
         session.execute(
             """\
@@ -951,6 +960,15 @@ def drop_column_if_exist(table_name, column_name, driver, metadata):
             )
             session.commit()
 
+
+def update_column_default_value_if_exist(table_name, column_name, default_value, driver, metadata):
+    table = Table(table_name, metadata, autoload=True, autoload_with=driver.engine)
+    if column_name in table.c:
+        with driver.session as session:
+            session.execute(
+                'ALTER TABLE "{}" ALTER COLUMN {} SET DEFAULT {};'.format(table_name, column_name, default_value)
+            )
+            session.commit()
 
 def add_foreign_key_constraint_if_not_exist(
     table_name, column_name, fk_table_name, fk_column_name, driver, metadata
