@@ -12,6 +12,7 @@ from fence.blueprints.data.indexd import (
 from fence.errors import Forbidden, InternalError, UserError
 from fence.resources.audit.utils import enable_audit_logging
 from fence.utils import get_valid_expiration
+import time
 
 
 logger = get_logger(__name__)
@@ -299,10 +300,12 @@ def upload_file(file_id):
 @blueprint.route("/download/<path:file_id>", methods=["GET"])
 @enable_audit_logging
 def download_file(file_id):
+    start_time = time.time()
     """
     Get a presigned url to download a file given by file_id.
     """
     result = get_signed_url_for_file("download", file_id)
+    logger.warning("--- %s seconds ---" % (time.time() - start_time))
     if not "redirect" in flask.request.args or not "url" in result:
         return flask.jsonify(result)
     return flask.redirect(result["url"])
