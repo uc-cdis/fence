@@ -400,6 +400,12 @@ def _set_authlib_cfgs(app):
 def _setup_oidc_clients(app):
     configured_idps = config.get("OPENID_CONNECT", {})
 
+    clean_idps = [idp.lower().replace(" ", "") for idp in configured_idps]
+    if len(clean_idps) != len(set(clean_idps)):
+        raise ValueError(
+            f"Some IDPs configured in OPENID_CONNECT are not unique once they are lowercased and spaces are removed: {clean_idps}"
+        )
+
     for idp in set(configured_idps.keys()):
         logger.info(f"Setting up OIDC client for {idp}")
         settings = configured_idps[idp]
@@ -457,10 +463,6 @@ def _setup_oidc_clients(app):
                 idp=settings.get("name") or idp.title(),
             )
             clean_idp = idp.lower().replace(" ", "")
-            if hasattr(app, f"{clean_idp}_client"):
-                raise ValueError(
-                    f"OPENID_CONNECT IDP '{idp}' is not unique once lowercased to '{clean_idp}'"
-                )
             setattr(app, f"{clean_idp}_client", client)
 
 
