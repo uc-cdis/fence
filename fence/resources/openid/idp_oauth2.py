@@ -31,7 +31,7 @@ class Oauth2ClientBase(object):
             or getattr(self, "DISCOVERY_URL", None)
             or ""
         )
-        self.idp = idp
+        self.idp = idp  # display name for use in logs and error messages
         self.HTTP_PROXY = HTTP_PROXY
 
         if not self.discovery_url and not settings.get("discovery"):
@@ -122,7 +122,8 @@ class Oauth2ClientBase(object):
                         default_value,
                     )
                 )
-        else:  # no `discovery_url`, try to use `discovery` config instead
+        # no `discovery_url`, try to use `discovery` config instead
+        else:
             return_value = self.settings.get("discovery", {}).get(key, default_value)
 
         if not return_value:
@@ -165,9 +166,9 @@ class Oauth2ClientBase(object):
             claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
 
             if claims.get(user_id_field):
-                if user_id_field == "email" and not claims["email_verified"]:
+                if user_id_field == "email" and not claims.get("email_verified"):
                     return {"error": "Email is not verified"}
-                return {"sub": claims.get(user_id_field)}
+                return {"sub": claims[user_id_field]}
             else:
                 return {"error": f"Can't get {user_id_field} from claims"}
 

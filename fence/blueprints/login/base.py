@@ -1,11 +1,3 @@
-"""
-The DefaultOAuth2Login and DefaultOAuth2Callback classes can be used for any
-OIDC IDP that does not need any special handling. To add special handling,
-create new classes that inherits from DefaultOAuth2Login and
-DefaultOAuth2Callback (for example, see fence.blueprints.login.ras.py).
-"""
-
-
 import flask
 from flask_restful import Resource
 from urllib.parse import urlparse, urlencode, parse_qsl

@@ -456,7 +456,12 @@ def _setup_oidc_clients(app):
                 HTTP_PROXY=config.get("HTTP_PROXY"),
                 idp=settings.get("name") or idp.title(),
             )
-            setattr(app, f"{idp.lower()}_client", client)
+            clean_idp = idp.lower().replace(" ", "")
+            if hasattr(app, f"{clean_idp}_client"):
+                raise ValueError(
+                    f"OPENID_CONNECT IDP '{idp}' is not unique once lowercased to '{clean_idp}'"
+                )
+            setattr(app, f"{clean_idp}_client", client)
 
 
 def _setup_arborist_client(app):

@@ -1,9 +1,24 @@
 """
 Create a blueprint with endpoints for logins from configured identity providers.
 
-The identity providers include, for example, Google, Shibboleth, or another
-fence instance. See the other files in this directory for the definitions of
-the endpoints for each provider.
+We have 2 endpoints for each OIDC provider: a login endpoint and a callback
+endpoint. Each endpoint is implemented as a class (and registered as a
+blueprint resource).
+
+For generic OIDC implementations, the login and callback classes are created
+dynamically by the `createLoginClass` and `createCallbackClass` functions.
+They are subclasses of the `DefaultOAuth2Login` and `DefaultOAuth2Callback`
+classes; only the provider name and settings differ.
+
+For non-generic OIDC implementations, the login and callback classes are also
+subclasses of the `DefaultOAuth2Login` and `DefaultOAuth2Callback` classes,
+but the methods may differ to allow for special handling. They must be added
+to the codebase at `fence/blueprints/login/` and to the `make_login_blueprint`
+function. A client class must also be created at `fence/resources/openid/` and
+added to the `_setup_oidc_clients` function. These implementations include,
+for example, Google, Shibboleth, or another Fence instance. See the other
+files in this directory for the definitions of the endpoints for each
+non-generic provider.
 """
 
 from authlib.common.urls import add_params_to_uri
@@ -223,7 +238,9 @@ def get_login_providers_info():
 
 def createLoginClass(idp_name):
     """
-    Creates a subclass of DefaultOAuth2Login for the provided IDP.
+    Creates and returns a new class `GenericLogin_<IDP>`, which is a subclass
+    of `DefaultOAuth2Login` (only the provider name and settings differ).
+    See comment at the top of the file for details.
     """
 
     def initiate(self):
@@ -241,7 +258,9 @@ def createLoginClass(idp_name):
 
 def createCallbackClass(idp_name, settings):
     """
-    Creates a subclass of DefaultOAuth2Callback for the provided IDP.
+    Creates and returns a new class `GenericCallback_<IDP>`, which is a subclass
+    of `DefaultOAuth2Callback` (only the provider name and settings differ).
+    See comment at the top of the file for details.
     """
 
     def initiate(self):
