@@ -9,6 +9,7 @@ import functools
 from flask import request, jsonify, Blueprint, current_app
 from flask_sqlalchemy_session import current_session
 
+from gen3authz.client.arborist.client import ArboristClient
 from cdislogging import get_logger
 
 from fence.auth import admin_login_required
@@ -17,9 +18,9 @@ from fence.resources import admin
 from fence.scripting.fence_create import sync_users
 from fence.config import config
 from fence.models import User
-from fence.errors import UserError
+from fence.errors import UserError, NotFound, InternalError
 
-from gen3authz.client.arborist.client import ArboristClient
+
 
 
 logger = get_logger(__name__)
@@ -262,60 +263,289 @@ def update_user_authz():
 @debug_log
 def add_resource():
     """
-    from gen3authz.client.arborist.client import ArboristClient
+    Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/add_resource`
 
-    # curl -XGET -H "Content-Type: application/json" https://portal.pedscommons.org/guppy/_status
-    url = "http://arborist-service"
-    arborist = ArboristClient(arborist_base_url=url)
-
-    username = "graglia01@gmail.com"
-    policy_name = "portal"
-
-    policy = arborist.get_policy(policy_name)
-    print(policy)
-    print("LUCA")
+    payload:
+    `{
+        "parent_path": "/services/",
+        "name": "amanuensis",
+        "description": "Amanuensis admin resource"
+    }`
     """
+    body = request.get_json()
 
-    logger.warning("IN UPDATE")
-    # logger.warning(request.get_json())
+    parent_path = body.get('parent_path', None)
+    name = body.get('name', None)
+    description = body.get('description', None)
 
-    parent_path = '/services/'
+    if name is None:
+        raise UserError("There are some missing parameters in the payload.")
+
     resource_json = {}
-    resource_json["name"] = "amanuensis"
-    resource_json["description"] = "Amanuensis admin resource"
+    resource_json["name"] = name
+    resource_json["description"] = description
     res = current_app.arborist.create_resource(parent_path, resource_json)
-    print(res)
     if res is None:
         raise ArboristError(
             "Resource {} has not been created.".format(
                 resource_json
             )
         )
+    else:
+        logger.info("Created resource {}".format(resource_json))
+
+    return jsonify(res)
 
 
+@blueprint.route("/add_role", methods=["POST"])
+@admin_login_required
+@debug_log
+def add_role():
+    """
+    Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/add_role`
+
+    payload:
+    `{
+        "id": "amanuensis_admin",
+        "description": "can do admin work on project/data request",
+        "permissions": [
+            {
+                "id": "amanuensis_admin_action", 
+                "action": {
+                    "service": "amanuensis", 
+                    "method": "*"
+                }
+            }
+        ]
+    }`
+    """
+    body = request.get_json()
+
+    id = body.get('id', None)
+    description = body.get('description', None)
+    permissions = body.get('permissions', None)
+
+    if id is None or permissions is None:
+        raise UserError("There are some missing parameters in the payload.")
 
     role_json = {}
-    role_json["id"] = "amanuensis_admin"
-    role_json["description"] = "can do admin work on project/data request"
-    role_json["permissions"] = []
-    role_json["permissions"].append({"id": "amanuensis_admin_action", "action": {"service": "amanuensis", "method": "*"}})
+    role_json["id"] = id
+    role_json["description"] = description
+    role_json["permissions"] = permissions
     res = current_app.arborist.create_role(role_json)
-    print(res)
     if res is None:
         raise ArboristError(
             "Role {} has not been created.".format(
                 role_json
             )
         )
+    else:
+        logger.info("Created role {}".format(role_json))
+
+    return jsonify(res)
+
+
+@blueprint.route("/add_policy", methods=["POST"])
+@admin_login_required
+@debug_log
+def add_policy():
+    """
+    Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/add_policy`
+
+    payload:
+    `{
+        "id": "services.amanuensis-admin",
+        "description": "admin access to amanunsis",
+        "resource_paths": [
+            "/services/amanuensis"
+        ],
+        "role_ids": [
+            "amanuensis_admin"
+        ]   
+    }`
+    """
+    body = request.get_json()
+
+    policy_id = body.get('id', None)
+    description = body.get('description', None)
+    resource_paths = body.get('resource_paths', None)
+    role_ids = body.get('role_ids', None)
+
+    if policy_id is None or resource_paths is None or role_ids is None:
+        raise UserError("There are some missing parameters in the payload.")
+
+    # Check if resource exists
+    for path in resource_paths:
+        resource = current_app.arborist.get_resource(path)
+        if resource is None:
+            raise NotFound("Resource {} not found".format(path))
+
+    # Check if role exists
+    # TODO gen3authz 1.4.2 doens't support get_role, create a PR or see if future versions support that.
+    roles = current_app.arborist.list_roles()
+    arborist_role_ids = [role["id"] for role in roles.json["roles"]]
+    for id in role_ids:
+        if id not in arborist_role_ids:
+            raise NotFound("Role {} not found.".format(id))
+
+    policy_json = {}
+    policy_json["id"] = policy_id
+    policy_json["description"] = description
+    policy_json["resource_paths"] = resource_paths
+    policy_json["role_ids"] = role_ids
+    res = current_app.arborist.create_policy(policy_json)
+    if res is None:
+        raise ArboristError(
+            "Policy {} has not been created.".format(
+                policy_json
+            )
+        )
+    else:
+        logger.info("Created policy {}".format(policy_json))
+
+    return jsonify(res)
+
+
+@blueprint.route("/add_policy_to_user", methods=["POST"])
+@admin_login_required
+@debug_log
+def add_policy_to_user():
+    """
+    Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/add_policy_to_user`
+
+    payload:
+    `{
+       "policy_name" = "services.amanuensis-admin",
+       "username" = "graglia01@gmail.com"
+    }`
+    """
+    body = request.get_json()
+
+    policy_name = body.get('policy_name', None)
+    username = body.get('username', None)
+
+    if username is None or policy_name is None:
+        raise UserError("There are some missing parameters in the payload.")
+
+    # Check if username is present in the DB and is a registered user
+    users = admin.get_users(current_session, [username])
+    users = users["users"]
+    if len(users) == 0:
+        raise NotFound("User {} not found!".format(username))
+    elif len(users) > 1:
+        raise InternalError("Too many user with the same username: {}. check the DB".format(username))
+
+    # Check if policy is present in the DB
+    policy = current_app.arborist.get_policy(policy_name)
+    if policy is None:
+        raise NotFound('Policy {} not found.'.format(policy_name))
+
+    res = current_app.arborist.grant_user_policy(username, policy_name)
+    if res is None:
+        raise ArboristError(
+            "Policy {} has not been assigned.".format(
+                policy_name
+            )
+        )
+
+    return jsonify(res)
+
+
+@blueprint.route("/add_authz_all", methods=["POST"])
+@admin_login_required
+@debug_log
+def add_authz_all():
+    """
+    Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/add_authz_all`
+
+    payload:
+    `{
+       "resource": {
+          parent_path = '/services/',
+          "name" = "amanuensis",
+          "description" = "Amanuensis admin resource"
+       },
+       "role": {
+          "id" = "amanuensis_admin"
+          "description" = "can do admin work on project/data request"
+          "permissions" = [
+              {
+                 "id": "amanuensis_admin_action", 
+                 "action": {
+                     "service": "amanuensis", 
+                     "method": "*"}
+                }
+          ] 
+       },
+       "policy": {
+          "id" = "services.amanuensis-admin",
+          "description" = "admin access to amanunsis",
+          "resource_paths" = [
+            '/services/amanuensis'
+          ],
+          "role_ids" = [
+            'amanuensis_admin'
+          ]
+       },
+       "username" = "graglia01@gmail.com"
+    
+    }`
+    """
+    body = request.get_json()
+
+    resource = body.get('resource', None)
+    role = body.get('role', None)
+    policy = body.get('policy', None)
+    username = body.get('username', None)
+
+    if resource is None or role is None or policy is None or username is None:
+        raise UserError("There are some missing parameters in the payload.")
+
+
+    # Check if username is present in the DB and is a registered user
+    users = admin.get_users(current_session, [username])
+    if len(users) == 0:
+        raise NotFound("User {} not found!".format(username))
+    elif len(users) > 1:
+        raise InternalError("Too many user with the same username: {}. check the DB".format(username))
+
+
+    # parent_path = '/services/'
+    parent_path = resource["parent_path"]
+    resource_json = {}
+    resource_json["name"] = resource["name"]
+    resource_json["description"] = resource["description"]
+    res = current_app.arborist.create_resource(parent_path, resource_json)
+    if res is None:
+        raise ArboristError(
+            "Resource {} has not been created.".format(
+                resource_json
+            )
+        )
+    else:
+        logger.info("Created resource {}".format(resource_json))
+
+
+    role_json = {}
+    role_json["id"] = role["id"]
+    role_json["description"] = role["description"]
+    role_json["permissions"] = role["permissions"]
+    res = current_app.arborist.create_role(role_json)
+    if res is None:
+        raise ArboristError(
+            "Role {} has not been created.".format(
+                role_json
+            )
+        )
+    else:
+        logger.info("Created role {}".format(role_json))
 
 
     policy_json = {}
-    policy_json["id"] = "services.amanuensis-admin"
-    policy_json["description"] = "admin access to amanunsis"
-    policy_json["resource_paths"] = []
-    policy_json["resource_paths"].append('/services/amanuensis')
-    policy_json["role_ids"] = []
-    policy_json["role_ids"].append('amanuensis_admin')
+    policy_json["id"] = policy["id"]
+    policy_json["description"] = policy["description"]
+    policy_json["resource_paths"] = policy["resource_paths"]
+    policy_json["role_ids"] = policy["role_ids"]
     res = current_app.arborist.create_policy(policy_json)
     if res is None:
         raise ArboristError(
@@ -323,11 +553,11 @@ def add_resource():
                 policy_json
             )
         )
+    else:
+        logger.info("Created role {}".format(policy_json))
 
 
-
-    username = "graglia01@gmail.com"
-    policy_name = "services.amanuensis-admin"
+    policy_name = policy["id"]
     res = current_app.arborist.grant_user_policy(username, policy_name)
     if res is None:
         raise ArboristError(
