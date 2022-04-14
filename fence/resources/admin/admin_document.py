@@ -16,7 +16,7 @@ def add_document(current_session, document_json):
     """
     doc = udm.get_latest_doc_by_type(current_session, document_json["type"])
 
-    if document_json["version"] <= doc.version:
+    if int(document_json["version"]) <= doc.version:
         logger.info("Version provided {} will be changed to {}.".format(document_json["version"], doc.version))
         document_json['version'] = doc.version + 1
 

@@ -569,12 +569,12 @@ def add_authz_all():
     return jsonify(res)
 
 
-@blueprint.route("/add_resource", methods=["POST"])
+@blueprint.route("/add_document", methods=["POST"])
 @admin_login_required
 @debug_log
 def add_document():
     """
-    Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/add_resource`
+    Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/add_document`
 
     payload:
     `{
@@ -593,12 +593,11 @@ def add_document():
 
     # TODO check input is in correct format
 
-    return jsonify(admin.add_document(current_session, document_json):)
+    return jsonify(admin.add_document(current_session, document_json))
+
 
 
 #### PROJECTS ####
-
-
 @blueprint.route("/projects/<projectname>", methods=["GET"])
 @admin_login_required
 @debug_log
