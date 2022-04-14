@@ -17,7 +17,7 @@ from fence.authz.errors import ArboristError
 from fence.resources import admin
 from fence.scripting.fence_create import sync_users
 from fence.config import config
-from fence.models import User
+from fence.models import User, DocumentSchema
 from fence.errors import UserError, NotFound, InternalError
 
 
@@ -579,11 +579,11 @@ def add_document():
     payload:
     `{
         "type": "privacy-policy",
-        "version": "2",
+        "version": 2,
         "name": "Privacy Policy",
-        "raw": "url",
-        "formatted": "url",
-        "required": "true"
+        "raw": "https://github.com/chicagopcdc/Documents/blob/fda4a7c914173e29d13ab6249ded7bc9adea5674/governance/privacy_policy/privacy_notice.md",
+        "formatted": "https://github.com/chicagopcdc/Documents/blob/81d60130308b6961c38097b6686a21f8be729a2c/governance/privacy_policy/PCDC-Privacy-Notice.pdf",
+        "required": true
     }`
     """
     document_json = request.get_json()
@@ -593,7 +593,8 @@ def add_document():
 
     # TODO check input is in correct format
 
-    return jsonify(admin.add_document(current_session, document_json))
+    document_schema = DocumentSchema()
+    return jsonify(document_schema.dump(admin.add_document(current_session, document_json)))
 
 
 
