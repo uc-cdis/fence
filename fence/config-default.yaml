@@ -88,11 +88,25 @@ ENABLE_DB_MIGRATION: true
 #   - Fully configure at least one client so login works
 #   - WARNING: Be careful changing the *_ALLOWED_SCOPES as you can break basic
 #              and optional functionality
-#
-# See ``fence/blueprints/login/__init__.py`` IDP_URL_MAP for which identity
-# providers can be configured.
 # //////////////////////////////////////////////////////////////////////////////////////
 OPENID_CONNECT:
+  # any OIDC IDP that does not differ from the generic implementation can be
+  # configured without code changes
+  generic_oidc_idp:  # choose a unique ID and replace this key
+    name: 'some_idp'  # optional; display name for this IDP
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/some_idp/login'  # replace IDP name
+    # use `discovery` to configure IDPs that do not expose a discovery
+    # endpoint. One of `discovery_url` or `discovery` should be configured
+    discovery_url: 'https://server.com/.well-known/openid-configuration'
+    discovery:
+      authorization_endpoint: ''
+      token_endpoint: ''
+      jwks_uri: ''
+    user_id_field: ''  # optional (default "sub"); claims field to get the user_id from
+    email_field: ''  # optional (default "email"); claims field to get the user email from
+    scope: ''  # optional (default "openid")
   # These Google values must be obtained from Google's Cloud Console
   # Follow: https://developers.google.com/identity/protocols/OpenIDConnect
   #
@@ -349,7 +363,7 @@ DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 LOGIN_REDIRECT_WHITELIST: []
 
 ### DEPRECATED and replaced by OPENID_CONNECT + LOGIN_OPTIONS configs
-ENABLED_IDENTITY_PROVIDERS:
+ENABLED_IDENTITY_PROVIDERS: {}
 
 
 # //////////////////////////////////////////////////////////////////////////////////////

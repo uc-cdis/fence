@@ -524,6 +524,11 @@ fence-create client-modify --client CLIENT_NAME --urls http://localhost/api/v0/o
 That command should output any modifications to the client. Similarly, multiple URLs are
 allowed here too.
 
+Add `--append` argument to add new callback urls or allowed scopes to existing client (instead of replacing them) using `--append --urls` or `--append --allowed-scopes`
+```bash
+fence-create client-modify --client CLIENT_NAME --urls http://localhost/api/v0/new/oauth2/authorize --append
+```
+
 #### Delete OAuth Client
 
 ```bash

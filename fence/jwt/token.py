@@ -186,7 +186,7 @@ def generate_signed_session_token(kid, private_key, expires_in, context=None):
         "jti": str(uuid.uuid4()),
         "context": context,
     }
-    logger.debug("issuing JWT session token\n" + json.dumps(claims, indent=4))
+    logger.debug(f"issuing JWT session token: {claims}")
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     token = to_unicode(token, "UTF-8")
 
@@ -211,7 +211,7 @@ def generate_signed_id_token(
     include_project_access=True,
     auth_flow_type=AuthFlowTypes.CODE,
     access_token=None,
-    **kwargs
+    **kwargs,
 ):
     """
     Generate a JWT ID token, and output a UTF-8 string of the encoded JWT
@@ -257,7 +257,7 @@ def generate_signed_id_token(
         nonce=nonce,
         auth_flow_type=auth_flow_type,
         access_token=access_token,
-        **kwargs
+        **kwargs,
     )
     signed_token = token.get_signed_and_encoded_token(kid, private_key)
     return JWTResult(token=signed_token, kid=kid, claims=token)
@@ -308,7 +308,7 @@ def generate_signed_refresh_token(
         claims["aud"].append(client_id)
 
     logger.info("issuing JWT refresh token with id [{}] to [{}]".format(jti, sub))
-    logger.debug("issuing JWT refresh token\n" + json.dumps(claims, indent=4))
+    logger.debug(f"issuing JWT refresh token: {claims}")
 
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     token = to_unicode(token, "UTF-8")
@@ -348,7 +348,7 @@ def generate_api_key(kid, private_key, user_id, expires_in, scopes, client_id):
         "scope": scopes,
     }
     logger.info("issuing JWT API key with id [{}] to [{}]".format(jti, sub))
-    logger.debug("issuing JWT API key\n" + json.dumps(claims, indent=4))
+    logger.debug(f"issuing JWT API key: {claims}")
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     logger.debug(str(token))
     token = to_unicode(token, "UTF-8")
@@ -428,7 +428,7 @@ def generate_signed_access_token(
         ] = linked_google_email
 
     logger.info("issuing JWT access token with id [{}] to [{}]".format(jti, sub))
-    logger.debug("issuing JWT access token\n" + json.dumps(claims, indent=4))
+    logger.debug(f"issuing JWT access token {claims}")
 
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     token = to_unicode(token, "UTF-8")
@@ -452,7 +452,7 @@ def generate_id_token(
     include_project_access=True,
     auth_flow_type=AuthFlowTypes.CODE,
     access_token=None,
-    **kwargs
+    **kwargs,
 ):
     """
     Generate an unsigned ID token object. Use `.get_signed_and_encoded_token`
@@ -547,7 +547,7 @@ def generate_id_token(
         at_hash = to_unicode(create_half_hash(access_token, "RS256"))
         claims["at_hash"] = at_hash
 
-    logger.info("issuing JWT ID token\n" + json.dumps(claims, indent=4))
+    logger.info(f"issuing JWT ID token: {claims}")
 
     token_options = {
         "iss": {"essential": True, "value": config.get("BASE_URL")},
