@@ -568,6 +568,34 @@ def add_authz_all():
 
     return jsonify(res)
 
+
+@blueprint.route("/add_resource", methods=["POST"])
+@admin_login_required
+@debug_log
+def add_document():
+    """
+    Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/add_resource`
+
+    payload:
+    `{
+        "type": "privacy-policy",
+        "version": "2",
+        "name": "Privacy Policy",
+        "raw": "url",
+        "formatted": "url",
+        "required": "true"
+    }`
+    """
+    document_json = request.get_json()
+
+    if document_json["type"] not in config["DOCUMENT_TYPES"]:
+        raise UserError("Type {} not supported. Please talk with the developer team.".format(document_json["type"]))
+
+    # TODO check input is in correct format
+
+    return jsonify(admin.add_document(current_session, document_json):)
+
+
 #### PROJECTS ####
 
 

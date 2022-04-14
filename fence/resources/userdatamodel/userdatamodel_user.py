@@ -28,6 +28,7 @@ __all__ = [
     "review_document",
     "get_doc_to_review",
     "get_docs",
+    "get_latest_doc_by_type",
 ]
 
 logger = get_logger(__name__)
@@ -173,5 +174,9 @@ def get_docs(session):
     latest_docs = session.query(Document).join(latest_docs_subq, and_(Document.type == latest_docs_subq.c.type, Document.version == latest_docs_subq.c.version)).all()
 
     return latest_docs
+
+def get_latest_doc_by_type(session, type):
+    latest_doc = session.query(Document).filter(Document.type == type).order_by(Document.version.desc()).first()
+    return latest_doc
 
 
