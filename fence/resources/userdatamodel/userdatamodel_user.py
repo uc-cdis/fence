@@ -37,7 +37,7 @@ def get_user(current_session, username):
 
 def update_user(current_session, username, additional_info):
     updated_user = current_session.query(User).filter(User.username == username).update({User.additional_info: additional_info})
-    current_session.flush()
+    current_session.commit()
     return updated_user
 
 def get_user_accesses(current_session):
