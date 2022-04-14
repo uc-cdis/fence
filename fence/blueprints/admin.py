@@ -14,6 +14,7 @@ from cdislogging import get_logger
 
 from fence.auth import admin_login_required
 from fence.authz.errors import ArboristError
+from fence.authz.auth import remove_permission
 from fence.resources import admin
 from fence.scripting.fence_create import sync_users
 from fence.config import config
@@ -595,6 +596,24 @@ def add_document():
 
     document_schema = DocumentSchema()
     return jsonify(document_schema.dump(admin.add_document(current_session, document_json)))
+
+
+@blueprint.route("/revoke_permission", methods=["POST"])
+@admin_login_required
+@debug_log
+def revoke_permission():
+    """
+    Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/add_document`
+
+    payload:
+    `{
+        "policy_name": ""
+    }`
+    """
+    body = request.get_json()
+
+    return jsonify(remove_permission())
+
 
 
 
