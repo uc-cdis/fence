@@ -87,4 +87,35 @@ def register_arborist_user(user, policies=None):
                     policy["id"]
                 )
             )
+
+
+def remove_permission(user, policies=None):
+    if not hasattr(flask.current_app, "arborist"):
+        raise Forbidden(
+            "this fence instance is not configured with arborist;"
+            " this endpoint is unavailable"
+        )
+
+    if policies is None:
+        if "BASIC_REGISTRATION_ACCESS_POLICY" in config and len(config["BASIC_REGISTRATION_ACCESS_POLICY"]) > 0:
+            policies = config["BASIC_REGISTRATION_ACCESS_POLICY"]
+        else:
+            policies = []
+
+    for policy_name in policies:
+        policy = flask.current_app.arborist.get_policy(policy_name)
+        if not policy:
+            raise ArboristError(
+                "Policy {} NOT FOUND".format(
+                    policy_name
+                )
+            )
+
+        res = flask.current_app.arborist.revoke_user_policy(user.username, policy_name)
+        if res is None:
+            raise ArboristError(
+                "Policy {} has not been revoked from user {}.".format(
+                    policy["id"], user.username
+                )
+            )
     
