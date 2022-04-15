@@ -610,7 +610,7 @@ def revoke_permission():
         "policy_name": ""
     }`
     """
-    body = request.get_json()
+    # body = request.get_json()
 
     return jsonify(remove_permission())
 
