@@ -350,7 +350,49 @@ class IndexedFile(object):
         indexd_server = config.get("INDEXD") or config["BASE_URL"] + "/index"
         url = indexd_server + "/index/"
         try:
-            res = requests.get(url + self.file_id)
+            # res = requests.get(url + self.file_id)
+            class MockResponse(object):
+                def __init__(self, data, status_code=200):
+                    """
+                    Setup mock response
+                    """
+                    self.data = data
+                    self.status_code = status_code
+
+                def json(self):
+                    """
+                    Mock json() call
+                    """
+                    return self.data
+
+            data = {
+                "acl": [],
+                "authz": ["/programs/phs001151.c1"],
+                "baseid": "b46750a6-9210-4a92-830d-1e51f5f2b50c",
+                "created_date": "2021-11-22T18:01:37.150334",
+                "did": "dg.TEST0/000311ea-64e4-4462-9582-00562eb757aa",
+                "file_name": "",
+                "form": "object",
+                "hashes": {
+                    "md5": "f8a0ddfc5202e67c8c98583c0acfbbdc"  # pragma: allowlist secret
+                },
+                "metadata": {},
+                "rev": "64bbb8c7",
+                "size": 42,
+                "updated_date": "2021-11-23T16:30:44.463962",
+                "uploader": null,
+                "urls": [
+                    "gs://ctds-test-controlled-a/testdata.txt",
+                    "s3://cdis-presigned-url-test/testdata",
+                ],
+                "urls_metadata": {
+                    "gs://ctds-test-controlled-a/testdata.txt": {},
+                    "s3://cdis-presigned-url-test/testdata": {},
+                },
+                "version": null,
+            }
+
+            res = MockResponse(data=data)
         except Exception as e:
             logger.error(
                 "failed to reach indexd at {0}: {1}".format(url + self.file_id, e)
