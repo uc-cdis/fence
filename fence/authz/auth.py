@@ -97,6 +97,8 @@ def remove_permission(user=None, policies=None):
         )
 
     users = flask.current_app.arborist.get_users()
+    # {'users': [{'name': 'graglia01@gmail.com', 'groups': [], 'policies': [{'policy': 'login_no_access', 'expires_at': None}, {'policy': 'gearbox_admin', 'expires_at': None}]}, {'name': 'shea.maunsell@gmail.com', 'groups': [], 'policies': []}, {'name': 'slv@uchicago.edu', 'groups': [], 'policies': []}, {'name': 'furner.brian@gmail.com', 'groups': [], 'policies': []}, {'name': 'bkang.dev@gmail.com', 'groups': [], 'policies': []}, {'name': 'dvenckus@uchicago.edu', 'groups': [], 'policies': []}, {'name': 'lgraglia@uchicago.edu', 'groups': [], 'policies': [{'policy': 'login_no_access', 'expires_at': None}]}, {'name': 'shea@cluelessapp.com', 'groups': [], 'policies': [{'policy': 'login_no_access', 'expires_at': None}]}]}
+    users = users.json["users"]
 
     if users and len(users) > 0:
         if policies is None:
@@ -115,13 +117,15 @@ def remove_permission(user=None, policies=None):
                 )
 
             for user in users:
-                res = flask.current_app.arborist.revoke_user_policy(user.name, policy_name)
-                if res is None:
-                    raise ArboristError(
-                        "Policy {} has not been revoked from user {}.".format(
-                            policy["id"], user.name
+                user_policies = [policy["policy"] for policy in user["policies"]]
+                if policy_name in user_policies:
+                    res = flask.current_app.arborist.revoke_user_policy(user["name"], policy_name)
+                    if res is None:
+                        raise ArboristError(
+                            "Policy {} has not been revoked from user {}.".format(
+                                policy["id"], user["name"]
+                            )
                         )
-                    )
     return "200"
 
 
