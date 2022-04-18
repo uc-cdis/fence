@@ -127,6 +127,20 @@ OPENID_CONNECT:
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/shib/login'
+  generic1:
+    name: 'Generic OIDC IDP 1'
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/generic1/login'
+    user_id_field: 'generic1_username'
+    discovery_url: 'https://generic1/.well-known'
+  generic2:
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/generic2/login'
+    discovery:
+      authorization_endpoint: 'https://generic2/authorization_endpoint'
+
 # these are the *possible* scopes a client can be given, NOT scopes that are
 # given to all clients. You can be more restrictive during client creation
 CLIENT_ALLOWED_SCOPES:
@@ -212,6 +226,11 @@ LOGIN_OPTIONS:
     idp: shibboleth
   - name: 'RAS Login'
     idp: ras
+  - name: 'Generic login 1'
+    idp: generic1
+  - name: 'Generic login 2'
+    idp: generic2
+
 # //////////////////////////////////////////////////////////////////////////////////////
 # LIBRARY CONFIGURATION (authlib & flask)
 #   - Already contains reasonable defaults

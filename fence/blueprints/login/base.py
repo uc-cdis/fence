@@ -111,15 +111,17 @@ class DefaultOAuth2Callback(Resource):
         code = flask.request.args.get("code")
         result = self.client.get_user_id(code)
         username = result.get(self.username_field)
+        if not username:
+            raise UserError(
+                f"OAuth2 callback error: no '{self.username_field}' in {result}"
+            )
+
         email = result.get(self.email_field)
         id_from_idp = result.get(self.id_from_idp_field)
-        if username:
-            resp = _login(username, self.idp_name, email=email, id_from_idp=id_from_idp)
-            self.post_login(
-                user=flask.g.user, token_result=result, id_from_idp=id_from_idp
-            )
-            return resp
-        raise UserError(result)
+
+        resp = _login(username, self.idp_name, email=email, id_from_idp=id_from_idp)
+        self.post_login(user=flask.g.user, token_result=result, id_from_idp=id_from_idp)
+        return resp
 
     def post_login(self, user=None, token_result=None, **kwargs):
         prepare_login_log(self.idp_name)
