@@ -667,7 +667,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         role_arn = get_value(
             bucket_cred, "role-arn", InternalError("role-arn of that bucket is missing")
         )
-        expiry = time.time() + expires_in
+        expiry = int(time.time() + expires_in)
 
         # try to retrieve from local in-memory cache
         rv, expires_at = cls._assume_role_cache.get(role_arn, (None, 0))
@@ -682,7 +682,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
                     .filter(AssumeRoleCacheAWS.arn == role_arn)
                     .first()
                 )
-                if cache and cache.expires_at and cache.expires_at > expiry:
+                if cache and cache.expires_at and cache.expires_at >= expiry:
                     rv = dict(
                         aws_access_key_id=cache.aws_access_key_id,
                         aws_secret_access_key=cache.aws_secret_access_key,
@@ -725,9 +725,9 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 InternalError("outdated format. Session token missing"),
             ),
         }
-        expires_at = get_value(
+        expires_at = int(get_value(
             cred, "Expiration", InternalError("outdated format. Expiration missing")
-        ).timestamp()
+        ).timestamp())
 
         # stores back to cache
         cls._assume_role_cache[role_arn] = rv, expires_at
