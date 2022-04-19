@@ -168,8 +168,11 @@ class Oauth2ClientBase(object):
             if claims.get(user_id_field):
                 if user_id_field == "email" and not claims.get("email_verified"):
                     return {"error": "Email is not verified"}
-                return {"sub": claims[user_id_field]}
+                return {user_id_field: claims[user_id_field]}
             else:
+                self.logger.exception(
+                    f"Can't get {user_id_field} from claims: {claims}"
+                )
                 return {"error": f"Can't get {user_id_field} from claims"}
 
         except Exception as e:
