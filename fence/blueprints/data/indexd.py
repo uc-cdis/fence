@@ -682,7 +682,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
                     .filter(AssumeRoleCacheAWS.arn == role_arn)
                     .first()
                 )
-                # Add 10 seconds of buffer to epoch time to allow for better use of cache. 
                 if cache and cache.expires_at and cache.expires_at >= expiry:
                     rv = dict(
                         aws_access_key_id=cache.aws_access_key_id,
