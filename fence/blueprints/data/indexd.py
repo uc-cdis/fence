@@ -683,7 +683,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
                     .first()
                 )
                 # Add 10 seconds of buffer to epoch time to allow for better use of cache. 
-                if cache and cache.expires_at and (cache.expires_at+10) >= expiry:
+                if cache and cache.expires_at and cache.expires_at >= expiry:
                     rv = dict(
                         aws_access_key_id=cache.aws_access_key_id,
                         aws_secret_access_key=cache.aws_secret_access_key,
