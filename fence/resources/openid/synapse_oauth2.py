@@ -125,7 +125,7 @@ class SynapseOauth2Client(Oauth2ClientBase):
                 algorithms=[algorithm],
             )
 
-            if not claims["email_verified"]:
+            if not claims.get("email_verified"):
                 return dict(error="Email is not verified")
 
             rv = {}

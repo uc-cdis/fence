@@ -25,16 +25,15 @@ from fence.oidc.client import query_client
 from fence.oidc.server import server
 from fence.resources.audit.client import AuditServiceClient
 from fence.resources.aws.boto_manager import BotoManager
-from fence.resources.openid.cilogon_oauth2 import CilogonOauth2Client as CilogonClient
-from fence.resources.openid.cognito_oauth2 import CognitoOauth2Client as CognitoClient
-from fence.resources.openid.google_oauth2 import GoogleOauth2Client as GoogleClient
-from fence.resources.openid.microsoft_oauth2 import (
-    MicrosoftOauth2Client as MicrosoftClient,
-)
-from fence.resources.openid.okta_oauth2 import OktaOauth2Client as OktaClient
-from fence.resources.openid.orcid_oauth2 import OrcidOauth2Client as ORCIDClient
-from fence.resources.openid.synapse_oauth2 import SynapseOauth2Client as SynapseClient
-from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
+from fence.resources.openid.idp_oauth2 import Oauth2ClientBase
+from fence.resources.openid.cilogon_oauth2 import CilogonOauth2Client
+from fence.resources.openid.cognito_oauth2 import CognitoOauth2Client
+from fence.resources.openid.google_oauth2 import GoogleOauth2Client
+from fence.resources.openid.microsoft_oauth2 import MicrosoftOauth2Client
+from fence.resources.openid.okta_oauth2 import OktaOauth2Client
+from fence.resources.openid.orcid_oauth2 import OrcidOauth2Client
+from fence.resources.openid.synapse_oauth2 import SynapseOauth2Client
+from fence.resources.openid.ras_oauth2 import RASOauth2Client
 from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
 from fence.error_handler import get_error_response
@@ -399,71 +398,72 @@ def _set_authlib_cfgs(app):
 
 
 def _setup_oidc_clients(app):
-    oidc = config.get("OPENID_CONNECT", {})
+    configured_idps = config.get("OPENID_CONNECT", {})
 
-    # Add OIDC client for Google if configured.
-    if "google" in oidc:
-        app.google_client = GoogleClient(
-            config["OPENID_CONNECT"]["google"],
-            HTTP_PROXY=config.get("HTTP_PROXY"),
-            logger=logger,
+    clean_idps = [idp.lower().replace(" ", "") for idp in configured_idps]
+    if len(clean_idps) != len(set(clean_idps)):
+        raise ValueError(
+            f"Some IDPs configured in OPENID_CONNECT are not unique once they are lowercased and spaces are removed: {clean_idps}"
         )
 
-    # Add OIDC client for ORCID if configured.
-    if "orcid" in oidc:
-        app.orcid_client = ORCIDClient(
-            config["OPENID_CONNECT"]["orcid"],
-            HTTP_PROXY=config.get("HTTP_PROXY"),
-            logger=logger,
-        )
-
-    # Add OIDC client for RAS if configured.
-    if "ras" in oidc:
-        app.ras_client = RASClient(
-            oidc["ras"],
-            HTTP_PROXY=config.get("HTTP_PROXY"),
-            logger=logger,
-        )
-
-    # Add OIDC client for Synapse if configured.
-    if "synapse" in oidc:
-        app.synapse_client = SynapseClient(
-            oidc["synapse"], HTTP_PROXY=config.get("HTTP_PROXY"), logger=logger
-        )
-
-    # Add OIDC client for Microsoft if configured.
-    if "microsoft" in oidc:
-        app.microsoft_client = MicrosoftClient(
-            config["OPENID_CONNECT"]["microsoft"],
-            HTTP_PROXY=config.get("HTTP_PROXY"),
-            logger=logger,
-        )
-
-    # Add OIDC client for Okta if configured
-    if "okta" in oidc:
-        app.okta_client = OktaClient(
-            config["OPENID_CONNECT"]["okta"],
-            HTTP_PROXY=config.get("HTTP_PROXY"),
-            logger=logger,
-        )
-
-    # Add OIDC client for Amazon Cognito if configured.
-    if "cognito" in oidc:
-        app.cognito_client = CognitoClient(
-            oidc["cognito"], HTTP_PROXY=config.get("HTTP_PROXY"), logger=logger
-        )
-
-    # Add OIDC client for CILogon if configured.
-    if "cilogon" in oidc:
-        app.cilogon_client = CilogonClient(
-            config["OPENID_CONNECT"]["cilogon"],
-            HTTP_PROXY=config.get("HTTP_PROXY"),
-            logger=logger,
-        )
-
-    # Add OIDC client for multi-tenant fence if configured.
-    if "fence" in oidc:
-        app.fence_client = OAuthClient(**config["OPENID_CONNECT"]["fence"])
+    for idp in set(configured_idps.keys()):
+        logger.info(f"Setting up OIDC client for {idp}")
+        settings = configured_idps[idp]
+        if idp == "google":
+            app.google_client = GoogleOauth2Client(
+                settings,
+                HTTP_PROXY=config.get("HTTP_PROXY"),
+                logger=logger,
+            )
+        elif idp == "orcid":
+            app.orcid_client = OrcidOauth2Client(
+                settings,
+                HTTP_PROXY=config.get("HTTP_PROXY"),
+                logger=logger,
+            )
+        elif idp == "ras":
+            app.ras_client = RASOauth2Client(
+                settings,
+                HTTP_PROXY=config.get("HTTP_PROXY"),
+                logger=logger,
+            )
+        elif idp == "synapse":
+            app.synapse_client = SynapseOauth2Client(
+                settings, HTTP_PROXY=config.get("HTTP_PROXY"), logger=logger
+            )
+        elif idp == "microsoft":
+            app.microsoft_client = MicrosoftOauth2Client(
+                settings,
+                HTTP_PROXY=config.get("HTTP_PROXY"),
+                logger=logger,
+            )
+        elif idp == "okta":
+            app.okta_client = OktaOauth2Client(
+                settings,
+                HTTP_PROXY=config.get("HTTP_PROXY"),
+                logger=logger,
+            )
+        elif idp == "cognito":
+            app.cognito_client = CognitoOauth2Client(
+                settings, HTTP_PROXY=config.get("HTTP_PROXY"), logger=logger
+            )
+        elif idp == "cilogon":
+            app.cilogon_client = CilogonOauth2Client(
+                settings,
+                HTTP_PROXY=config.get("HTTP_PROXY"),
+                logger=logger,
+            )
+        elif idp == "fence":
+            app.fence_client = OAuthClient(**settings)
+        else:  # generic OIDC implementation
+            client = Oauth2ClientBase(
+                settings=settings,
+                logger=logger,
+                HTTP_PROXY=config.get("HTTP_PROXY"),
+                idp=settings.get("name") or idp.title(),
+            )
+            clean_idp = idp.lower().replace(" ", "")
+            setattr(app, f"{clean_idp}_client", client)
 
 
 def _setup_arborist_client(app):

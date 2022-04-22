@@ -49,11 +49,12 @@ class CognitoOauth2Client(Oauth2ClientBase):
 
             self.logger.info(f"Received id token from Cognito: {claims}")
 
-            if claims["email"] and (
-                claims["email_verified"] or self.settings["assume_emails_verified"]
+            if claims.get("email") and (
+                claims.get("email_verified")
+                or self.settings.get("assume_emails_verified")
             ):
                 return {"email": claims["email"], "sub": claims.get("sub")}
-            elif claims["email"]:
+            elif claims.get("email"):
                 return {"error": "Email is not verified"}
             else:
                 return {"error": "Can't get email from claims"}
