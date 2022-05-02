@@ -104,6 +104,8 @@ def get_signed_url_for_file(action, file_id, file_name=None, requested_protocol=
     if counter:
         counter.labels(requested_protocol).inc()
 
+    logger.info(flask.current_app.db.engine.pool.status())
+
     return {"url": signed_url}
 
 
