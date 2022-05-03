@@ -139,7 +139,7 @@ def provider_info(login_details):
         elif isinstance(requested_shib_idps, list):
             # get the display names for each requested shib IDP
             shib_idps = []
-            for requested_shib_idp in requested_shib_idps:
+            for requested_shib_idp in set(requested_shib_idps):
                 shib_idp = next(
                     (
                         available_shib_idp
