@@ -28,9 +28,9 @@ from unittest.mock import ANY, MagicMock, patch
 
 import fence
 from fence.config import config
-from fence.blueprints.login import IDP_URL_MAP
 from fence.resources.audit.utils import _clean_authorization_request_url
 from tests import utils
+from tests.conftest import LOGIN_IDPS
 
 
 def test_clean_authorization_request_url():
@@ -377,12 +377,8 @@ def test_presigned_url_log_unauthorized(client, indexd_client, db_session, monke
 ####################
 
 
-@pytest.mark.parametrize("idp", list(IDP_URL_MAP.values()))
-@mock.patch(
-    "fence.resources.openid.ras_oauth2.RASOauth2Client.get_value_from_discovery_doc"
-)
+@pytest.mark.parametrize("idp", LOGIN_IDPS)
 def test_login_log_login_endpoint(
-    app,
     client,
     idp,
     mock_arborist_requests,
@@ -401,14 +397,13 @@ def test_login_log_login_endpoint(
     monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"login": True})
 
     username = "test@test"
-    endpoint = "login"
+    callback_endpoint = "login"
     idp_name = idp
     headers = {}
     get_user_id_value = {}
     jwt_string = jwt.encode({"iat": int(time.time())}, key=rsa_private_key)
 
     if idp == "synapse":
-        mocked_get_user_id = MagicMock()
         get_user_id_value = {
             "fence_username": username,
             "sub": username,
@@ -416,16 +411,13 @@ def test_login_log_login_endpoint(
             "family_name": username,
         }
     elif idp == "orcid":
-        mocked_get_user_id = MagicMock()
         get_user_id_value = {"orcid": username}
     elif idp == "cilogon":
-        mocked_get_user_id = MagicMock()
         get_user_id_value = {"sub": username}
     elif idp == "shib":
         headers["persistent_id"] = username
         idp_name = "itrust"
     elif idp == "okta":
-        mocked_get_user_id = MagicMock()
         get_user_id_value = {"okta": username}
     elif idp == "fence":
         mocked_fetch_access_token = MagicMock(return_value={"id_token": jwt_string})
@@ -440,9 +432,8 @@ def test_login_log_login_endpoint(
             f"fence.blueprints.login.fence_login.validate_jwt", mocked_validate_jwt
         ).start()
     elif idp == "ras":
-        mocked_get_user_id = MagicMock()
         get_user_id_value = {"username": username}
-        endpoint = "callback"
+        callback_endpoint = "callback"
         # these should be populated by a /login/<idp> call that we're skipping:
         flask.g.userinfo = {}
         flask.g.tokens = {
@@ -450,6 +441,10 @@ def test_login_log_login_endpoint(
             "id_token": jwt_string,
         }
         flask.g.encoded_visas = ""
+    elif idp == "generic1":
+        get_user_id_value = {"generic1_username": username}
+    elif idp == "generic2":
+        get_user_id_value = {"sub": username}
 
     if idp in ["google", "microsoft", "okta", "synapse", "cognito"]:
         get_user_id_value["email"] = username
@@ -467,7 +462,7 @@ def test_login_log_login_endpoint(
             data={},
             status_code=201,
         )
-        path = f"/login/{idp}/{endpoint}"
+        path = f"/login/{idp}/{callback_endpoint}"
         response = client.get(path, headers=headers)
         assert response.status_code == 200, response
         audit_service_requests.post.assert_called_once_with(
@@ -591,7 +586,6 @@ def test_login_log_push_to_sqs(
     app,
     client,
     mock_arborist_requests,
-    rsa_private_key,
     db_session,  # do not remove :-) See note at top of file
     monkeypatch,
 ):
