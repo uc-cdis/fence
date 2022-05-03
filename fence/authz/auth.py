@@ -87,4 +87,53 @@ def register_arborist_user(user, policies=None):
                     policy["id"]
                 )
             )
+
+
+def remove_permission(user=None, policies=None):
+    if not hasattr(flask.current_app, "arborist"):
+        raise Forbidden(
+            "this fence instance is not configured with arborist;"
+            " this endpoint is unavailable"
+        )
+
+    users = flask.current_app.arborist.get_users()
+    # {'users': [{'name': 'graglia01@gmail.com', 'groups': [], 'policies': [{'policy': 'login_no_access', 'expires_at': None}, {'policy': 'gearbox_admin', 'expires_at': None}]}, {'name': 'shea.maunsell@gmail.com', 'groups': [], 'policies': []}, {'name': 'slv@uchicago.edu', 'groups': [], 'policies': []}, {'name': 'furner.brian@gmail.com', 'groups': [], 'policies': []}, {'name': 'bkang.dev@gmail.com', 'groups': [], 'policies': []}, {'name': 'dvenckus@uchicago.edu', 'groups': [], 'policies': []}, {'name': 'lgraglia@uchicago.edu', 'groups': [], 'policies': [{'policy': 'login_no_access', 'expires_at': None}]}, {'name': 'shea@cluelessapp.com', 'groups': [], 'policies': [{'policy': 'login_no_access', 'expires_at': None}]}]}
+    users = users.json["users"]
+
+    if users and len(users) > 0:
+        if policies is None:
+            if "BASIC_REGISTRATION_ACCESS_POLICY" in config and len(config["BASIC_REGISTRATION_ACCESS_POLICY"]) > 0:
+                policies = config["BASIC_REGISTRATION_ACCESS_POLICY"]
+            else:
+                policies = []
+
+        for policy_name in policies:
+            policy = flask.current_app.arborist.get_policy(policy_name)
+            if not policy:
+                raise ArboristError(
+                    "Policy {} NOT FOUND".format(
+                        policy_name
+                    )
+                )
+
+            for user in users:
+                user_policies = [policy["policy"] for policy in user["policies"]]
+                if policy_name in user_policies:
+                    res = flask.current_app.arborist.revoke_user_policy(user["name"], policy_name)
+                    if res is None:
+                        raise ArboristError(
+                            "Policy {} has not been revoked from user {}.".format(
+                                policy["id"], user["name"]
+                            )
+                        )
+    return "200"
+
+
+
+        
+
+
+    
+
+    
     

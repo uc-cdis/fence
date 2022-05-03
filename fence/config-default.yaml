@@ -449,6 +449,8 @@ GEN3_PASSPORT_EXPIRES_IN: 43200
 # For displaying a privacy policy to users, we can either link to the URL specified by
 # PRIVACY_POLICY_URL, or default to the `static/privacy_policy.md` file in fence.
 PRIVACY_POLICY_URL: null
+
+DOCUMENT_TYPES: ['privacy-policy', 'terms-and-conditions']
 INITIAL_PRIVACY_POLICY: null
 INITIAL_PRIVACY_POLICY_RAW: null
 INITIAL_TERM_CONDITION: null

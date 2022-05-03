@@ -9,3 +9,4 @@ from fence.resources.admin.admin_groups import *
 from fence.resources.admin.admin_users import *
 from fence.resources.admin.admin_providers import *
 from fence.resources.admin.admin_projects import *
+from fence.resources.admin.admin_document import *
