@@ -1,11 +1,12 @@
 from authlib.client import OAuth2Session
 from cached_property import cached_property
+from flask_sqlalchemy_session import current_session
 from jose import jwt
 import requests
 import time
+
 from fence.errors import AuthError
 from fence.models import UpstreamRefreshToken
-from flask_sqlalchemy_session import current_session
 
 
 class Oauth2ClientBase(object):
@@ -30,13 +31,13 @@ class Oauth2ClientBase(object):
             or getattr(self, "DISCOVERY_URL", None)
             or ""
         )
-        self.idp = idp
+        self.idp = idp  # display name for use in logs and error messages
         self.HTTP_PROXY = HTTP_PROXY
 
-        if not self.discovery_url:
+        if not self.discovery_url and not settings.get("discovery"):
             self.logger.warning(
-                f"OAuth2 Client for {self.idp} does not have a valid discovery_url. "
-                f"Some calls for this client may fail if they rely on the OIDC Discovery page."
+                f"OAuth2 Client for {self.idp} does not have a valid 'discovery_url'. "
+                f"Some calls for this client may fail if they rely on the OIDC Discovery page. Use 'discovery' to configure clients without a discovery page."
             )
 
     @cached_property
@@ -89,45 +90,52 @@ class Oauth2ClientBase(object):
         Given a key return a value by the recommended method of
         using their discovery url.
         """
-        return_value = default_value
-
-        if self.discovery_doc.status_code == requests.codes.ok:
-            return_value = self.discovery_doc.json().get(key)
-            if not return_value:
-                self.logger.warning(
-                    "could not retrieve `{}` from {} response {}. "
-                    "Defaulting to {}".format(
-                        key, self.idp, self.discovery_doc.json(), default_value
-                    )
-                )
-                return_value = default_value
-            elif return_value != default_value and default_value != "":
-                self.logger.info(
-                    "{}'s discovery doc {}, `{}`, differs from our "
-                    "default, `{}`. Using {}'s...".format(
-                        self.idp, key, return_value, default_value, self.idp
-                    )
-                )
-        else:
-            # invalidate the cache
-            del self.__dict__["discovery_doc"]
-
-            self.logger.error(
-                "{} ERROR from {} API, could not retrieve `{}` from response {}. Defaulting to {}".format(
-                    self.discovery_doc.status_code,
-                    self.idp,
-                    key,
-                    self.discovery_doc.json(),
-                    default_value,
-                )
-            )
+        if self.discovery_url:
             return_value = default_value
+            if self.discovery_doc.status_code == requests.codes.ok:
+                return_value = self.discovery_doc.json().get(key)
+                if not return_value:
+                    self.logger.warning(
+                        "could not retrieve `{}` from {} response {}. "
+                        "Defaulting to {}".format(
+                            key, self.idp, self.discovery_doc.json(), default_value
+                        )
+                    )
+                    return_value = default_value
+                elif return_value != default_value and default_value != "":
+                    self.logger.info(
+                        "{}'s discovery doc {}, `{}`, differs from our "
+                        "default, `{}`. Using {}'s...".format(
+                            self.idp, key, return_value, default_value, self.idp
+                        )
+                    )
+            else:
+                # invalidate the cache
+                del self.__dict__["discovery_doc"]
+
+                self.logger.error(
+                    "{} ERROR from {} API, could not retrieve `{}` from response {}. Defaulting to {}".format(
+                        self.discovery_doc.status_code,
+                        self.idp,
+                        key,
+                        self.discovery_doc.json(),
+                        default_value,
+                    )
+                )
+        # no `discovery_url`, try to use `discovery` config instead
+        else:
+            return_value = self.settings.get("discovery", {}).get(key, default_value)
 
         if not return_value:
+            discovery_data = (
+                self.discovery_doc.json()
+                if self.discovery_url
+                else self.settings.get("discovery")
+            )
             self.logger.error(
                 "Could not retrieve `{}` from {} discovery doc {} "
-                "and default value {} appears to not be set.".format(
-                    key, self.idp, self.discovery_doc.json(), default_value
+                "and default value appears to not be set.".format(
+                    key, self.idp, discovery_data
                 )
             )
 
@@ -135,16 +143,41 @@ class Oauth2ClientBase(object):
 
     def get_auth_url(self):
         """
-        Must implement in inheriting class. Should return OAuth 2 Authorization URL.
+        Get authorization uri from discovery doc
         """
-        raise NotImplementedError()
+        authorization_endpoint = self.get_value_from_discovery_doc(
+            "authorization_endpoint", ""
+        )
+        uri, _ = self.session.create_authorization_url(
+            authorization_endpoint, prompt="login"
+        )
+        return uri
 
     def get_user_id(self, code):
         """
-        Must implement in inheriting class. Should return dictionary with necessary field(s)
-        for successfully logged in user OR "error" field with details of the error.
+        Exchange code for tokens, get user_id from id token claims.
+        Return dictionary with necessary field(s) for successfully logged in
+        user OR "error" field with details of the error.
         """
-        raise NotImplementedError()
+        user_id_field = self.settings.get("user_id_field", "sub")
+        try:
+            token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
+            jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
+            claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
+
+            if claims.get(user_id_field):
+                if user_id_field == "email" and not claims.get("email_verified"):
+                    return {"error": "Email is not verified"}
+                return {user_id_field: claims[user_id_field]}
+            else:
+                self.logger.exception(
+                    f"Can't get {user_id_field} from claims: {claims}"
+                )
+                return {"error": f"Can't get {user_id_field} from claims"}
+
+        except Exception as e:
+            self.logger.exception(f"Can't get user info from {self.idp}: {e}")
+            return {"error": f"Can't get user info from {self.idp}"}
 
     def get_access_token(self, user, token_endpoint, db_session=None):
 
