@@ -78,7 +78,12 @@ def test_sync(
         syncer.dbGaP[0], "parse_consent_code", parse_consent_code_config
     )
     monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
-    monkeypatch.setattr(syncer, "allow_non_dbgap_whitelist", allow_non_dbgap_whitelist)
+    monkeypatch.setitem(
+        syncer.dbGaP[2], "allow_non_dbGaP_whitelist", allow_non_dbgap_whitelist
+    )
+    monkeypatch.setattr(syncer, "non_dbGaP_whitelist", allow_non_dbgap_whitelist)
+    # merge sftp server containing both dbgap and non-dbgap whitelists
+    monkeypatch.setattr(syncer, "is_sync_from_dbgap_server", allow_non_dbgap_whitelist)
 
     syncer.sync()
 
@@ -683,7 +688,7 @@ def test_process_additional_dbgap_servers(syncer, monkeypatch, db_session):
 
     # this function will be called once for each sftp server
     # the test config file has 2 dbgap sftp servers
-    assert syncer._process_dbgap_files.call_count == 2
+    assert syncer._process_dbgap_files.call_count == 3
 
 
 @pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)

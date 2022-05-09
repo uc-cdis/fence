@@ -329,9 +329,6 @@ class UserSyncer(object):
         self.folder = folder
         self.sync_from_visas = sync_from_visas
         self.fallback_to_dbgap_sftp = fallback_to_dbgap_sftp
-        self.allow_non_dbgap_whitelist = dbGaP[0].get(
-            "allow_non_dbgap_whitelist", False
-        )
 
         self.auth_source = defaultdict(set)
         # auth_source used for logging. username : [source1, source2]
@@ -341,6 +338,10 @@ class UserSyncer(object):
             self.storage_manager = StorageManager(
                 storage_credentials, logger=self.logger
             )
+        self.id_patterns = []
+        self.non_dbGaP_whitelist = config.get("USERSYNC", {}).get(
+            "non_dbgap_whitelist_enabled", False
+        )
 
     @staticmethod
     def _match_pattern(filepath, id_patterns, encrypted=True):
@@ -354,9 +355,9 @@ class UserSyncer(object):
         Returns:
             bool: whether the pattern matches
         """
-        id_patterns.insert(0, "phs(\d{6})")
+        id_patterns.append("authentication_file_phs(\d{6}).(csv|txt)")
         for pattern in id_patterns:
-            pattern = r"authentication_file_{}.(csv|txt)".format(pattern)
+            pattern = r"{}".format(pattern)
             if encrypted:
                 pattern += ".enc"
             pattern += "$"
@@ -479,9 +480,10 @@ class UserSyncer(object):
         # parse dbGaP sftp server information
         dbgap_key = dbgap_config.get("decrypt_key", None)
         parse_consent_code = dbgap_config.get("parse_consent_code", True)
-        id_patterns = (
-            dbgap_config.get("allowed_id_patterns", [])
-            if self.allow_non_dbgap_whitelist
+        self.id_patterns += (
+            dbgap_config.get("allowed_whitelist_patterns", [])
+            if self.non_dbGaP_whitelist
+            and dbgap_config.get("allow_non_dbGaP_whitelist", False)
             else []
         )
         enable_common_exchange_area_access = dbgap_config.get(
@@ -501,7 +503,7 @@ class UserSyncer(object):
                 self.logger.warning("Empty file {}".format(filepath))
                 continue
             if not self._match_pattern(
-                filepath, id_patterns=id_patterns, encrypted=encrypted
+                filepath, id_patterns=self.id_patterns, encrypted=encrypted
             ):
                 self.logger.warning(
                     "Filename {} does not match dbgap access control filename pattern;"
@@ -523,7 +525,11 @@ class UserSyncer(object):
                         continue
 
                     phsid_privileges = {}
-                    phsid = row.get("phsid", row.get("project_id", "")).split(".")
+                    if self.non_dbGaP_whitelist:
+                        phsid = row.get("phsid", row.get("project_id", "")).split(".")
+                    else:
+                        phsid = row.get("phsid", "").split(".")
+
                     dbgap_project = phsid[0]
                     if len(phsid) > 1 and parse_consent_code:
                         consent_code = phsid[-1]
