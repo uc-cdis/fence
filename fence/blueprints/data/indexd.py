@@ -1075,16 +1075,16 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         expiration_time = int(time.time()) + expires_in
 
         is_cached = False
-
         if proxy_group_id in self._assume_role_cache_gs:
-            raw_private_key, raw_key_db_entry, expires_at = self._assume_role_cache_gs.get(proxy_group_id)
-            if expires_at > expiration_time:
+            raw_private_key, raw_key_db_entry = self._assume_role_cache_gs.get(
+                proxy_group_id
+            )
+            if raw_key_db_entry and raw_key_db_entry.expires > expiration_time:
                 is_cached = True
                 private_key = raw_private_key
                 key_db_entry = raw_key_db_entry
             else:
                 del self._assume_role_cache_gs[proxy_group_id]
-        
         if not is_cached and hasattr(flask.current_app, "db"):
             with flask.current_app.db.session as session:
                 cache = (
