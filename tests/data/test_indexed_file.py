@@ -9,7 +9,11 @@ import pytest
 
 import fence.blueprints.data.indexd as indexd
 from fence.blueprints.data.indexd import IndexedFile, GoogleStorageIndexedFileLocation
-from fence.models import AssumeRoleCacheGCP, UserGoogleAccountToProxyGroup
+from fence.models import (
+    AssumeRoleCacheGCP,
+    GoogleServiceAccountKey,
+    UserGoogleAccountToProxyGroup,
+)
 import fence.resources.google.utils as utils
 
 
@@ -417,35 +421,44 @@ def test_internal_get_gs_signed_url_cache_new_key_if_old_key_expired(
     indexd_client_accepting_record(
         indexd_record_with_non_public_authz_and_public_acl_populated
     )
-    # with patch("fence.blueprints.data.indexd.flask.current_app", return_value=app):
-    with mock.patch.object(
-        utils, "create_primary_service_account_key", return_value="sa_private_key"
+
+    mock_google_service_account_key = GoogleServiceAccountKey()
+    mock_google_service_account_key.expires = 10
+    mock_google_service_account_key.private_key = "key"
+
+    with mock.patch(
+        "fence.blueprints.data.indexd.get_or_create_primary_service_account_key",
+        return_value=("sa_private_key", mock_google_service_account_key),
     ):
-        with mock.patch.object(
-            cirrus.google_cloud.utils,
-            "get_signed_url",
-            return_value="https://cloud.google.com/compute/url",
+        with mock.patch(
+            "fence.blueprints.data.indexd.create_primary_service_account_key",
+            return_value=("sa_private_key"),
         ):
-            indexed_file = IndexedFile(file_id="some id")
-            google_object = GoogleStorageIndexedFileLocation("gs://some/location")
-            keydbentry = UserGoogleAccountToProxyGroup()
-            keydbentry.expires = 10
-            google_object._assume_role_cache_gs = {"1": ("key", keydbentry)}
+            with mock.patch.object(
+                cirrus.google_cloud.utils,
+                "get_signed_url",
+                return_value="https://cloud.google.com/compute/url",
+            ):
+                indexed_file = IndexedFile(file_id="some id")
+                google_object = GoogleStorageIndexedFileLocation("gs://some/location")
+                keydbentry = UserGoogleAccountToProxyGroup()
+                keydbentry.expires = 10
+                google_object._assume_role_cache_gs = {"1": ("key", keydbentry, 10)}
 
-            assert google_object._assume_role_cache_gs
-            before_cache = db_session.query(AssumeRoleCacheGCP).first()
+                assert google_object._assume_role_cache_gs
+                before_cache = db_session.query(AssumeRoleCacheGCP).first()
 
-            google_object._generate_google_storage_signed_url(
-                http_verb="GET",
-                resource_path="gs://some/location",
-                expires_in=0,
-                user_id=1,
-                username="some user",
-                r_pays_project=None,
-            )
+                google_object._generate_google_storage_signed_url(
+                    http_verb="GET",
+                    resource_path="gs://some/location",
+                    expires_in=0,
+                    user_id=1,
+                    username="some user",
+                    r_pays_project=None,
+                )
 
-            after_cache = db_session.query(AssumeRoleCacheGCP).all()
-            assert before_cache != after_cache
+                after_cache = db_session.query(AssumeRoleCacheGCP).all()
+                assert before_cache != after_cache
 
 
 def test_set_acl_missing_unauthorized(

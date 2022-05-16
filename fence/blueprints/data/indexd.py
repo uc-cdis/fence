@@ -1075,7 +1075,20 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         expiration_time = int(time.time()) + expires_in
         is_cached = False
 
-        if hasattr(flask.current_app, "db"):
+        if proxy_group_id in self._assume_role_cache_gs:
+            (
+                raw_private_key,
+                raw_key_db_entry,
+                expires_at,
+            ) = self._assume_role_cache_gs.get(proxy_group_id)
+            if raw_key_db_entry and raw_key_db_entry.expires > expiration_time:
+                is_cached = True
+                private_key = raw_private_key
+                key_db_entry = raw_key_db_entry
+            else:
+                del self._assume_role_cache_gs[proxy_group_id]
+
+        if is_cached == False and hasattr(flask.current_app, "db"):
             with flask.current_app.db.session as session:
                 cache = (
                     session.query(AssumeRoleCacheGCP)
@@ -1089,21 +1102,12 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                         cache.expires_at,
                     )
                     self._assume_role_cache_gs[proxy_group_id] = rv
-                    private_key, key_db_entry = self._assume_role_cache_gs.get(
-                        proxy_group_id
-                    )
+                    (
+                        private_key,
+                        key_db_entry,
+                        expires_at,
+                    ) = self._assume_role_cache_gs.get(proxy_group_id)
                     is_cached = True
-
-        if proxy_group_id in self._assume_role_cache_gs:
-            raw_private_key, raw_key_db_entry = self._assume_role_cache_gs.get(
-                proxy_group_id
-            )
-            if raw_key_db_entry and raw_key_db_entry.expires > expiration_time:
-                is_cached = True
-                private_key = raw_private_key
-                key_db_entry = raw_key_db_entry
-            else:
-                del self._assume_role_cache_gs[proxy_group_id]
 
         # check again to see if we cached the creds if not we need to
         if is_cached == False:
@@ -1121,17 +1125,21 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             #       If our scheduled maintainence script removes the url-signing key
             #       before the expiration of the url then the url will NOT work
             #       (even though the url itself isn't expired)
-            if key_db_entry and key_db_entry.expires < expiration_time:
+            if key_db_entry.expires < expiration_time:
                 private_key = create_primary_service_account_key(
                     user_id=user_id, username=username, proxy_group_id=proxy_group_id
                 )
-            self._assume_role_cache_gs[proxy_group_id] = (private_key, key_db_entry)
+            self._assume_role_cache_gs[proxy_group_id] = (
+                private_key,
+                key_db_entry,
+                key_db_entry.expires,
+            )
 
             db_entry = {}
             db_entry["gcp_proxy_group_id"] = proxy_group_id
             db_entry["gcp_private_key"] = str(private_key)
             db_entry["gcp_key_db_entry"] = str(key_db_entry)
-            db_entry["expires_at"] = expiration_time
+            db_entry["expires_at"] = key_db_entry.expires
 
             if hasattr(flask.current_app, "db"):  # we don't have db in startup
                 with flask.current_app.db.session as session:
