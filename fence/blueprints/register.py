@@ -5,7 +5,9 @@ in order to gain some predefined permissions.
 """
 
 import flask
-from flask_sqlalchemy_session import current_session
+
+# from flask_sqlalchemy_session import current_session
+from fence.dbSession import current_session
 from flask_wtf import FlaskForm
 from wtforms import StringField
 from wtforms.validators import DataRequired, Email, StopValidation, ValidationError

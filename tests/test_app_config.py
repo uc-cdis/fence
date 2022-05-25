@@ -111,6 +111,8 @@ def test_app_config():
     )
 
     assert fence.app.config  # nosec
-
+    # Clean up registered blueprints to avoid error when repeatedly
+    # registers blueprints with the same name in subsequent tests
+    fence.app.blueprints = {}
     for patcher in patchers:
         patcher.stop()

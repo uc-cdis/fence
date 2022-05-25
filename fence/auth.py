@@ -1,5 +1,7 @@
 import flask
-from flask_sqlalchemy_session import current_session
+
+# from flask_sqlalchemy_session import current_session
+from fence.dbSession import current_session
 from functools import wraps
 import urllib.request, urllib.parse, urllib.error
 

@@ -6,7 +6,9 @@ from authutils.errors import JWTError
 from authutils.token.core import validate_jwt
 from authutils.token.keys import get_public_key_for_token
 from cdislogging import get_logger
-from flask_sqlalchemy_session import current_session
+
+# from flask_sqlalchemy_session import current_session
+from fence.dbSession import current_session
 from urllib.parse import urlparse, parse_qs
 
 from fence.models import GA4GHVisaV1, IdentityProvider

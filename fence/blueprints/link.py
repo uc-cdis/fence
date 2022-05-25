@@ -2,7 +2,9 @@ import time
 
 import flask
 from flask_restful import Resource
-from flask_sqlalchemy_session import current_session
+
+# from flask_sqlalchemy_session import current_session
+from fence.dbSession import current_session
 
 from cdislogging import get_logger
 

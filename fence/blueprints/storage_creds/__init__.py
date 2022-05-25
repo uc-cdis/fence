@@ -1,5 +1,7 @@
 import flask
-from flask_sqlalchemy_session import current_session
+
+# from flask_sqlalchemy_session import current_session
+from fence.dbSession import current_session
 
 from fence.auth import require_auth_header
 from fence.blueprints.storage_creds.api import AccessKey, ApiKey, ApiKeyList

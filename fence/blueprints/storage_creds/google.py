@@ -4,7 +4,9 @@ import re
 import time
 from distutils.util import strtobool
 from flask_restful import Resource
-from flask_sqlalchemy_session import current_session
+
+# from flask_sqlalchemy_session import current_session
+from fence.dbSession import current_session
 
 from cirrus import GoogleCloudManager
 from cirrus.config import config as cirrus_config

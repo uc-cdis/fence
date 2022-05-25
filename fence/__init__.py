@@ -4,7 +4,9 @@ import tempfile
 from urllib.parse import urljoin
 import flask
 from flask_cors import CORS
-from flask_sqlalchemy_session import flask_scoped_session, current_session
+from sqlalchemy.orm import scoped_session
+from flask import _app_ctx_stack, current_app
+from werkzeug.local import LocalProxy
 
 from authutils.oauth2.client import OAuthClient
 from cdislogging import get_logger
@@ -110,7 +112,9 @@ def app_sessions(app):
     else:
         logger.info("NOT running database migration.")
 
-    session = flask_scoped_session(app.db.Session, app)  # noqa
+    # Not passing in a scoping funtction as argument, assuming that request will be handled by 1 thread
+    # and the default thread-local db session will work
+    app.scoped_session = scoped_session(app.db.session)
     app.session_interface = UserSessionInterface()
 
 
@@ -364,6 +368,7 @@ def _setup_data_endpoint_and_boto(app):
     if "AWS_CREDENTIALS" in config and len(config["AWS_CREDENTIALS"]) > 0:
         value = list(config["AWS_CREDENTIALS"].values())[0]
         app.boto = BotoManager(value, logger=logger)
+        # import pdb;pdb.set_trace();
         app.register_blueprint(fence.blueprints.data.blueprint, url_prefix="/data")
 
 
@@ -555,3 +560,10 @@ def check_csrf():
             logger.debug("HTTP REFERER " + str(referer))
         except Exception as e:
             raise UserError("CSRF verification failed: {}. Request aborted".format(e))
+
+
+@app.teardown_appcontext
+def remove_scoped_session(*args, **kwargs):
+    # pylint: disable=missing-docstring,unused-argument,unused-variable
+    if hasattr(app, "scoped_session"):
+        app.scoped_session.remove()
