@@ -183,7 +183,7 @@ class StorageManager(object):
                     access,
                     session,
                     google_bulk_mapping=google_bulk_mapping,
-                    expires=None,
+                    expires=expires,
                 )
 
     @check_exist
