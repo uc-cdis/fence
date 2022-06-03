@@ -602,6 +602,7 @@ to_timestamp = (
 )
 
 
+# TODO deprecate this function
 def migrate(driver):
     if not driver.engine.dialect.supports_alter:
         print(

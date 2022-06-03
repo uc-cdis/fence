@@ -1480,6 +1480,7 @@ def notify_problem_users(db, emails, auth_ids, check_linking, google_project_id)
 
 
 def migrate_database(db):
+    # TODO deprecate this command, the migration job should use alembic
     driver = SQLAlchemyDriver(db)
     migrate(driver)
     logger.info("Done.")
