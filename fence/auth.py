@@ -1,5 +1,6 @@
 import flask
 from flask_sqlalchemy_session import current_session
+from sqlalchemy.sql import func
 from functools import wraps
 import urllib.request, urllib.parse, urllib.error
 
@@ -98,6 +99,7 @@ def login_user(
     if user:
         _update_users_email(user, email)
         _update_users_id_from_idp(user, id_from_idp)
+        _update_users_last_auth(user)
 
         #  This expression is relevant to those users who already have user and
         #  idp info persisted to the database. We return early to avoid
@@ -295,3 +297,18 @@ def _update_users_id_from_idp(user, id_from_idp):
 
         current_session.add(user)
         current_session.commit()
+
+def _update_users_last_auth(user):
+    """
+    Update _last_auth.
+    """
+    logger.info(
+        f"Updating username {user.username}'s _last_auth."
+    )
+    user._last_auth = func.now()
+
+    current_session.add(user)
+    current_session.commit()
+
+    
+    
