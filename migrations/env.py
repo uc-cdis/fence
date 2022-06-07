@@ -1,5 +1,6 @@
 from alembic import context
 from logging.config import fileConfig
+import os
 from sqlalchemy import engine_from_config, pool
 
 from userdatamodel import Base
@@ -14,7 +15,10 @@ if config.config_file_name is not None:
 
 target_metadata = Base.metadata
 
-fence_config.load(search_folders=CONFIG_SEARCH_FOLDERS)
+fence_config.load(
+    config_path=os.environ.get("TEST_CONFIG_PATH"),  # for tests
+    search_folders=CONFIG_SEARCH_FOLDERS,  # for deployments
+)
 config.set_main_option("sqlalchemy.url", str(fence_config["DB"]))
 
 
