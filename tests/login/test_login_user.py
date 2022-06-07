@@ -1,7 +1,9 @@
 import flask
 from flask_sqlalchemy_session import current_session
-from fence.auth import login_user
+from fence.auth import login_user, logout
 from fence.models import User, IdentityProvider
+import time
+from datetime import datetime
 
 
 def test_login_user_already_in_db(db_session):
@@ -82,3 +84,26 @@ def test_login_new_user(db_session):
     assert flask.session["provider"] == provider
     assert flask.session["user_id"] == str(test_user.id)
     assert flask.g.user == test_user
+
+
+def test_last_auth_update_in_db(db_session):
+    """
+    Test that the _last_auth field in the DB is updated when the user logs in.
+    """
+    email = "testuser@gmail.com"
+    provider = "Test Provider"
+    id_from_idp = "Provider_ID_0001"
+
+    test_user = User(username=email, is_admin=False)
+    db_session.add(test_user)
+    db_session.commit()
+
+    logout("https://bogus.website")
+    previous_login = test_user._last_auth
+
+    time.sleep(5)
+
+    login_user(email, provider, email=email, id_from_idp=id_from_idp)
+    test_user_updated = db_session.query(User).filter(User.username == email).first()
+
+    assert test_user_updated._last_auth > previous_login
