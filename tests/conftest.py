@@ -54,6 +54,25 @@ def _compile_drop_table(element, compiler, **kwargs):
 os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "true"
 
 
+# all the IDPs we want to test.
+# any newly added custom OIDC IDP should be added here.
+# generic OIDC IDPs should start with "generic" so the tests work.
+LOGIN_IDPS = [
+    "fence",
+    "google",
+    "shib",
+    "orcid",
+    "synapse",
+    "microsoft",
+    "okta",
+    "cognito",
+    "ras",
+    "cilogon",
+    "generic1",
+    "generic2",
+]
+
+
 def mock_get_bucket_location(self, bucket, config):
     return "us-east-1"
 
