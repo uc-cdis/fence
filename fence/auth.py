@@ -5,6 +5,7 @@ import json
 import flask 
 from configparser import RawConfigParser
 from functools import wraps
+from datetime import datetime
 
 from authutils.errors import JWTError, JWTExpiredError
 from authutils.token.validate import (
@@ -14,7 +15,6 @@ from authutils.token.validate import (
     validate_request
 )
 from flask_sqlalchemy_session import current_session
-from sqlalchemy.sql import func
 from fence.config import config
 from fence.errors import InternalError, Unauthorized
 from fence.jwt.validate import validate_jwt
@@ -325,7 +325,7 @@ def _update_users_last_auth(user):
     logger.info(
         f"Updating username {user.username}'s _last_auth."
     )
-    user._last_auth = func.now()
+    user._last_auth = datetime.now()
 
     current_session.add(user)
     current_session.commit()
