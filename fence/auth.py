@@ -1,6 +1,6 @@
 import flask
 from flask_sqlalchemy_session import current_session
-from sqlalchemy.sql import func
+from datetime import datetime
 from functools import wraps
 import urllib.request, urllib.parse, urllib.error
 
@@ -305,7 +305,7 @@ def _update_users_last_auth(user):
     logger.info(
         f"Updating username {user.username}'s _last_auth."
     )
-    user._last_auth = func.now()
+    user._last_auth = datetime.now()
 
     current_session.add(user)
     current_session.commit()
