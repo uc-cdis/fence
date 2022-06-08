@@ -402,11 +402,11 @@ def test_set_acl_missing_unauthorized(
             indexed_file.set_acls
 
 
-def test_check_authz_missing_value_error(
+def test_get_authorized_with_username_missing_value_error(
     app, supported_action, supported_protocol, indexd_client_accepting_record
 ):
     """
-    Test fence.blueprints.data.indexd.IndexedFile check_authz without authz in indexd record
+    Test fence.blueprints.data.indexd.IndexedFile get_authorized_with_username without authz in indexd record
     """
     indexd_record_with_no_authz_and_public_acl_populated = {
         "urls": [f"{supported_protocol}://some/location"],
@@ -418,7 +418,7 @@ def test_check_authz_missing_value_error(
     with patch("fence.blueprints.data.indexd.flask.current_app", return_value=app):
         indexed_file = IndexedFile(file_id="some id")
         with pytest.raises(ValueError):
-            indexed_file.check_authz(supported_action)
+            indexed_file.get_authorized_with_username(supported_action)
 
 
 @pytest.mark.parametrize(
