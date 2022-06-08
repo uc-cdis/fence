@@ -9,7 +9,8 @@ from fence.blueprints.data.indexd import (
     IndexedFile,
     get_signed_url_for_file,
 )
-from fence.errors import Forbidden, InternalError, UserError
+from fence.config import config
+from fence.errors import Forbidden, InternalError, UserError, Forbidden
 from fence.resources.audit.utils import enable_audit_logging
 from fence.utils import get_valid_expiration
 
