@@ -1137,7 +1137,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
 
             db_entry = {}
             db_entry["gcp_proxy_group_id"] = proxy_group_id
-            db_entry["gcp_private_key"] = str(private_key)
+            db_entry["gcp_private_key"] = json.dumps(str(private_key))
             db_entry["gcp_key_db_entry"] = str(key_db_entry)
             db_entry["expires_at"] = key_db_entry.expires
 
