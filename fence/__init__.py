@@ -14,13 +14,27 @@ from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
+from urllib.parse import urlparse
+
+# Can't read config yet. Just set to debug for now, else no handlers.
+# Later, in app_config(), will actually set level based on config
+logger = get_logger(__name__, log_level="debug")
+
+# Load the configuration *before* importing modules that rely on it
+from fence.config import config
+from fence.settings import CONFIG_SEARCH_FOLDERS
+
+config.load(
+    config_path=os.environ.get("FENCE_CONFIG_PATH"),
+    search_folders=CONFIG_SEARCH_FOLDERS,
+)
 
 from fence.auth import logout, build_redirect_url
 from fence.blueprints.data.indexd import S3IndexedFileLocation
 from fence.blueprints.login.utils import allowed_login_redirects, domain
 from fence.errors import UserError
 from fence.jwt import keys
-from fence.models import migrate
+from fence.models import migrate, IdentityProvider
 from fence.oidc.client import query_client
 from fence.oidc.server import server
 from fence.resources.audit.client import AuditServiceClient
@@ -38,8 +52,6 @@ from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
 from fence.error_handler import get_error_response
 from fence.utils import random_str
-from fence.config import config
-from fence.settings import CONFIG_SEARCH_FOLDERS
 import fence.blueprints.admin
 import fence.blueprints.data
 import fence.blueprints.login
@@ -59,10 +71,6 @@ import fence.blueprints.ga4gh
 # this statement to `_setup_prometheus()`
 PROMETHEUS_TMP_COUNTER_DIR = tempfile.TemporaryDirectory()
 
-
-# Can't read config yet. Just set to debug for now, else no handlers.
-# Later, in app_config(), will actually set level based on config
-logger = get_logger(__name__, log_level="debug")
 
 app = flask.Flask(__name__)
 CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
