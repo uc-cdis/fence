@@ -1,5 +1,5 @@
 authz:
-  # policies automatically given to anyone, even if they are not authenticated
+  # policies automatically given to anyone, even if they are not authenticated.
   anonymous_policies:
   - open_data_reader
 
