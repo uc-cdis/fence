@@ -151,7 +151,14 @@ class StorageManager(object):
 
     @check_exist
     def grant_access(
-        self, provider, username, project, access, session, google_bulk_mapping=None
+        self,
+        provider,
+        username,
+        project,
+        access,
+        session,
+        google_bulk_mapping=None,
+        expires=None,
     ):
         """
         this should be exposed via admin endpoint
@@ -176,6 +183,7 @@ class StorageManager(object):
                     access,
                     session,
                     google_bulk_mapping=google_bulk_mapping,
+                    expires=expires,
                 )
 
     @check_exist
@@ -369,6 +377,7 @@ class StorageManager(object):
         access,
         session,
         google_bulk_mapping=None,
+        expires=None,
     ):
         # Need different logic for google (since buckets can have multiple
         # access groups)
@@ -412,7 +421,7 @@ class StorageManager(object):
                     )
 
                 StorageManager._add_google_db_entry_for_bucket_access(
-                    storage_user, bucket_access_group, session
+                    storage_user, bucket_access_group, session, expires=expires
                 )
 
             else:
@@ -489,7 +498,7 @@ class StorageManager(object):
 
     @staticmethod
     def _add_google_db_entry_for_bucket_access(
-        storage_user, bucket_access_group, session
+        storage_user, bucket_access_group, session, expires=None
     ):
         """
         Add a db entry specifying that a given user has storage access
@@ -507,7 +516,13 @@ class StorageManager(object):
             storage_user_access_db_entry = GoogleProxyGroupToGoogleBucketAccessGroup(
                 proxy_group_id=storage_user.google_proxy_group_id,
                 access_group_id=bucket_access_group.id,
+                expires=expires,
             )
+            session.add(storage_user_access_db_entry)
+            session.commit()
+        # update expiration if doesn't match db
+        elif expires != storage_user_access_db_entry.expires:
+            storage_user_access_db_entry.expires = expires
             session.add(storage_user_access_db_entry)
             session.commit()
 

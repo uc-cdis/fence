@@ -11,7 +11,6 @@ from enum import Enum
 
 from authlib.flask.oauth2.sqla import OAuth2AuthorizationCodeMixin, OAuth2ClientMixin
 import bcrypt
-import flask
 from sqlalchemy import (
     Integer,
     BigInteger,
@@ -55,6 +54,68 @@ def query_for_user(session, username):
         .filter(func.lower(User.username) == username.lower())
         .first()
     )
+
+
+def query_for_user_by_id(session, user_id):
+    return session.query(User).filter(User.id == user_id).first()
+
+
+def create_user(session, logger, username, email=None, idp_name=None):
+    """
+    Create a new user in the database.
+
+    Args:
+        session (sqlalchemy.orm.session.Session): database session
+        logger (logging.Logger): logger
+        username (str): username to save for the created user
+        email (str): email to save for the created user
+        idp_name (str): name of identity provider to link
+
+    Return:
+        userdatamodel.user.User: the created user
+    """
+    logger.info(
+        f"Creating a new user with username: {username}, "
+        f"email: {email}, and idp_name: {idp_name}"
+    )
+
+    user = User(username=username)
+    if email:
+        user.email = email
+    if idp_name:
+        idp = (
+            session.query(IdentityProvider)
+            .filter(IdentityProvider.name == idp_name)
+            .first()
+        )
+        if not idp:
+            idp = IdentityProvider(name=idp_name)
+        user.identity_provider = idp
+
+    session.add(user)
+    session.commit()
+    return user
+
+
+def get_project_to_authz_mapping(session):
+    """
+    Get the mappings for Project.auth_id to authorization resource (Project.authz)
+    from the database if a mapping exists. e.g. will only return if Project.authz is
+    populated.
+
+    Args:
+        session (sqlalchemy.orm.session.Session): database session
+
+    Returns:
+        dict{str:str}: Mapping from Project.auth_id to Project.authz
+    """
+    output = {}
+
+    query_results = session.query(Project.auth_id, Project.authz)
+    if query_results:
+        output = {item.auth_id: item.authz for item in query_results if item.authz}
+
+    return output
 
 
 class ClientAuthType(Enum):
@@ -452,6 +513,8 @@ class GoogleProxyGroupToGoogleBucketAccessGroup(Base):
         ),
     )
 
+    expires = Column(BigInteger)
+
 
 class UserServiceAccount(Base):
     __tablename__ = "user_service_account"
@@ -540,6 +603,14 @@ class AssumeRoleCacheGCP(Base):
     expires_at = Column(Integer())
     gcp_private_key = Column(String())
     gcp_key_db_entry = Column(String())
+
+
+class GA4GHPassportCache(Base):
+    __tablename__ = "ga4gh_passport_cache"
+
+    passport_hash = Column(String(64), primary_key=True)
+    expires_at = Column(BigInteger, nullable=False)
+    user_ids = Column(ARRAY(String(255)), nullable=False)
 
 
 class GA4GHVisaV1(Base):

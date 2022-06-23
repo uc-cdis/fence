@@ -17,6 +17,8 @@ from fence.scripting.fence_create import (
     create_sample_data,
     delete_client_action,
     delete_users,
+    delete_expired_google_access,
+    cleanup_expired_ga4gh_information,
     google_init,
     list_client_action,
     link_external_bucket,
@@ -32,7 +34,7 @@ from fence.scripting.fence_create import (
     verify_user_registration,
     force_update_google_link,
     google_list_authz_groups,
-    update_user_visas,
+    access_token_polling_job,
 )
 from fence.settings import CONFIG_SEARCH_FOLDERS
 
@@ -146,6 +148,8 @@ def parse_arguments():
 
     subparsers.add_parser("expired-service-account-delete")
     subparsers.add_parser("bucket-access-group-verify")
+    subparsers.add_parser("delete-expired-google-access")
+    subparsers.add_parser("cleanup-expired-ga4gh-information")
 
     hmac_create = subparsers.add_parser("hmac-create")
     hmac_create.add_argument("yaml-input")
@@ -404,9 +408,6 @@ def main():
     STORAGE_CREDENTIALS = os.environ.get("STORAGE_CREDENTIALS") or config.get(
         "STORAGE_CREDENTIALS"
     )
-    usersync = config.get("USERSYNC", {})
-    sync_from_visas = usersync.get("sync_from_visas", False)
-    fallback_to_dbgap_sftp = usersync.get("fallback_to_dbgap_sftp", False)
 
     arborist = None
     if args.arborist:
@@ -458,6 +459,10 @@ def main():
         delete_expired_service_accounts(DB)
     elif args.action == "bucket-access-group-verify":
         verify_bucket_access_group(DB)
+    elif args.action == "delete-expired-google-access":
+        delete_expired_google_access(DB)
+    elif args.action == "cleanup-expired-ga4gh-information":
+        cleanup_expired_ga4gh_information(DB)
     elif args.action == "sync":
         sync_users(
             dbGaP,
@@ -469,8 +474,6 @@ def main():
             sync_from_local_yaml_file=args.yaml,
             folder=args.folder,
             arborist=arborist,
-            sync_from_visas=sync_from_visas,
-            fallback_to_dbgap_sftp=fallback_to_dbgap_sftp,
         )
     elif args.action == "dbgap-download-access-files":
         download_dbgap_files(
@@ -573,7 +576,7 @@ def main():
             "The migrate command is deprecated. Please use Alembic to run the migration instead. If using a Gen3 cloud-automation setup, make sure you are using the latest version of cloud-automation."
         )
     elif args.action == "update-visas":
-        update_user_visas(
+        access_token_polling_job(
             DB,
             chunk_size=args.chunk_size,
             concurrency=args.concurrency,
