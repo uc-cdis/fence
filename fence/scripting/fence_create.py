@@ -47,7 +47,6 @@ from fence.models import (
     UserRefreshToken,
     ServiceAccountToGoogleBucketAccessGroup,
     query_for_user,
-    migrate,
 )
 from fence.scripting.google_monitor import email_users_without_access, validation_check
 from fence.config import config
@@ -1477,13 +1476,6 @@ def notify_problem_users(db, emails, auth_ids, check_linking, google_project_id)
     check_linking (bool): flag for if emails should be checked for linked google email
     """
     email_users_without_access(db, auth_ids, emails, check_linking, google_project_id)
-
-
-def migrate_database(db):
-    # TODO deprecate this command, the migration job should use alembic
-    driver = SQLAlchemyDriver(db)
-    migrate(driver)
-    logger.info("Done.")
 
 
 def google_list_authz_groups(db):

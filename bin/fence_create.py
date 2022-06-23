@@ -31,7 +31,6 @@ from fence.scripting.fence_create import (
     verify_bucket_access_group,
     verify_user_registration,
     force_update_google_link,
-    migrate_database,
     google_list_authz_groups,
     update_user_visas,
 )
@@ -333,7 +332,7 @@ def parse_arguments():
         help="Google Project id that all users belong to",
     )
 
-    subparsers.add_parser("migrate", help="Migrate the fence database")
+    subparsers.add_parser("migrate", help="DEPRECATED. Migrate the fence database")
     subparsers.add_parser(
         "google-list-authz-groups",
         help="List the Google Buckets "
@@ -570,7 +569,9 @@ def main():
             DB, args.emails, args.auth_ids, args.check_linking, args.google_project_id
         )
     elif args.action == "migrate":
-        migrate_database(DB)
+        raise Exception(
+            "The migrate command is deprecated. Please use Alembic to run the migration instead. If using a Gen3 cloud-automation setup, make sure you are using the latest version of cloud-automation."
+        )
     elif args.action == "update-visas":
         update_user_visas(
             DB,

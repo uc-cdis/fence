@@ -9,9 +9,13 @@ the model:
 - https://github.com/uc-cdis/userdatamodel/blob/2.4.0/userdatamodel/user.py
 - https://github.com/uc-cdis/fence/blob/2022.06/fence/models.py
 """
-from alembic import op
+from alembic import context, op
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
+
+from userdatamodel.driver import SQLAlchemyDriver
+
+from bin.old_migration_script import migrate
 
 # revision identifiers, used by Alembic.
 revision = "e4c7b0ab68d3"
@@ -21,6 +25,24 @@ depends_on = None
 
 
 def upgrade():
+    # If this is a new instance of Fence, we can run this initial Alembic
+    # migration to create the tables. If not, the DB might have been partially
+    # migrated by the old migration script and we need to make sure all the
+    # old migrations are run, then Alembic can pick up from there and run more
+    # recent migrations.
+    # The state of the DB after the old migration script runs is the same as
+    # after this initial Alembic migration.
+    conn = op.get_bind()
+    inspector = sa.engine.reflection.Inspector.from_engine(conn)
+    tables = inspector.get_table_names()
+    if len(tables) > 0 and tables != ["alembic_version"]:
+        print(
+            "INFO: Found existing tables: this is not a new instance of Fence. Running the old migration script... Note that future migrations will be run using Alembic."
+        )
+        driver = SQLAlchemyDriver(context.config.get_main_option("sqlalchemy.url"))
+        migrate(driver)
+        return
+
     op.create_table(
         "Group",
         sa.Column("id", sa.Integer(), nullable=False),
