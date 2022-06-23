@@ -1,5 +1,6 @@
 from sqlalchemy import (
     Integer,
+    BigInteger,
     DateTime,
     String,
     Column,
@@ -18,6 +19,7 @@ from fence.models import (
     Client,
     GoogleBucketAccessGroup,
     GoogleProxyGroup,
+    GoogleProxyGroupToGoogleBucketAccessGroup,
     GoogleServiceAccount,
     Project,
     User,
@@ -281,6 +283,15 @@ CREATE TRIGGER cert_audit
 AFTER INSERT OR UPDATE OR DELETE ON certificate
     FOR EACH ROW EXECUTE PROCEDURE process_cert_audit();"""
         )
+
+    # Google Access expiration
+
+    add_column_if_not_exist(
+        table_name=GoogleProxyGroupToGoogleBucketAccessGroup.__tablename__,
+        column=Column("expires", BigInteger()),
+        driver=driver,
+        metadata=md,
+    )
 
     add_column_if_not_exist(
         table_name=Project.__tablename__,

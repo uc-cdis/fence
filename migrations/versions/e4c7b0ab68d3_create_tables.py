@@ -125,6 +125,13 @@ def upgrade():
         sa.PrimaryKeyConstraint("id"),
     )
     op.create_table(
+        "ga4gh_passport_cache",
+        sa.Column("passport_hash", sa.String(length=64), nullable=False),
+        sa.Column("expires_at", sa.BigInteger(), nullable=False),
+        sa.Column("user_ids", postgresql.ARRAY(sa.String(length=255)), nullable=False),
+        sa.PrimaryKeyConstraint("passport_hash"),
+    )
+    op.create_table(
         "gcp_assume_role_cache",
         sa.Column("gcp_proxy_group_id", sa.String(), nullable=False),
         sa.Column("expires_at", sa.Integer(), nullable=True),
@@ -441,6 +448,7 @@ def upgrade():
         sa.Column("id", sa.Integer(), nullable=False),
         sa.Column("proxy_group_id", sa.String(), nullable=False),
         sa.Column("access_group_id", sa.Integer(), nullable=False),
+        sa.Column("expires", sa.BigInteger(), nullable=True),
         sa.ForeignKeyConstraint(
             ["access_group_id"], ["google_bucket_access_group.id"], ondelete="CASCADE"
         ),
@@ -483,6 +491,20 @@ def upgrade():
         sa.Column("expire", sa.Integer(), nullable=True),
         sa.ForeignKeyConstraint(["user_id"], ["User.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
+    )
+    op.create_table(
+        "iss_sub_pair_to_user",
+        sa.Column("iss", sa.String(), nullable=False),
+        sa.Column("sub", sa.String(), nullable=False),
+        sa.Column("fk_to_User", sa.Integer(), nullable=False),
+        sa.Column(
+            "extra_info",
+            postgresql.JSONB(astext_type=sa.Text()),
+            server_default=sa.text("'{}'"),
+            nullable=True,
+        ),
+        sa.ForeignKeyConstraint(["fk_to_User"], ["User.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("iss", "sub"),
     )
     op.create_table(
         "s3credential",
@@ -629,6 +651,7 @@ def downgrade():
     op.drop_table("storage_access")
     op.drop_table("service_account_to_google_bucket_access_group")
     op.drop_table("s3credential")
+    op.drop_table("iss_sub_pair_to_user")
     op.drop_table("hmac_keypair_archive")
     op.drop_table("hmac_keypair")
     op.drop_table("google_service_account")
@@ -669,6 +692,7 @@ def downgrade():
     op.drop_table("identity_provider")
     op.drop_table("google_proxy_group")
     op.drop_table("gcp_assume_role_cache")
+    op.drop_table("ga4gh_passport_cache")
     op.drop_table("event_log")
     op.drop_table("cloud_provider")
     op.drop_table("cert_audit_logs")
