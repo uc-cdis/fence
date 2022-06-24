@@ -69,11 +69,10 @@ def parse_arguments():
 
     client_create = subparsers.add_parser("client-create")
     client_create.add_argument("--client", required=True)
-    client_create.add_argument("--urls", required=True, nargs="+")
+    client_create.add_argument("--urls", nargs="+")
     client_create.add_argument(
         "--username",
         help="user(can represent an organization) that owns the client",
-        required=True,
     )
     client_create.add_argument(
         "--external",
@@ -89,7 +88,7 @@ def parse_arguments():
     )
     client_create.add_argument(
         "--grant-types",
-        help="which OAuth2 grant types are enabled for this client",
+        help="which OAuth2 grant types are enabled for this client (default: authorization_code and refresh_token)",
         nargs="+",
     )
     client_create.add_argument(

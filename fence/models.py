@@ -220,6 +220,25 @@ class Client(Base, OAuth2ClientMixin):
             # assume it's already in correct format
             kwargs["grant_type"] = grant_types
 
+        supported_grant_types = [
+            "authorization_code",
+            "refresh_token",
+            "implicit",
+            "client_credentials",
+        ]
+        assert all(
+            grant_type in supported_grant_types
+            for grant_type in kwargs["grant_type"].split("\n")
+        ), f"Grant types '{kwargs['grant_type']}' are not in supported types {supported_grant_types}"
+
+        if "authorization_code" in kwargs["grant_type"].split("\n"):
+            assert kwargs.get("user") or kwargs.get(
+                "user_id"
+            ), "A username is required for the 'authorization_code' grant"
+            assert kwargs.get(
+                "redirect_uri"
+            ), "Redirect URL(s) are required for the 'authorization_code' grant"
+
         super(Client, self).__init__(client_id=client_id, **kwargs)
 
     @property
@@ -286,6 +305,8 @@ class Client(Base, OAuth2ClientMixin):
         allowed_response_types = []
         if "authorization_code" in self.grant_types:
             allowed_response_types.append("code")
+        if "client_credentials" in self.grant_types:
+            pass  # TODO
         if "implicit" in self.grant_types:
             allowed_response_types.append("id_token")
             allowed_response_types.append("id_token token")

@@ -209,7 +209,9 @@ class OAuth2TestClient(object):
             elif method == "POST":
                 assert response.status_code == 200, response
             # Check that the redirect does go to the correct URL.
-            assert self.authorize_response.location.startswith(self.url)
+            assert self.authorize_response.location.startswith(
+                self.url
+            ), f"Expected location '{self.authorize_response.location}' to start with '{self.url}'"
 
         return self.authorize_response
 

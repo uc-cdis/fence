@@ -1369,6 +1369,38 @@ def oauth_client_public(app, db_session, oauth_user):
 
 
 @pytest.fixture(scope="function")
+def oauth_client_with_client_credentials(
+    db_session, get_all_shib_idps_patcher
+):  # app, db_session, oauth_user, get_all_shib_idps_patcher):
+    """
+    Create a confidential OAuth2 client and add it to the database along with a
+    test user for the client.
+    """
+    url = "https://oauth-test-client-with-client-credentials.net"
+    client_id = "test-client-with-client-credentials"
+    client_secret = fence.utils.random_str(50)
+    hashed_secret = bcrypt.hashpw(
+        client_secret.encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
+    # test_user = db_session.query(models.User).filter_by(id=oauth_user.user_id).first()
+    db_session.add(
+        models.Client(
+            client_id=client_id,
+            client_secret=hashed_secret,
+            # user=test_user,
+            allowed_scopes=["openid", "user", "fence"],
+            redirect_uris=[url],
+            description="",
+            is_confidential=True,
+            name="testclient-with-client-credentials",
+            grant_types=["client_credentials"],
+        )
+    )
+    db_session.commit()
+    return Dict(client_id=client_id, client_secret=client_secret, url=url)
+
+
+@pytest.fixture(scope="function")
 def oauth_test_client(client, oauth_client):
     return OAuth2TestClient(client, oauth_client, confidential=True)
 
@@ -1381,6 +1413,15 @@ def oauth_test_client_B(client, oauth_client_B):
 @pytest.fixture(scope="function")
 def oauth_test_client_public(client, oauth_client_public):
     return OAuth2TestClient(client, oauth_client_public, confidential=False)
+
+
+@pytest.fixture(scope="function")
+def oauth_test_client_with_client_credentials(
+    client, oauth_client_with_client_credentials
+):
+    return OAuth2TestClient(
+        client, oauth_client_with_client_credentials, confidential=False
+    )
 
 
 @pytest.fixture(scope="session")

@@ -237,7 +237,7 @@ paths:
                 grant_type:
                   description: >-
                     Value MUST be `"authorization_code"` (which is the
-                    authorization flow used in this implementation)
+                    authorization flow used in this implementation) TODO update
                   type: string
                 code:
                   description: >-

@@ -86,3 +86,12 @@ def test_oauth2_token_post_revoke(oauth_test_client):
     oauth_test_client.refresh(refresh_token, do_asserts=False)
     response = oauth_test_client.refresh_response.response
     assert response.status_code == 400
+
+
+# def test_oauth2_token_post_client_with_client_credentials(
+#     oauth_test_client_with_client_credentials,
+# ):
+#     """Test ``POST /oauth2/token`` for client with client_credentials grant."""
+#     data = {"confirm": "yes"}
+#     oauth_test_client_with_client_credentials.authorize(method="GET", data=data)
+#     oauth_test_client_with_client_credentials.token()

@@ -6,7 +6,7 @@ import json
 
 from tests.utils.api_key import get_api_key
 
-
+# TODO remove cdis
 def test_cdis_get_access_token(client, oauth_client, encoded_creds_jwt):
     """
     Test ``POST /credentials/cdis/access_token``.
