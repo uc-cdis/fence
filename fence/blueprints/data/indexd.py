@@ -1203,7 +1203,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             else:
                 del self._assume_role_cache_gs[proxy_group_id]
 
-        if is_cached == False and hasattr(flask.current_app, "db"):
+        if not is_cached and hasattr(flask.current_app, "db"):
             with flask.current_app.db.session as session:
                 cache = (
                     session.query(AssumeRoleCacheGCP)
