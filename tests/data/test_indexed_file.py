@@ -1,11 +1,21 @@
 """
 Test fence.blueprints.data.indexd.IndexedFile
 """
+from unittest import mock
 from mock import patch
 
+import cirrus
 import pytest
 
-from fence.blueprints.data.indexd import IndexedFile
+import fence.blueprints.data.indexd as indexd
+from fence.blueprints.data.indexd import IndexedFile, GoogleStorageIndexedFileLocation
+from fence.models import (
+    AssumeRoleCacheGCP,
+    GoogleServiceAccountKey,
+    UserGoogleAccountToProxyGroup,
+)
+import fence.resources.google.utils as utils
+
 
 from fence.errors import (
     InternalError,
@@ -379,6 +389,76 @@ def test_internal_get_signed_url_no_location_match(
                     r_pays_project=None,
                     file_name="some file",
                 )
+
+
+@mock.patch.object(utils, "_get_proxy_group_id", return_value=None)
+@mock.patch.object(indexd, "get_or_create_proxy_group_id", return_value="1")
+def test_internal_get_gs_signed_url_cache_new_key_if_old_key_expired(
+    mock_get_or_create_proxy_group_id,
+    mock_get_proxy_group_id,
+    app,
+    indexd_client_accepting_record,
+    db_session,
+):
+    """
+    Test fence.blueprints.data.indexd.GoogleStorageIndexedFileLocation._generate_google_storage_signed_url does not use cached key if its expired
+    """
+    db_session.add(
+        AssumeRoleCacheGCP(
+            gcp_proxy_group_id="1",
+            expires_at=0,
+            gcp_private_key="key",
+            gcp_key_db_entry='{"1":("key", keydbentry)}',
+        )
+    )
+    db_session.commit()
+
+    indexd_record_with_non_public_authz_and_public_acl_populated = {
+        "urls": [f"gs://some/location"],
+        "authz": ["/programs/DEV/projects/test"],
+        "acl": ["*"],
+    }
+    indexd_client_accepting_record(
+        indexd_record_with_non_public_authz_and_public_acl_populated
+    )
+
+    mock_google_service_account_key = GoogleServiceAccountKey()
+    mock_google_service_account_key.expires = 10
+    mock_google_service_account_key.private_key = "key"
+
+    with mock.patch(
+        "fence.blueprints.data.indexd.get_or_create_primary_service_account_key",
+        return_value=("sa_private_key", mock_google_service_account_key),
+    ):
+        with mock.patch(
+            "fence.blueprints.data.indexd.create_primary_service_account_key",
+            return_value=("sa_private_key"),
+        ):
+            with mock.patch.object(
+                cirrus.google_cloud.utils,
+                "get_signed_url",
+                return_value="https://cloud.google.com/compute/url",
+            ):
+                indexed_file = IndexedFile(file_id="some id")
+                google_object = GoogleStorageIndexedFileLocation("gs://some/location")
+                keydbentry = UserGoogleAccountToProxyGroup()
+                keydbentry.expires = 10
+                google_object._assume_role_cache_gs = {"1": ("key", keydbentry, 10)}
+
+                assert google_object._assume_role_cache_gs
+                before_cache = db_session.query(AssumeRoleCacheGCP).first()
+
+                google_object._generate_google_storage_signed_url(
+                    http_verb="GET",
+                    resource_path="gs://some/location",
+                    expires_in=0,
+                    user_id=1,
+                    username="some user",
+                    r_pays_project=None,
+                )
+
+                after_cache = db_session.query(AssumeRoleCacheGCP).all()
+                assert before_cache != after_cache
 
 
 def test_set_acl_missing_unauthorized(
