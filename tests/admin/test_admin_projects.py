@@ -1,12 +1,19 @@
 import fence.resources.admin as adm
 from fence.models import Project, Bucket, ProjectToBucket, CloudProvider, StorageAccess
+import pytest
 
 
+@pytest.mark.skip(
+    reason="The AWG/admin/fence_as_authz support is deprecated in favor of authorization being handled fully by the policy engine"
+)
 def test_get_project(db_session, awg_users):
     info = adm.get_project_info(db_session, "test_project_1")
     assert info["name"] == "test_project_1"
 
 
+@pytest.mark.skip(
+    reason="The AWG/admin/fence_as_authz support is deprecated in favor of authorization being handled fully by the policy engine"
+)
 def test_get_all_projects(db_session, awg_users):
     projects = adm.get_all_projects(db_session)["projects"]
     info = {

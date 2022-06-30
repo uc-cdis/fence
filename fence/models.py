@@ -12,7 +12,6 @@ from enum import Enum
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from authlib.flask.oauth2.sqla import OAuth2AuthorizationCodeMixin, OAuth2ClientMixin
 import bcrypt
-import flask
 from sqlalchemy import (
     Integer,
     BigInteger,
@@ -25,6 +24,7 @@ from sqlalchemy import (
     Table,
     text,
     UniqueConstraint,
+    event,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship, backref
@@ -57,6 +57,7 @@ from userdatamodel.models import (
 )
 import warnings
 
+from fence import logger
 from fence.config import config
 
 
@@ -66,6 +67,68 @@ def query_for_user(session, username):
         .filter(func.lower(User.username) == username.lower())
         .first()
     )
+
+
+def query_for_user_by_id(session, user_id):
+    return session.query(User).filter(User.id == user_id).first()
+
+
+def create_user(session, logger, username, email=None, idp_name=None):
+    """
+    Create a new user in the database.
+
+    Args:
+        session (sqlalchemy.orm.session.Session): database session
+        logger (logging.Logger): logger
+        username (str): username to save for the created user
+        email (str): email to save for the created user
+        idp_name (str): name of identity provider to link
+
+    Return:
+        userdatamodel.user.User: the created user
+    """
+    logger.info(
+        f"Creating a new user with username: {username}, "
+        f"email: {email}, and idp_name: {idp_name}"
+    )
+
+    user = User(username=username)
+    if email:
+        user.email = email
+    if idp_name:
+        idp = (
+            session.query(IdentityProvider)
+            .filter(IdentityProvider.name == idp_name)
+            .first()
+        )
+        if not idp:
+            idp = IdentityProvider(name=idp_name)
+        user.identity_provider = idp
+
+    session.add(user)
+    session.commit()
+    return user
+
+
+def get_project_to_authz_mapping(session):
+    """
+    Get the mappings for Project.auth_id to authorization resource (Project.authz)
+    from the database if a mapping exists. e.g. will only return if Project.authz is
+    populated.
+
+    Args:
+        session (sqlalchemy.orm.session.Session): database session
+
+    Returns:
+        dict{str:str}: Mapping from Project.auth_id to Project.authz
+    """
+    output = {}
+
+    query_results = session.query(Project.auth_id, Project.authz)
+    if query_results:
+        output = {item.auth_id: item.authz for item in query_results if item.authz}
+
+    return output
 
 
 class ClientAuthType(Enum):
@@ -499,6 +562,8 @@ class GoogleProxyGroupToGoogleBucketAccessGroup(Base):
         ),
     )
 
+    expires = Column(BigInteger)
+
 
 class UserServiceAccount(Base):
     __tablename__ = "user_service_account"
@@ -589,6 +654,14 @@ class AssumeRoleCacheGCP(Base):
     gcp_key_db_entry = Column(String())
 
 
+class GA4GHPassportCache(Base):
+    __tablename__ = "ga4gh_passport_cache"
+
+    passport_hash = Column(String(64), primary_key=True)
+    expires_at = Column(BigInteger, nullable=False)
+    user_ids = Column(ARRAY(String(255)), nullable=False)
+
+
 class GA4GHVisaV1(Base):
 
     __tablename__ = "ga4gh_visa_v1"
@@ -628,6 +701,87 @@ class UpstreamRefreshToken(Base):
     )
     refresh_token = Column(Text, nullable=False)
     expires = Column(BigInteger, nullable=False)
+
+
+class IssSubPairToUser(Base):
+    # issuer & sub pair mapping to Gen3 User sub
+
+    __tablename__ = "iss_sub_pair_to_user"
+
+    iss = Column(String(), primary_key=True)
+    sub = Column(String(), primary_key=True)
+
+    fk_to_User = Column(
+        Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False
+    )  #  foreign key for User table
+    user = relationship(
+        "User",
+        backref=backref(
+            "iss_sub_pairs",
+            cascade="all, delete-orphan",
+            passive_deletes=True,
+        ),
+    )
+
+    # dump whatever idp provides in here
+    extra_info = Column(JSONB(), server_default=text("'{}'"))
+
+    def _get_issuer_to_idp():
+        possibly_matching_idps = [IdentityProvider.ras]
+        issuer_to_idp = {}
+
+        oidc = config.get("OPENID_CONNECT", {})
+        for idp in possibly_matching_idps:
+            discovery_url = oidc.get(idp, {}).get("discovery_url")
+            if discovery_url:
+                for allowed_issuer in config["GA4GH_VISA_ISSUER_ALLOWLIST"]:
+                    if discovery_url.startswith(allowed_issuer):
+                        issuer_to_idp[allowed_issuer] = idp
+                        break
+
+        return issuer_to_idp
+
+    ISSUER_TO_IDP = _get_issuer_to_idp()
+
+    # no longer need function since results stored in var
+    del _get_issuer_to_idp
+
+
+@event.listens_for(IssSubPairToUser.__table__, "after_create")
+def populate_iss_sub_pair_to_user_table(target, connection, **kw):
+    """
+    Populate iss_sub_pair_to_user table using User table's id_from_idp
+    column.
+    """
+    for issuer, idp_name in IssSubPairToUser.ISSUER_TO_IDP.items():
+        logger.info(
+            'Attempting to populate iss_sub_pair_to_user table for users with "{}" idp and "{}" issuer'.format(
+                idp_name, issuer
+            )
+        )
+        transaction = connection.begin()
+        try:
+            connection.execute(
+                text(
+                    """
+                    WITH identity_provider_id AS (SELECT id FROM identity_provider WHERE name=:idp_name)
+                    INSERT INTO iss_sub_pair_to_user (iss, sub, "fk_to_User", extra_info)
+                    SELECT :iss, id_from_idp, id, additional_info
+                    FROM "User"
+                    WHERE idp_id IN (SELECT * FROM identity_provider_id) AND id_from_idp IS NOT NULL;
+                    """
+                ),
+                idp_name=idp_name,
+                iss=issuer,
+            )
+        except Exception as e:
+            transaction.rollback()
+            logger.warning(
+                "Could not populate iss_sub_pair_to_user table: {}".format(e)
+            )
+        else:
+            transaction.commit()
+            logger.info("Population was successful")
 
 
 to_timestamp = (
@@ -898,6 +1052,15 @@ CREATE TRIGGER cert_audit
 AFTER INSERT OR UPDATE OR DELETE ON certificate
     FOR EACH ROW EXECUTE PROCEDURE process_cert_audit();"""
         )
+
+    # Google Access expiration
+
+    add_column_if_not_exist(
+        table_name=GoogleProxyGroupToGoogleBucketAccessGroup.__tablename__,
+        column=Column("expires", BigInteger()),
+        driver=driver,
+        metadata=md,
+    )
 
     add_column_if_not_exist(
         table_name=Project.__tablename__,
