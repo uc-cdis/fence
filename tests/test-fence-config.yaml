@@ -413,7 +413,7 @@ dbGaP:
       proxy_user: ''
     protocol: 'sftp'
     decrypt_key: ''
-    allow_non_dbGaP_whitelist: true
+    allow_non_dbGaP_whitelist: false
     allowed_whitelist_patterns: ['authentication_file_PROJECT-(\d*).(csv|txt)']
     study_to_resource_namespaces:
       # non dbgap study:
@@ -676,7 +676,6 @@ EXPIRED_AUTHZ_REMOVAL_JOB_FREQ_IN_SECONDS: 1
 GLOBAL_PARSE_VISAS_ON_LOGIN:
 # Settings for usersync with visas
 USERSYNC:
-  non_dbgap_whitelist_enabled: false
   sync_from_visas: false
   # fallback to dbgap sftp when there are no valid visas for a user i.e. if they're expired or if they're malformed
   fallback_to_dbgap_sftp: false

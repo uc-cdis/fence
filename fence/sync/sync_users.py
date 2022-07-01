@@ -357,9 +357,6 @@ class UserSyncer(object):
                 storage_credentials, logger=self.logger
             )
         self.id_patterns = []
-        self.non_dbGaP_whitelist = config.get("USERSYNC", {}).get(
-            "non_dbgap_whitelist_enabled", False
-        )
 
     @staticmethod
     def _match_pattern(filepath, id_patterns, encrypted=True):
@@ -497,11 +494,10 @@ class UserSyncer(object):
 
         # parse dbGaP sftp server information
         dbgap_key = dbgap_config.get("decrypt_key", None)
-        parse_consent_code = dbgap_config.get("parse_consent_code", True)
+
         self.id_patterns += (
             dbgap_config.get("allowed_whitelist_patterns", [])
-            if self.non_dbGaP_whitelist
-            and dbgap_config.get("allow_non_dbGaP_whitelist", False)
+            if dbgap_config.get("allow_non_dbGaP_whitelist", False)
             else []
         )
         enable_common_exchange_area_access = dbgap_config.get(
@@ -511,7 +507,7 @@ class UserSyncer(object):
             "study_common_exchange_areas", {}
         )
 
-        if parse_consent_code and enable_common_exchange_area_access:
+        if self.parse_consent_code and enable_common_exchange_area_access:
             self.logger.info(
                 f"using study to common exchange area mapping: {study_common_exchange_areas}"
             )
@@ -543,13 +539,13 @@ class UserSyncer(object):
                         continue
 
                     phsid_privileges = {}
-                    if self.non_dbGaP_whitelist:
+                    if dbgap_config.get("allow_non_dbGaP_whitelist", False):
                         phsid = row.get("phsid", row.get("project_id", "")).split(".")
                     else:
                         phsid = row.get("phsid", "").split(".")
 
                     dbgap_project = phsid[0]
-                    if len(phsid) > 1 and parse_consent_code:
+                    if len(phsid) > 1 and self.parse_consent_code:
                         consent_code = phsid[-1]
 
                         # c999 indicates full access to all consents and access
@@ -1261,6 +1257,24 @@ class UserSyncer(object):
         )
         return user_projects, user_info
 
+    def _merge_multiple_local_csv_files(
+        self, dbgap_file_list, encrypted, dbgap_configs, session
+    ):
+
+        merged_user_projects = {}
+        merged_user_info = {}
+
+        for dbgap_config in dbgap_configs:
+            user_projects, user_info = self._get_user_permissions_from_csv_list(
+                dbgap_file_list,
+                encrypted,
+                session=session,
+                dbgap_config=dbgap_config,
+            )
+            self.sync_two_user_info_dict(user_info, merged_user_info)
+            self.sync_two_phsids_dict(user_projects, merged_user_projects)
+        return merged_user_projects, merged_user_info
+
     def _merge_multiple_dbgap_sftp(self, dbgap_servers, sess):
         """
         Args:
@@ -1442,13 +1456,11 @@ class UserSyncer(object):
                 os.path.join(self.sync_from_local_csv_dir, "*")
             )
 
-        # if syncing from local csv dir dbgap configurations
-        # come from the first dbgap instance in the fence config file
-        user_projects_csv, user_info_csv = self._get_user_permissions_from_csv_list(
+        user_projects_csv, user_info_csv = self._merge_multiple_local_csv_files(
             local_csv_file_list,
             encrypted=False,
             session=sess,
-            dbgap_config=self.dbGaP[0],
+            dbgap_configs=self.dbGaP,
         )
 
         try:

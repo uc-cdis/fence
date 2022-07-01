@@ -74,9 +74,9 @@ def test_sync_incorrect_user_yaml_file(syncer, monkeypatch, db_session):
     assert syncer.arborist_client.create_policy.not_called()
 
 
-@pytest.mark.parametrize("allow_non_dbgap_whitelist", [False, True])
+@pytest.mark.parametrize("allow_non_dbgap_whitelist", [True, False])
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
-@pytest.mark.parametrize("parse_consent_code_config", [False, True])
+@pytest.mark.parametrize("parse_consent_code_config", [True, False])
 def test_sync(
     syncer,
     db_session,
@@ -93,9 +93,6 @@ def test_sync(
     monkeypatch.setitem(
         syncer.dbGaP[2], "allow_non_dbGaP_whitelist", allow_non_dbgap_whitelist
     )
-    monkeypatch.setattr(syncer, "non_dbGaP_whitelist", allow_non_dbgap_whitelist)
-    # merge sftp server containing both dbgap and non-dbgap whitelists
-    monkeypatch.setattr(syncer, "is_sync_from_dbgap_server", allow_non_dbgap_whitelist)
 
     syncer.sync()
 
@@ -710,7 +707,7 @@ def test_process_additional_dbgap_servers(syncer, monkeypatch, db_session):
     syncer.sync()
 
     # this function will be called once for each sftp server
-    # the test config file has 2 dbgap sftp servers
+    # the test config file has 3 dbgap sftp servers
     assert syncer._process_dbgap_files.call_count == 3
 
 
