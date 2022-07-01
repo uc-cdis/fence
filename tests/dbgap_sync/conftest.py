@@ -1,6 +1,7 @@
 import os
 import time
 import jwt
+import uuid
 
 from unittest.mock import MagicMock, patch
 from yaml import safe_load as yaml_load
@@ -27,6 +28,8 @@ from fence.models import (
     create_user,
     User,
 )
+
+from tests.conftest import random_txn
 
 logger = get_logger(__name__)
 
@@ -259,9 +262,8 @@ def get_test_encoded_decoded_visa_and_exp(
         "iat": int(time.time()),
         "exp": expires,
         "scope": "openid ga4gh_passport_v1 email profile",
-        "jti": "jtiajoidasndokmasdl"
-        + str(expires),  # expires to make unique from others
-        "txn": "sapidjspa.asipidja" + str(expires),
+        "jti": str(uuid.uuid4()),
+        "txn": random_txn(),
         "name": "",
         "ga4gh_visa_v1": {
             "type": "https://ras.nih.gov/visas/v1",
