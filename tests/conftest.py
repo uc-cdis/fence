@@ -12,6 +12,9 @@ import time
 import flask
 from datetime import datetime
 import mock
+import uuid
+import random
+import string
 
 from addict import Dict
 from alembic.config import main as alembic_main
@@ -257,6 +260,13 @@ def kid_2():
     return "test-keypair-2"
 
 
+def random_txn():
+    """Return a random txn to use for mocking passports and visas"""
+    random_chars = random.choices(string.ascii_lowercase + string.digits, k=33)
+    random_chars[16] = "."
+    return "".join(random_chars)
+
+
 def get_subjects_to_passports(
     subject_to_encoded_visas=None, passport_exp=None, kid=None, rsa_private_key=None
 ):
@@ -276,8 +286,8 @@ def get_subjects_to_passports(
                     "iat": int(time.time()),
                     "exp": int(time.time()) + 1000,
                     "scope": "openid ga4gh_passport_v1 email profile",
-                    "jti": "jtiajoidasndokmasdl",
-                    "txn": "sapidjspa.asipidja",
+                    "jti": str(uuid.uuid4()),
+                    "txn": random_txn(),
                     "name": "",
                     "ga4gh_visa_v1": {
                         "type": "https://ras.nih.gov/visas/v1",
@@ -303,6 +313,8 @@ def get_subjects_to_passports(
             "kid": kid,
         }
         new_passport = {
+            "jti": str(uuid.uuid4()),
+            "txn": random_txn(),
             "iss": "https://stsstg.nih.gov",
             "sub": subject,
             "iat": int(time.time()),
