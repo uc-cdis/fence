@@ -376,7 +376,8 @@ class UserSyncer(object):
             if encrypted:
                 pattern += ".enc"
             pattern += "$"
-            if re.match(pattern, os.path.basename(filepath)):
+            basename = os.path.basename(filepath)
+            if re.match(pattern, basename):
                 return True
         return False
 
