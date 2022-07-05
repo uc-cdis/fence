@@ -63,7 +63,10 @@ def run_migrations_online():
         context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
+            print("Locking database to ensure only 1 migration runs at a time")
+            connection.execute("SELECT pg_advisory_xact_lock(100);")
             context.run_migrations()
+        print("Releasing database lock")
 
 
 if context.is_offline_mode():
