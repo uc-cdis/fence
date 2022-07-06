@@ -285,6 +285,7 @@ class Client(Base, OAuth2ClientMixin):
 
     def check_requested_scopes(self, scopes):
         if "openid" not in scopes:
+            logger.error(f"Invalid scopes: 'openid' not in requested scopes ({scopes})")
             return False
         return set(self.allowed_scopes).issuperset(scopes)
 
@@ -305,8 +306,6 @@ class Client(Base, OAuth2ClientMixin):
         allowed_response_types = []
         if "authorization_code" in self.grant_types:
             allowed_response_types.append("code")
-        if "client_credentials" in self.grant_types:
-            pass  # TODO
         if "implicit" in self.grant_types:
             allowed_response_types.append("id_token")
             allowed_response_types.append("id_token token")
@@ -1324,6 +1323,7 @@ def _update_for_authlib(driver, md):
     CLIENT_COLUMNS_TO_ADD = [
         Column("issued_at", Integer),
         Column("expires_at", Integer, nullable=False, default=0),
+        # TODO db migration so redirect_uri is nullable
         Column("redirect_uri", Text, nullable=False, default=""),
         Column(
             "token_endpoint_auth_method",

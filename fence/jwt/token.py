@@ -307,7 +307,9 @@ def generate_signed_refresh_token(
     if client_id:
         claims["aud"].append(client_id)
 
-    logger.info("issuing JWT refresh token with id [{}] to [{}]".format(jti, sub))
+    logger.info(
+        "issuing JWT refresh token with id [{}] to user sub [{}]".format(jti, sub)
+    )
     logger.debug(f"issuing JWT refresh token: {claims}")
 
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
@@ -430,7 +432,9 @@ def generate_signed_access_token(
             ] = linked_google_email
 
     logger.info(
-        "issuing JWT access token with id [{}] to user sub [{}]".format(jti, sub)
+        "issuing JWT access token with id [{}] to user sub [{}] and client id [{}]".format(
+            jti, sub, client_id
+        )
     )
     logger.debug(f"issuing JWT access token {claims}")
 

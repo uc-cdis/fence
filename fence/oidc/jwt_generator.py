@@ -227,7 +227,11 @@ def generate_token_response(
 def generate_client_response(client, expires_in=None, scope=None, **kwargs):
     keypair = flask.current_app.keypairs[0]
     expires_in = config["ACCESS_TOKEN_EXPIRES_IN"] or expires_in
+
     scope = scope or []
+    if not isinstance(scope, list):
+        scope = scope.split(" ")
+
     access_token = generate_signed_access_token(
         kid=keypair.kid,
         private_key=keypair.private_key,

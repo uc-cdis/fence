@@ -236,26 +236,33 @@ paths:
               properties:
                 grant_type:
                   description: >-
-                    Value MUST be `"authorization_code"` (which is the
-                    authorization flow used in this implementation) TODO update
+                    Value MUST be one of the supported grant types:
+                    `"authorization_code"` or `"client_credentials"`
                   type: string
                 code:
                   description: >-
-                    The authorization code returned from the OAuth2
-                    authorization request
+                    (Required if `grant_type` is `"authorization_code"`;
+                    unused otherwise) The authorization code returned from the
+                    OAuth2 authorization request
                   type: string
                 redirect_uri:
                   description: >-
-                    Must be identical to the `"redirect_uri"` included in the
-                    original authorization request
+                    (Required if `grant_type` is `"authorization_code"`;
+                    unused otherwise) Must be identical to the
+                    `"redirect_uri"` included in the original authorization
+                    request
+                  type: string
+                scope:
+                  description: >-
+                    (Optional if `grant_type` is `"client_credentials"`;
+                    unused otherwise) Requested authorization scope. If
+                    provided, must include `openid`. `user` allows getting a
+                    user's access information.
                   type: string
                 client_id:
                   type: string
               required:
                 - grant_type
-                - code
-                - redirect_uri
-                - client_id
   /oauth2/revoke:
     post:
       tags:

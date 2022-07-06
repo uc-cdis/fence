@@ -59,7 +59,6 @@ def mock_arborist(mock_arborist_requests):
     mock_arborist_requests()
 
 
-# TODO test new grant and no username
 def create_client_action_wrapper(
     to_test,
     db=None,

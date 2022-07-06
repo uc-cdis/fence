@@ -1292,6 +1292,7 @@ def oauth_client(app, db_session, oauth_user, get_all_shib_idps_patcher):
         client_secret.encode("utf-8"), bcrypt.gensalt()
     ).decode("utf-8")
     test_user = db_session.query(models.User).filter_by(id=oauth_user.user_id).first()
+    grant_types = ["authorization_code", "refresh_token"]
     db_session.add(
         models.Client(
             client_id=client_id,
@@ -1302,11 +1303,16 @@ def oauth_client(app, db_session, oauth_user, get_all_shib_idps_patcher):
             description="",
             is_confidential=True,
             name="testclient",
-            grant_types=["authorization_code", "refresh_token"],
+            grant_types=grant_types,
         )
     )
     db_session.commit()
-    return Dict(client_id=client_id, client_secret=client_secret, url=url)
+    return Dict(
+        client_id=client_id,
+        client_secret=client_secret,
+        url=url,
+        grant_types=grant_types,
+    )
 
 
 @pytest.fixture(scope="function")
@@ -1326,6 +1332,7 @@ def oauth_client_B(app, request, db_session):
     if not test_user:
         test_user = models.User(username="test", is_admin=False)
         db_session.add(test_user)
+    grant_types = ["authorization_code", "refresh_token"]
     db_session.add(
         models.Client(
             client_id=client_id,
@@ -1336,12 +1343,17 @@ def oauth_client_B(app, request, db_session):
             description="",
             is_confidential=True,
             name="testclientb",
-            grant_types=["authorization_code", "refresh_token"],
+            grant_types=grant_types,
         )
     )
     db_session.commit()
 
-    return Dict(client_id=client_id, client_secret=client_secret, url=url)
+    return Dict(
+        client_id=client_id,
+        client_secret=client_secret,
+        url=url,
+        grant_types=grant_types,
+    )
 
 
 @pytest.fixture(scope="function")
@@ -1352,6 +1364,7 @@ def oauth_client_public(app, db_session, oauth_user):
     url = "https://oauth-test-client-public.net"
     client_id = "test-client-public"
     test_user = db_session.query(models.User).filter_by(id=oauth_user.user_id).first()
+    grant_types = ["authorization_code", "refresh_token"]
     db_session.add(
         models.Client(
             client_id=client_id,
@@ -1361,11 +1374,11 @@ def oauth_client_public(app, db_session, oauth_user):
             description="",
             is_confidential=False,
             name="testclient-public",
-            grant_types=["authorization_code", "refresh_token"],
+            grant_types=grant_types,
         )
     )
     db_session.commit()
-    return Dict(client_id=client_id, url=url)
+    return Dict(client_id=client_id, url=url, grant_types=grant_types)
 
 
 @pytest.fixture(scope="function")
@@ -1382,22 +1395,27 @@ def oauth_client_with_client_credentials(
     hashed_secret = bcrypt.hashpw(
         client_secret.encode("utf-8"), bcrypt.gensalt()
     ).decode("utf-8")
-    # test_user = db_session.query(models.User).filter_by(id=oauth_user.user_id).first()
+    grant_types = ["client_credentials"]
+    scopes = ["openid", "user", "data"]
     db_session.add(
         models.Client(
             client_id=client_id,
             client_secret=hashed_secret,
-            # user=test_user,
-            allowed_scopes=["openid", "user", "fence"],
-            redirect_uris=[url],
+            allowed_scopes=scopes,
             description="",
             is_confidential=True,
             name="testclient-with-client-credentials",
-            grant_types=["client_credentials"],
+            grant_types=grant_types,
         )
     )
     db_session.commit()
-    return Dict(client_id=client_id, client_secret=client_secret, url=url)
+    return Dict(
+        client_id=client_id,
+        client_secret=client_secret,
+        url=url,
+        grant_types=grant_types,
+        scopes=scopes,
+    )
 
 
 @pytest.fixture(scope="function")
@@ -1420,7 +1438,7 @@ def oauth_test_client_with_client_credentials(
     client, oauth_client_with_client_credentials
 ):
     return OAuth2TestClient(
-        client, oauth_client_with_client_credentials, confidential=False
+        client, oauth_client_with_client_credentials, confidential=True
     )
 
 
