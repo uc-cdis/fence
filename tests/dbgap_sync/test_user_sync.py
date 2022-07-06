@@ -74,9 +74,9 @@ def test_sync_incorrect_user_yaml_file(syncer, monkeypatch, db_session):
     assert syncer.arborist_client.create_policy.not_called()
 
 
-@pytest.mark.parametrize("allow_non_dbgap_whitelist", [True, False])
+@pytest.mark.parametrize("allow_non_dbgap_whitelist", [False, True])
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
-@pytest.mark.parametrize("parse_consent_code_config", [True, False])
+@pytest.mark.parametrize("parse_consent_code_config", [False, True])
 def test_sync(
     syncer,
     db_session,
