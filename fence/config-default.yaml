@@ -469,7 +469,7 @@ GA4GH_DRS_POSTED_PASSPORT_FIELD: "passports"
 # PRIVACY_POLICY_URL, or default to the `static/privacy_policy.md` file in fence.
 PRIVACY_POLICY_URL: null
 
-DOCUMENT_TYPES: ['privacy-policy', 'terms-and-conditions']
+DOCUMENT_TYPES: ['privacy-policy', 'terms-and-conditions', 'survival-user-agreement']
 INITIAL_PRIVACY_POLICY: null
 INITIAL_PRIVACY_POLICY_RAW: null
 INITIAL_TERM_CONDITION: null
@@ -684,7 +684,7 @@ AZ_BLOB_CONTAINER_URL: 'https://myfakeblob.blob.core.windows.net/my-fake-contain
 # url where authz microservice is running
 ARBORIST: null
 
-BASIC_REGISTRATION_ACCESS_POLICY: []
+BASIC_REGISTRATION_ACCESS_POLICY: [login_no_access, analysis]
 
 # url where the audit-service is running
 AUDIT_SERVICE: 'http://audit-service'
