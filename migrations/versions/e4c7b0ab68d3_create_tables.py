@@ -10,6 +10,7 @@ the model:
 - https://github.com/uc-cdis/fence/blob/2022.07/fence/models.py
 """
 from alembic import context, op
+import logging
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
@@ -22,6 +23,8 @@ revision = "e4c7b0ab68d3"
 down_revision = None
 branch_labels = None
 depends_on = None
+
+logger = logging.getLogger("fence.alembic")
 
 
 def upgrade():
@@ -36,8 +39,8 @@ def upgrade():
     inspector = sa.engine.reflection.Inspector.from_engine(conn)
     tables = inspector.get_table_names()
     if len(tables) > 0 and tables != ["alembic_version"]:
-        print(
-            "INFO: Found existing tables: this is not a new instance of Fence. Running the old migration script... Note that future migrations will be run using Alembic."
+        logger.info(
+            "Found existing tables: this is not a new instance of Fence. Running the old migration script... Note that future migrations will be run using Alembic."
         )
         driver = SQLAlchemyDriver(context.config.get_main_option("sqlalchemy.url"))
         migrate(driver)
