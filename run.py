@@ -1,5 +1,8 @@
-from fence import app, app_init, config
 import argparse
+
+from alembic.config import main as alembic_main
+
+from fence import app, app_init, config
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
@@ -24,6 +27,9 @@ if config.get("MOCK_STORAGE"):
 
     patcher = patch("fence.resources.storage.get_client", get_client)
     patcher.start()
+
+if config.get("ENABLE_DB_MIGRATION"):
+    alembic_main(["--raiseerr", "upgrade", "head"])
 
 app_init(app, config_path=args.config_path, config_file_name=args.config_file_name)
 

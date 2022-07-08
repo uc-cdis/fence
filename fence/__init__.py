@@ -111,10 +111,6 @@ def app_sessions(app):
     # TODO move userdatamodel code to Fence and remove dependencies to it
     SQLAlchemyDriver.setup_db = lambda _: None
     app.db = SQLAlchemyDriver(config["DB"])
-    if config.get("ENABLE_DB_MIGRATION"):
-        logger.warning(
-            f"ENABLE_DB_MIGRATION is set to True, but it is deprecated. We now run migrations using Alembic."
-        )
 
     session = flask_scoped_session(app.db.Session, app)  # noqa
     app.session_interface = UserSessionInterface()

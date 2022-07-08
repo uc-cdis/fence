@@ -1,3 +1,13 @@
+"""
+This script contains the database migrations written BEFORE switching to
+Alembic for migrations. We need to keep it around to migrate databases from a
+pre-Alembic version to a post-Alembic version.
+
+DO NOT ADD NEW MIGRATIONS TO THIS SCRIPT.
+Create a new Alembic version instead.
+"""
+
+
 from sqlalchemy import (
     Integer,
     BigInteger,

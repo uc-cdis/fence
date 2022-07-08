@@ -1,6 +1,6 @@
 #!groovy
 
-@Library('cdis-jenkins-lib@test/fence-alembic') _
+@Library('cdis-jenkins-lib@master') _
 
 testPipeline {
 }

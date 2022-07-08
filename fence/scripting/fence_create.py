@@ -5,6 +5,8 @@ from yaml import safe_load
 import json
 import pprint
 import asyncio
+
+from alembic.config import main as alembic_main
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud.errors import GoogleAuthError
 from cirrus.config import config as cirrus_config
@@ -1593,6 +1595,12 @@ def notify_problem_users(db, emails, auth_ids, check_linking, google_project_id)
     check_linking (bool): flag for if emails should be checked for linked google email
     """
     email_users_without_access(db, auth_ids, emails, check_linking, google_project_id)
+
+
+def migrate_database(db):
+    driver = SQLAlchemyDriver(db)
+    alembic_main(["--raiseerr", "upgrade", "head"])
+    logger.info("Done.")
 
 
 def google_list_authz_groups(db):
