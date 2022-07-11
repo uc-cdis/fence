@@ -114,7 +114,7 @@ class UnsignedIDToken(IDToken):
             encoded_token,
             public_key,
             algorithms="RS256",
-            verify=verify,
+            options={"verify_signature": verify},
             audience=client_id,
         )
         headers = {}

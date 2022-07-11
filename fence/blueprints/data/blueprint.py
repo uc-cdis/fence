@@ -1,6 +1,7 @@
 import flask
 
 from cdislogging import get_logger
+from pkg_resources import require
 
 from fence.auth import login_required, require_auth_header, current_token, get_jwt
 from fence.authz.auth import check_arborist_auth

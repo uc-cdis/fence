@@ -99,6 +99,7 @@ def enable_audit_logging(f):
             # functions directly, because `is_audit_enabled` depends on
             # the config being loaded
             flask.after_this_request(create_audit_log_for_request_decorator)
+
         return f(*args, **kwargs)
 
     return wrapper

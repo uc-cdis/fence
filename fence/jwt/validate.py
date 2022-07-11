@@ -101,7 +101,9 @@ def validate_jwt(
     if oidc_iss:
         issuers.append(oidc_iss)
     try:
-        token_iss = jwt.decode(encoded_token, verify=False).get("iss")
+        token_iss = jwt.decode(encoded_token, options={"verify_signature": False}).get(
+            "iss"
+        )
     except jwt.InvalidTokenError as e:
         raise JWTError(e)
     attempt_refresh = attempt_refresh and (token_iss != iss)
@@ -129,7 +131,9 @@ def validate_jwt(
         # remove patch in next tag. Refresh tokens and API keys have default TTL of 30 days.
         from authutils.errors import JWTAudienceError
 
-        unverified_claims = jwt.decode(encoded_token, verify=False)
+        unverified_claims = jwt.decode(
+            encoded_token, options={"verify_signature": False}
+        )
         if unverified_claims.get("pur") == "refresh" and isinstance(
             e, JWTAudienceError
         ):
@@ -167,7 +171,9 @@ def validate_jwt(
         else:
             ##### end refresh token, API key patch block #####
             msg = "Invalid token : {}".format(str(e))
-            unverified_claims = jwt.decode(encoded_token, verify=False)
+            unverified_claims = jwt.decode(
+                encoded_token, options={"verify_signature": False}
+            )
             if not unverified_claims.get("scope") or "" in unverified_claims["scope"]:
                 msg += "; was OIDC client configured with scopes?"
             raise JWTError(msg)

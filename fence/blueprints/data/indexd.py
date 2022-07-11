@@ -47,6 +47,8 @@ from fence.utils import get_valid_expiration_from_request
 from . import multipart_upload
 from ...models import AssumeRoleCacheAWS
 from ...models import AssumeRoleCacheGCP
+import traceback
+import sys
 
 logger = get_logger(__name__)
 
@@ -1393,7 +1395,8 @@ def _get_user_info(sub_type=str):
         if sub_type:
             user_id = sub_type(user_id)
         username = current_token["context"]["user"]["name"]
-    except JWTError:
+    except JWTError as e:
+        print(traceback.format_exc())
         # this is fine b/c it might be public data, sign with anonymous username/id
         user_id = None
         if sub_type == str:

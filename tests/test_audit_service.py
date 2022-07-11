@@ -81,7 +81,7 @@ def test_disabled_audit(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        )  # .decode("utf-8")
+        )
     }
 
     audit_decorator_mocker = mock.patch(
@@ -150,7 +150,7 @@ def test_presigned_url_log(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        )  # .decode("utf-8")
+        )
     }
 
     # protocol=None should fall back to s3 (first indexed location):
@@ -217,7 +217,7 @@ def test_presigned_url_log_acl(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        )  # .decode("utf-8")
+        )
     }
 
     with audit_service_mocker as audit_service_requests:
@@ -405,7 +405,9 @@ def test_login_log_login_endpoint(
     idp_name = idp
     headers = {}
     get_user_id_value = {}
-    jwt_string = jwt.encode({"iat": int(time.time())}, key=rsa_private_key)
+    jwt_string = jwt.encode(
+        {"iat": int(time.time())}, key=rsa_private_key, algorithm="RS256"
+    )
 
     if idp == "synapse":
         mocked_get_user_id = MagicMock()

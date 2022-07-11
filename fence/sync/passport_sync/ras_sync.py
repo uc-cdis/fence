@@ -19,7 +19,7 @@ class RASVisa(DefaultVisa):
     ):
         decoded_visa = {}
         try:
-            decoded_visa = jwt.decode(encoded_visa, verify=False)
+            decoded_visa = jwt.decode(encoded_visa, options={"verify_signature": False})
         except Exception as e:
             self.logger.warning("Couldn't decode visa {}".format(e))
             # Remove visas if its invalid or expired
