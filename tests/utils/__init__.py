@@ -457,6 +457,31 @@ def authorized_upload_context_claims(user_name, user_id):
     }
 
 
+def client_authorized_download_context_claims():
+    """
+    Return a claims dictionary to put in a JWT. These claims do not contain
+    a `sub` or `context.user.name`, to mimic a token issued from the
+    `client_credentials` flow.
+
+    Return:
+        dict: dictionary of claims
+    """
+    iss = config["BASE_URL"]
+    jti = new_jti()
+    iat, exp = iat_and_exp()
+    return {
+        "aud": [iss],
+        "iss": iss,
+        "iat": iat,
+        "exp": exp,
+        "jti": jti,
+        "azp": "test_client_id",
+        "pur": "access",
+        "scope": ["access", "data", "user", "openid"],
+        "context": {},
+    }
+
+
 class FakeFlaskRequest(object):
     """
     Make a fake ``flask.request`` to patch in tests.

@@ -119,12 +119,12 @@ def get_signed_url_for_file(
                 "sub": user.id,
             }
     else:
-        user_info = _get_user_info_for_id_or_from_request(
+        auth_info = _get_auth_info_for_id_or_from_request(
             sub_type=int, db_session=db_session
         )
         flask.g.audit_data = {
-            "username": user_info["username"],
-            "sub": user_info["user_id"],
+            "username": auth_info["username"],
+            "sub": auth_info["user_id"],
         }
 
     indexed_file = IndexedFile(file_id)
@@ -643,7 +643,9 @@ class IndexedFile(object):
             )
             return self.index_document.get("uploader") == username
 
-        given_acls = set(filter_auth_ids(action, flask.g.user.project_access))
+        given_acls = set()
+        if hasattr(flask.g, "user"):
+            given_acls = set(filter_auth_ids(action, flask.g.user.project_access))
         return len(self.set_acls & given_acls) > 0
 
     @login_required({"data"})
@@ -868,7 +870,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
     def bucket_name(self):
         """
         Return:
-            Optional[str]: bucket name or None if not not in cofig
+            Optional[str]: bucket name or None if not in config
         """
         s3_buckets = get_value(
             flask.current_app.config,
@@ -992,7 +994,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 self.parsed_url.netloc, credential
             )
 
-        user_info = _get_user_info_for_id_or_from_request(user=authorized_user)
+        auth_info = _get_auth_info_for_id_or_from_request(user=authorized_user)
 
         url = generate_aws_presigned_url(
             http_url,
@@ -1001,7 +1003,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             "s3",
             region,
             expires_in,
-            user_info,
+            auth_info,
         )
 
         return url
@@ -1118,11 +1120,13 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     ):
         resource_path = self.get_resource_path()
 
-        user_info = _get_user_info_for_id_or_from_request(user=authorized_user)
+        auth_info = _get_auth_info_for_id_or_from_request(user=authorized_user)
 
         if not force_signed_url:
             url = "https://storage.cloud.google.com/" + resource_path
-        elif _is_anonymous_user(user_info):
+        elif _is_anonymous_user(auth_info):  # anonymous or client token
+            # TODO We should probably sign with the client_id for client
+            # tokens (not linked to a user), instead of anonymous
             url = self._generate_anonymous_google_storage_signed_url(
                 ACTION_DICT["gs"][action], resource_path, int(expires_in)
             )
@@ -1131,8 +1135,8 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                 ACTION_DICT["gs"][action],
                 resource_path,
                 int(expires_in),
-                user_info.get("user_id"),
-                user_info.get("username"),
+                auth_info.get("user_id"),
+                auth_info.get("username"),
                 r_pays_project=r_pays_project,
             )
 
@@ -1433,9 +1437,9 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
 
         container_name, blob_name = self._get_container_and_blob()
 
-        user_info = _get_user_info_for_id_or_from_request(user=authorized_user)
-        if _is_anonymous_user(user_info):
-            logger.info(f"Attempting to get a signed url an anonymous user")
+        auth_info = _get_auth_info_for_id_or_from_request(user=authorized_user)
+        if _is_anonymous_user(auth_info):
+            logger.info(f"Attempting to get a signed url for an anonymous user")
 
         # if it's public and we don't need to force the signed url, just return the raw
         # url
@@ -1494,12 +1498,12 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
             return ("Failed to delete data file.", status_code)
 
 
-def _get_user_info_for_id_or_from_request(
+def _get_auth_info_for_id_or_from_request(
     sub_type=str, user=None, username=None, db_session=None
 ):
     """
-    Attempt to parse the request to get information about user. fallback to
-    populated information about an anonymous user.
+    Attempt to parse the request to get information about user and client.
+    Fallback to populated information about an anonymous user.
 
     By default, cast `sub` to str. Use `sub_type` to override this behavior.
 
@@ -1510,6 +1514,15 @@ def _get_user_info_for_id_or_from_request(
     """
     db_session = db_session or current_session
 
+    # set default "annymous" user_id and username
+    # this is fine b/c it might be public data or a client token that is not
+    # linked to a user
+    final_user_id = None
+    if sub_type == str:
+        final_user_id = sub_type(ANONYMOUS_USER_ID)
+    final_username = ANONYMOUS_USERNAME
+
+    token = ""
     try:
         if user:
             final_username = user.username
@@ -1519,31 +1532,40 @@ def _get_user_info_for_id_or_from_request(
             final_username = result.username
             final_user_id = sub_type(result.id)
         else:
-            set_current_token(
-                validate_request(scope={"user"}, audience=config.get("BASE_URL"))
-            )
+            token = validate_request(scope={"user"}, audience=config.get("BASE_URL"))
+            set_current_token(token)
             final_user_id = current_token["sub"]
             final_user_id = sub_type(final_user_id)
             final_username = current_token["context"]["user"]["name"]
     except Exception as exc:
         logger.info(
-            "could not determine user info from request. setting anonymous user information."
+            f"could not determine auth info from request. setting anonymous user information. Details:\n{exc}"
         )
-        # this is fine b/c it might be public data, sign with anonymous username/id
-        final_user_id = None
-        if sub_type == str:
-            final_user_id = sub_type(ANONYMOUS_USER_ID)
-        final_username = ANONYMOUS_USERNAME
 
-    return {"user_id": final_user_id, "username": final_username}
+    client_id = ""
+    try:
+        if not token:
+            token = validate_request(scope=[], audience=config.get("BASE_URL"))
+        set_current_token(token)
+        client_id = current_token.get("azp") or ""
+    except Exception as exc:
+        logger.info(
+            f"could not determine auth info from request. setting anonymous client information. Details:\n{exc}"
+        )
+
+    return {
+        "user_id": final_user_id,
+        "username": final_username,
+        "client_id": client_id,
+    }
 
 
-def _is_anonymous_user(user_info):
+def _is_anonymous_user(auth_info):
     """
     Check if there's a current user authenticated or if request is anonymous
     """
-    user_info = user_info or _get_user_info_for_id_or_from_request()
-    return str(user_info.get("user_id")) == ANONYMOUS_USER_ID
+    auth_info = auth_info or _get_auth_info_for_id_or_from_request()
+    return str(auth_info.get("user_id")) == ANONYMOUS_USER_ID
 
 
 def filter_auth_ids(action, list_auth_ids):
