@@ -76,14 +76,26 @@ def run_migrations_online():
         context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
-            logger.info("Locking database to ensure only 1 migration runs at a time")
-            # This prevents 2 fence instances from trying to migrate the same
-            # DB at the same time, but does not prevent a job (such as
-            # usersync) from updating the DB while a migration is running.
-            # TODO lock the DB for all processes during migrations
-            connection.execute("SELECT pg_advisory_xact_lock(100);")
+            if connection.dialect.name == "postgresql":
+                logger.info(
+                    "Locking database to ensure only 1 migration runs at a time"
+                )
+                # This prevents 2 fence instances from trying to migrate the same
+                # DB at the same time, but does not prevent a job (such as
+                # usersync) from updating the DB while a migration is running.
+                # Solution based on https://github.com/sqlalchemy/alembic/issues/633
+                # TODO lock the DB for all processes during migrations
+                connection.execute(
+                    f"SELECT pg_advisory_xact_lock({fence_config['DB_MIGRATION_POSTGRES_LOCK_KEY']});"
+                )
+            else:
+                logger.info(
+                    "Not running on Postgres: not locking database before migrating"
+                )
             context.run_migrations()
-        logger.info("Releasing database lock")
+        if connection.dialect.name == "postgresql":
+            # The lock is released when the transaction ends.
+            logger.info("Releasing database lock")
 
 
 if context.is_offline_mode():
