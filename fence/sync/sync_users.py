@@ -376,6 +376,9 @@ class UserSyncer(object):
             if encrypted:
                 pattern += ".enc"
             pattern += "$"
+            pattern = pattern.encode().decode(
+                "unicode_escape"
+            )  # when converting from yaml, python reads it as Python string literal. So "\" turns into "\\" which messes with the regex match
             if re.match(pattern, os.path.basename(filepath)):
                 return True
         return False
