@@ -45,6 +45,8 @@ def upgrade():
         driver = SQLAlchemyDriver(context.config.get_main_option("sqlalchemy.url"))
         migrate(driver)
         return
+    else:
+        logger.info("No existing tables: running initial migration")
 
     op.create_table(
         "Group",

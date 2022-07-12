@@ -1597,8 +1597,7 @@ def notify_problem_users(db, emails, auth_ids, check_linking, google_project_id)
     email_users_without_access(db, auth_ids, emails, check_linking, google_project_id)
 
 
-def migrate_database(db):
-    driver = SQLAlchemyDriver(db)
+def migrate_database():
     alembic_main(["--raiseerr", "upgrade", "head"])
     logger.info("Done.")
 
