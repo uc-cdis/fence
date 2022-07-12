@@ -378,7 +378,7 @@ class UserSyncer(object):
             pattern += "$"
             pattern = pattern.encode().decode(
                 "unicode_escape"
-            )  # when converting from yaml, python reads it as Python string literal. So "\" turns into "\\" which messes with the regex match
+            )  # when converting the YAML from fence-config, python reads it as Python string literal. So "\" turns into "\\" which messes with the regex match
             if re.match(pattern, os.path.basename(filepath)):
                 return True
         return False
@@ -1263,7 +1263,17 @@ class UserSyncer(object):
     def _merge_multiple_local_csv_files(
         self, dbgap_file_list, encrypted, dbgap_configs, session
     ):
+        """
+        Args:
+            dbgap_file_list (list): a list of whitelist file locations stored locally
+            encrypted (bool): whether the file is encrypted (comes from fence config)
+            dbgap_configs (list): list of dictionaries containing information about the dbgap server (comes from fence config)
+            session (sqlalchemy.Session): database session
 
+        Return:
+            merged_user_projects (dict)
+            merged_user_info (dict)
+        """
         merged_user_projects = {}
         merged_user_info = {}
 
