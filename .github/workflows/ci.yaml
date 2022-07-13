@@ -9,48 +9,11 @@ concurrency:
 
 jobs:
   Security:
-   runs-on: 'ubuntu-latest'
-  # Superlint a simple combination of various linters, written in bash, to help validate source code.
-  call-workflow-1-in-local-repo:
-    uses: uc-cdis/.github/.github/workflows/lint.yaml@master
-  # CodeQL is a simple Github native Static code analysis tool
-  call-workflow2-in-local-repo:
-    uses: uc-cdis/.github/.github/workflows/codeql-scan.yaml@master
-  # Secrets detection is calling the Yelp Secrets Detector we use in pre-commit to ensure proper coverage
-  secrets-detection:
-    runs-on: 'ubuntu-latest'
-    steps:
-      - name: secrets detect
-        uses: RobertFischer/detect-secrets-action@v2.0.0
-      - name: Report Status
-        if: always()
-        uses: ravsamhq/notify-slack-action@v1
-        with:
-          status: ${{ job.status }}
-          notify_when: 'failure'
-          channel: infosec-alerts
-        env:
-          SLACK_WEBHOOK_URL: ${{ secrets.ACTION_MONITORING_SLACK }}
-
-
-  # Snyk native integration doesn't support poetry.lock files - this runs a check if a poetry.lock is found then runs a CLI scan to add coverage.
-  file_existence:
-    runs-on: ubuntu-latest
-    steps:
-      - name: Checkout code
-        uses: actions/checkout@v1
-
-      - name: Check file existence
-        id: check_files
-        uses: andstor/file-existence-action@v1
-        with:
-          files: "poetry.lock"
-
-      - name: File exists
-        if: steps.check_files.outputs.files_exists == 'true'
-        # Only runs if all of the files exists
-        run: uc-cdis/.github/.github/actions/snykcli.yaml@master
-
+    name: Secure and Lint
+    uses: uc-cdis/.github/.github/workflows/securitypipeline.yaml@sdo-13-ci-using-gh-actions
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFY }}
+      SNYK_TOKEN: ${{ secrets.SRVC_SNYKGITACTION }}
 
   ci:
     name: Build Image and Push
