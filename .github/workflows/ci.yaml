@@ -1,0 +1,26 @@
+name: CI
+
+on: push
+
+concurrency:
+  group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
+  cancel-in-progress: true
+
+
+jobs:
+  Security:
+    name: Secure and Lint
+    uses: uc-cdis/.github/.github/workflows/securitypipeline.yaml@master
+    secrets:
+      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFY }}
+      SNYK_TOKEN: ${{ secrets.SRVC_SNYKGITACTION }}
+
+  ci:
+    name: Build Image and Push
+    needs: Security
+    uses: uc-cdis/.github/.github/workflows/image_build_push.yaml@master
+    secrets:
+      ECR_AWS_ACCESS_KEY_ID: ${{ secrets.ECR_AWS_ACCESS_KEY_ID }}
+      ECR_AWS_SECRET_ACCESS_KEY: ${{ secrets.ECR_AWS_SECRET_ACCESS_KEY }}
+      QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
+      QUAY_ROBOT_TOKEN: ${{ secrets.QUAY_ROBOT_TOKEN }}
