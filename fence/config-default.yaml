@@ -470,10 +470,7 @@ GA4GH_DRS_POSTED_PASSPORT_FIELD: "passports"
 PRIVACY_POLICY_URL: null
 
 DOCUMENT_TYPES: ['privacy-policy', 'terms-and-conditions', 'survival-user-agreement']
-INITIAL_PRIVACY_POLICY: null
-INITIAL_PRIVACY_POLICY_RAW: null
-INITIAL_TERM_CONDITION: null
-INITIAL_TERM_CONDITION_RAW: null
+INITIAL_DOCUMENTS: {}
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # RELIABILITY OPTS
