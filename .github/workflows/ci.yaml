@@ -13,7 +13,7 @@ jobs:
     uses: uc-cdis/.github/.github/workflows/securitypipeline.yaml@SDO-13-ci-using-gh-actions
     secrets:
       SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFY }}
-      SRVC_SNYKGITACTION: ${{ secrets.SRVC_SNYKGITACTION }}
+      SYNK_TOKENN: ${{ secrets.SRVC_SNYKGITACTION }}
 
   ci:
     name: Build Image and Push
