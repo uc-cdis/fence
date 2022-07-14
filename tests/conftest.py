@@ -17,6 +17,7 @@ import random
 import string
 
 from addict import Dict
+from alembic.config import main as alembic_main
 from authutils.testing.fixtures import (
     _hazmat_rsa_private_key,
     _hazmat_rsa_private_key_2,
@@ -33,7 +34,6 @@ from mock import patch, MagicMock, PropertyMock
 import pytest
 import requests
 from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.schema import DropTable
 
 # Set FENCE_CONFIG_PATH *before* loading the configuration
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -53,11 +53,6 @@ from tests import test_settings
 from tests import utils
 from tests.utils import TEST_RAS_USERNAME, TEST_RAS_SUB
 from tests.utils.oauth2.client import OAuth2TestClient
-
-
-@compiles(DropTable, "postgresql")
-def _compile_drop_table(element, compiler, **kwargs):
-    return compiler.visit_drop_table(element) + " CASCADE"
 
 
 # Allow authlib to use HTTP for local testing.
@@ -453,6 +448,10 @@ def app(kid, rsa_private_key, rsa_public_key):
         config_path=os.path.join(root_dir, "test-fence-config.yaml"),
     )
 
+    # migrate the database to the latest version
+    os.environ["TEST_CONFIG_PATH"] = os.path.join(root_dir, "test-fence-config.yaml")
+    alembic_main(["--raiseerr", "upgrade", "head"])
+
     # We want to set up the keys so that the test application can load keys
     # from the test keys directory, but the default keypair used will be the
     # one using the fixtures. So, stick the keypair at the front of the
@@ -472,6 +471,7 @@ def app(kid, rsa_private_key, rsa_public_key):
 
     yield fence.app
 
+    alembic_main(["--raiseerr", "downgrade", "base"])
     mocker.unmock_functions()
 
 
@@ -536,7 +536,10 @@ def db(app, request):
     """
 
     def drop_all():
-        models.Base.metadata.drop_all(app.db.engine)
+        connection = app.db.engine.connect()
+        connection.begin()
+        for table in reversed(models.Base.metadata.sorted_tables):
+            connection.execute(table.delete())
 
     request.addfinalizer(drop_all)
 
