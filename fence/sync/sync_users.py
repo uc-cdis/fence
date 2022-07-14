@@ -356,9 +356,10 @@ class UserSyncer(object):
             self.storage_manager = StorageManager(
                 storage_credentials, logger=self.logger
             )
+        self.id_patterns = []
 
     @staticmethod
-    def _match_pattern(filepath, encrypted=True):
+    def _match_pattern(filepath, id_patterns, encrypted=True):
         """
         Check if the filename matches dbgap access control file pattern
 
@@ -369,11 +370,18 @@ class UserSyncer(object):
         Returns:
             bool: whether the pattern matches
         """
-        pattern = r"authentication_file_phs(\d{6}).(csv|txt)"
-        if encrypted:
-            pattern += ".enc"
-        pattern += "$"
-        return re.match(pattern, os.path.basename(filepath))
+        id_patterns.append("authentication_file_phs(\d{6}).(csv|txt)")
+        for pattern in id_patterns:
+            pattern = r"{}".format(pattern)
+            if encrypted:
+                pattern += ".enc"
+            pattern += "$"
+            pattern = pattern.encode().decode(
+                "unicode_escape"
+            )  # when converting the YAML from fence-config, python reads it as Python string literal. So "\" turns into "\\" which messes with the regex match
+            if re.match(pattern, os.path.basename(filepath)):
+                return True
+        return False
 
     def _get_from_sftp_with_proxy(self, server, path):
         """
@@ -489,7 +497,12 @@ class UserSyncer(object):
 
         # parse dbGaP sftp server information
         dbgap_key = dbgap_config.get("decrypt_key", None)
-        parse_consent_code = dbgap_config.get("parse_consent_code", True)
+
+        self.id_patterns += (
+            dbgap_config.get("allowed_whitelist_patterns", [])
+            if dbgap_config.get("allow_non_dbGaP_whitelist", False)
+            else []
+        )
         enable_common_exchange_area_access = dbgap_config.get(
             "enable_common_exchange_area_access", False
         )
@@ -497,7 +510,7 @@ class UserSyncer(object):
             "study_common_exchange_areas", {}
         )
 
-        if parse_consent_code and enable_common_exchange_area_access:
+        if self.parse_consent_code and enable_common_exchange_area_access:
             self.logger.info(
                 f"using study to common exchange area mapping: {study_common_exchange_areas}"
             )
@@ -506,7 +519,9 @@ class UserSyncer(object):
             if os.stat(filepath).st_size == 0:
                 self.logger.warning("Empty file {}".format(filepath))
                 continue
-            if not self._match_pattern(filepath, encrypted=encrypted):
+            if not self._match_pattern(
+                filepath, id_patterns=self.id_patterns, encrypted=encrypted
+            ):
                 self.logger.warning(
                     "Filename {} does not match dbgap access control filename pattern;"
                     " this could mean that the filename has an invalid format, or has"
@@ -527,9 +542,13 @@ class UserSyncer(object):
                         continue
 
                     phsid_privileges = {}
-                    phsid = row.get("phsid", "").split(".")
+                    if dbgap_config.get("allow_non_dbGaP_whitelist", False):
+                        phsid = row.get("phsid", row.get("project_id", "")).split(".")
+                    else:
+                        phsid = row.get("phsid", "").split(".")
+
                     dbgap_project = phsid[0]
-                    if len(phsid) > 1 and parse_consent_code:
+                    if len(phsid) > 1 and self.parse_consent_code:
                         consent_code = phsid[-1]
 
                         # c999 indicates full access to all consents and access
@@ -1192,6 +1211,7 @@ class UserSyncer(object):
         dbgap_file_list = []
         hostname = dbgap_config["info"]["host"]
         username = dbgap_config["info"]["username"]
+        encrypted = dbgap_config["info"].get("encrypted", True)
         folderdir = os.path.join(str(self.folder), str(hostname), str(username))
 
         try:
@@ -1200,13 +1220,17 @@ class UserSyncer(object):
                     os.path.join(folderdir, "*")
                 )  # get lists of file from folder
             else:
+                self.logger.info("Downloading files from: {}".format(hostname))
                 dbgap_file_list = self._download(dbgap_config)
         except Exception as e:
             self.logger.error(e)
             exit(1)
         self.logger.info("dbgap files: {}".format(dbgap_file_list))
         user_projects, user_info = self._get_user_permissions_from_csv_list(
-            dbgap_file_list, encrypted=True, session=sess, dbgap_config=dbgap_config
+            dbgap_file_list,
+            encrypted=encrypted,
+            session=sess,
+            dbgap_config=dbgap_config,
         )
 
         user_projects = self.parse_projects(user_projects)
@@ -1235,6 +1259,34 @@ class UserSyncer(object):
             encrypted=encrypted,
         )
         return user_projects, user_info
+
+    def _merge_multiple_local_csv_files(
+        self, dbgap_file_list, encrypted, dbgap_configs, session
+    ):
+        """
+        Args:
+            dbgap_file_list (list): a list of whitelist file locations stored locally
+            encrypted (bool): whether the file is encrypted (comes from fence config)
+            dbgap_configs (list): list of dictionaries containing information about the dbgap server (comes from fence config)
+            session (sqlalchemy.Session): database session
+
+        Return:
+            merged_user_projects (dict)
+            merged_user_info (dict)
+        """
+        merged_user_projects = {}
+        merged_user_info = {}
+
+        for dbgap_config in dbgap_configs:
+            user_projects, user_info = self._get_user_permissions_from_csv_list(
+                dbgap_file_list,
+                encrypted,
+                session=session,
+                dbgap_config=dbgap_config,
+            )
+            self.sync_two_user_info_dict(user_info, merged_user_info)
+            self.sync_two_phsids_dict(user_projects, merged_user_projects)
+        return merged_user_projects, merged_user_info
 
     def _merge_multiple_dbgap_sftp(self, dbgap_servers, sess):
         """
@@ -1417,13 +1469,11 @@ class UserSyncer(object):
                 os.path.join(self.sync_from_local_csv_dir, "*")
             )
 
-        # if syncing from local csv dir dbgap configurations
-        # come from the first dbgap instance in the fence config file
-        user_projects_csv, user_info_csv = self._get_user_permissions_from_csv_list(
+        user_projects_csv, user_info_csv = self._merge_multiple_local_csv_files(
             local_csv_file_list,
             encrypted=False,
             session=sess,
-            dbgap_config=self.dbGaP[0],
+            dbgap_configs=self.dbGaP,
         )
 
         try:

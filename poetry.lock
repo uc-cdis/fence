@@ -7,6 +7,23 @@ optional = false
 python-versions = "*"
 
 [[package]]
+name = "alembic"
+version = "1.7.7"
+description = "A database migration tool for SQLAlchemy."
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+importlib-metadata = {version = "*", markers = "python_version < \"3.9\""}
+importlib-resources = {version = "*", markers = "python_version < \"3.9\""}
+Mako = "*"
+SQLAlchemy = ">=1.3.0"
+
+[package.extras]
+tz = ["python-dateutil"]
+
+[[package]]
 name = "aniso8601"
 version = "9.0.1"
 description = "A library for parsing ISO 8601 strings."
@@ -581,7 +598,7 @@ PyYAML = ">=5.1,<6.0"
 
 [[package]]
 name = "google-api-core"
-version = "1.31.6"
+version = "1.32.0"
 description = "Google API client core library"
 category = "main"
 optional = false
@@ -816,6 +833,21 @@ perf = ["ipython"]
 testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-cov", "pytest-enabler (>=1.0.1)", "packaging", "pep517", "pyfakefs", "flufl.flake8", "pytest-perf (>=0.9.2)", "pytest-black (>=0.3.7)", "pytest-mypy", "importlib-resources (>=1.3)"]
 
 [[package]]
+name = "importlib-resources"
+version = "5.4.0"
+description = "Read resources from Python packages"
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.dependencies]
+zipp = {version = ">=3.1.0", markers = "python_version < \"3.10\""}
+
+[package.extras]
+docs = ["sphinx", "jaraco.packaging (>=8.2)", "rst.linker (>=1.9)"]
+testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-cov", "pytest-enabler (>=1.0.1)", "pytest-black (>=0.3.7)", "pytest-mypy"]
+
+[[package]]
 name = "isodate"
 version = "0.6.1"
 description = "An ISO 8601 date/time/duration parser and formatter"
@@ -855,6 +887,21 @@ description = "JSON Matching Expressions"
 category = "main"
 optional = false
 python-versions = "*"
+
+[[package]]
+name = "mako"
+version = "1.1.6"
+description = "A super-fast templating language that borrows the  best ideas from the existing templating languages."
+category = "main"
+optional = false
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+
+[package.dependencies]
+MarkupSafe = ">=0.9.2"
+
+[package.extras]
+babel = ["babel"]
+lingua = ["lingua"]
 
 [[package]]
 name = "markdown"
@@ -1513,13 +1560,14 @@ testing = ["pytest (>=4.6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytes
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.6"
-content-hash = "186c602df73d7ecc012206566c53664ff8de46d1348e4a520289c168940d2d67"
+content-hash = "5c5e16608b2add61ab7c21c1f94fcb327eebf877c1ae4bae13bc4baf4dc659f3"
 
 [metadata.files]
 addict = [
     {file = "addict-2.4.0-py3-none-any.whl", hash = "sha256:249bb56bbfd3cdc2a004ea0ff4c2b6ddc84d53bc2194761636eb314d5cfa5dfc"},
     {file = "addict-2.4.0.tar.gz", hash = "sha256:b3b2210e0e067a281f5646c8c5db92e99b7231ea8b0eb5f74dbdf9e259d4e494"},
 ]
+alembic = []
 aniso8601 = [
     {file = "aniso8601-9.0.1-py2.py3-none-any.whl", hash = "sha256:1d2b7ef82963909e93c4f24ce48d4de9e66009a21bf1c1e1c85bdd0812fe412f"},
     {file = "aniso8601-9.0.1.tar.gz", hash = "sha256:72e3117667eedf66951bb2d93f4296a56b94b078a8a95905a052611fb3f1b973"},
@@ -1723,10 +1771,7 @@ gen3config = [
 gen3users = [
     {file = "gen3users-0.6.0.tar.gz", hash = "sha256:3b9b56798a7d8b34712389dbbab93c00b0f92524f890513f899c31630ea986da"},
 ]
-google-api-core = [
-    {file = "google-api-core-1.31.6.tar.gz", hash = "sha256:bd4f418745aac8b4781c005056bac01616cafdef20fec95880cbd6f61c23f7f0"},
-    {file = "google_api_core-1.31.6-py2.py3-none-any.whl", hash = "sha256:29d01d0599da4188331b9afd7c1b03ce155ad5047e461cf9ce3223a873fec729"},
-]
+google-api-core = []
 google-api-python-client = [
     {file = "google-api-python-client-1.11.0.tar.gz", hash = "sha256:caf4015800ef1a18d06d117f47f0219c0c0641f21978f6b1bb5ede7912fab97b"},
     {file = "google_api_python_client-1.11.0-py2.py3-none-any.whl", hash = "sha256:4f596894f702736da84cf89490a810b55ca02a81f0cddeacb3022e2900b11ec6"},
@@ -1869,6 +1914,7 @@ importlib-metadata = [
     {file = "importlib_metadata-4.8.3-py3-none-any.whl", hash = "sha256:65a9576a5b2d58ca44d133c42a241905cc45e34d2c06fd5ba2bafa221e5d7b5e"},
     {file = "importlib_metadata-4.8.3.tar.gz", hash = "sha256:766abffff765960fcc18003801f7044eb6755ffae4521c8e8ce8e83b9c9b0668"},
 ]
+importlib-resources = []
 isodate = [
     {file = "isodate-0.6.1-py2.py3-none-any.whl", hash = "sha256:0751eece944162659049d35f4f549ed815792b38793f07cf73381c1c87cbed96"},
     {file = "isodate-0.6.1.tar.gz", hash = "sha256:48c5881de7e8b0a0d648cb024c8062dc84e7b840ed81e864c7614fd3c127bde9"},
@@ -1885,6 +1931,7 @@ jmespath = [
     {file = "jmespath-0.9.2-py2.py3-none-any.whl", hash = "sha256:3f03b90ac8e0f3ba472e8ebff083e460c89501d8d41979771535efe9a343177e"},
     {file = "jmespath-0.9.2.tar.gz", hash = "sha256:54c441e2e08b23f12d7fa7d8e6761768c47c969e6aed10eead57505ba760aee9"},
 ]
+mako = []
 markdown = [
     {file = "Markdown-3.3.7-py3-none-any.whl", hash = "sha256:f5da449a6e1c989a4cea2631aa8ee67caa5a2ef855d551c88f9e309f4634c621"},
     {file = "Markdown-3.3.7.tar.gz", hash = "sha256:cbb516f16218e643d8e0a95b309f77eb118cb138d39a4f27851e6a63581db874"},
