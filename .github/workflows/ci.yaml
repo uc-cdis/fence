@@ -11,9 +11,7 @@ jobs:
   Security:
     name: Secure and Lint
     uses: uc-cdis/.github/.github/workflows/securitypipeline.yaml@SDO-13-ci-using-gh-actions
-    secrets:
-      SLACK_WEBHOOK_URL: ${{ secrets.SLACK_NOTIFY }}
-      SNYK_TOKEN: ${{ secrets.SRVC_SNYKGITACTION }}
+
 
   ci:
     name: Build Image and Push
