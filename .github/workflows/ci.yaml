@@ -11,7 +11,7 @@ jobs:
   Security:
     name: Secure and Lint
     uses: uc-cdis/.github/.github/workflows/securitypipeline.yaml@SDO-13-ci-using-gh-actions
-
+    secrets: inherit
 
   ci:
     name: Build Image and Push
