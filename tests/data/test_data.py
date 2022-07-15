@@ -1414,7 +1414,7 @@ def test_delete_file_locations(
     )
     mock_check_auth = mock.patch.object(
         fence.blueprints.data.indexd.IndexedFile,
-        "check_authorization",
+        "check_legacy_authorization",
         return_value=True,
     )
 
@@ -1481,7 +1481,7 @@ def test_delete_file_locations_by_uploader(
     )
     mock_check_auth = mock.patch.object(
         fence.blueprints.data.indexd.IndexedFile,
-        "check_authorization",
+        "check_legacy_authorization",
         return_value=True,
     )
 

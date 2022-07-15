@@ -3,7 +3,7 @@ from functools import wraps
 import flask
 
 from fence.authz.errors import ArboristError
-from fence.errors import Forbidden, Unauthorized
+from fence.errors import Forbidden, Unauthorized, NotFound
 from fence.jwt.utils import get_jwt_header
 from fence.config import config
 
@@ -70,6 +70,7 @@ def register_arborist_user(user, policies=None):
             policies = config["BASIC_REGISTRATION_ACCESS_POLICY"]
         else:
             policies = []
+            raise NotFound("BASIC_REGISTRATION_ACCESS_POLICY is missing in the configuration file.")
 
     for policy_name in policies:
         policy = flask.current_app.arborist.get_policy(policy_name)

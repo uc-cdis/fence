@@ -12,7 +12,6 @@ from enum import Enum
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from authlib.flask.oauth2.sqla import OAuth2AuthorizationCodeMixin, OAuth2ClientMixin
 import bcrypt
-import flask
 from sqlalchemy import (
     Integer,
     BigInteger,
@@ -25,6 +24,7 @@ from sqlalchemy import (
     Table,
     text,
     UniqueConstraint,
+    event,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship, backref
@@ -57,6 +57,7 @@ from userdatamodel.models import (
 )
 import warnings
 
+from fence import logger
 from fence.config import config
 
 
@@ -66,6 +67,68 @@ def query_for_user(session, username):
         .filter(func.lower(User.username) == username.lower())
         .first()
     )
+
+
+def query_for_user_by_id(session, user_id):
+    return session.query(User).filter(User.id == user_id).first()
+
+
+def create_user(session, logger, username, email=None, idp_name=None):
+    """
+    Create a new user in the database.
+
+    Args:
+        session (sqlalchemy.orm.session.Session): database session
+        logger (logging.Logger): logger
+        username (str): username to save for the created user
+        email (str): email to save for the created user
+        idp_name (str): name of identity provider to link
+
+    Return:
+        userdatamodel.user.User: the created user
+    """
+    logger.info(
+        f"Creating a new user with username: {username}, "
+        f"email: {email}, and idp_name: {idp_name}"
+    )
+
+    user = User(username=username)
+    if email:
+        user.email = email
+    if idp_name:
+        idp = (
+            session.query(IdentityProvider)
+            .filter(IdentityProvider.name == idp_name)
+            .first()
+        )
+        if not idp:
+            idp = IdentityProvider(name=idp_name)
+        user.identity_provider = idp
+
+    session.add(user)
+    session.commit()
+    return user
+
+
+def get_project_to_authz_mapping(session):
+    """
+    Get the mappings for Project.auth_id to authorization resource (Project.authz)
+    from the database if a mapping exists. e.g. will only return if Project.authz is
+    populated.
+
+    Args:
+        session (sqlalchemy.orm.session.Session): database session
+
+    Returns:
+        dict{str:str}: Mapping from Project.auth_id to Project.authz
+    """
+    output = {}
+
+    query_results = session.query(Project.auth_id, Project.authz)
+    if query_results:
+        output = {item.auth_id: item.authz for item in query_results if item.authz}
+
+    return output
 
 
 class ClientAuthType(Enum):
@@ -499,6 +562,8 @@ class GoogleProxyGroupToGoogleBucketAccessGroup(Base):
         ),
     )
 
+    expires = Column(BigInteger)
+
 
 class UserServiceAccount(Base):
     __tablename__ = "user_service_account"
@@ -589,6 +654,14 @@ class AssumeRoleCacheGCP(Base):
     gcp_key_db_entry = Column(String())
 
 
+class GA4GHPassportCache(Base):
+    __tablename__ = "ga4gh_passport_cache"
+
+    passport_hash = Column(String(64), primary_key=True)
+    expires_at = Column(BigInteger, nullable=False)
+    user_ids = Column(ARRAY(String(255)), nullable=False)
+
+
 class GA4GHVisaV1(Base):
 
     __tablename__ = "ga4gh_visa_v1"
@@ -628,6 +701,87 @@ class UpstreamRefreshToken(Base):
     )
     refresh_token = Column(Text, nullable=False)
     expires = Column(BigInteger, nullable=False)
+
+
+class IssSubPairToUser(Base):
+    # issuer & sub pair mapping to Gen3 User sub
+
+    __tablename__ = "iss_sub_pair_to_user"
+
+    iss = Column(String(), primary_key=True)
+    sub = Column(String(), primary_key=True)
+
+    fk_to_User = Column(
+        Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False
+    )  #  foreign key for User table
+    user = relationship(
+        "User",
+        backref=backref(
+            "iss_sub_pairs",
+            cascade="all, delete-orphan",
+            passive_deletes=True,
+        ),
+    )
+
+    # dump whatever idp provides in here
+    extra_info = Column(JSONB(), server_default=text("'{}'"))
+
+    def _get_issuer_to_idp():
+        possibly_matching_idps = [IdentityProvider.ras]
+        issuer_to_idp = {}
+
+        oidc = config.get("OPENID_CONNECT", {})
+        for idp in possibly_matching_idps:
+            discovery_url = oidc.get(idp, {}).get("discovery_url")
+            if discovery_url:
+                for allowed_issuer in config["GA4GH_VISA_ISSUER_ALLOWLIST"]:
+                    if discovery_url.startswith(allowed_issuer):
+                        issuer_to_idp[allowed_issuer] = idp
+                        break
+
+        return issuer_to_idp
+
+    ISSUER_TO_IDP = _get_issuer_to_idp()
+
+    # no longer need function since results stored in var
+    del _get_issuer_to_idp
+
+
+@event.listens_for(IssSubPairToUser.__table__, "after_create")
+def populate_iss_sub_pair_to_user_table(target, connection, **kw):
+    """
+    Populate iss_sub_pair_to_user table using User table's id_from_idp
+    column.
+    """
+    for issuer, idp_name in IssSubPairToUser.ISSUER_TO_IDP.items():
+        logger.info(
+            'Attempting to populate iss_sub_pair_to_user table for users with "{}" idp and "{}" issuer'.format(
+                idp_name, issuer
+            )
+        )
+        transaction = connection.begin()
+        try:
+            connection.execute(
+                text(
+                    """
+                    WITH identity_provider_id AS (SELECT id FROM identity_provider WHERE name=:idp_name)
+                    INSERT INTO iss_sub_pair_to_user (iss, sub, "fk_to_User", extra_info)
+                    SELECT :iss, id_from_idp, id, additional_info
+                    FROM "User"
+                    WHERE idp_id IN (SELECT * FROM identity_provider_id) AND id_from_idp IS NOT NULL;
+                    """
+                ),
+                idp_name=idp_name,
+                iss=issuer,
+            )
+        except Exception as e:
+            transaction.rollback()
+            logger.warning(
+                "Could not populate iss_sub_pair_to_user table: {}".format(e)
+            )
+        else:
+            transaction.commit()
+            logger.info("Population was successful")
 
 
 to_timestamp = (
@@ -899,6 +1053,15 @@ AFTER INSERT OR UPDATE OR DELETE ON certificate
     FOR EACH ROW EXECUTE PROCEDURE process_cert_audit();"""
         )
 
+    # Google Access expiration
+
+    add_column_if_not_exist(
+        table_name=GoogleProxyGroupToGoogleBucketAccessGroup.__tablename__,
+        column=Column("expires", BigInteger()),
+        driver=driver,
+        metadata=md,
+    )
+
     add_column_if_not_exist(
         table_name=Project.__tablename__,
         column=Column("authz", String),
@@ -1149,32 +1312,20 @@ def _remove_policy(driver, md):
 #TODO remove this and add in deployment process instead 
 def _add_documents(driver, md):
     with driver.session as session:
-        if config.get("INITIAL_PRIVACY_POLICY") and config.get("INITIAL_PRIVACY_POLICY_RAW"):
-            pp = config["INITIAL_PRIVACY_POLICY"]
-            pp_raw = config["INITIAL_PRIVACY_POLICY_RAW"]
-            session.execute(
-            """\
-INSERT INTO document (type, version, name, raw, formatted, required)
-VALUES ('privacy-policy', '1', 'Privacy Notice', '{}', '{}', 'true')
-ON CONFLICT (type, version)
-DO NOTHING;""".format(pp_raw, pp)
-        )
-            session.commit()
-
-    if config.get("INITIAL_TERM_CONDITION") and config.get("INITIAL_TERM_CONDITION_RAW"):
-        tc = config["INITIAL_TERM_CONDITION"]
-        tc_raw = config["INITIAL_TERM_CONDITION_RAW"]
-        session.execute(
-            """\
-INSERT INTO document (type, version, name, raw, formatted, required)
-VALUES ('terms-and-conditions', '1', 'Terms and Conditions', '{}', '{}', 'true')
-ON CONFLICT (type, version)
-DO NOTHING;""".format(tc_raw, tc)
-        )
-        session.commit()
-        
-        # session.execute("INSERT INTO document(type, version, name, raw, formatted, required) values ('privacy-policy', '1', 'Privacy Notice', 'https://github.com/chicagopcdc/Documents/blob/81d60130308b6961c38097b6686a21f8be729a2c/governance/privacy_policy/privacy_notice.md', 'https://github.com/chicagopcdc/Documents/blob/81d60130308b6961c38097b6686a21f8be729a2c/governance/privacy_policy/PCDC-Privacy-Notice.pdf', 'true'), ('terms-and-conditions', '1', 'Terms and Conditions', 'https://github.com/chicagopcdc/Documents/blob/fda4a7c914173e29d13ab6249ded7bc9adea5674/governance/terms_and_conditions/GEN3_portal/terms-and-conditions.md', 'https://github.com/chicagopcdc/Documents/blob/a5f4a87262f6597fc85d95b74c320e4fdf1e9097/governance/terms_and_conditions/GEN3_portal/Pediatric%20Cancer%20Data%20Commons%20-%20Terms%20and%20Conditions.pdf', 'true') ON CONFLICT (type, version) DO NOTHING;")
-        # session.commit()
+        if config.get("INITIAL_DOCUMENTS"):
+            docs = config["INITIAL_DOCUMENTS"]
+            if len(docs.keys()) > 0:
+                for doc_k, doc_v in docs.items():
+                    session.execute(
+                        """\
+                        INSERT INTO document (type, version, name, raw, formatted, required)
+                        VALUES ('{}', '{}', '{}', '{}', '{}', '{}')
+                        ON CONFLICT (type, version)
+                        DO NOTHING;""".format(doc_v["type"], doc_v["version"], doc_v["name"], doc_v["raw"], doc_v["formatted"], doc_v["required"])
+                    )
+                    session.commit()
+            else:
+                raise ValueError("The initial document are missing or the format is wrong: INITIAL_DOCUMENTS.")
 
 
 def _add_google_project_id(driver, md):
