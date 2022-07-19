@@ -148,11 +148,39 @@ def review_document(session, username, documents):
 
 def get_doc_to_review(session, username):
     # get latest docs
-    latest_docs_subq = session.query(Document.type, func.max(Document.version).label('version')).group_by(Document.type).subquery('latest_doc')
-    latest_docs = session.query(Document).join(latest_docs_subq, and_(Document.type == latest_docs_subq.c.type, Document.version == latest_docs_subq.c.version)).all()
+    latest_docs_subq = (
+        session.query(Document.type, func.max(Document.version).label("version"))
+        .group_by(Document.type)
+        .subquery("latest_doc")
+    )
+    latest_docs = (
+        session.query(Document)
+        .join(
+            latest_docs_subq,
+            and_(
+                Document.type == latest_docs_subq.c.type,
+                Document.version == latest_docs_subq.c.version,
+                Document.required == True,
+            ),
+        )
+        .all()
+    )
 
     # get user documents
-    user_docs = session.query(UserDocument).join(User).filter(func.lower(User.username) == username.lower()).join(Document).join(latest_docs_subq, and_(Document.type == latest_docs_subq.c.type, Document.version == latest_docs_subq.c.version)).all()
+    user_docs = (
+        session.query(UserDocument)
+        .join(User)
+        .filter(func.lower(User.username) == username.lower())
+        .join(Document)
+        .join(
+            latest_docs_subq,
+            and_(
+                Document.type == latest_docs_subq.c.type,
+                Document.version == latest_docs_subq.c.version,
+            ),
+        )
+        .all()
+    )
 
     user_docs_id = [user_doc.document.id for user_doc in user_docs]
     docs = [latest_doc for latest_doc in latest_docs if latest_doc.id not in user_docs_id]
@@ -170,13 +198,32 @@ def get_doc_to_review(session, username):
     return docs
 
 def get_docs(session):
-    latest_docs_subq = session.query(Document.type, func.max(Document.version).label('version')).group_by(Document.type).subquery('latest_doc')
-    latest_docs = session.query(Document).join(latest_docs_subq, and_(Document.type == latest_docs_subq.c.type, Document.version == latest_docs_subq.c.version)).all()
+    latest_docs_subq = (
+        session.query(Document.type, func.max(Document.version).label("version"))
+        .group_by(Document.type)
+        .subquery("latest_doc")
+    )
+    latest_docs = (
+        session.query(Document)
+        .join(
+            latest_docs_subq,
+            and_(
+                Document.type == latest_docs_subq.c.type,
+                Document.version == latest_docs_subq.c.version,
+            ),
+        )
+        .all()
+    )
 
     return latest_docs
 
 def get_latest_doc_by_type(session, type):
-    latest_doc = session.query(Document).filter(Document.type == type).order_by(Document.version.desc()).first()
+    latest_doc = (
+        session.query(Document)
+        .filter(Document.type == type)
+        .order_by(Document.version.desc())
+        .first()
+    )
     return latest_doc
 
 
