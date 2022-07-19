@@ -13,7 +13,7 @@ from fence.models import (
     UserToGroup,
     query_for_user,
     Document,
-    UserDocument
+    UserDocument,
 )
 
 __all__ = [
@@ -33,13 +33,20 @@ __all__ = [
 
 logger = get_logger(__name__)
 
+
 def get_user(current_session, username):
     return query_for_user(session=current_session, username=username)
 
+
 def update_user(current_session, username, additional_info):
-    updated_user = current_session.query(User).filter(User.username == username).update({User.additional_info: additional_info})
+    updated_user = (
+        current_session.query(User)
+        .filter(User.username == username)
+        .update({User.additional_info: additional_info})
+    )
     current_session.commit()
     return updated_user
+
 
 def get_user_accesses(current_session):
     return (
@@ -89,22 +96,19 @@ def get_all_users(current_session):
     return current_session.query(User).all()
 
 
-def get_users(current_session, usernames:list):
+def get_users(current_session, usernames: list):
     # logger.debug(f"get_users usernames: {usernames}")
     if not usernames:
         return []
-    users = current_session.query(User).filter(
-        User.username.in_(usernames)
-    ).all()
+    users = current_session.query(User).filter(User.username.in_(usernames)).all()
     # logger.debug(f"get_users users found: {users}")
     return users
 
-def get_users_by_id(current_session, ids:list):
+
+def get_users_by_id(current_session, ids: list):
     if not ids:
         return []
-    users = current_session.query(User).filter(
-        User.id.in_(ids)
-    ).all()
+    users = current_session.query(User).filter(User.id.in_(ids)).all()
     return users
 
 
@@ -135,14 +139,16 @@ def review_document(session, username, documents):
 
         if doc and not (doc.required == True and value == False):
             added_docs.append(doc)
-            new_user_doc = UserDocument(user_id=user.id, document_id=doc.id, accepted=value)
+            new_user_doc = UserDocument(
+                user_id=user.id, document_id=doc.id, accepted=value
+            )
             user_docs.append(new_user_doc)
 
     if len(user_docs) > 0:
         # user.documents.extend(docs)
         session.add_all(user_docs)
         session.commit()
-        
+
     return added_docs
 
 
@@ -183,19 +189,22 @@ def get_doc_to_review(session, username):
     )
 
     user_docs_id = [user_doc.document.id for user_doc in user_docs]
-    docs = [latest_doc for latest_doc in latest_docs if latest_doc.id not in user_docs_id]
+    docs = [
+        latest_doc for latest_doc in latest_docs if latest_doc.id not in user_docs_id
+    ]
 
     # docs = []
     # for doc in latest_docs:
     #     present = False
     #     for user_doc in user_docs:
     #         if doc.id == user_doc.document.id:
-    #             present = True 
+    #             present = True
 
     #     if not present:
     #         docs.append(doc)
 
     return docs
+
 
 def get_docs(session):
     latest_docs_subq = (
@@ -217,6 +226,7 @@ def get_docs(session):
 
     return latest_docs
 
+
 def get_latest_doc_by_type(session, type):
     latest_doc = (
         session.query(Document)
@@ -225,5 +235,3 @@ def get_latest_doc_by_type(session, type):
         .first()
     )
     return latest_doc
-
-
