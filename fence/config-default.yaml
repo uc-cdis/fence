@@ -469,7 +469,7 @@ GA4GH_DRS_POSTED_PASSPORT_FIELD: "passports"
 # PRIVACY_POLICY_URL, or default to the `static/privacy_policy.md` file in fence.
 PRIVACY_POLICY_URL: null
 
-DOCUMENT_TYPES: ['privacy-policy', 'terms-and-conditions', 'survival-user-agreement']
+DOCUMENT_TYPES: ['privacy-policy', 'terms-and-conditions', 'survival-user-agreement', 'data-portal-user-guide']
 INITIAL_DOCUMENTS: {}
 
 # //////////////////////////////////////////////////////////////////////////////////////
