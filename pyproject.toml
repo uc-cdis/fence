@@ -55,7 +55,7 @@ authutils = "6.1.0"
 
 [tool.poetry.dev-dependencies]
 addict = "^2.2.1"
-cdisutilstest = "^2.0.1"
+cdisutilstest = {git = "https://github.com/uc-cdis/cdisutils-test", rev = "1.0.0"}
 codacy-coverage = "^1.3.11"
 coveralls = "^2.1.1"
 mock = "^2.0.0"
