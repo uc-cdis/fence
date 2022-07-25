@@ -20,7 +20,7 @@ botocore = "^1.12.253"
 cached_property = "^1.5.1"
 cdiserrors = "<2.0.0"
 cdislogging = "^1.0.0"
-cdispyutils = {git = "https://github.com/uc-cdis/cdis-python-utils", rev = "feat/deps"}
+cdispyutils = "^2.0.1"
 cryptography = ">=3.2"
 flask = ">=1.1.1"
 flask-cors = "^3.0.3"
