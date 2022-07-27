@@ -572,7 +572,7 @@ def main():
             DB, args.emails, args.auth_ids, args.check_linking, args.google_project_id
         )
     elif args.action == "migrate":
-        migrate_database(DB)
+        migrate_database()
     elif args.action == "update-visas":
         access_token_polling_job(
             DB,

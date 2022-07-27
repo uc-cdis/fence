@@ -1,4 +1,8 @@
 repos:
+-   repo: https://github.com/psf/black
+    rev: 22.3.0
+    hooks:
+    -   id: black
 -   repo: git@github.com:Yelp/detect-secrets
     rev: v1.2.0
     hooks:
@@ -12,7 +16,3 @@ repos:
     -   id: end-of-file-fixer
     -   id: no-commit-to-branch
         args: [--branch, develop, --branch, master, --pattern, release/.*]
--   repo: https://github.com/psf/black
-    rev: 21.5b2
-    hooks:
-    -   id: black
