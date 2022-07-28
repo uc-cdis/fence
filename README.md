@@ -515,6 +515,14 @@ To specify allowed scopes, use the `allowed-scopes` argument:
 fence-create client-create ...  --allowed-scopes openid user data
 ```
 
+#### Register an Oauth Client for a Client Credentials flow
+
+As a Gen3 commons administrator, if you want to create an oauth client for a client credentials flow:
+
+```bash
+fence-create client-create --client CLIENT_NAME --grant-types client_credentials
+```
+
 #### Modify OAuth Client
 
 ```bash

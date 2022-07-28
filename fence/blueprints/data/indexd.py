@@ -1532,7 +1532,7 @@ def _get_auth_info_for_id_or_from_request(
     """
     db_session = db_session or current_session
 
-    # set default "annymous" user_id and username
+    # set default "anonymous" user_id and username
     # this is fine b/c it might be public data or a client token that is not
     # linked to a user
     final_user_id = None

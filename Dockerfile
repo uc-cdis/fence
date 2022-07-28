@@ -12,7 +12,7 @@ RUN apt-get update \
     && apt-get -y install vim \
     libmcrypt4 libmhash2 mcrypt \
     && apt-get clean \
-    && rm -rf /var/lib/apt/lists/  
+    && rm -rf /var/lib/apt/lists/
 
 RUN mkdir -p /var/www/$appname \
     && mkdir -p /var/www/.cache/Python-Eggs/ \

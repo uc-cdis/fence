@@ -540,6 +540,7 @@ def db(app, request):
         connection.begin()
         for table in reversed(models.Base.metadata.sorted_tables):
             connection.execute(table.delete())
+        connection.close()
 
     request.addfinalizer(drop_all)
 
