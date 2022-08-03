@@ -1,6 +1,8 @@
 name: CI
 
 on: push
+    pull_request:
+      types: [opened, reopened]
 
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
@@ -10,7 +12,7 @@ concurrency:
 jobs:
   Security:
     name: Secure and Lint
-    uses: uc-cdis/.github/.github/workflows/securitypipeline.yaml@SDO-13-ci-using-gh-actions
+    uses: uc-cdis/.github/.github/workflows/securitypipeline.yaml@master
     secrets: inherit
 
   ci:
