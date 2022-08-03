@@ -1557,7 +1557,7 @@ def _get_auth_info_for_id_or_from_request(
             final_username = current_token["context"]["user"]["name"]
     except Exception as exc:
         logger.info(
-            f"could not determine auth info from request. setting anonymous user information. Details:\n{exc}"
+            f"could not determine user auth info from request. setting anonymous user information. Details:\n{exc}"
         )
 
     client_id = ""
@@ -1568,7 +1568,7 @@ def _get_auth_info_for_id_or_from_request(
         client_id = current_token.get("azp") or ""
     except Exception as exc:
         logger.info(
-            f"could not determine auth info from request. setting anonymous client information. Details:\n{exc}"
+            f"could not determine client auth info from request. setting anonymous client information. Details:\n{exc}"
         )
 
     return {
