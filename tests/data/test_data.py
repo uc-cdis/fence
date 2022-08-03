@@ -1825,7 +1825,7 @@ def test_delete_files(app, client, auth_client, encoded_creds_jwt, user_client):
     fence.auth.config["MOCK_AUTH"] = False
 
 
-def test_download_file_with_client_token(
+def test_download_s3_file_with_client_token(
     client,
     indexd_client_accepting_record,
     kid,
