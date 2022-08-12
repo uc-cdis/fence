@@ -1398,9 +1398,7 @@ def oauth_client_public(app, db_session, oauth_user):
 
 
 @pytest.fixture(scope="function")
-def oauth_client_with_client_credentials(
-    db_session, get_all_shib_idps_patcher
-):  # app, db_session, oauth_user, get_all_shib_idps_patcher):
+def oauth_client_with_client_credentials(db_session, get_all_shib_idps_patcher):
     """
     Create a confidential OAuth2 client and add it to the database along with a
     test user for the client.

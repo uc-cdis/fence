@@ -381,7 +381,7 @@ def upgrade():
         "client",
         sa.Column("issued_at", sa.Integer(), nullable=False),
         sa.Column("expires_at", sa.Integer(), nullable=False),
-        sa.Column("redirect_uri", sa.Text(), nullable=False),
+        sa.Column("redirect_uri", sa.Text(), nullable=True),
         sa.Column("token_endpoint_auth_method", sa.String(length=48), nullable=True),
         sa.Column("grant_type", sa.Text(), nullable=False),
         sa.Column("response_type", sa.Text(), nullable=False),

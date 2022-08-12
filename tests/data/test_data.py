@@ -1834,8 +1834,8 @@ def test_download_s3_file_with_client_token(
 ):
     """
     Test that an access token that does not include a `sub` or `context.user.
-    name` (such as a token issued from the `client_credentials` flow) can be
-    used to download data from S3, and that the `client_id` is used to sign.
+    name` (such as a token issued from the `client_credentials` flow) cannot be
+    used to download data from S3.
     """
     indexd_record = {
         **INDEXD_RECORD_WITH_PUBLIC_AUTHZ_POPULATED,
@@ -1857,12 +1857,13 @@ def test_download_s3_file_with_client_token(
     }
 
     response = client.get("/data/download/1", headers=headers)
-    assert response.status_code == 200
-    signed_url = response.json.get("url")
-    assert signed_url
+    assert response.status_code == 403
 
-    # check signing query parameters
-    query_params = urllib.parse.parse_qs(signed_url)
-    assert query_params.get("user_id") == [ANONYMOUS_USER_ID]
-    assert query_params.get("username") == [ANONYMOUS_USERNAME]
-    assert query_params.get("client_id") == [client_credentials_token["azp"]]
+    # Enable the block below if we start allowing downloads with client tokens
+    # signed_url = response.json.get("url")
+    # assert signed_url
+    # # check signing query parameters
+    # query_params = urllib.parse.parse_qs(signed_url)
+    # assert query_params.get("user_id") == [ANONYMOUS_USER_ID]
+    # assert query_params.get("username") == [ANONYMOUS_USERNAME]
+    # assert query_params.get("client_id") == [client_credentials_token["azp"]]

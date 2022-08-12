@@ -32,6 +32,7 @@ from fence.auth import (
 )
 from fence.config import config
 from fence.errors import (
+    Forbidden,
     InternalError,
     NotFound,
     NotSupported,
@@ -1124,9 +1125,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
 
         if not force_signed_url:
             url = "https://storage.cloud.google.com/" + resource_path
-        elif _is_anonymous_user(auth_info):  # anonymous or client token
-            # TODO We should probably sign with the client_id for client
-            # tokens (not linked to a user), instead of anonymous
+        elif _is_anonymous_user(auth_info):
             url = self._generate_anonymous_google_storage_signed_url(
                 ACTION_DICT["gs"][action], resource_path, int(expires_in)
             )
@@ -1570,6 +1569,9 @@ def _get_auth_info_for_id_or_from_request(
         logger.info(
             f"could not determine client auth info from request. setting anonymous client information. Details:\n{exc}"
         )
+
+    if final_username == ANONYMOUS_USERNAME and client_id != "":
+        raise Forbidden("This endpoint does not support client credentials tokens")
 
     return {
         "user_id": final_user_id,
