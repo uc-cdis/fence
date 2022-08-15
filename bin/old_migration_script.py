@@ -4,7 +4,7 @@ Alembic for migrations. We need to keep it around to migrate databases from a
 pre-Alembic version to a post-Alembic version.
 
 DO NOT ADD NEW MIGRATIONS TO THIS SCRIPT.
-Create a new Alembic version instead.
+Create a new Alembic revision instead.
 """
 
 
