@@ -415,7 +415,7 @@ def test_generate_aws_presigned_url_for_part(app, indexd_client):
     blank_index = BlankIndex(uploader=uploader)
     assert blank_index
     with patch(
-        "fence.blueprints.data.indexd.S3IndexedFileLocation.generate_presigne_url_for_part_upload"
+        "fence.blueprints.data.indexd.S3IndexedFileLocation.generate_presigned_url_for_part_upload"
     ):
         blank_index.generate_aws_presigned_url_for_part(
             key="some key", uploadId="some id", partNumber=1, expires_in=10

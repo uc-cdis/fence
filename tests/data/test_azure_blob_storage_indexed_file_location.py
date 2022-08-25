@@ -16,56 +16,32 @@ from fence.blueprints.data.indexd import (
     indirect=True,
 )
 @pytest.mark.parametrize(
-    "action,expires_in,public_data,force_signed_url,azure_creds,user_id,storage_account_matches,expect_signed",
+    "action,expires_in,force_signed_url,azure_creds,user_id,storage_account_matches,expect_signed",
     [
-        ("download", 5, True, None, "fake conn str", "some user", True, False),
-        ("download", 5, True, None, "fake conn str", "some user", False, False),
-        ("download", 5, True, True, "fake conn str", "some user", True, True),
-        ("download", 5, True, True, "fake conn str", "some user", False, False),
-        ("download", 5, True, False, "fake conn str", "some user", True, False),
-        ("download", 5, True, False, "fake conn str", "some user", False, False),
-        ("download", 5, False, None, "fake conn str", "some user", True, True),
-        ("download", 5, False, None, "fake conn str", "some user", False, False),
-        ("download", 5, False, True, "fake conn str", "some user", True, True),
-        ("download", 5, False, True, "fake conn str", "some user", False, False),
-        ("download", 5, False, None, "fake conn str", "some user", True, True),
-        ("download", 5, False, None, "fake conn str", "some user", False, False),
-        ("download", 5, False, None, "*", "some user", True, True),
-        ("download", 5, False, None, "*", "some user", False, False),
-        ("download", 5, False, None, "*", ANONYMOUS_USER_ID, True, True),
-        ("download", 5, False, None, "*", ANONYMOUS_USER_ID, False, False),
-        ("download", 5, None, None, "fake conn str", "some user", True, True),
-        ("download", 5, None, None, "fake conn str", "some user", False, False),
-        ("download", 5, None, True, "fake conn str", "some user", True, True),
-        ("download", 5, None, True, "fake conn str", "some user", False, False),
-        ("download", 5, None, False, "fake conn str", "some user", True, True),
-        ("download", 5, None, False, "fake conn str", "some user", False, False),
-        ("download", 5, True, None, "fake conn str", ANONYMOUS_USER_ID, True, False),
-        ("download", 5, True, None, "fake conn str", ANONYMOUS_USER_ID, False, False),
-        ("upload", 5, True, None, "fake conn str", "some user", True, False),
-        ("upload", 5, True, None, "fake conn str", "some user", False, False),
-        ("upload", 5, True, True, "fake conn str", "some user", True, True),
-        ("upload", 5, True, True, "fake conn str", "some user", False, False),
-        ("upload", 5, True, False, "fake conn str", "some user", True, False),
-        ("upload", 5, True, False, "fake conn str", "some user", False, False),
-        ("upload", 5, False, None, "fake conn str", "some user", True, True),
-        ("upload", 5, False, None, "fake conn str", "some user", False, False),
-        ("upload", 5, False, True, "fake conn str", "some user", True, True),
-        ("upload", 5, False, True, "fake conn str", "some user", False, False),
-        ("upload", 5, False, None, "fake conn str", "some user", True, True),
-        ("upload", 5, False, None, "fake conn str", "some user", False, False),
-        ("upload", 5, False, None, "*", "some user", True, True),
-        ("upload", 5, False, None, "*", "some user", False, False),
-        ("upload", 5, False, None, "*", ANONYMOUS_USER_ID, True, True),
-        ("upload", 5, False, None, "*", ANONYMOUS_USER_ID, False, False),
-        ("upload", 5, None, None, "fake conn str", "some user", True, True),
-        ("upload", 5, None, None, "fake conn str", "some user", False, False),
-        ("upload", 5, None, True, "fake conn str", "some user", True, True),
-        ("upload", 5, None, True, "fake conn str", "some user", False, False),
-        ("upload", 5, None, False, "fake conn str", "some user", True, True),
-        ("upload", 5, None, False, "fake conn str", "some user", False, False),
-        ("upload", 5, True, None, "fake conn str", ANONYMOUS_USER_ID, True, False),
-        ("upload", 5, True, None, "fake conn str", ANONYMOUS_USER_ID, False, False),
+        ("download", 5, None, "fake conn str", "some user", False, False),
+        ("download", 5, True, "fake conn str", "some user", True, True),
+        ("download", 5, True, "fake conn str", "some user", False, False),
+        ("download", 5, False, "fake conn str", "some user", True, False),
+        ("download", 5, False, "fake conn str", "some user", False, False),
+        ("download", 5, None, "fake conn str", "some user", True, True),
+        ("download", 5, None, "*", "some user", True, True),
+        ("download", 5, None, "*", "some user", False, False),
+        ("download", 5, None, "*", ANONYMOUS_USER_ID, True, True),
+        ("download", 5, None, "*", ANONYMOUS_USER_ID, False, False),
+        ("download", 5, None, "fake conn str", ANONYMOUS_USER_ID, True, True),
+        ("download", 5, None, "fake conn str", ANONYMOUS_USER_ID, False, False),
+        ("upload", 5, None, "fake conn str", "some user", False, False),
+        ("upload", 5, True, "fake conn str", "some user", True, True),
+        ("upload", 5, True, "fake conn str", "some user", False, False),
+        ("upload", 5, False, "fake conn str", "some user", True, False),
+        ("upload", 5, False, "fake conn str", "some user", False, False),
+        ("upload", 5, None, "fake conn str", "some user", True, True),
+        ("upload", 5, None, "*", "some user", True, True),
+        ("upload", 5, None, "*", "some user", False, False),
+        ("upload", 5, None, "*", ANONYMOUS_USER_ID, True, True),
+        ("upload", 5, None, "*", ANONYMOUS_USER_ID, False, False),
+        ("upload", 5, None, "fake conn str", ANONYMOUS_USER_ID, True, True),
+        ("upload", 5, None, "fake conn str", ANONYMOUS_USER_ID, False, False),
     ],
 )
 def test_get_signed_url(
@@ -73,7 +49,6 @@ def test_get_signed_url(
     indexd_client,
     action,
     expires_in,
-    public_data,
     force_signed_url,
     azure_creds,
     user_id,
@@ -95,20 +70,27 @@ def test_get_signed_url(
                 return_value=storage_account_matches,
             ):
                 with patch(
-                    "fence.blueprints.data.indexd._get_user_info",
+                    "fence.blueprints.data.indexd._get_auth_info_for_id_or_from_request",
                     return_value={"user_id": user_id},
                 ):
                     azure_blob_storage_indexed_file_location = (
                         AzureBlobStorageIndexedFileLocation(indexed_file_location_url)
                     )
-                    return_url = (
-                        azure_blob_storage_indexed_file_location.get_signed_url(
-                            action=action,
-                            expires_in=expires_in,
-                            public_data=public_data,
-                            force_signed_url=force_signed_url,
+                    if force_signed_url == None:
+                        return_url = (
+                            azure_blob_storage_indexed_file_location.get_signed_url(
+                                action=action,
+                                expires_in=expires_in,
+                            )
                         )
-                    )
+                    else:
+                        return_url = (
+                            azure_blob_storage_indexed_file_location.get_signed_url(
+                                action=action,
+                                expires_in=expires_in,
+                                force_signed_url=force_signed_url,
+                            )
+                        )
 
                     if expect_signed:
                         assert "?" in return_url

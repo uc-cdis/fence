@@ -50,8 +50,9 @@ class TokenResponse(object):
         id_token (dict)
     """
 
-    def __init__(self, response):
+    def __init__(self, response, grant_types):
         self.response = response
+        self.grant_types = grant_types
         try:
             self.access_token = response.json.get("access_token")
             self.refresh_token = response.json.get("refresh_token")
@@ -64,8 +65,13 @@ class TokenResponse(object):
     def do_asserts(self):
         assert self.response.status_code == 200, self.response.json
         assert "access_token" in self.response.json
-        assert "refresh_token" in self.response.json
-        assert "id_token" in self.response.json
+
+        if any(
+            g in self.grant_types
+            for g in ["authorization_code", "refresh_token", "implicit"]
+        ):
+            assert "refresh_token" in self.response.json
+            assert "id_token" in self.response.json
 
 
 class OAuth2TestClient(object):
@@ -127,6 +133,7 @@ class OAuth2TestClient(object):
         self._client = flask_client
         self.client_id = oauth_client.client_id
         self.url = oauth_client.url
+        self.grant_types = oauth_client.grant_types
         if confidential:
             self.client_secret = oauth_client.client_secret
             self._auth_header = tests.utils.oauth2.create_basic_header(
@@ -209,11 +216,13 @@ class OAuth2TestClient(object):
             elif method == "POST":
                 assert response.status_code == 200, response
             # Check that the redirect does go to the correct URL.
-            assert self.authorize_response.location.startswith(self.url)
+            assert self.authorize_response.location.startswith(
+                self.url
+            ), f"Expected location '{self.authorize_response.location}' to start with '{self.url}'"
 
         return self.authorize_response
 
-    def token(self, code=None, data=None, do_asserts=True, include_auth=True):
+    def token(self, code=None, data=None, do_asserts=True, include_auth=True, scope=""):
         """
         Make a request to the token endpoint to get a set of tokens.
 
@@ -223,24 +232,35 @@ class OAuth2TestClient(object):
                 ``self.authorize_response.code``
             data (Optional[dict]): parameters to include in request
             do_asserts (bool): whether to call asserts on token response
+            include_auth (bool)
+            scope (str): space-separated list of requested scopes
         """
-        if not code and not self.authorize_response:
-            raise ValueError("no code provided")
-        code = code or self.authorize_response.code
         data = data or {}
-        default_data = {
-            "client_id": self.client_id,
-            "code": code,
-            "grant_type": "authorization_code",
-            "redirect_uri": self.url,
-        }
-        default_data.update(data)
-        data = default_data
+        default_data = {"client_id": self.client_id}
         if self.client_secret and include_auth:
-            data["client_secret"] = self.client_secret
+            default_data["client_secret"] = self.client_secret
+
+        if any(
+            g in self.grant_types
+            for g in ["authorization_code", "refresh_token", "implicit"]
+        ):
+            if not code and not self.authorize_response:
+                raise ValueError("no code provided")
+            code = code or self.authorize_response.code
+            default_data["grant_type"] = "authorization_code"
+            default_data["code"] = code
+            default_data["redirect_uri"] = self.url
+        elif "client_credentials" in self.grant_types:
+            default_data["grant_type"] = "client_credentials"
+            if scope:
+                default_data["scope"] = scope
+
+        default_data.update(data)
         headers = self._auth_header if include_auth else {}
-        response = self._client.post(self.PATH_TOKEN, headers=headers, data=data)
-        self.token_response = TokenResponse(response)
+        response = self._client.post(
+            self.PATH_TOKEN, headers=headers, data=default_data
+        )
+        self.token_response = TokenResponse(response, self.grant_types)
         if do_asserts:
             self.token_response.do_asserts()
         return self.token_response
@@ -272,7 +292,7 @@ class OAuth2TestClient(object):
         response = self._client.post(
             self.PATH_REFRESH, headers=self._auth_header, data=data
         )
-        self.refresh_response = TokenResponse(response)
+        self.refresh_response = TokenResponse(response, self.grant_types)
         if do_asserts:
             self.refresh_response.do_asserts()
         return self.refresh_response

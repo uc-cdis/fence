@@ -14,13 +14,26 @@ from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
+from urllib.parse import urlparse
+
+# Can't read config yet. Just set to debug for now, else no handlers.
+# Later, in app_config(), will actually set level based on config
+logger = get_logger(__name__, log_level="debug")
+
+# Load the configuration *before* importing modules that rely on it
+from fence.config import config
+from fence.settings import CONFIG_SEARCH_FOLDERS
+
+config.load(
+    config_path=os.environ.get("FENCE_CONFIG_PATH"),
+    search_folders=CONFIG_SEARCH_FOLDERS,
+)
 
 from fence.auth import logout, build_redirect_url
 from fence.blueprints.data.indexd import S3IndexedFileLocation
 from fence.blueprints.login.utils import allowed_login_redirects, domain
 from fence.errors import UserError
 from fence.jwt import keys
-from fence.models import migrate
 from fence.oidc.client import query_client
 from fence.oidc.server import server
 from fence.resources.audit.client import AuditServiceClient
@@ -38,8 +51,6 @@ from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
 from fence.error_handler import get_error_response
 from fence.utils import random_str
-from fence.config import config
-from fence.settings import CONFIG_SEARCH_FOLDERS
 import fence.blueprints.admin
 import fence.blueprints.data
 import fence.blueprints.login
@@ -59,10 +70,6 @@ import fence.blueprints.ga4gh
 # this statement to `_setup_prometheus()`
 PROMETHEUS_TMP_COUNTER_DIR = tempfile.TemporaryDirectory()
 
-
-# Can't read config yet. Just set to debug for now, else no handlers.
-# Later, in app_config(), will actually set level based on config
-logger = get_logger(__name__, log_level="debug")
 
 app = flask.Flask(__name__)
 CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
@@ -98,16 +105,12 @@ def app_init(
 
 def app_sessions(app):
     app.url_map.strict_slashes = False
-    app.db = SQLAlchemyDriver(config["DB"])
 
-    # TODO: we will make a more robust migration system external from the application
-    #       initialization soon
-    if config["ENABLE_DB_MIGRATION"]:
-        logger.info("Running database migration...")
-        migrate(app.db)
-        logger.info("Done running database migration.")
-    else:
-        logger.info("NOT running database migration.")
+    # override userdatamodel's `setup_db` function which creates tables
+    # and runs database migrations, because Alembic handles that now.
+    # TODO move userdatamodel code to Fence and remove dependencies to it
+    SQLAlchemyDriver.setup_db = lambda _: None
+    app.db = SQLAlchemyDriver(config["DB"])
 
     session = flask_scoped_session(app.db.Session, app)  # noqa
     app.session_interface = UserSessionInterface()
