@@ -13,7 +13,7 @@ concurrency:
 jobs:
   Security:
     name: Security Pipeline
-    uses: uc-cdis/.github/.github/workflows/securitypipeline.yaml@SDO13_pipeline_fix
+    uses: uc-cdis/.github/.github/workflows/securitypipeline.yaml@master
     secrets: inherit
 
   ci:
