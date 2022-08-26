@@ -22,7 +22,7 @@ import json
 
 from authutils.errors import JWTExpiredError
 
-from fence.blueprints.login import IDP_URL_MAP, get_login_providers_info
+from fence.blueprints.login import get_idp_route_name, get_login_providers_info
 from fence.errors import Unauthorized, UserError
 from fence.jwt.errors import JWTError
 from fence.jwt.token import SCOPE_DESCRIPTION
@@ -78,8 +78,8 @@ def authorize(*args, **kwargs):
 
     login_url = None
     if not idp:
-        if not config.get("DEFAULT_LOGIN_IDP") and "default" not in config.get(
-            "ENABLED_IDENTITY_PROVIDERS", {}
+        if not config.get("DEFAULT_LOGIN_IDP") and "default" not in (
+            config.get("ENABLED_IDENTITY_PROVIDERS") or {}
         ):
             # fall back on deprecated DEFAULT_LOGIN_URL
             login_url = config.get("DEFAULT_LOGIN_URL")
@@ -94,9 +94,9 @@ def authorize(*args, **kwargs):
         params = {"redirect": redirect_url}
 
         if not login_url:
-            if idp not in IDP_URL_MAP or idp not in config["OPENID_CONNECT"]:
+            if idp not in config["OPENID_CONNECT"]:
                 raise UserError("idp {} is not supported".format(idp))
-            idp_endpoint = IDP_URL_MAP[idp]
+            idp_endpoint = get_idp_route_name(idp)
             login_url = "{}/login/{}".format(config.get("BASE_URL"), idp_endpoint)
 
         # handle valid extra params for fence multi-tenant and shib login

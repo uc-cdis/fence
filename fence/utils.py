@@ -35,9 +35,9 @@ def json_res(data):
 
 
 def create_client(
-    username,
-    urls,
     DB,
+    username=None,
+    urls=[],
     name="",
     description="",
     auto_approve=False,
@@ -51,7 +51,6 @@ def create_client(
     client_id = random_str(40)
     if arborist is not None:
         arborist.create_client(client_id, policies)
-    grant_types = grant_types
     driver = SQLAlchemyDriver(DB)
     client_secret = None
     hashed_secret = None
@@ -61,6 +60,7 @@ def create_client(
             client_secret.encode("utf-8"), bcrypt.gensalt()
         ).decode("utf-8")
     auth_method = "client_secret_basic" if confidential else "none"
+
     allowed_scopes = allowed_scopes or config["CLIENT_ALLOWED_SCOPES"]
     if not set(allowed_scopes).issubset(set(config["CLIENT_ALLOWED_SCOPES"])):
         raise ValueError(
@@ -68,15 +68,19 @@ def create_client(
                 config["CLIENT_ALLOWED_SCOPES"]
             )
         )
+
     if "openid" not in allowed_scopes:
         allowed_scopes.append("openid")
         logger.warning('Adding required "openid" scope to list of allowed scopes.')
-    with driver.session as s:
-        user = query_for_user(session=s, username=username)
 
-        if not user:
-            user = User(username=username, is_admin=is_admin)
-            s.add(user)
+    with driver.session as s:
+        user = None
+        if username:
+            user = query_for_user(session=s, username=username)
+            if not user:
+                user = User(username=username, is_admin=is_admin)
+                s.add(user)
+
         if s.query(Client).filter(Client.name == name).first():
             if arborist is not None:
                 arborist.delete_client(client_id)
@@ -96,6 +100,7 @@ def create_client(
         )
         s.add(client)
         s.commit()
+
     return client_id, client_secret
 
 
@@ -246,8 +251,8 @@ def send_email(from_email, to_emails, subject, text, smtp_domain):
                 "smtp_hostname": "smtp.mailgun.org",
                 "default_login": "postmaster@mailgun.planx-pla.net",
                 "api_url": "https://api.mailgun.net/v3/mailgun.planx-pla.net",
-                "smtp_password": "password",
-                "api_key": "api key"
+                "smtp_password": "password", # pragma: allowlist secret
+                "api_key": "api key" # pragma: allowlist secret
             }
 
     Returns:
@@ -362,6 +367,35 @@ def exception_do_not_retry(error):
         return True
 
     return False
+
+
+def get_from_cache(item_id, memory_cache, db_cache_table, db_cache_table_id_field="id"):
+    """
+    Attempt to get a cached item and store in memory cache from db if necessary.
+
+    NOTE: This requires custom implementation for putting items in the db cache table.
+    """
+    # try to retrieve from local in-memory cache
+    rv, expires_at = memory_cache.get(item_id, (None, 0))
+    if expires_at > expiry:
+        return rv
+
+    # try to retrieve from database cache
+    if hasattr(flask.current_app, "db"):  # we don't have db in startup
+        with flask.current_app.db.session as session:
+            cache = (
+                session.query(db_cache_table)
+                .filter(
+                    getattr(db_cache_table, db_cache_table_id_field, None) == item_id
+                )
+                .first()
+            )
+            if cache and cache.expires_at and cache.expires_at > expiry:
+                rv = dict(cache)
+
+                # store in memory cache
+                memory_cache[item_id] = rv, cache.expires_at
+                return rv
 
 
 # Default settings to control usage of backoff library.

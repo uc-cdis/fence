@@ -21,9 +21,9 @@ def test_passport_access_token(app, kid, rsa_private_key, test_user_a):
     jwt_token = generate_signed_access_token(
         kid,
         rsa_private_key,
-        test_user_a,
         exp,
         ["openid", "user", "ga4gh_passport_v1"],
+        user=test_user_a,
         client_id="client_a",
     )
     payload = jwt.decode(jwt_token.token, options={"verify_signature": False})

@@ -105,7 +105,10 @@ def get_user_info(current_session, username):
         info["shib_idp"] = flask.session["shib_idp"]
 
     # User SAs are stored in db with client_id = None
-    primary_service_account = get_service_account(client_id=None, user_id=user.id) or {}
+    primary_service_account = (
+        get_service_account(client_id=None, user_id=user.id, username=user.username)
+        or {}
+    )
     primary_service_account_email = getattr(primary_service_account, "email", None)
     info["primary_google_service_account"] = primary_service_account_email
 

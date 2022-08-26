@@ -83,16 +83,33 @@ WTF_CSRF_SECRET_KEY: '{{ENCRYPTION_KEY}}'
 # NOTE: We are working to improve the migration process in the near future
 ENABLE_DB_MIGRATION: true
 
+# Key to lock the database during migrations
+DB_MIGRATION_POSTGRES_LOCK_KEY: 100
+
 # //////////////////////////////////////////////////////////////////////////////////////
 # OPEN ID CONNECT (OIDC)
 #   - Fully configure at least one client so login works
 #   - WARNING: Be careful changing the *_ALLOWED_SCOPES as you can break basic
 #              and optional functionality
-#
-# See ``fence/blueprints/login/__init__.py`` IDP_URL_MAP for which identity
-# providers can be configured.
 # //////////////////////////////////////////////////////////////////////////////////////
 OPENID_CONNECT:
+  # any OIDC IDP that does not differ from the generic implementation can be
+  # configured without code changes
+  generic_oidc_idp:  # choose a unique ID and replace this key
+    name: 'some_idp'  # optional; display name for this IDP
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/some_idp/login'  # replace IDP name
+    # use `discovery` to configure IDPs that do not expose a discovery
+    # endpoint. One of `discovery_url` or `discovery` should be configured
+    discovery_url: 'https://server.com/.well-known/openid-configuration'
+    discovery:
+      authorization_endpoint: ''
+      token_endpoint: ''
+      jwks_uri: ''
+    user_id_field: ''  # optional (default "sub"); claims field to get the user_id from
+    email_field: ''  # optional (default "email"); claims field to get the user email from
+    scope: ''  # optional (default "openid")
   # These Google values must be obtained from Google's Cloud Console
   # Follow: https://developers.google.com/identity/protocols/OpenIDConnect
   #
@@ -349,7 +366,7 @@ DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/google'
 LOGIN_REDIRECT_WHITELIST: []
 
 ### DEPRECATED and replaced by OPENID_CONNECT + LOGIN_OPTIONS configs
-ENABLED_IDENTITY_PROVIDERS:
+ENABLED_IDENTITY_PROVIDERS: {}
 
 
 # //////////////////////////////////////////////////////////////////////////////////////
@@ -435,6 +452,11 @@ RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION: false
 
 # The maximum lifetime of a Gen3 passport in seconds
 GEN3_PASSPORT_EXPIRES_IN: 43200
+
+# The JSON field the GA4GH Passport is in when a request is POST-ed to DRS
+# We use the same field name for POSTs to /data/download for consistency
+GA4GH_DRS_POSTED_PASSPORT_FIELD: "passports"
+
 
 ########################################################################################
 #                               OPTIONAL CONFIGURATIONS                                #
@@ -873,6 +895,16 @@ ASSUME_ROLE_CACHE_SECONDS: 1800
 # will have access to download data.
 REGISTER_USERS_ON: false
 REGISTERED_USERS_GROUP: ''
+
+# Number of projects that can be registered to a Google Service Account
+SERVICE_ACCOUNT_LIMIT: 6
+
+# //////////////////////////////////////////////////////////////////////////////////////
+# GA4GH SUPPORT: DATA ACCESS AND AUTHORIZATION SYNCING
+# //////////////////////////////////////////////////////////////////////////////////////
+# whether or not to accept GA4GH Passports as a means of AuthN/Z to the DRS data access endpoint
+GA4GH_PASSPORTS_TO_DRS_ENABLED: false
+
 # RAS refresh_tokens expire in 15 days
 RAS_REFRESH_EXPIRATION: 1296000
 # List of JWT issuers from which Fence will accept GA4GH visas
@@ -880,9 +912,15 @@ GA4GH_VISA_ISSUER_ALLOWLIST:
   - '{{BASE_URL}}'
   - 'https://sts.nih.gov'
   - 'https://stsstg.nih.gov'
-# Number of projects that can be registered to a Google Service Accont
-SERVICE_ACCOUNT_LIMIT: 6
-
+GA4GH_VISA_V1_CLAIM_REQUIRED_FIELDS:
+  type:
+    - 'https://ras.nih.gov/visas/v1.1'
+  value:
+    - 'https://sts.nih.gov/passport/dbgap/v1.1'
+    - 'https://stsstg.nih.gov/passport/dbgap/v1.1'
+  source:
+    - 'https://ncbi.nlm.nih.gov/gap'
+EXPIRED_AUTHZ_REMOVAL_JOB_FREQ_IN_SECONDS: 300
 # Global sync visas during login
 # None(Default): Allow per client i.e. a fence client can pick whether or not to sync their visas during login with parse_visas param in /authorization endpoint
 # True: Parse for all clients i.e. a fence client will always sync their visas during login
@@ -890,9 +928,6 @@ SERVICE_ACCOUNT_LIMIT: 6
 GLOBAL_PARSE_VISAS_ON_LOGIN:
 # Settings for usersync with visas
 USERSYNC:
-  sync_from_visas: false
-  # fallback to dbgap sftp when there are no valid visas for a user i.e. if they're expired or if they're malformed
-  fallback_to_dbgap_sftp: false
   visa_types:
-    ras: ["https://ras.nih.gov/visas/v1", "https://ras.nih.gov/visas/v1.1"]
+    ras: ['https://ras.nih.gov/visas/v1', 'https://ras.nih.gov/visas/v1.1']
 RAS_USERINFO_ENDPOINT: '/openid/connect/v1.1/userinfo'

@@ -9,6 +9,7 @@ RUN pip install --upgrade pip
 RUN pip install --upgrade poetry
 RUN apt-get update \
     && apt-get install -y --no-install-recommends curl bash git \
+    && apt-get -y install vim \
     libmcrypt4 libmhash2 mcrypt \
     && apt-get clean \
     && rm -rf /var/lib/apt/lists/
