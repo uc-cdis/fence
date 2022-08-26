@@ -441,9 +441,7 @@ def test_internal_get_gs_signed_url_cache_new_key_if_old_key_expired(
             ):
                 indexed_file = IndexedFile(file_id="some id")
                 google_object = GoogleStorageIndexedFileLocation("gs://some/location")
-                keydbentry = UserGoogleAccountToProxyGroup()
-                keydbentry.expires = 10
-                google_object._assume_role_cache_gs = {"1": ("key", keydbentry, 10)}
+                google_object._assume_role_cache_gs = {"1": ("key", 10)}
 
                 assert google_object._assume_role_cache_gs
                 before_cache = db_session.query(AssumeRoleCacheGCP).first()

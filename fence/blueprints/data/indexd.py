@@ -1105,7 +1105,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     _assume_role_cache_gs is used for in mem caching of GCP role credentials
     """
 
-    # expected structore { proxy_group_id: (private_key, key_db_entry) }
+    # expected structore { proxy_group_id: (private_key, expires_at) }
     _assume_role_cache_gs = {}
 
     def get_resource_path(self):
@@ -1196,13 +1196,13 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         if proxy_group_id in self._assume_role_cache_gs:
             (
                 raw_private_key,
-                raw_key_db_entry,
                 expires_at,
-            ) = self._assume_role_cache_gs.get(proxy_group_id, (None, None, None))
-            if raw_key_db_entry and raw_key_db_entry.expires > expiration_time:
+            ) = self._assume_role_cache_gs.get(proxy_group_id, (None, None))
+
+            if expires_at and expires_at > expiration_time:
                 is_cached = True
                 private_key = raw_private_key
-                key_db_entry = raw_key_db_entry
+                expires_at = expires_at
             else:
                 del self._assume_role_cache_gs[proxy_group_id]
 
@@ -1214,23 +1214,17 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                     .first()
                 )
                 if cache and cache.expires_at > expiration_time:
-                    rv = (
-                        json.loads(cache.gcp_private_key),
-                        json.loads(cache.gcp_key_db_entry),
-                        cache.expires_at,
-                    )
-                    self._assume_role_cache_gs[proxy_group_id] = rv
-                    (
+                    private_key = json.loads(cache.gcp_private_key)
+                    expires_at = (cache.expires_at,)
+                    self._assume_role_cache_gs[proxy_group_id] = (
                         private_key,
-                        key_db_entry,
                         expires_at,
-                    ) = self._assume_role_cache_gs.get(
-                        proxy_group_id, (None, None, None)
                     )
                     is_cached = True
 
-        # check again to see if we cached the creds if not we need to
-        if is_cached == False:
+        # check again to see if we got cached creds from the database,
+        # if not we need to actually get the creds and then cache them
+        if not is_cached:
             private_key, key_db_entry = get_or_create_primary_service_account_key(
                 user_id=user_id, username=username, proxy_group_id=proxy_group_id
             )
@@ -1251,18 +1245,18 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                 )
             self._assume_role_cache_gs[proxy_group_id] = (
                 private_key,
-                key_db_entry,
                 key_db_entry.expires,
             )
 
             db_entry = {}
             db_entry["gcp_proxy_group_id"] = proxy_group_id
             db_entry["gcp_private_key"] = json.dumps(str(private_key))
-            db_entry["gcp_key_db_entry"] = str(key_db_entry)
             db_entry["expires_at"] = key_db_entry.expires
 
             if hasattr(flask.current_app, "db"):  # we don't have db in startup
                 with flask.current_app.db.session as session:
+                    # we don't need to populate gcp_key_db_entry anymore, it was for
+                    # expiration, but now we have a specific field for that.
                     session.execute(
                         """\
                         INSERT INTO gcp_assume_role_cache (
@@ -1274,7 +1268,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                             :expires_at,
                             :gcp_proxy_group_id,
                             :gcp_private_key,
-                            :gcp_key_db_entry
+                            NULL
                         ) ON CONFLICT (gcp_proxy_group_id) DO UPDATE SET
                             expires_at = EXCLUDED.expires_at,
                             gcp_proxy_group_id = EXCLUDED.gcp_proxy_group_id,
