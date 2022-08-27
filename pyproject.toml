@@ -51,6 +51,7 @@ werkzeug = "^2.1.0"
 cachelib = "^0.2.0"
 azure-storage-blob = "^12.6.0"
 Flask-WTF = "^0.14.3"
+alembic = "^1.8.1"
 
 
 [tool.poetry.dev-dependencies]
