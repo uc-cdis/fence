@@ -1201,7 +1201,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
 
             if expires_at and expires_at > expiration_time:
                 is_cached = True
-                private_key = json.loads(raw_private_key.replace("'", '"'))
+                private_key = json.loads(str(raw_private_key).replace("'", '"'))
                 expires_at = expires_at
             else:
                 del self._assume_role_cache_gs[proxy_group_id]
