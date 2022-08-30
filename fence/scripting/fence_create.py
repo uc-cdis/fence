@@ -5,6 +5,8 @@ from yaml import safe_load
 import json
 import pprint
 import asyncio
+
+from alembic.config import main as alembic_main
 from cirrus import GoogleCloudManager
 from cirrus.google_cloud.errors import GoogleAuthError
 from cirrus.config import config as cirrus_config
@@ -47,7 +49,6 @@ from fence.models import (
     UserRefreshToken,
     ServiceAccountToGoogleBucketAccessGroup,
     query_for_user,
-    migrate,
     GA4GHVisaV1,
 )
 from fence.scripting.google_monitor import email_users_without_access, validation_check
@@ -1600,9 +1601,8 @@ def notify_problem_users(db, emails, auth_ids, check_linking, google_project_id)
     email_users_without_access(db, auth_ids, emails, check_linking, google_project_id)
 
 
-def migrate_database(db):
-    driver = SQLAlchemyDriver(db)
-    migrate(driver)
+def migrate_database():
+    alembic_main(["--raiseerr", "upgrade", "head"])
     logger.info("Done.")
 
 
