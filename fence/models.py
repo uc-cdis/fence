@@ -22,6 +22,7 @@ from sqlalchemy import (
     text,
     UniqueConstraint,
     event,
+    DateTime,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship, backref
