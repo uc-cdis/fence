@@ -205,6 +205,8 @@ def migrate(driver):
 
     _remove_policy(driver, md)
 
+    _add_documents(driver, md)
+
     add_column_if_not_exist(
         table_name=User.__tablename__,
         column=Column(
@@ -220,6 +222,15 @@ def migrate(driver):
         driver=driver,
         metadata=md,
     )
+
+    update_column_default_value_if_exist(
+        table_name=User.__tablename__,
+        column_name="additional_info", 
+        default_value="'{}'", 
+        driver=driver, 
+        metadata=md
+    )
+
 
     with driver.session as session:
         session.execute(
@@ -352,6 +363,15 @@ def add_column_if_not_exist(table_name, column, driver, metadata, default=None):
             command += ";"
 
             session.execute(command)
+            session.commit()
+
+def update_column_default_value_if_exist(table_name, column_name, default_value, driver, metadata):
+    table = Table(table_name, metadata, autoload=True, autoload_with=driver.engine)
+    if column_name in table.c:
+        with driver.session as session:
+            session.execute(
+                'ALTER TABLE "{}" ALTER COLUMN {} SET DEFAULT {};'.format(table_name, column_name, default_value)
+            )
             session.commit()
 
 
@@ -582,6 +602,25 @@ def _add_google_project_id(driver, md):
         driver=driver,
         metadata=md,
     )
+
+#TODO remove this and add in deployment process instead 
+def _add_documents(driver, md):
+    with driver.session as session:
+        if config.get("INITIAL_DOCUMENTS"):
+            docs = config["INITIAL_DOCUMENTS"]
+            if len(docs.keys()) > 0:
+                for doc_k, doc_v in docs.items():
+                    session.execute(
+                        """\
+                        INSERT INTO document (type, version, name, raw, formatted, required)
+                        VALUES ('{}', '{}', '{}', '{}', '{}', '{}')
+                        ON CONFLICT (type, version)
+                        DO NOTHING;""".format(doc_v["type"], doc_v["version"], doc_v["name"], doc_v["raw"], doc_v["formatted"], doc_v["required"])
+                    )
+                    session.commit()
+            else:
+                raise ValueError("The initial document are missing or the format is wrong: INITIAL_DOCUMENTS.")
+
 
 
 def _update_for_authlib(driver, md):

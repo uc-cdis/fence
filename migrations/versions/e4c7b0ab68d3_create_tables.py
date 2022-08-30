@@ -17,6 +17,7 @@ from sqlalchemy.dialects import postgresql
 from userdatamodel.driver import SQLAlchemyDriver
 
 from bin.old_migration_script import migrate
+from fence.config import config
 
 # revision identifiers, used by Alembic.
 revision = "e4c7b0ab68d3"
@@ -642,6 +643,50 @@ def upgrade():
         ),
         sa.PrimaryKeyConstraint("user_google_account_id", "proxy_group_id"),
     )
+    op.create_table(
+        "document",
+        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("type", sa.String(), nullable=False),
+        sa.Column("version", sa.Integer(), nullable=True),
+        sa.Column("name", sa.String(), nullable=False),
+        sa.Column("required", sa.Boolean()),
+        sa.Column("raw", sa.String(), nullable=False),
+        sa.Column("formatted", sa.String()),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint("type", "version", name="doc_type_version_uc"),
+    )
+    op.create_table(
+        "user_document",
+        sa.Column("id", sa.Integer(), nullable=False, autoincrement=True),
+        sa.Column("user_id", sa.Integer(), nullable=False),
+        sa.Column("document_id", sa.Integer(), nullable=False),
+        sa.Column("accepted", sa.Boolean()),
+        sa.Column(
+            "reviewed_on", sa.DateTime(timezone=False), server_default=sa.text("now()")
+        ),
+        sa.ForeignKeyConstraint(["document_id"], ["document.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["user_id"], ["user.id"], ondelete="CASCADE"),
+        sa.PrimaryKeyConstraint("id"),
+        sa.UniqueConstraint('user_id', 'document_id', name='user_doc_uc'),
+    )
+
+
+    if config.get("INITIAL_DOCUMENTS"):
+        docs = config["INITIAL_DOCUMENTS"]
+        if len(docs.keys()) > 0:
+            for doc_k, doc_v in docs.items():
+                op.execute(
+                    """\
+                    INSERT INTO document (type, version, name, raw, formatted, required)
+                    VALUES ('{}', '{}', '{}', '{}', '{}', '{}')
+                    ON CONFLICT (type, version)
+                    DO NOTHING;""".format(doc_v["type"], doc_v["version"], doc_v["name"], doc_v["raw"], doc_v["formatted"], doc_v["required"])
+                )
+        else:
+            raise ValueError("The initial document are missing or the format is wrong: INITIAL_DOCUMENTS.")
+
+
+
 
 
 def downgrade():
@@ -685,6 +730,8 @@ def downgrade():
     op.drop_table("access_privilege")
     op.drop_table("project_to_bucket")
     op.drop_table("google_bucket_access_group")
+    op.drop_table("user_document")
+    op.drop_table("document")
     op.drop_table("User")
     op.drop_table("service_account_access_privilege")
     op.drop_table("department")
