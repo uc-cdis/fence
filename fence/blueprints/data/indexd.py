@@ -1201,7 +1201,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
 
             if expires_at and expires_at > expiration_time:
                 is_cached = True
-                private_key = json.loads(str(raw_private_key).replace("'", '"'))
+                private_key = raw_private_key
                 expires_at = expires_at
             else:
                 del self._assume_role_cache_gs[proxy_group_id]
@@ -1214,9 +1214,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                     .first()
                 )
                 if cache and cache.expires_at > expiration_time:
-                    private_key = json.loads(
-                        json.dumps(cache.gcp_private_key)
-                    )
+                    private_key = json.loads(cache.gcp_private_key)
                     expires_at = cache.expires_at
                     self._assume_role_cache_gs[proxy_group_id] = (
                         private_key,
@@ -1252,7 +1250,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
 
             db_entry = {}
             db_entry["gcp_proxy_group_id"] = proxy_group_id
-            db_entry["gcp_private_key"] = json.dumps(str(private_key))
+            db_entry["gcp_private_key"] = str(private_key)
             db_entry["expires_at"] = key_db_entry.expires
 
             if hasattr(flask.current_app, "db"):  # we don't have db in startup
