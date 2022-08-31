@@ -28,7 +28,7 @@ def test_oversized_access_token(app, rsa_private_key, test_user_a):
     _, exp = iat_and_exp()
     with pytest.raises(JWTSizeError):
         generate_signed_access_token(
-            oversized_junk(), rsa_private_key, test_user_a, exp, ["openid", "user"]
+            oversized_junk(), rsa_private_key, exp, ["openid", "user"], user=test_user_a
         )
 
 

@@ -41,8 +41,8 @@ class OIDCServer(AuthorizationServer):
     """
     Implement the OIDC provider to attach to the flask app.
 
-    Specific OAuth grants (authorization code, refresh token) are added on to
-    a server instance using ``OIDCServer.register_grant_endpoint(grant)``. For
+    Specific OAuth grants (authorization code, refresh token, etc) are added
+    on to a server instance using ``OIDCServer.register_grant(grant)``. For
     usage, see ``fence/oidc/server.py``.
     """
 

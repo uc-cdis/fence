@@ -5,6 +5,10 @@ import re
 import subprocess as sp
 import yaml
 import copy
+import datetime
+import uuid
+import collections
+import hashlib
 
 from contextlib import contextmanager
 from collections import defaultdict
@@ -31,6 +35,8 @@ from fence.models import (
     User,
     query_for_user,
     Client,
+    IdentityProvider,
+    get_project_to_authz_mapping,
 )
 from fence.resources.storage import StorageManager
 from fence.resources.google.access_utils import bulk_update_google_groups
@@ -277,6 +283,24 @@ class UserYAML(object):
             logger=logger,
         )
 
+    def persist_project_to_resource(self, db_session):
+        """
+        Store the mappings from Project.auth_id to authorization resource (Project.authz)
+
+        The mapping comes from an external source, this function persists what was parsed
+        into memory into the database for future use.
+        """
+        for auth_id, authz_resource in self.project_to_resource.items():
+            project = (
+                db_session.query(Project).filter(Project.auth_id == auth_id).first()
+            )
+            if project:
+                project.authz = authz_resource
+            else:
+                project = Project(name=auth_id, auth_id=auth_id, authz=authz_resource)
+                db_session.add(project)
+        db_session.commit()
+
 
 class UserSyncer(object):
     def __init__(
@@ -291,8 +315,6 @@ class UserSyncer(object):
         sync_from_local_yaml_file=None,
         arborist=None,
         folder=None,
-        sync_from_visas=False,
-        fallback_to_dbgap_sftp=False,
     ):
         """
         Syncs ACL files from dbGap to auth database and storage backends
@@ -307,8 +329,6 @@ class UserSyncer(object):
                 ArboristClient instance if the syncer should also create
                 resources in arborist
             folder: a local folder where dbgap telemetry files will sync to
-            sync_from_visas: use visa for sync instead of dbgap
-            fallback_to_dbgap_sftp: fallback to telemetry files when visa sync fails
         """
         self.sync_from_local_csv_dir = sync_from_local_csv_dir
         self.sync_from_local_yaml_file = sync_from_local_yaml_file
@@ -327,8 +347,6 @@ class UserSyncer(object):
         )
         self.arborist_client = arborist
         self.folder = folder
-        self.sync_from_visas = sync_from_visas
-        self.fallback_to_dbgap_sftp = fallback_to_dbgap_sftp
 
         self.auth_source = defaultdict(set)
         # auth_source used for logging. username : [source1, source2]
@@ -338,9 +356,10 @@ class UserSyncer(object):
             self.storage_manager = StorageManager(
                 storage_credentials, logger=self.logger
             )
+        self.id_patterns = []
 
     @staticmethod
-    def _match_pattern(filepath, encrypted=True):
+    def _match_pattern(filepath, id_patterns, encrypted=True):
         """
         Check if the filename matches dbgap access control file pattern
 
@@ -351,11 +370,18 @@ class UserSyncer(object):
         Returns:
             bool: whether the pattern matches
         """
-        pattern = r"authentication_file_phs(\d{6}).(csv|txt)"
-        if encrypted:
-            pattern += ".enc"
-        pattern += "$"
-        return re.match(pattern, os.path.basename(filepath))
+        id_patterns.append("authentication_file_phs(\d{6}).(csv|txt)")
+        for pattern in id_patterns:
+            pattern = r"{}".format(pattern)
+            if encrypted:
+                pattern += ".enc"
+            pattern += "$"
+            pattern = pattern.encode().decode(
+                "unicode_escape"
+            )  # when converting the YAML from fence-config, python reads it as Python string literal. So "\" turns into "\\" which messes with the regex match
+            if re.match(pattern, os.path.basename(filepath)):
+                return True
+        return False
 
     def _get_from_sftp_with_proxy(self, server, path):
         """
@@ -471,7 +497,12 @@ class UserSyncer(object):
 
         # parse dbGaP sftp server information
         dbgap_key = dbgap_config.get("decrypt_key", None)
-        parse_consent_code = dbgap_config.get("parse_consent_code", True)
+
+        self.id_patterns += (
+            dbgap_config.get("allowed_whitelist_patterns", [])
+            if dbgap_config.get("allow_non_dbGaP_whitelist", False)
+            else []
+        )
         enable_common_exchange_area_access = dbgap_config.get(
             "enable_common_exchange_area_access", False
         )
@@ -479,7 +510,7 @@ class UserSyncer(object):
             "study_common_exchange_areas", {}
         )
 
-        if parse_consent_code and enable_common_exchange_area_access:
+        if self.parse_consent_code and enable_common_exchange_area_access:
             self.logger.info(
                 f"using study to common exchange area mapping: {study_common_exchange_areas}"
             )
@@ -488,7 +519,9 @@ class UserSyncer(object):
             if os.stat(filepath).st_size == 0:
                 self.logger.warning("Empty file {}".format(filepath))
                 continue
-            if not self._match_pattern(filepath, encrypted=encrypted):
+            if not self._match_pattern(
+                filepath, id_patterns=self.id_patterns, encrypted=encrypted
+            ):
                 self.logger.warning(
                     "Filename {} does not match dbgap access control filename pattern;"
                     " this could mean that the filename has an invalid format, or has"
@@ -509,9 +542,13 @@ class UserSyncer(object):
                         continue
 
                     phsid_privileges = {}
-                    phsid = row.get("phsid", "").split(".")
+                    if dbgap_config.get("allow_non_dbGaP_whitelist", False):
+                        phsid = row.get("phsid", row.get("project_id", "")).split(".")
+                    else:
+                        phsid = row.get("phsid", "").split(".")
+
                     dbgap_project = phsid[0]
-                    if len(phsid) > 1 and parse_consent_code:
+                    if len(phsid) > 1 and self.parse_consent_code:
                         consent_code = phsid[-1]
 
                         # c999 indicates full access to all consents and access
@@ -593,7 +630,7 @@ class UserSyncer(object):
 
             # need to add dbgap project to arborist
             if self.arborist_client:
-                self._add_dbgap_study_to_arborist(dbgap_project, dbgap_config)
+                self._determine_arborist_resource(dbgap_project, dbgap_config)
 
             if project.name is None:
                 project.name = dbgap_project
@@ -688,7 +725,12 @@ class UserSyncer(object):
                 self.auth_source[user].add(source2)
 
     def sync_to_db_and_storage_backend(
-        self, user_project, user_info, sess, single_visa_sync=False
+        self,
+        user_project,
+        user_info,
+        sess,
+        do_not_revoke_from_db_and_storage=False,
+        expires=None,
     ):
         """
         sync user access control to database and storage backend
@@ -748,7 +790,7 @@ class UserSyncer(object):
         # pass the original, non-lowered user_info dict
         self._upsert_userinfo(sess, user_info)
 
-        if not single_visa_sync:
+        if not do_not_revoke_from_db_and_storage:
             self._revoke_from_storage(
                 to_delete, sess, google_bulk_mapping=google_bulk_mapping
             )
@@ -759,6 +801,7 @@ class UserSyncer(object):
             user_project_lowercase,
             sess,
             google_bulk_mapping=google_bulk_mapping,
+            expires=expires,
         )
 
         self._grant_from_db(
@@ -775,11 +818,80 @@ class UserSyncer(object):
             user_project_lowercase,
             sess,
             google_bulk_mapping=google_bulk_mapping,
+            expires=expires,
         )
         self._update_from_db(sess, to_update, user_project_lowercase)
 
-        if not single_visa_sync:
+        if not do_not_revoke_from_db_and_storage:
             self._validate_and_update_user_admin(sess, user_info_lowercase)
+
+        if config["GOOGLE_BULK_UPDATES"]:
+            self.logger.info("Doing bulk Google update...")
+            bulk_update_google_groups(google_bulk_mapping)
+            self.logger.info("Bulk Google update done!")
+
+        sess.commit()
+
+    def sync_to_storage_backend(self, user_project, user_info, sess, expires):
+        """
+        sync user access control to storage backend with given expiration
+
+        Args:
+            user_project (dict): a dictionary of
+
+                {
+                    username: {
+                        'project1': {'read-storage','write-storage'},
+                        'project2': {'read-storage'}
+                    }
+                }
+
+            user_info (dict): a dictionary of {username: user_info{}}
+            sess: a sqlalchemy session
+
+        Return:
+            None
+        """
+        if not expires:
+            raise Exception(
+                f"sync to storage backend requires an expiration. you provided: {expires}"
+            )
+
+        google_bulk_mapping = None
+        if config["GOOGLE_BULK_UPDATES"]:
+            google_bulk_mapping = {}
+
+        # TODO: eventually it'd be nice to remove this step but it's required
+        #       so that grant_from_storage can determine what storage backends
+        #       are needed for a project.
+        self._init_projects(user_project, sess)
+
+        # we need to compare db -> whitelist case-insensitively for username.
+        # db stores case-sensitively, but we need to query case-insensitively
+        user_project_lowercase = {}
+        syncing_user_project_list = set()
+        for username, projects in user_project.items():
+            user_project_lowercase[username.lower()] = projects
+            for project, _ in projects.items():
+                syncing_user_project_list.add((username.lower(), project))
+
+        user_info_lowercase = {
+            username.lower(): info for username, info in user_info.items()
+        }
+
+        to_add = set(syncing_user_project_list)
+
+        # when updating users we want to maintain case sesitivity in the username so
+        # pass the original, non-lowered user_info dict
+        self._upsert_userinfo(sess, user_info)
+
+        self._grant_from_storage(
+            to_add,
+            user_project_lowercase,
+            sess,
+            google_bulk_mapping=google_bulk_mapping,
+            expires=expires,
+        )
 
         if config["GOOGLE_BULK_UPDATES"]:
             self.logger.info("Doing bulk Google update...")
@@ -929,6 +1041,17 @@ class UserSyncer(object):
             u.phone_number = user_info[username].get("phone_number", "")
             u.is_admin = user_info[username].get("admin", False)
 
+            idp_name = user_info[username].get("idp_name", "")
+            if idp_name and not u.identity_provider:
+                idp = (
+                    sess.query(IdentityProvider)
+                    .filter(IdentityProvider.name == idp_name)
+                    .first()
+                )
+                if not idp:
+                    idp = IdentityProvider(name=idp_name)
+                u.identity_provider = idp
+
             # do not update if there is no tag
             if not user_info[username].get("tags"):
                 continue
@@ -989,7 +1112,9 @@ class UserSyncer(object):
                     google_bulk_mapping=google_bulk_mapping,
                 )
 
-    def _grant_from_storage(self, to_add, user_project, sess, google_bulk_mapping=None):
+    def _grant_from_storage(
+        self, to_add, user_project, sess, google_bulk_mapping=None, expires=None
+    ):
         """
         If a project have storage backend, grant user's access to buckets in
         the storage backend.
@@ -1029,6 +1154,7 @@ class UserSyncer(object):
                     access=access,
                     session=sess,
                     google_bulk_mapping=google_bulk_mapping,
+                    expires=expires,
                 )
 
     def _init_projects(self, user_project, sess):
@@ -1052,7 +1178,9 @@ class UserSyncer(object):
                         project = self._get_or_create(sess, Project, **data)
                     except IntegrityError as e:
                         sess.rollback()
-                        self.logger.error(str(e))
+                        self.logger.error(
+                            f"Project {auth_id} already exists. Detail {str(e)}"
+                        )
                         raise Exception(
                             "Project {} already exists. Detail {}. Please contact your system administrator.".format(
                                 auth_id, str(e)
@@ -1083,6 +1211,7 @@ class UserSyncer(object):
         dbgap_file_list = []
         hostname = dbgap_config["info"]["host"]
         username = dbgap_config["info"]["username"]
+        encrypted = dbgap_config["info"].get("encrypted", True)
         folderdir = os.path.join(str(self.folder), str(hostname), str(username))
 
         try:
@@ -1091,13 +1220,17 @@ class UserSyncer(object):
                     os.path.join(folderdir, "*")
                 )  # get lists of file from folder
             else:
+                self.logger.info("Downloading files from: {}".format(hostname))
                 dbgap_file_list = self._download(dbgap_config)
         except Exception as e:
             self.logger.error(e)
             exit(1)
         self.logger.info("dbgap files: {}".format(dbgap_file_list))
         user_projects, user_info = self._get_user_permissions_from_csv_list(
-            dbgap_file_list, encrypted=True, session=sess, dbgap_config=dbgap_config
+            dbgap_file_list,
+            encrypted=encrypted,
+            session=sess,
+            dbgap_config=dbgap_config,
         )
 
         user_projects = self.parse_projects(user_projects)
@@ -1126,6 +1259,34 @@ class UserSyncer(object):
             encrypted=encrypted,
         )
         return user_projects, user_info
+
+    def _merge_multiple_local_csv_files(
+        self, dbgap_file_list, encrypted, dbgap_configs, session
+    ):
+        """
+        Args:
+            dbgap_file_list (list): a list of whitelist file locations stored locally
+            encrypted (bool): whether the file is encrypted (comes from fence config)
+            dbgap_configs (list): list of dictionaries containing information about the dbgap server (comes from fence config)
+            session (sqlalchemy.Session): database session
+
+        Return:
+            merged_user_projects (dict)
+            merged_user_info (dict)
+        """
+        merged_user_projects = {}
+        merged_user_info = {}
+
+        for dbgap_config in dbgap_configs:
+            user_projects, user_info = self._get_user_permissions_from_csv_list(
+                dbgap_file_list,
+                encrypted,
+                session=session,
+                dbgap_config=dbgap_config,
+            )
+            self.sync_two_user_info_dict(user_info, merged_user_info)
+            self.sync_two_phsids_dict(user_projects, merged_user_projects)
+        return merged_user_projects, merged_user_info
 
     def _merge_multiple_dbgap_sftp(self, dbgap_servers, sess):
         """
@@ -1178,7 +1339,7 @@ class UserSyncer(object):
 
                 # need to add dbgap project to arborist
                 if self.arborist_client:
-                    self._add_dbgap_study_to_arborist(
+                    self._determine_arborist_resource(
                         element_dict["auth_id"], dbgap_config
                     )
 
@@ -1308,13 +1469,11 @@ class UserSyncer(object):
                 os.path.join(self.sync_from_local_csv_dir, "*")
             )
 
-        # if syncing from local csv dir dbgap configurations
-        # come from the first dbgap instance in the fence config file
-        user_projects_csv, user_info_csv = self._get_user_permissions_from_csv_list(
+        user_projects_csv, user_info_csv = self._merge_multiple_local_csv_files(
             local_csv_file_list,
             encrypted=False,
             session=sess,
-            dbgap_config=self.dbGaP[0],
+            dbgap_configs=self.dbGaP,
         )
 
         try:
@@ -1322,6 +1481,7 @@ class UserSyncer(object):
                 self.sync_from_local_yaml_file, encrypted=False, logger=self.logger
             )
         except (EnvironmentError, AssertionError) as e:
+            # TODO return an error code so usersync doesn't fail silently
             self.logger.error(str(e))
             self.logger.error("aborting early")
             return
@@ -1400,6 +1560,11 @@ class UserSyncer(object):
         # Logging authz source
         for u, s in self.auth_source.items():
             self.logger.info("Access for user {} from {}".format(u, s))
+
+        self.logger.info(
+            f"Persisting authz mapping to database: {user_yaml.project_to_resource}"
+        )
+        user_yaml.persist_project_to_resource(db_session=sess)
 
     def _grant_all_consents_to_c999_users(
         self, user_projects, user_yaml_project_to_resources
@@ -1493,7 +1658,7 @@ class UserSyncer(object):
                 self.logger.debug(
                     "attempting to update arborist resource: {}".format(resource)
                 )
-                self.arborist_client.update_resource("/", resource)
+                self.arborist_client.update_resource("/", resource, merge=True)
             except ArboristError as e:
                 self.logger.error(e)
                 # keep going; maybe just some conflicts from things existing already
@@ -1589,7 +1754,12 @@ class UserSyncer(object):
         return True
 
     def _update_authz_in_arborist(
-        self, session, user_projects, user_yaml=None, single_user_sync=False
+        self,
+        session,
+        user_projects,
+        user_yaml=None,
+        single_user_sync=False,
+        expires=None,
     ):
         """
         Assign users policies in arborist from the information in
@@ -1602,6 +1772,8 @@ class UserSyncer(object):
         Args:
             user_projects (dict)
             user_yaml (UserYAML) optional, if there are policies for users in a user.yaml
+            single_user_sync (bool) whether authz update is for a single user
+            expires (int) time at which authz info in Arborist should expire
 
         Return:
             bool: success
@@ -1653,6 +1825,31 @@ class UserSyncer(object):
         policy_id_list = []
         policies = []
 
+        # prefer in-memory if available from user_yaml, if not, get from database
+        if user_yaml and user_yaml.project_to_resource:
+            project_to_authz_mapping = user_yaml.project_to_resource
+            self.logger.debug(
+                f"using in-memory project to authz resource mapping from "
+                f"user.yaml (instead of database): {project_to_authz_mapping}"
+            )
+        else:
+            project_to_authz_mapping = get_project_to_authz_mapping(session)
+            self.logger.debug(
+                f"using persisted project to authz resource mapping from database "
+                f"(instead of user.yaml - as it may not be available): {project_to_authz_mapping}"
+            )
+
+        self.logger.debug(
+            f"_dbgap_study_to_resources: {self._dbgap_study_to_resources}"
+        )
+        all_resources = [
+            r
+            for resources in self._dbgap_study_to_resources.values()
+            for r in resources
+        ]
+        all_resources.extend(r for r in project_to_authz_mapping.values())
+        self._create_arborist_resources(all_resources)
+
         for username, user_project_info in user_projects.items():
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
@@ -1660,57 +1857,58 @@ class UserSyncer(object):
                 username = user.username
 
             self.arborist_client.create_user_if_not_exist(username)
-            self.arborist_client.revoke_all_policies_for_user(username)
-            for project, permissions in user_project_info.items():
+            if not single_user_sync:
+                # TODO make this smarter - it should do a diff, not revoke all and add
+                self.arborist_client.revoke_all_policies_for_user(username)
 
-                # check if this is a dbgap project, if it is, we need to get the right
-                # resource path, otherwise just use given project as path
-                paths = self._dbgap_study_to_resources.get(project, [project])
+            # as of 2/11/2022, for single_user_sync, as RAS visa parsing has
+            # previously mapped each project to the same set of privileges
+            # (i.e.{'read', 'read-storage'}), unique_policies will just be a
+            # single policy with ('read', 'read-storage') being the single
+            # key
+            unique_policies = self._determine_unique_policies(
+                user_project_info, project_to_authz_mapping
+            )
 
-                if user_yaml:
-                    try:
-                        # check if project is in mapping and convert accordingly
-                        paths = [user_yaml.project_to_resource[project]]
-                    except KeyError:
-                        pass
+            for roles in unique_policies.keys():
+                for role in roles:
+                    self._create_arborist_role(role)
 
-                self.logger.info(
-                    "resource paths for project {}: {}".format(project, paths)
-                )
-                self.logger.debug("permissions: {}".format(permissions))
-                for permission in permissions:
-                    # "permission" in the dbgap sense, not the arborist sense
-                    if permission not in self._created_roles:
-                        try:
-                            self.arborist_client.create_role(
-                                arborist_role_for_permission(permission)
-                            )
-                        except ArboristError as e:
-                            self.logger.info(
-                                "not creating role for permission `{}`; {}".format(
-                                    permission, str(e)
-                                )
-                            )
-                        self._created_roles.add(permission)
+            if single_user_sync:
+                for ordered_roles, ordered_resources in unique_policies.items():
+                    policy_hash = self._hash_policy_contents(
+                        ordered_roles, ordered_resources
+                    )
+                    self._create_arborist_policy(
+                        policy_hash,
+                        ordered_roles,
+                        ordered_resources,
+                        skip_if_exists=True,
+                    )
+                    # return here as it is not expected single_user_sync
+                    # will need any of the remaining user_yaml operations
+                    # left in _update_authz_in_arborist
+                    return self._grant_arborist_policy(
+                        username, policy_hash, expires=expires
+                    )
+            else:
+                for roles, resources in unique_policies.items():
+                    for role in roles:
+                        for resource in resources:
+                            # grant a policy to this user which is a single
+                            # role on a single resource
 
-                    for path in paths:
-                        # If everything was created fine, grant a policy to
-                        # this user which contains exactly just this resource,
-                        # with this permission as a role.
-
-                        # format project '/x/y/z' -> 'x.y.z'
-                        # so the policy id will be something like 'x.y.z-create'
-                        policy_id = _format_policy_id(path, permission)
-
-                        if not single_user_sync:
+                            # format project '/x/y/z' -> 'x.y.z'
+                            # so the policy id will be something like 'x.y.z-create'
+                            policy_id = _format_policy_id(resource, role)
                             if policy_id not in self._created_policies:
                                 try:
                                     self.arborist_client.update_policy(
                                         policy_id,
                                         {
                                             "description": "policy created by fence sync",
-                                            "role_ids": [permission],
-                                            "resource_paths": [path],
+                                            "role_ids": [role],
+                                            "resource_paths": [resource],
                                         },
                                         create_if_not_exist=True,
                                     )
@@ -1721,34 +1919,18 @@ class UserSyncer(object):
                                         )
                                     )
                                 self._created_policies.add(policy_id)
-                            self.arborist_client.grant_user_policy(username, policy_id)
 
-                        if single_user_sync:
-                            policy_id_list.append(policy_id)
-                            policy_json = {
-                                "id": policy_id,
-                                "description": "policy created by fence sync",
-                                "role_ids": [permission],
-                                "resource_paths": [path],
-                            }
-                            policies.append(policy_json)
-
-            if single_user_sync:
-                try:
-                    self.arborist_client.update_bulk_policy(policies)
-                    self.arborist_client.grant_bulk_user_policy(
-                        username, policy_id_list
-                    )
-                except Exception as e:
-                    self.logger.info(
-                        "Couldn't update bulk policy for user {}: {}".format(
-                            username, e
-                        )
-                    )
+                            self._grant_arborist_policy(
+                                username, policy_id, expires=expires
+                            )
 
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
-                    self.arborist_client.grant_user_policy(username, policy)
+                    self.arborist_client.grant_user_policy(
+                        username,
+                        policy,
+                        expires_at=expires,
+                    )
 
         if user_yaml:
             for client_name, client_details in user_yaml.clients.items():
@@ -1775,22 +1957,243 @@ class UserSyncer(object):
 
         return True
 
-    def _add_dbgap_study_to_arborist(self, dbgap_study, dbgap_config):
+    def _determine_unique_policies(self, user_project_info, project_to_authz_mapping):
         """
-        Return the arborist resource path after adding the specified dbgap study
-        to arborist.
+        Determine and return a dictionary of unique policies.
+
+        Args (examples):
+            user_project_info (dict):
+            {
+                'phs000002.c1': { 'read-storage', 'read' },
+                'phs000001.c1': { 'read', 'read-storage' },
+                'phs000004.c1': { 'write', 'read' },
+                'phs000003.c1': { 'read', 'write' },
+                'phs000006.c1': { 'write-storage', 'write', 'read-storage', 'read' }
+                'phs000005.c1': { 'read', 'read-storage', 'write', 'write-storage' },
+            }
+            project_to_authz_mapping (dict):
+            {
+                'phs000001.c1': '/programs/DEV/projects/phs000001.c1'
+            }
+
+        Return (for examples):
+            dict:
+            {
+                ('read', 'read-storage'): ('phs000001.c1', 'phs000002.c1'),
+                ('read', 'write'): ('phs000003.c1', 'phs000004.c1'),
+                ('read', 'read-storage', 'write', 'write-storage'): ('phs000005.c1', 'phs000006.c1'),
+            }
+        """
+        roles_to_resources = collections.defaultdict(list)
+        for study, roles in user_project_info.items():
+            ordered_roles = tuple(sorted(roles))
+            study_authz_paths = self._dbgap_study_to_resources.get(study, [study])
+            if study in project_to_authz_mapping:
+                study_authz_paths = [project_to_authz_mapping[study]]
+            roles_to_resources[ordered_roles].extend(study_authz_paths)
+
+        policies = {}
+        for ordered_roles, unordered_resources in roles_to_resources.items():
+            policies[ordered_roles] = tuple(sorted(unordered_resources))
+        return policies
+
+    def _create_arborist_role(self, role):
+        """
+        Wrapper around gen3authz's create_role with additional logging
+
+        Args:
+            role (str): what the Arborist identity should be of the created role
+
+        Return:
+            bool: True if the role was created successfully or it already
+                  exists. False otherwise
+        """
+        if role in self._created_roles:
+            return True
+        try:
+            response_json = self.arborist_client.create_role(
+                arborist_role_for_permission(role)
+            )
+        except ArboristError as e:
+            self.logger.error(
+                "could not create `{}` role in Arborist: {}".format(role, e)
+            )
+            return False
+        self._created_roles.add(role)
+
+        if response_json is None:
+            self.logger.info("role `{}` already exists in Arborist".format(role))
+        else:
+            self.logger.info("created role `{}` in Arborist".format(role))
+        return True
+
+    def _create_arborist_resources(self, resources):
+        """
+        Create resources in Arborist
+
+        Args:
+            resources (list): a list of full Arborist resource paths to create
+            [
+                "/programs/DEV/projects/phs000001.c1",
+                "/programs/DEV/projects/phs000002.c1",
+                "/programs/DEV/projects/phs000003.c1"
+            ]
+
+        Return:
+            bool: True if the resources were successfully created, False otherwise
+
+
+        As of 2/11/2022, for resources above,
+        utils.combine_provided_and_dbgap_resources({}, resources) returns:
+        [
+            { 'name': 'programs', 'subresources': [
+                { 'name': 'DEV', 'subresources': [
+                    { 'name': 'projects', 'subresources': [
+                        { 'name': 'phs000001.c1', 'subresources': []},
+                        { 'name': 'phs000002.c1', 'subresources': []},
+                        { 'name': 'phs000003.c1', 'subresources': []}
+                    ]}
+                ]}
+            ]}
+        ]
+        Because this list has a single object, only a single network request gets
+        sent to Arborist.
+
+        However, for resources = ["/phs000001.c1", "/phs000002.c1", "/phs000003.c1"],
+        utils.combine_provided_and_dbgap_resources({}, resources) returns:
+        [
+            {'name': 'phs000001.c1', 'subresources': []},
+            {'name': 'phs000002.c1', 'subresources': []},
+            {'name': 'phs000003.c1', 'subresources': []}
+        ]
+        Because this list has 3 objects, 3 network requests get sent to Arborist.
+
+        As a practical matter, for sync_single_user_visas, studies
+        should be nested under the `/programs` resource as in the former
+        example (i.e. only one network request gets made).
+
+        TODO for the sake of simplicity, it would be nice if only one network
+        request was made no matter the input.
+        """
+        for request_body in utils.combine_provided_and_dbgap_resources({}, resources):
+            try:
+                response_json = self.arborist_client.update_resource(
+                    "/", request_body, merge=True
+                )
+            except ArboristError as e:
+                self.logger.error(
+                    "could not create Arborist resources using request body `{}`. error: {}".format(
+                        request_body, e
+                    )
+                )
+                return False
+
+        self.logger.debug(
+            "created {} resource(s) in Arborist: `{}`".format(len(resources), resources)
+        )
+        return True
+
+    def _create_arborist_policy(
+        self, policy_id, roles, resources, skip_if_exists=False
+    ):
+        """
+        Wrapper around gen3authz's create_policy with additional logging
+
+        Args:
+            policy_id (str): what the Arborist identity should be of the created policy
+            roles (iterable): what roles the create policy should have
+            resources (iterable): what resources the created policy should have
+            skip_if_exists (bool): if True, this function will not treat an already
+                                   existent policy as an error
+
+        Return:
+            bool: True if policy creation was successful. False otherwise
+        """
+        try:
+            response_json = self.arborist_client.create_policy(
+                {
+                    "id": policy_id,
+                    "role_ids": roles,
+                    "resource_paths": resources,
+                },
+                skip_if_exists=skip_if_exists,
+            )
+        except ArboristError as e:
+            self.logger.error(
+                "could not create policy `{}` in Arborist: {}".format(policy_id, e)
+            )
+            return False
+
+        if response_json is None:
+            self.logger.info("policy `{}` already exists in Arborist".format(policy_id))
+        else:
+            self.logger.info("created policy `{}` in Arborist".format(policy_id))
+        return True
+
+    def _hash_policy_contents(self, ordered_roles, ordered_resources):
+        """
+        Generate a sha256 hexdigest representing ordered_roles and ordered_resources.
+
+        Args:
+            ordered_roles (iterable): policy roles in sorted order
+            ordered_resources (iterable): policy resources in sorted order
+
+        Return:
+            str: SHA256 hex digest
+        """
+
+        def escape(s):
+            return s.replace(",", "\,")
+
+        canonical_roles = ",".join(escape(r) for r in ordered_roles)
+        canonical_resources = ",".join(escape(r) for r in ordered_resources)
+        canonical_policy = f"{canonical_roles},,f{canonical_resources}"
+        policy_hash = hashlib.sha256(canonical_policy.encode("utf-8")).hexdigest()
+
+        return policy_hash
+
+    def _grant_arborist_policy(self, username, policy_id, expires=None):
+        """
+        Wrapper around gen3authz's grant_user_policy with additional logging
+
+        Args:
+            username (str): username of user in Arborist who policy should be
+                            granted to
+            policy_id (str): Arborist policy id
+            expires (int): POSIX timestamp for when policy should expire
+
+        Return:
+            bool: True if granting of policy was successful, False otherwise
+        """
+        try:
+            response_json = self.arborist_client.grant_user_policy(
+                username,
+                policy_id,
+                expires_at=expires,
+            )
+        except ArboristError as e:
+            self.logger.error(
+                "could not grant policy `{}` to user `{}`: {}".format(
+                    policy_id, username, e
+                )
+            )
+            return False
+
+        self.logger.debug(
+            "granted policy `{}` to user `{}`".format(policy_id, username)
+        )
+        return True
+
+    def _determine_arborist_resource(self, dbgap_study, dbgap_config):
+        """
+        Determine the arborist resource path and add it to
+        _self._dbgap_study_to_resources
 
         Args:
             dbgap_study (str): study phs identifier
             dbgap_config (dict): dictionary of config for dbgap server
 
-        Returns:
-            str: arborist resource path for study
         """
-        healthy = self._is_arborist_healthy()
-        if not healthy:
-            return False
-
         default_namespaces = dbgap_config.get("study_to_resource_namespaces", {}).get(
             "_default", ["/"]
         )
@@ -1804,40 +2207,12 @@ class UserSyncer(object):
             namespace.rstrip("/") + "/programs/" for namespace in namespaces
         ]
 
-        try:
-            for resource_namespace in arborist_resource_namespaces:
-                # The update_resource function creates a put request which will overwrite
-                # existing resources. Therefore, only create if get_resource returns
-                # the resource doesn't exist.
-                full_resource_path = resource_namespace + dbgap_study
-                if not self.arborist_client.get_resource(full_resource_path):
-                    response = self.arborist_client.update_resource(
-                        resource_namespace,
-                        {"name": dbgap_study, "description": "synced from dbGaP"},
-                        create_parents=True,
-                    )
-                    self.logger.info(
-                        "added arborist resource under parent path: {} for dbgap project {}.".format(
-                            resource_namespace, dbgap_study
-                        )
-                    )
-                    self.logger.debug("Arborist response: {}".format(response))
-                else:
-                    self.logger.debug(
-                        "Arborist resource already exists: {}".format(
-                            full_resource_path
-                        )
-                    )
-
-                if dbgap_study not in self._dbgap_study_to_resources:
-                    self._dbgap_study_to_resources[dbgap_study] = []
-
-                self._dbgap_study_to_resources[dbgap_study].append(full_resource_path)
-
-            return arborist_resource_namespaces
-        except ArboristError as e:
-            self.logger.error(e)
-            # keep going; maybe just some conflicts from things existing already
+        for resource_namespace in arborist_resource_namespaces:
+            full_resource_path = resource_namespace + dbgap_study
+            if dbgap_study not in self._dbgap_study_to_resources:
+                self._dbgap_study_to_resources[dbgap_study] = []
+            self._dbgap_study_to_resources[dbgap_study].append(full_resource_path)
+        return arborist_resource_namespaces
 
     def _is_arborist_healthy(self):
         if not self.arborist_client:
@@ -1917,7 +2292,6 @@ class UserSyncer(object):
                         encoded_visa,
                         visa.expires,
                         self.parse_consent_code,
-                        db_session,
                     )
                     projects = {**projects, **project}
                 if projects:
@@ -1927,186 +2301,25 @@ class UserSyncer(object):
 
         return (user_projects, user_info)
 
-    def _sync_visas(self, sess):
-
-        self.logger.info("Running usersync with Visas")
-        self.logger.info(
-            "Fallback to telemetry files: {}".format(self.fallback_to_dbgap_sftp)
-        )
-
-        self.ras_sync_client = RASVisa(logger=self.logger)
-
-        dbgap_config = self.dbGaP[0]
-        user_projects, user_info = self.parse_user_visas(sess)
-        enable_common_exchange_area_access = dbgap_config.get(
-            "enable_common_exchange_area_access", False
-        )
-        study_common_exchange_areas = dbgap_config.get(
-            "study_common_exchange_areas", {}
-        )
-
-        try:
-            user_yaml = UserYAML.from_file(
-                self.sync_from_local_yaml_file, encrypted=False, logger=self.logger
-            )
-        except (EnvironmentError, AssertionError) as e:
-            self.logger.error(str(e))
-            self.logger.error("aborting early")
-            return
-
-        # parse projects
-        user_projects = self.parse_projects(user_projects)
-        user_yaml.projects = self.parse_projects(user_yaml.projects)
-
-        if self.fallback_to_dbgap_sftp:
-            # Collect user_info and user_projects from telemetry
-            user_projects_telemetry = {}
-            user_info_telemetry = {}
-            if self.is_sync_from_dbgap_server:
-                self.logger.debug(
-                    "Pulling telemetry files from {} dbgap sftp servers".format(
-                        len(self.dbGaP)
-                    )
-                )
-                (
-                    user_projects_telemetry,
-                    user_info_telemetry,
-                ) = self._merge_multiple_dbgap_sftp(self.dbGaP, sess)
-            local_csv_file_list = []
-            if self.sync_from_local_csv_dir:
-                local_csv_file_list = glob.glob(
-                    os.path.join(self.sync_from_local_csv_dir, "*")
-                )
-
-            # if syncing from local csv dir dbgap configurations
-            # come from the first dbgap instance in the fence config file
-            user_projects_csv, user_info_csv = self._get_user_permissions_from_csv_list(
-                local_csv_file_list,
-                encrypted=False,
-                session=sess,
-                dbgap_config=self.dbGaP[0],
-            )
-            user_projects_csv = self.parse_projects(user_projects_csv)
-            user_projects_telemetry = self.parse_projects(user_projects_telemetry)
-
-            # merge all user info dicts into "user_info".
-            # the user info (such as email) in the user.yaml files
-            # overrides the user info from the CSV files.
-            self.sync_two_user_info_dict(user_info_csv, user_info_telemetry)
-
-            # merge all access info dicts into "user_projects".
-            # the access info is combined - if the user.yaml access is
-            # ["read"] and the CSV file access is ["read-storage"], the
-            # resulting access is ["read", "read-storage"].
-            self.sync_two_phsids_dict(
-                user_projects_csv,
-                user_projects_telemetry,
-                source1="local_csv",
-                source2="dbgap",
-            )
-
-            # sync phsids so that this adds projects if visas were invalid or adds users that dont have visas.
-            # `phsids2_overrides_phsids1=True` because We want visa to be the source of truth when its available and not merge any telemetry file info into this.
-            # We only want visa to be used when visa is not valid or available
-            self.sync_two_phsids_dict(
-                user_projects_telemetry,
-                user_projects,
-                source1="dbgap",
-                source2="visa",
-                phsids2_overrides_phsids1=False,
-            )
-            self.sync_two_user_info_dict(user_info_telemetry, user_info)
-
-        if self.parse_consent_code and enable_common_exchange_area_access:
-            self.logger.info(
-                f"using study to common exchange area mapping: {study_common_exchange_areas}"
-            )
-
-        # merge all user info dicts into "user_info".
-        # the user info (such as email) in the user.yaml files
-        # overrides the user info from the CSV files.
-        self.sync_two_user_info_dict(user_yaml.user_info, user_info)
-
-        # merge all access info dicts into "user_projects".
-        # the access info is combined - if the user.yaml access is
-        # ["read"] and the CSV file access is ["read-storage"], the
-        # resulting access is ["read", "read-storage"].
-        self.sync_two_phsids_dict(
-            user_yaml.projects, user_projects, source1="user_yaml", source2="visa"
-        )
-
-        self._process_user_projects(
-            user_projects,
-            enable_common_exchange_area_access,
-            study_common_exchange_areas,
-            dbgap_config,
-            sess,
-        )
-
-        # Note: if there are multiple dbgap sftp servers configured
-        # this parameter is always from the config for the first dbgap sftp server
-        # not any additional ones
-        if self.parse_consent_code:
-            self._grant_all_consents_to_c999_users(
-                user_projects, user_yaml.project_to_resource
-            )
-        # update fence db
-        if user_projects:
-            self.logger.info("Sync to db and storage backend")
-            self.sync_to_db_and_storage_backend(user_projects, user_info, sess)
-        else:
-            self.logger.info("No users for syncing")
-
-        # update the Arborist DB (resources, roles, policies, groups)
-        if user_yaml.authz:
-            if not self.arborist_client:
-                raise EnvironmentError(
-                    "yaml file contains authz section but sync is not configured with"
-                    " arborist client--did you run sync with --arborist <arborist client> arg?"
-                )
-            self.logger.info("Synchronizing arborist...")
-            success = self._update_arborist(sess, user_yaml)
-            if success:
-                self.logger.info("Finished synchronizing arborist")
-            else:
-                self.logger.error("Could not synchronize successfully")
-                exit(1)
-        else:
-            self.logger.info("No `authz` section; skipping arborist sync")
-
-        # update arborist db (user access)
-        if self.arborist_client:
-            self.logger.info("Synchronizing arborist with authorization info...")
-            success = self._update_authz_in_arborist(sess, user_projects, user_yaml)
-            if success:
-                self.logger.info(
-                    "Finished synchronizing authorization info to arborist"
-                )
-            else:
-                self.logger.error(
-                    "Could not synchronize authorization info successfully to arborist"
-                )
-                exit(1)
-        else:
-            self.logger.error("No arborist client set; skipping arborist sync")
-
-        # Logging authz source
-        for u, s in self.auth_source.items():
-            self.logger.info("Access for user {} from {}".format(u, s))
-
-    def sync_visas(self):
-        if self.session:
-            self._sync_visas(self.session)
-        else:
-            with self.driver.session as s:
-                self._sync_visas(s)
-        # if returns with some failure use telemetry file
-
-    def sync_single_user_visas(self, user, sess=None):
+    def sync_single_user_visas(self, user, ga4gh_visas, sess=None, expires=None):
         """
-        Sync a single user's visa during login
-        """
+        Sync a single user's visas during login or DRS/data access
 
+        IMPORTANT NOTE: THIS DOES NOT VALIDATE THE VISA. ENSURE THIS IS DONE
+                        BEFORE THIS.
+
+        Args:
+            user (userdatamodel.user.User): Fence user whose visas'
+                                            authz info is being synced
+            ga4gh_visas (list): a list of fence.models.GA4GHVisaV1 objects
+                                that are ALREADY VALIDATED
+            sess (sqlalchemy.orm.session.Session): database session
+            expires (int): time at which synced Arborist policies and
+                           inclusion in any GBAG are set to expire
+
+        Return:
+            list of successfully parsed visas
+        """
         self.ras_sync_client = RASVisa(logger=self.logger)
         dbgap_config = self.dbGaP[0]
         enable_common_exchange_area_access = dbgap_config.get(
@@ -2121,6 +2334,7 @@ class UserSyncer(object):
                 self.sync_from_local_yaml_file, encrypted=False, logger=self.logger
             )
         except (EnvironmentError, AssertionError) as e:
+            # TODO return an error code so usersync doesn't fail silently
             self.logger.error(str(e))
             self.logger.error("aborting early")
             return
@@ -2129,19 +2343,29 @@ class UserSyncer(object):
         user_info = dict()
         projects = {}
         info = {}
+        parsed_visas = []
 
-        for visa in user.ga4gh_visas_v1:
+        for visa in ga4gh_visas:
             project = {}
             visa_type = self._pick_sync_type(visa)
             encoded_visa = visa.ga4gh_visa
-            project, info = visa_type._parse_single_visa(
-                user,
-                encoded_visa,
-                visa.expires,
-                self.parse_consent_code,
-                sess,
-            )
+
+            try:
+                project, info = visa_type._parse_single_visa(
+                    user,
+                    encoded_visa,
+                    visa.expires,
+                    self.parse_consent_code,
+                )
+            except Exception:
+                self.logger.warning(
+                    f"ignoring unsuccessfully parsed or expired visa: {encoded_visa}"
+                )
+                continue
+
             projects = {**projects, **project}
+            parsed_visas.append(visa)
+
         user_projects[user.username] = projects
         user_info[user.username] = info
 
@@ -2165,11 +2389,10 @@ class UserSyncer(object):
                 user_projects, user_yaml.project_to_resource
             )
 
-        # update fence db
         if user_projects:
-            self.logger.info("Sync to db and storage backend")
-            self.sync_to_db_and_storage_backend(
-                user_projects, user_info, sess, single_visa_sync=True
+            self.logger.info("Sync to storage backend [sync_single_user_visas]")
+            self.sync_to_storage_backend(
+                user_projects, user_info, sess, expires=expires
             )
         else:
             self.logger.info("No users for syncing")
@@ -2178,7 +2401,11 @@ class UserSyncer(object):
         if self.arborist_client:
             self.logger.info("Synchronizing arborist with authorization info...")
             success = self._update_authz_in_arborist(
-                sess, user_projects, user_yaml=user_yaml, single_user_sync=True
+                sess,
+                user_projects,
+                user_yaml=user_yaml,
+                single_user_sync=True,
+                expires=expires,
             )
             if success:
                 self.logger.info(
@@ -2190,3 +2417,5 @@ class UserSyncer(object):
                 )
         else:
             self.logger.error("No arborist client set; skipping arborist sync")
+
+        return parsed_visas

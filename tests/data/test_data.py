@@ -18,6 +18,7 @@ import fence.blueprints.data.indexd
 
 
 from fence.config import config
+from fence.blueprints.data.indexd import ANONYMOUS_USER_ID, ANONYMOUS_USERNAME
 
 from tests import utils
 
@@ -1414,7 +1415,7 @@ def test_delete_file_locations(
     )
     mock_check_auth = mock.patch.object(
         fence.blueprints.data.indexd.IndexedFile,
-        "check_authorization",
+        "check_legacy_authorization",
         return_value=True,
     )
 
@@ -1481,7 +1482,7 @@ def test_delete_file_locations_by_uploader(
     )
     mock_check_auth = mock.patch.object(
         fence.blueprints.data.indexd.IndexedFile,
-        "check_authorization",
+        "check_legacy_authorization",
         return_value=True,
     )
 
@@ -1822,3 +1823,47 @@ def test_delete_files(app, client, auth_client, encoded_creds_jwt, user_client):
         assert status == 400
 
     fence.auth.config["MOCK_AUTH"] = False
+
+
+def test_download_s3_file_with_client_token(
+    client,
+    indexd_client_accepting_record,
+    kid,
+    rsa_private_key,
+    mock_arborist_requests,
+):
+    """
+    Test that an access token that does not include a `sub` or `context.user.
+    name` (such as a token issued from the `client_credentials` flow) cannot be
+    used to download data from S3.
+    """
+    indexd_record = {
+        **INDEXD_RECORD_WITH_PUBLIC_AUTHZ_POPULATED,
+        "did": "guid_for:test_download_file_with_client_token",
+        "authz": ["/test/resource/path"],
+        "urls": ["s3://bucket1/key"],
+    }
+    indexd_client_accepting_record(indexd_record)
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
+    client_credentials_token = utils.client_authorized_download_context_claims()
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            client_credentials_token,
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+
+    response = client.get("/data/download/1", headers=headers)
+    assert response.status_code == 403
+
+    # Enable the block below if we start allowing downloads with client tokens
+    # signed_url = response.json.get("url")
+    # assert signed_url
+    # # check signing query parameters
+    # query_params = urllib.parse.parse_qs(signed_url)
+    # assert query_params.get("user_id") == [ANONYMOUS_USER_ID]
+    # assert query_params.get("username") == [ANONYMOUS_USERNAME]
+    # assert query_params.get("client_id") == [client_credentials_token["azp"]]

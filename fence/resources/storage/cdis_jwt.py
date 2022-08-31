@@ -16,7 +16,7 @@ def create_access_token(user, keypair, api_key, expires_in, scopes):
     except Exception as e:
         return flask.jsonify({"errors": str(e)})
     return token.generate_signed_access_token(
-        keypair.kid, keypair.private_key, user, expires_in, scopes
+        keypair.kid, keypair.private_key, expires_in, scopes, user=user
     ).token
 
 
@@ -70,5 +70,5 @@ def create_user_access_token(keypair, api_key, expires_in):
     except Exception as e:
         raise Unauthorized(str(e))
     return token.generate_signed_access_token(
-        keypair.kid, keypair.private_key, user, expires_in, scopes
+        keypair.kid, keypair.private_key, expires_in, scopes, user=user
     ).token

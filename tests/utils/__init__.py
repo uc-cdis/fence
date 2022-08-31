@@ -6,7 +6,7 @@ import uuid
 from flask import current_app
 
 from fence.config import config
-
+from fence.resources.ga4gh.passports import get_or_create_gen3_user_from_iss_sub
 from fence.models import (
     User,
     Project,
@@ -23,6 +23,23 @@ from fence.models import (
 
 import tests
 import tests.utils.oauth2
+
+TEST_RAS_USERNAME = "admin_user"
+TEST_RAS_SUB = "abcd-asdj-sajpiasj12iojd-asnoin"
+
+
+def add_test_ras_user(
+    db_session, username=TEST_RAS_USERNAME, is_admin=True, subject_id=TEST_RAS_SUB
+):
+    # pre-populate mapping table, as login would do
+    test_user = get_or_create_gen3_user_from_iss_sub(
+        issuer="https://stsstg.nih.gov", subject_id=subject_id, db_session=db_session
+    )
+    test_user.username = username
+    test_user.is_admin = is_admin
+    db_session.add(test_user)
+    db_session.commit()
+    return test_user
 
 
 def read_file(filename):
@@ -437,6 +454,31 @@ def authorized_upload_context_claims(user_name, user_id):
                 "google": {"proxy_group": None},
             }
         },
+    }
+
+
+def client_authorized_download_context_claims():
+    """
+    Return a claims dictionary to put in a JWT. These claims do not contain
+    a `sub` or `context.user.name`, to mimic a token issued from the
+    `client_credentials` flow.
+
+    Return:
+        dict: dictionary of claims
+    """
+    iss = config["BASE_URL"]
+    jti = new_jti()
+    iat, exp = iat_and_exp()
+    return {
+        "aud": [iss],
+        "iss": iss,
+        "iat": iat,
+        "exp": exp,
+        "jti": jti,
+        "azp": "test_client_id",
+        "pur": "access",
+        "scope": ["access", "data", "user", "openid"],
+        "context": {},
     }
 
 
