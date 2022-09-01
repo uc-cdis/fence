@@ -1200,6 +1200,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             ) = self._assume_role_cache_gs.get(proxy_group_id, (None, None))
 
             if expires_at and expires_at > expiration_time:
+                print("-------------0--------------------")
                 is_cached = True
                 private_key = raw_private_key
                 expires_at = expires_at
@@ -1214,6 +1215,8 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                     .first()
                 )
                 if cache and cache.expires_at > expiration_time:
+                    print("-------------1--------------------")
+
                     private_key = json.loads(cache.gcp_private_key)
                     expires_at = cache.expires_at
                     self._assume_role_cache_gs[proxy_group_id] = (
@@ -1225,6 +1228,8 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         # check again to see if we got cached creds from the database,
         # if not we need to actually get the creds and then cache them
         if not is_cached:
+            print("-------------2--------------------")
+
             private_key, key_db_entry = get_or_create_primary_service_account_key(
                 user_id=user_id, username=username, proxy_group_id=proxy_group_id
             )
@@ -1240,6 +1245,8 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             #       before the expiration of the url then the url will NOT work
             #       (even though the url itself isn't expired)
             if key_db_entry.expires < expiration_time:
+                print("-------------3--------------------")
+
                 private_key = create_primary_service_account_key(
                     user_id=user_id, username=username, proxy_group_id=proxy_group_id
                 )
