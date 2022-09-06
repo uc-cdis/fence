@@ -390,6 +390,10 @@ APPLICATION_ROOT: '/user'
 # //////////////////////////////////////////////////////////////////////////////////////
 # Tokens, Lifetimes, & Expirations
 #   - Already contains reasonable defaults
+#
+#   WARNING: Some of these default times are strict external requirements for compliance
+#            of running Gen3 instances. DO NOT CHANGE WITHOUT CONSIDERING THE RAMIFICATIONS.
+#
 # //////////////////////////////////////////////////////////////////////////////////////
 # The name of the browser cookie in which the access token will be stored.
 ACCESS_TOKEN_COOKIE_NAME: "access_token"
@@ -414,7 +418,7 @@ ACCESS_TOKEN_EXPIRES_IN: 1200
 REFRESH_TOKEN_EXPIRES_IN: 2592000
 
 # The number of seconds after which a browser session is considered stale.
-SESSION_TIMEOUT: 1800
+SESSION_TIMEOUT: 900
 
 # The maximum session lifetime in seconds.
 SESSION_LIFETIME: 28800
