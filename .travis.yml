@@ -1,7 +1,7 @@
 language: python
 
 python:
-  - "3.6"
+  - "3.9"
 
 sudo: false
 
@@ -11,9 +11,9 @@ addons:
   postgresql: "9.6"
 
 install:
-  - curl -sSL https://raw.githubusercontent.com/python-poetry/poetry/master/get-poetry.py | python
-  - source $HOME/.poetry/env
-  - poetry install -vv
+  - pip install poetry
+  - poetry install -vv --no-interaction
+  - poetry show -vv
   - psql -c 'SELECT version();' -U postgres
   - psql -U postgres -c "create database fence_test_tmp"
   - pip list
