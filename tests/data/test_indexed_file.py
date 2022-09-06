@@ -475,7 +475,10 @@ def test_internal_get_gs_signed_url_clear_cache_and_parse_json(
     db_session,
 ):
     """
-    Test fence.blueprints.data.indexd.GoogleStorageIndexedFileLocation._generate_google_storage_signed_url does not use cached key if its expired
+    Test fence.blueprints.data.indexd.GoogleStorageIndexedFileLocation._generate_google_storage_signed_url
+    Scenario: - Create presigned url, cache in-mem and in db
+              - Roll pods, which removes in-mem cache but keeps db entry
+              - Make sure in-mem is populated correctly when creating presigned url again
 
     create presigned url
         set cache in db
@@ -530,24 +533,16 @@ def test_internal_get_gs_signed_url_clear_cache_and_parse_json(
                     r_pays_project=None,
                 )
 
+                assert google_object._assume_role_cache_gs["1"][0] == sa_private_key
+
                 after_cache = db_session.query(AssumeRoleCacheGCP).first()
 
                 assert after_cache
-                assert (
-                    str(type(after_cache))
-                    == "<class 'fence.models.AssumeRoleCacheGCP'>"
-                )
                 # check if json loads can properly parse json string stored in cache
-                assert (
-                    str(type(json.loads(after_cache.gcp_private_key)))
-                    == "<class 'dict'>"
-                )
                 assert json.loads(after_cache.gcp_private_key) == sa_private_key
 
-                db_session.delete(after_cache)
-                cleared_cache = db_session.query(AssumeRoleCacheGCP).first()
-
-                assert cleared_cache is None
+                # make sure cache is added back in the proper format after clearing
+                google_object._assume_role_cache_gs = {}
 
                 google_object._generate_google_storage_signed_url(
                     http_verb="GET",
@@ -558,20 +553,12 @@ def test_internal_get_gs_signed_url_clear_cache_and_parse_json(
                     r_pays_project=None,
                 )
 
+                assert google_object._assume_role_cache_gs["1"][0] == sa_private_key
+
                 redo_cache = db_session.query(AssumeRoleCacheGCP).first()
 
                 assert redo_cache
-                assert (
-                    str(type(redo_cache)) == "<class 'fence.models.AssumeRoleCacheGCP'>"
-                )
-                assert (
-                    str(type(json.loads(redo_cache.gcp_private_key)))
-                    == "<class 'dict'>"
-                )
                 assert json.loads(redo_cache.gcp_private_key) == sa_private_key
-                assert (
-                    str(type(redo_cache)) == "<class 'fence.models.AssumeRoleCacheGCP'>"
-                )
 
 
 def test_set_acl_missing_unauthorized(
