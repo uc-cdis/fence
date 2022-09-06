@@ -88,7 +88,7 @@ def test_indexd_download_file(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
 
     with patch(
@@ -147,7 +147,7 @@ def test_indexd_prometheus_presigned_url_counter(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
     response = client.get(path, headers=headers, query_string=query_string)
     assert response.status_code == 200
@@ -198,7 +198,7 @@ def test_indexd_upload_file(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
     response = client.get(path, headers=headers)
     assert response.status_code == 200
@@ -238,7 +238,7 @@ def test_indexd_upload_file_key_error(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
 
     current_app = fence.blueprints.data.indexd.flask.current_app
@@ -283,7 +283,7 @@ def test_indexd_upload_file_filename(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
     response = client.get(path, headers=headers)
     assert response.status_code == 200
@@ -323,7 +323,7 @@ def test_indexd_upload_file_filename_key_error(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
 
     current_app = fence.blueprints.data.indexd.flask.current_app
@@ -364,7 +364,7 @@ def test_indexd_upload_file_doesnt_exist(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
     response = client.get(path, headers=headers)
 
@@ -402,7 +402,7 @@ def test_indexd_download_file_no_protocol(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
     response = client.get(path, headers=headers)
     assert response.status_code == 200
@@ -503,7 +503,7 @@ def test_unauthorized_indexd_download_file(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
     response = client.get(path, headers=headers)
     assert response.status_code == 401
@@ -567,7 +567,7 @@ def test_unauthorized_indexd_upload_file(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
     response = client.get(path, headers=headers)
     assert response.status_code == 401
@@ -631,7 +631,7 @@ def test_unavailable_indexd_upload_file(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
     response = client.get(path, headers=headers)
     assert response.status_code == 401
@@ -826,7 +826,7 @@ def test_public_authz_object_upload_file(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
     path = "/data/upload/1"
     response = client.get(path, headers=headers)
@@ -858,7 +858,7 @@ def test_public_authz_and_acl_object_upload_file_with_failed_authz_check(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
     path = "/data/upload/1"
     response = client.get(path, headers=headers)
@@ -892,7 +892,7 @@ def test_public_authz_and_acl_object_upload_file(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
     path = "/data/upload/1"
     response = client.get(path, headers=headers)
@@ -940,7 +940,7 @@ def test_non_public_authz_and_public_acl_object_upload_file(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
     path = "/data/upload/1"
     response = client.get(path, headers=headers)
@@ -1005,7 +1005,7 @@ def test_download_fails_with_wrong_authz_and_public_acl(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
     path = "/data/download/1"
     response = client.get(path, headers=headers)
@@ -1103,7 +1103,7 @@ def test_indexd_download_with_uploader_authorized(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
     response = client.get(path, headers=headers, query_string=query_string)
     assert response.status_code == 200
@@ -1173,7 +1173,7 @@ def test_assume_role_time_limit(
                 key=rsa_private_key,
                 headers={"kid": kid},
                 algorithm="RS256",
-            ).decode("utf-8")
+            )
         }
         response = client.get(path, headers=headers, query_string=query_string)
 
@@ -1258,7 +1258,7 @@ def test_assume_role_cache(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
 
     # initial call
@@ -1346,7 +1346,7 @@ def test_indexd_download_with_uploader_unauthorized(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
     response = client.get(path, headers=headers, query_string=query_string)
     assert response.status_code == 401
@@ -1595,7 +1595,7 @@ def test_abac(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
     response = client.get(path, headers=headers, query_string=query_string)
     assert response.status_code == 200
@@ -1853,7 +1853,7 @@ def test_download_s3_file_with_client_token(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
 
     response = client.get("/data/download/1", headers=headers)
