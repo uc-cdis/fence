@@ -17,7 +17,7 @@ from fence.utils import get_valid_expiration
 
 logger = get_logger(__name__)
 
-blueprint = flask.Blueprint("datas", __name__)
+blueprint = flask.Blueprint("data", __name__)
 
 
 @blueprint.route("/<path:file_id>", methods=["DELETE"])
