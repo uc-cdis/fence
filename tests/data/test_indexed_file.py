@@ -533,15 +533,16 @@ def test_internal_get_gs_signed_url_clear_cache_and_parse_json(
                     r_pays_project=None,
                 )
 
-                try:
-                    assert google_object._assume_role_cache_gs["1"][0] == sa_private_key
-                except Exception:
-                    pytest.fail("Could not json.loads(cache)")
+                assert google_object._assume_role_cache_gs["1"][0] == sa_private_key
+
                 after_cache = db_session.query(AssumeRoleCacheGCP).first()
 
                 assert after_cache
                 # check if json loads can properly parse json string stored in cache
-                assert json.loads(after_cache.gcp_private_key) == sa_private_key
+                try:
+                    assert json.loads(after_cache.gcp_private_key) == sa_private_key
+                except Exception:
+                    pytest.fail("Could not json.loads(cache)")
 
                 # make sure cache is added back in the proper format after clearing
                 google_object._assume_role_cache_gs = {}
