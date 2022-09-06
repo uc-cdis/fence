@@ -366,9 +366,7 @@ def _setup_data_endpoint_and_boto(app):
     if "AWS_CREDENTIALS" in config and len(config["AWS_CREDENTIALS"]) > 0:
         value = list(config["AWS_CREDENTIALS"].values())[0]
         app.boto = BotoManager(value, logger=logger)
-        app.register_blueprint(
-            fence.blueprints.data.blueprint, name="datas", url_prefix="/data"
-        )
+        app.register_blueprint(fence.blueprints.data.blueprint, url_prefix="/data")
 
 
 def _load_keys(app, root_dir):
