@@ -321,7 +321,7 @@ def test_presigned_url_log_disabled(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        )  # .decode("utf-8")
+        )
     }
 
     # protocol=None should fall back to s3 (first indexed location):
@@ -562,7 +562,7 @@ def test_presigned_url_log_push_to_sqs(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        )  # .decode("utf-8")
+        )
     }
     response = client.get(path, headers=headers)
     assert response.status_code == 200, response
