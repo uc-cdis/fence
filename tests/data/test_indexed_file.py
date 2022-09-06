@@ -459,6 +459,108 @@ def test_internal_get_gs_signed_url_cache_new_key_if_old_key_expired(
                 assert before_cache != after_cache
 
 
+@mock.patch.object(utils, "_get_proxy_group_id", return_value=None)
+@mock.patch.object(indexd, "get_or_create_proxy_group_id", return_value="1")
+def test_internal_get_gs_signed_url_clear_cache(
+    mock_get_or_create_proxy_group_id,
+    mock_get_proxy_group_id,
+    app,
+    indexd_client_accepting_record,
+    db_session,
+):
+    """
+    Test fence.blueprints.data.indexd.GoogleStorageIndexedFileLocation._generate_google_storage_signed_url does not use cached key if its expired
+
+    create presigned url
+        set cache in db
+    clear cache
+    create presigned url again
+        make sure cache is set correctly
+    """
+    # db_session.add(
+    #     AssumeRoleCacheGCP(
+    #         gcp_proxy_group_id="1",
+    #         expires_at=0,
+    #         gcp_private_key="key",
+    #         gcp_key_db_entry='{"1":("key", keydbentry)}',
+    #     )
+    # )
+    # db_session.commit()
+
+    indexd_record_with_non_public_authz_and_public_acl_populated = {
+        "urls": [f"gs://some/location"],
+        "authz": ["/programs/DEV/projects/test"],
+        "acl": ["*"],
+    }
+    indexd_client_accepting_record(
+        indexd_record_with_non_public_authz_and_public_acl_populated
+    )
+
+    mock_google_service_account_key = GoogleServiceAccountKey()
+    mock_google_service_account_key.expires = 10
+    mock_google_service_account_key.private_key = "key"
+
+    with mock.patch(
+        "fence.blueprints.data.indexd.get_or_create_primary_service_account_key",
+        return_value=("sa_private_key", mock_google_service_account_key),
+    ):
+        with mock.patch(
+            "fence.blueprints.data.indexd.create_primary_service_account_key",
+            return_value=("sa_private_key"),
+        ):
+            with mock.patch.object(
+                cirrus.google_cloud.utils,
+                "get_signed_url",
+                return_value="https://cloud.google.com/compute/url",
+            ):
+                indexed_file = IndexedFile(file_id="some id")
+                google_object = GoogleStorageIndexedFileLocation("gs://some/location")
+                google_object._assume_role_cache_gs = {"1": ("key", 10)}
+
+                assert google_object._assume_role_cache_gs
+                before_cache = db_session.query(AssumeRoleCacheGCP).first()
+
+                google_object._generate_google_storage_signed_url(
+                    http_verb="GET",
+                    resource_path="gs://some/location",
+                    expires_in=0,
+                    user_id=1,
+                    username="some user",
+                    r_pays_project=None,
+                )
+
+                after_cache = db_session.query(AssumeRoleCacheGCP).first()
+
+                assert after_cache
+                assert before_cache != after_cache
+                assert (
+                    str(type(after_cache))
+                    == "<class 'fence.models.AssumeRoleCacheGCP'>"
+                )
+
+                db_session.delete(after_cache)
+                cleared_cache = db_session.query(AssumeRoleCacheGCP).first()
+
+                assert cleared_cache is None
+
+                google_object._generate_google_storage_signed_url(
+                    http_verb="GET",
+                    resource_path="gs://some/location",
+                    expires_in=0,
+                    user_id=1,
+                    username="some user",
+                    r_pays_project=None,
+                )
+
+                redo_cache = db_session.query(AssumeRoleCacheGCP).first()
+
+                assert redo_cache
+                assert cleared_cache != redo_cache
+                assert (
+                    str(type(redo_cache)) == "<class 'fence.models.AssumeRoleCacheGCP'>"
+                )
+
+
 def test_set_acl_missing_unauthorized(
     app, supported_protocol, indexd_client_accepting_record
 ):
