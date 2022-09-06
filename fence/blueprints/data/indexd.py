@@ -1190,6 +1190,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         proxy_group_id = get_or_create_proxy_group_id(
             user_id=user_id, username=username
         )
+        print("------------------0--------------------")
         expiration_time = int(time.time()) + expires_in
         is_cached = False
 
@@ -1198,6 +1199,9 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                 raw_private_key,
                 expires_at,
             ) = self._assume_role_cache_gs.get(proxy_group_id, (None, None))
+            print("------------------1----------------")
+            print(self._assume_role_cache_gs)
+            print(raw_private_key)
 
             if expires_at and expires_at > expiration_time:
                 is_cached = True
@@ -1214,7 +1218,10 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                     .first()
                 )
                 if cache and cache.expires_at > expiration_time:
+                    print("------------------2----------------")
+
                     private_key = json.loads(cache.gcp_private_key)
+                    print(private_key)
                     expires_at = cache.expires_at
                     self._assume_role_cache_gs[proxy_group_id] = (
                         private_key,
@@ -1228,6 +1235,8 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             private_key, key_db_entry = get_or_create_primary_service_account_key(
                 user_id=user_id, username=username, proxy_group_id=proxy_group_id
             )
+            print("------------------3---------------")
+            print(private_key)
 
             # Make sure the service account key expiration is later
             # than the expiration for the signed url. If it's not, we need to
@@ -1243,6 +1252,8 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                 private_key = create_primary_service_account_key(
                     user_id=user_id, username=username, proxy_group_id=proxy_group_id
                 )
+                print("------------------4----------------")
+                print(private_key)
             self._assume_role_cache_gs[proxy_group_id] = (
                 private_key,
                 key_db_entry.expires,
@@ -1250,6 +1261,9 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
 
             db_entry = {}
             db_entry["gcp_proxy_group_id"] = proxy_group_id
+            print("------------------5----------------")
+            print(private_key)
+            print(type(private_key))
             db_entry["gcp_private_key"] = json.dumps(private_key)
             db_entry["expires_at"] = key_db_entry.expires
 
@@ -1287,6 +1301,10 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         # use configured project if it exists and no user project was given
         if config["BILLING_PROJECT_FOR_SIGNED_URLS"] and not r_pays_project:
             r_pays_project = config["BILLING_PROJECT_FOR_SIGNED_URLS"]
+
+        print("------------------6----------------")
+        print(private_key)
+        
         final_url = cirrus.google_cloud.utils.get_signed_url(
             resource_path,
             http_verb,

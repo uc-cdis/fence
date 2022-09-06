@@ -517,7 +517,6 @@ def test_internal_get_gs_signed_url_clear_cache(
                 google_object = GoogleStorageIndexedFileLocation("gs://some/location")
                 google_object._assume_role_cache_gs = {"1": ("key", 10)}
 
-                assert google_object._assume_role_cache_gs
                 before_cache = db_session.query(AssumeRoleCacheGCP).first()
 
                 google_object._generate_google_storage_signed_url(
@@ -553,6 +552,9 @@ def test_internal_get_gs_signed_url_clear_cache(
                 )
 
                 redo_cache = db_session.query(AssumeRoleCacheGCP).first()
+
+                print("----------------------------------------------------")
+                print(redo_cache.gcp_proxy_group_id)
 
                 assert redo_cache
                 assert cleared_cache != redo_cache
