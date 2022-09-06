@@ -1,6 +1,7 @@
 """
 Test fence.blueprints.data.indexd.IndexedFile
 """
+import json
 from unittest import mock
 from mock import patch
 
@@ -425,14 +426,19 @@ def test_internal_get_gs_signed_url_cache_new_key_if_old_key_expired(
     mock_google_service_account_key = GoogleServiceAccountKey()
     mock_google_service_account_key.expires = 10
     mock_google_service_account_key.private_key = "key"
+    sa_private_key = {
+        "type": "service_account",
+        "project_id": "project_id",
+        "private_key": "pdashoidhaspidhaspidhiash",
+    }
 
     with mock.patch(
         "fence.blueprints.data.indexd.get_or_create_primary_service_account_key",
-        return_value=("sa_private_key", mock_google_service_account_key),
+        return_value=(sa_private_key, mock_google_service_account_key),
     ):
         with mock.patch(
             "fence.blueprints.data.indexd.create_primary_service_account_key",
-            return_value=("sa_private_key"),
+            return_value=(sa_private_key),
         ):
             with mock.patch.object(
                 cirrus.google_cloud.utils,
@@ -461,7 +467,7 @@ def test_internal_get_gs_signed_url_cache_new_key_if_old_key_expired(
 
 @mock.patch.object(utils, "_get_proxy_group_id", return_value=None)
 @mock.patch.object(indexd, "get_or_create_proxy_group_id", return_value="1")
-def test_internal_get_gs_signed_url_clear_cache(
+def test_internal_get_gs_signed_url_clear_cache_and_parse_json(
     mock_get_or_create_proxy_group_id,
     mock_get_proxy_group_id,
     app,
@@ -477,15 +483,6 @@ def test_internal_get_gs_signed_url_clear_cache(
     create presigned url again
         make sure cache is set correctly
     """
-    # db_session.add(
-    #     AssumeRoleCacheGCP(
-    #         gcp_proxy_group_id="1",
-    #         expires_at=0,
-    #         gcp_private_key="key",
-    #         gcp_key_db_entry='{"1":("key", keydbentry)}',
-    #     )
-    # )
-    # db_session.commit()
 
     indexd_record_with_non_public_authz_and_public_acl_populated = {
         "urls": [f"gs://some/location"],
@@ -499,14 +496,19 @@ def test_internal_get_gs_signed_url_clear_cache(
     mock_google_service_account_key = GoogleServiceAccountKey()
     mock_google_service_account_key.expires = 10
     mock_google_service_account_key.private_key = "key"
+    sa_private_key = {
+        "type": "service_account",
+        "project_id": "project_id",
+        "private_key": "pdashoidhaspidhaspidhiash",
+    }
 
     with mock.patch(
         "fence.blueprints.data.indexd.get_or_create_primary_service_account_key",
-        return_value=("sa_private_key", mock_google_service_account_key),
+        return_value=(sa_private_key, mock_google_service_account_key),
     ):
         with mock.patch(
             "fence.blueprints.data.indexd.create_primary_service_account_key",
-            return_value=("sa_private_key"),
+            return_value=(sa_private_key),
         ):
             with mock.patch.object(
                 cirrus.google_cloud.utils,
@@ -531,11 +533,16 @@ def test_internal_get_gs_signed_url_clear_cache(
                 after_cache = db_session.query(AssumeRoleCacheGCP).first()
 
                 assert after_cache
-                assert before_cache != after_cache
                 assert (
                     str(type(after_cache))
                     == "<class 'fence.models.AssumeRoleCacheGCP'>"
                 )
+                # check if json loads can properly parse json string stored in cache
+                assert (
+                    str(type(json.loads(after_cache.gcp_private_key)))
+                    == "<class 'dict'>"
+                )
+                assert json.loads(after_cache.gcp_private_key) == sa_private_key
 
                 db_session.delete(after_cache)
                 cleared_cache = db_session.query(AssumeRoleCacheGCP).first()
@@ -553,11 +560,15 @@ def test_internal_get_gs_signed_url_clear_cache(
 
                 redo_cache = db_session.query(AssumeRoleCacheGCP).first()
 
-                print("----------------------------------------------------")
-                print(redo_cache.gcp_proxy_group_id)
-
                 assert redo_cache
-                assert cleared_cache != redo_cache
+                assert (
+                    str(type(redo_cache)) == "<class 'fence.models.AssumeRoleCacheGCP'>"
+                )
+                assert (
+                    str(type(json.loads(redo_cache.gcp_private_key)))
+                    == "<class 'dict'>"
+                )
+                assert json.loads(redo_cache.gcp_private_key) == sa_private_key
                 assert (
                     str(type(redo_cache)) == "<class 'fence.models.AssumeRoleCacheGCP'>"
                 )
