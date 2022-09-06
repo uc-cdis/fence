@@ -12,7 +12,6 @@ addons:
 
 install:
   - pip install poetry
-  - poetry shell
   - poetry install -vv
   - psql -c 'SELECT version();' -U postgres
   - psql -U postgres -c "create database fence_test_tmp"
