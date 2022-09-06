@@ -50,8 +50,8 @@ def test_sync_missing_file(syncer, monkeypatch, db_session):
     anything with the arborist client
     """
     monkeypatch.setattr(syncer, "sync_from_local_yaml_file", "this-file-is-not-real")
-    # should fail gracefully
-    syncer.sync()
+    with pytest.raises(FileNotFoundError):
+        syncer.sync()
     assert syncer.arborist_client.create_resource.not_called()
     assert syncer.arborist_client.create_role.not_called()
     assert syncer.arborist_client.create_policy.not_called()
@@ -67,8 +67,8 @@ def test_sync_incorrect_user_yaml_file(syncer, monkeypatch, db_session):
         os.path.dirname(os.path.realpath(__file__)), "data/yaml/incorrect_user.yaml"
     )
     monkeypatch.setattr(syncer, "sync_from_local_yaml_file", path)
-    # should fail gracefully
-    syncer.sync()
+    with pytest.raises(AssertionError):
+        syncer.sync()
     assert syncer.arborist_client.create_resource.not_called()
     assert syncer.arborist_client.create_role.not_called()
     assert syncer.arborist_client.create_policy.not_called()
