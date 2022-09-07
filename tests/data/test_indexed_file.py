@@ -555,7 +555,6 @@ def test_internal_get_gs_signed_url_clear_cache_and_parse_json(
                     r_pays_project=None,
                 )
 
-
                 redo_cache = db_session.query(AssumeRoleCacheGCP).first()
 
                 assert redo_cache
