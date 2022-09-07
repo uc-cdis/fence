@@ -555,7 +555,6 @@ def test_internal_get_gs_signed_url_clear_cache_and_parse_json(
                     r_pays_project=None,
                 )
 
-                assert google_object._assume_role_cache_gs["1"][0] == sa_private_key
 
                 redo_cache = db_session.query(AssumeRoleCacheGCP).first()
 
