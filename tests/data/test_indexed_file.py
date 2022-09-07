@@ -539,10 +539,9 @@ def test_internal_get_gs_signed_url_clear_cache_and_parse_json(
 
                 assert after_cache
                 # check if json loads can properly parse json string stored in cache
-                try:
-                    assert json.loads(after_cache.gcp_private_key) == sa_private_key
-                except Exception:
-                    pytest.fail("Could not json.loads(cache)")
+                assert "1" in google_object._assume_role_cache_gs
+                assert len(google_object._assume_role_cache_gs["1"]) > 1
+                assert google_object._assume_role_cache_gs["1"][0] == sa_private_key
 
                 # make sure cache is added back in the proper format after clearing
                 google_object._assume_role_cache_gs = {}
@@ -561,10 +560,10 @@ def test_internal_get_gs_signed_url_clear_cache_and_parse_json(
                 redo_cache = db_session.query(AssumeRoleCacheGCP).first()
 
                 assert redo_cache
-                try:
-                    assert json.loads(redo_cache.gcp_private_key) == sa_private_key
-                except Exception:
-                    pytest.fail("Could not json.loads(cache)")
+                # check if json loads can properly parse json string stored in cache
+                assert "1" in google_object._assume_role_cache_gs
+                assert len(google_object._assume_role_cache_gs["1"]) > 1
+                assert google_object._assume_role_cache_gs["1"][0] == sa_private_key
 
 
 def test_set_acl_missing_unauthorized(
