@@ -401,7 +401,9 @@ def test_login_log_login_endpoint(
     idp_name = idp
     headers = {}
     get_user_id_value = {}
-    jwt_string = jwt.encode({"iat": int(time.time())}, key=rsa_private_key)
+    jwt_string = jwt.encode(
+        {"iat": int(time.time())}, key=rsa_private_key, algorithm="RS256"
+    )
 
     if idp == "synapse":
         get_user_id_value = {
