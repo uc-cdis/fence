@@ -34,7 +34,6 @@ from fence.blueprints.data.indexd import S3IndexedFileLocation
 from fence.blueprints.login.utils import allowed_login_redirects, domain
 from fence.errors import UserError
 from fence.jwt import keys
-from fence.models import migrate, IdentityProvider
 from fence.oidc.client import query_client
 from fence.oidc.server import server
 from fence.resources.audit.client import AuditServiceClient
@@ -108,16 +107,12 @@ def app_init(
 
 def app_sessions(app):
     app.url_map.strict_slashes = False
-    app.db = SQLAlchemyDriver(config["DB"])
 
-    # TODO: we will make a more robust migration system external from the application
-    #       initialization soon
-    if config["ENABLE_DB_MIGRATION"]:
-        logger.info("Running database migration...")
-        migrate(app.db)
-        logger.info("Done running database migration.")
-    else:
-        logger.info("NOT running database migration.")
+    # override userdatamodel's `setup_db` function which creates tables
+    # and runs database migrations, because Alembic handles that now.
+    # TODO move userdatamodel code to Fence and remove dependencies to it
+    SQLAlchemyDriver.setup_db = lambda _: None
+    app.db = SQLAlchemyDriver(config["DB"])
 
     session = flask_scoped_session(app.db.Session, app)  # noqa
     app.session_interface = UserSessionInterface()

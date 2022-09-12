@@ -404,6 +404,20 @@ dbGaP:
       'phs000178': ['/orgA/', '/orgB/', '/']
       # study when parsing consent codes
       'phs000178.c2': ['/orgA/', '/orgB/', '/']
+  - info:
+      host: ''
+      username: ''
+      password: ''
+      port: 22
+      proxy: ''
+      proxy_user: ''
+    protocol: 'sftp'
+    decrypt_key: ''
+    allow_non_dbGaP_whitelist: false
+    allowed_whitelist_patterns: ['authentication_file_PROJECT-(\d*).(csv|txt)']
+    study_to_resource_namespaces:
+      # non dbgap study:
+      'PROJECT-12345': ['']
 # Regex to match an assession number that has consent information in forms like:
 #   phs00301123.c999
 #   phs000123.v3.p1.c3
