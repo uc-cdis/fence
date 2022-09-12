@@ -89,6 +89,9 @@ WTF_CSRF_SECRET_KEY: '{{ENCRYPTION_KEY}}'
 # NOTE: We are working to improve the migration process in the near future
 ENABLE_DB_MIGRATION: true
 
+# Key to lock the database during migrations
+DB_MIGRATION_POSTGRES_LOCK_KEY: 100
+
 # //////////////////////////////////////////////////////////////////////////////////////
 # OPEN ID CONNECT (OIDC)
 #   - Fully configure at least one client so login works
