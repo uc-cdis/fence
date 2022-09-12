@@ -11,7 +11,7 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = "3.9"
+python = ">=3.9"
 alembic = ">=1.7.7"
 authlib = ">=0.11"
 authutils = ">=6.2.1"
