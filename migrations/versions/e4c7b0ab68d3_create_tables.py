@@ -665,7 +665,7 @@ def upgrade():
             "reviewed_on", sa.DateTime(timezone=False), server_default=sa.text("now()")
         ),
         sa.ForeignKeyConstraint(["document_id"], ["document.id"], ondelete="CASCADE"),
-        sa.ForeignKeyConstraint(["user_id"], ["user.id"], ondelete="CASCADE"),
+        sa.ForeignKeyConstraint(["user_id"], ["User.id"], ondelete="CASCADE"),
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint('user_id', 'document_id', name='user_doc_uc'),
     )
