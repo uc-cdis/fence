@@ -1189,6 +1189,18 @@ python-versions = ">=3.6"
 twisted = ["twisted"]
 
 [[package]]
+name = "prometheus-flask-exporter"
+version = "0.20.3"
+description = "Prometheus metrics exporter for Flask"
+category = "main"
+optional = false
+python-versions = "*"
+
+[package.dependencies]
+flask = "*"
+prometheus-client = "*"
+
+[[package]]
 name = "protobuf"
 version = "3.20.1"
 description = "Protocol Buffers"
@@ -1685,7 +1697,7 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "pytest-
 [metadata]
 lock-version = "1.1"
 python-versions = ">=3.9, <4.0"
-content-hash = "986ec86435f946b354311e1b624f9ce100dac12bdd6ed29bf84eecf6b854a690"
+content-hash = "4b911a8dd1caf4bd2c3deade18b9af5ad8a05897e79fbb04e6530469d48c4593"
 
 [metadata.files]
 addict = [
@@ -1985,6 +1997,7 @@ pluggy = [
     {file = "pluggy-1.0.0.tar.gz", hash = "sha256:4224373bacce55f955a878bf9cfa763c1e360858e330072059e10bad68531159"},
 ]
 prometheus-client = []
+prometheus-flask-exporter = []
 protobuf = []
 py = [
     {file = "py-1.11.0-py2.py3-none-any.whl", hash = "sha256:607c53218732647dff4acdfcd50cb62615cedf612e72d1724fb1a0cc6405b378"},
