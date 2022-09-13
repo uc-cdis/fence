@@ -39,6 +39,7 @@ userdatamodel = ">=2.4.0"
 werkzeug = ">=2.0.3"
 cachelib = ">=0.2.0"
 Flask-WTF = ">=1.0.1"
+Flask-Cors = ">=3.0.10"
 
 
 [tool.poetry.dev-dependencies]
