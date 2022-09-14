@@ -7,6 +7,7 @@ from datetime import datetime, timedelta
 from sqlalchemy.sql.functions import user
 from cached_property import cached_property
 from cirrus import GoogleCloudManager
+import cirrus
 from cdislogging import get_logger
 from cdispyutils.config import get_value
 from cdispyutils.hmac4 import generate_aws_presigned_url
