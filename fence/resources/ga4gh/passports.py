@@ -12,8 +12,8 @@ import fence.scripting.fence_create
 from authutils.errors import JWTError
 from authutils.token.core import get_iss, get_kid
 from cdislogging import get_logger
-from flask_sqlalchemy_session import current_session
 
+from fence.dbSession import current_session
 from fence.jwt.validate import validate_jwt
 from fence.config import config
 from fence.models import (

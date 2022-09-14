@@ -6,13 +6,11 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.sql.functions import user
 from cached_property import cached_property
-import cirrus
 from cirrus import GoogleCloudManager
 from cdislogging import get_logger
 from cdispyutils.config import get_value
 from cdispyutils.hmac4 import generate_aws_presigned_url
 import flask
-from flask_sqlalchemy_session import current_session
 import requests
 from azure.storage.blob import (
     BlobServiceClient,
@@ -20,8 +18,6 @@ from azure.storage.blob import (
     AccountSasPermissions,
     generate_blob_sas,
 )
-from fence import auth
-
 from fence.auth import (
     get_jwt,
     current_token,
@@ -31,6 +27,7 @@ from fence.auth import (
     JWTError,
 )
 from fence.config import config
+from fence.dbSession import current_session
 from fence.errors import (
     Forbidden,
     InternalError,

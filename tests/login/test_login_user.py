@@ -1,6 +1,7 @@
 import flask
-from flask_sqlalchemy_session import current_session
+
 from fence.auth import login_user
+from fence.dbSession import current_session
 from fence.models import User, IdentityProvider
 
 

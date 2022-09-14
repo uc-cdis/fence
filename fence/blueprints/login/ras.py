@@ -9,11 +9,11 @@ from urllib.parse import urlparse, parse_qs
 
 from authutils.errors import JWTError
 from cdislogging import get_logger
-from flask_sqlalchemy_session import current_session
 from gen3authz.client.arborist.client import ArboristClient
 
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 from fence.config import config
+from fence.dbSession import current_session
 from fence.jwt.validate import validate_jwt
 from fence.models import GA4GHVisaV1, IdentityProvider
 from fence.utils import get_valid_expiration

@@ -4,7 +4,6 @@ import re
 import time
 from distutils.util import strtobool
 from flask_restful import Resource
-from flask_sqlalchemy_session import current_session
 
 from cirrus import GoogleCloudManager
 from cirrus.config import config as cirrus_config
@@ -12,6 +11,7 @@ from cirrus.config import config as cirrus_config
 from fence.config import config
 from fence.auth import require_auth_header
 from fence.auth import current_token
+from fence.dbSession import current_session
 from fence.errors import UserError
 from fence.models import GoogleServiceAccountKey
 from fence.resources.google.utils import (

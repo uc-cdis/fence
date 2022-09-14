@@ -1,11 +1,10 @@
 from datetime import datetime, timezone, timedelta
 
 import flask
-from flask_sqlalchemy_session import current_session
 
 from fence.config import config
+from fence.dbSession import current_session
 from fence.models import IdentityProvider
-
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 
 

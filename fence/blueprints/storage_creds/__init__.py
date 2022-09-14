@@ -1,5 +1,4 @@
 import flask
-from flask_sqlalchemy_session import current_session
 
 from fence.auth import require_auth_header
 from fence.blueprints.storage_creds.api import AccessKey, ApiKey, ApiKeyList
@@ -7,6 +6,7 @@ from fence.blueprints.storage_creds.google import GoogleCredentialsList
 from fence.blueprints.storage_creds.google import GoogleCredentials
 from fence.blueprints.storage_creds.other import OtherCredentialsList
 from fence.blueprints.storage_creds.other import OtherCredentials
+from fence.dbSession import current_session
 from fence.resources.storage import get_endpoints_descriptions
 from fence.restful import RestfulApi
 from fence.config import config

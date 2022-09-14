@@ -2,21 +2,21 @@ import time
 
 import flask
 from flask_restful import Resource
-from flask_sqlalchemy_session import current_session
 
 from cdislogging import get_logger
 
 from cirrus import GoogleCloudManager
 from fence.blueprints.login.redirect import validate_redirect
 from fence.restful import RestfulApi
-from fence.errors import NotFound
-from fence.errors import Unauthorized
-from fence.errors import UserError
-
-from fence.models import UserGoogleAccount
-from fence.models import UserGoogleAccountToProxyGroup
-from fence.auth import current_token, get_user_from_claims, validate_request
-from fence.auth import require_auth_header
+from fence.dbSession import current_session
+from fence.errors import NotFound, Unauthorized, UserError
+from fence.models import UserGoogleAccount, UserGoogleAccountToProxyGroup
+from fence.auth import (
+    current_token,
+    get_user_from_claims,
+    validate_request,
+    require_auth_header,
+)
 from fence.config import config
 from fence.resources.google.utils import (
     get_or_create_proxy_group_id,
