@@ -292,6 +292,21 @@ class BlankIndex(object):
                 raise InternalError(
                     "fence not configured with data upload bucket; can't create signed URL"
                 )
+            if 'bucket' in flask.request.json:
+                bucket = flask.request.json['bucket']
+                s3_buckets = get_value(
+                    flask.current_app.config,
+                    "S3_BUCKETS",
+                    InternalError("buckets not configured"),
+                )
+                if bucket not in s3_buckets:
+                    raise InternalError(
+                        "passed bucket {} not found in configuration {}".format(
+                            bucket, s3_buckets
+                        )
+                    )
+                self.logger.debug("Using bucket name passed in request {}".format(bucket))
+
             s3_url = "s3://{}/{}/{}".format(bucket, self.guid, file_name)
             url = S3IndexedFileLocation(s3_url).get_signed_url("upload", expires_in)
 
