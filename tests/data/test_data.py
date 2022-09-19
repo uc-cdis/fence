@@ -257,6 +257,8 @@ def test_indexd_upload_file_key_error(
     ["gs", "s3", "gs_acl", "s3_acl", "s3_external", "az", "https"],
     indirect=True,
 )
+@pytest.mark.parametrize("guid", ["1", "prefix/1"])
+@pytest.mark.parametrize("file_name", ["some_test_file.txt", None])
 def test_indexd_upload_file_filename(
     client,
     oauth_client,
@@ -268,12 +270,15 @@ def test_indexd_upload_file_filename(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+    guid,
+    file_name,
 ):
     """
-    Test ``GET /data/upload/1?file_name=``.
+    Test ``GET /data/upload/<guid>?file_name=<file_name>``.
     """
-    file_name = "some_test_file.txt"
-    path = "/data/upload/1?file_name=" + file_name
+    path = f"/data/upload/{guid}"
+    if file_name:
+        path += "?file_name=" + file_name
     headers = {
         "Authorization": "Bearer "
         + jwt.encode(
@@ -288,7 +293,9 @@ def test_indexd_upload_file_filename(
     response = client.get(path, headers=headers)
     assert response.status_code == 200
     assert "url" in list(response.json.keys())
-    assert file_name in response.json.get("url")
+
+    name_in_url = file_name if file_name else guid.replace("/", "_")
+    assert name_in_url in response.json.get("url")
 
 
 @pytest.mark.parametrize(
