@@ -1,6 +1,7 @@
 import flask
 
 from cdislogging import get_logger
+from cdispyutils.config import get_value
 
 from fence.auth import login_required, require_auth_header, current_token, get_jwt
 from fence.authz.auth import check_arborist_auth
@@ -10,7 +11,7 @@ from fence.blueprints.data.indexd import (
     get_signed_url_for_file,
 )
 from fence.config import config
-from fence.errors import Forbidden, InternalError, UserError, Forbidden
+from fence.errors import Forbidden, InternalError, UserError, Forbidden, Unauthorized
 from fence.resources.audit.utils import enable_audit_logging
 from fence.utils import get_valid_expiration
 
@@ -175,11 +176,15 @@ def upload_data_file():
     )
 
     protocol = params["protocol"] if "protocol" in params else None
+    bucket = params.get("bucket")
 
     response = {
         "guid": blank_index.guid,
         "url": blank_index.make_signed_url(
-            file_name=params["file_name"], protocol=protocol, expires_in=expires_in
+            file_name=params["file_name"],
+            protocol=protocol,
+            expires_in=expires_in,
+            bucket=bucket,
         ),
     }
 
@@ -293,7 +298,20 @@ def upload_file(file_id):
         file_name = str(file_id).replace("/", "_")
         logger.warning(f"file_name not provided, using '{file_name}'")
 
-    result = get_signed_url_for_file("upload", file_id, file_name=file_name)
+    bucket = flask.request.args.get("bucket")
+    if bucket:
+        s3_buckets = get_value(
+            flask.current_app.config,
+            "S3_BUCKETS",
+            InternalError("buckets not configured"),
+        )
+        if bucket not in s3_buckets:
+            logger.debug(f"Bucket '{bucket}' not found in S3_BUCKETS config")
+            raise Unauthorized("permission denied for bucket")
+
+    result = get_signed_url_for_file(
+        "upload", file_id, file_name=file_name, bucket=bucket
+    )
     return flask.jsonify(result)
 
 
