@@ -198,6 +198,9 @@ def upload_data_file():
 def init_multipart_upload():
     """
     Initialize a multipart upload request
+
+    NOTE This endpoint does not currently accept a `bucket` parameter like
+    `POST /upload` and `GET /upload/<GUID>` do.
     """
     params = flask.request.get_json()
     if not params:
