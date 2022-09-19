@@ -633,7 +633,15 @@ paths:
           in: query
           description: >-
             the requested file name in the cloud bucket you will upload to.
-            if not provided, will use the GUID/file_id
+            If not provided, will use the GUID/file_id
+          schema:
+            type: string
+        - name: bucket
+          required: false
+          in: query
+          description: >-
+            the requested bucket to upload to.
+            If not provided, defaults to the configured DATA_UPLOAD_BUCKET.
           schema:
             type: string
       responses:
@@ -668,7 +676,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RequestUploadBlank'
+              $ref: '#/components/schemas/InitMultipartUpload'
       responses:
         201:
           description: successful operation; created new blank record in indexd and uploadId for multipart upload
@@ -1649,6 +1657,33 @@ components:
             user: generic user access
   schemas:
     RequestUploadBlank:
+      type: object
+      required:
+      properties:
+        file_name:
+          type: string
+          required: true
+          description: the file name to use for this upload
+        bucket:
+          type: string
+          required: true
+          description: the requested bucket to upload to. If not provided,
+          defaults to the configured DATA_UPLOAD_BUCKET.
+        expires_in:
+          type: integer
+          description: optional integer specifying the presigned URL lifetime
+        authz:
+          type: array
+          items:
+            type: string
+          description: requested authorization resources to be set on the
+            resulting indexed record. You must have proper authorization to set this
+      example:
+        file_name: "my_file.bam"
+        bucket: "bucket1"
+        expires_in: 1200
+        authz: ["/programs/A"]
+    InitMultipartUpload:
       type: object
       required:
       properties:
