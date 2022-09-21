@@ -3,7 +3,7 @@ on: push
 
 jobs:
   run_tests:
-    uses: AidanHilt/.github/.github/workflows/python_unit_test.yaml@73ac022e930defee2082cd37deb33be9f091a721
+    uses: AidanHilt/.github/.github/workflows/python_unit_test.yaml@2b46f7382c126dd38cc576909c0dd6943bf2a66a
     with:
       setup-script-location: https://raw.githubusercontent.com/AidanHilt/.github/master/unit_test_scripts/fence.sh
 #comment
