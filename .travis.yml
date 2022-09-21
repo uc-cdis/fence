@@ -24,8 +24,8 @@ before_script:
   - cd -
 
 script:
-  - poetry run pytest -vv --cov=fence --cov=migrations/versions --cov-report xml tests
   - pip list
+  - poetry run pytest -vv --cov=fence --cov=migrations/versions --cov-report xml tests
 
 after_script:
   - python-codacy-coverage -r coverage.xml
