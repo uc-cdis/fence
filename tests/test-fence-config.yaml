@@ -411,6 +411,7 @@ dbGaP:
       port: 22
       proxy: ''
       proxy_user: ''
+      encrypted: false
     protocol: 'sftp'
     decrypt_key: ''
     allow_non_dbGaP_whitelist: false
