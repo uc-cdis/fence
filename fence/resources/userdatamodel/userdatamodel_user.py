@@ -25,6 +25,7 @@ __all__ = [
     "get_users_by_id",
     "get_user_groups",
     "update_user",
+    "toggle_admin",
     "review_document",
     "get_doc_to_review",
     "get_docs",
@@ -46,6 +47,18 @@ def update_user(current_session, username, additional_info):
     )
     current_session.commit()
     return updated_user
+
+def toggle_admin(current_session, user_id, is_admin):
+    new_admin_value = 'f' if is_admin is True else 't'
+
+    updated_user = (
+        current_session.query(User)
+        .filter(User.id == user_id)
+        .update({User.is_admin: new_admin_value})
+    )
+    current_session.commit()
+    return updated_user
+
 
 
 def get_user_accesses(current_session):
