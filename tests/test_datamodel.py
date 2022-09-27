@@ -20,6 +20,7 @@ def test_user_delete_cascade(db_session):
         user=user,
         client_id=random_str(40),
         client_secret=random_str(60),
+        redirect_uris=["localhost"],
     )
     db_session.add(user)
     db_session.add(client)

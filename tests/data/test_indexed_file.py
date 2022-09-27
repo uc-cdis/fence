@@ -1,6 +1,7 @@
 """
 Test fence.blueprints.data.indexd.IndexedFile
 """
+import json
 from unittest import mock
 from mock import patch
 
@@ -425,14 +426,19 @@ def test_internal_get_gs_signed_url_cache_new_key_if_old_key_expired(
     mock_google_service_account_key = GoogleServiceAccountKey()
     mock_google_service_account_key.expires = 10
     mock_google_service_account_key.private_key = "key"
+    sa_private_key = {
+        "type": "service_account",
+        "project_id": "project_id",
+        "private_key": "pdashoidhaspidhaspidhiash",
+    }
 
     with mock.patch(
         "fence.blueprints.data.indexd.get_or_create_primary_service_account_key",
-        return_value=("sa_private_key", mock_google_service_account_key),
+        return_value=(sa_private_key, mock_google_service_account_key),
     ):
         with mock.patch(
             "fence.blueprints.data.indexd.create_primary_service_account_key",
-            return_value=("sa_private_key"),
+            return_value=(sa_private_key),
         ):
             with mock.patch.object(
                 cirrus.google_cloud.utils,
@@ -441,9 +447,7 @@ def test_internal_get_gs_signed_url_cache_new_key_if_old_key_expired(
             ):
                 indexed_file = IndexedFile(file_id="some id")
                 google_object = GoogleStorageIndexedFileLocation("gs://some/location")
-                keydbentry = UserGoogleAccountToProxyGroup()
-                keydbentry.expires = 10
-                google_object._assume_role_cache_gs = {"1": ("key", keydbentry, 10)}
+                google_object._assume_role_cache_gs = {"1": ("key", 10)}
 
                 assert google_object._assume_role_cache_gs
                 before_cache = db_session.query(AssumeRoleCacheGCP).first()
@@ -498,7 +502,7 @@ def test_internal_get_gs_signed_url_clear_cache_and_parse_json(
     sa_private_key = {
         "type": "service_account",
         "project_id": "project_id",
-        "private_key": "pdashoidhaspidhaspidhiash",  # pragma: allowlist secret
+        "private_key": "pdashoidhaspidhaspidhiash",
     }
 
     with mock.patch(

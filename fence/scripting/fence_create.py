@@ -128,20 +128,19 @@ def modify_client_action(
 def create_client_action(
     DB, username=None, client=None, urls=None, auto_approve=False, **kwargs
 ):
-    try:
-        print(
-            "\nSave these credentials! Fence will not save the unhashed client secret."
-        )
-        print("client id, client secret:")
-        # This should always be the last line of output and should remain in this format--
-        # cloud-auto and gen3-qa use the output programmatically.
-        print(
-            create_client(
-                username, urls, DB, name=client, auto_approve=auto_approve, **kwargs
-            )
-        )
-    except Exception as e:
-        logger.error(str(e))
+    print("\nSave these credentials! Fence will not save the unhashed client secret.")
+    res = create_client(
+        DB=DB,
+        username=username,
+        urls=urls,
+        name=client,
+        auto_approve=auto_approve,
+        **kwargs,
+    )
+    print("client id, client secret:")
+    # This should always be the last line of output and should remain in this format--
+    # cloud-auto and gen3-qa use the output programmatically.
+    print(res)
 
 
 def delete_client_action(DB, client_name):
@@ -1008,9 +1007,9 @@ class JWTCreator(object):
             return generate_signed_access_token(
                 self.kid,
                 self.private_key,
-                user,
                 self.expires_in,
                 self.scopes,
+                user=user,
                 iss=self.base_url,
             )
 

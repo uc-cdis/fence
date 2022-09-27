@@ -70,7 +70,7 @@ def test_get_signed_url(
                 return_value=storage_account_matches,
             ):
                 with patch(
-                    "fence.blueprints.data.indexd._get_user_info_for_id_or_from_request",
+                    "fence.blueprints.data.indexd._get_auth_info_for_id_or_from_request",
                     return_value={"user_id": user_id},
                 ):
                     azure_blob_storage_indexed_file_location = (
