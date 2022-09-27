@@ -20,7 +20,6 @@ from fence.scripting.fence_create import sync_users
 from fence.config import config
 from fence.models import User, DocumentSchema
 from fence.errors import UserError, NotFound, InternalError
-from fence.resources.admin import toggle_admin
 
 
 
@@ -244,7 +243,7 @@ def toggle_admin():
     if user_id is None:
         raise UserError("There are some missing parameters in the payload.")
 
-    res = toggle_admin(current_session, user_id)
+    res = admin.toggle_admin(current_session, user_id)
     if res is None or len(res) < 1:
         raise InternalError(
             "Resource {} has not been created.".format(

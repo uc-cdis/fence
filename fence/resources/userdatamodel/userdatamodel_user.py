@@ -49,7 +49,7 @@ def update_user(current_session, username, additional_info):
     return updated_user
 
 def toggle_admin(current_session, user_id, is_admin):
-    new_admin_value = 'f' if is_admin is True else 't'
+    new_admin_value = False if is_admin is True else True
 
     updated_user = (
         current_session.query(User)
