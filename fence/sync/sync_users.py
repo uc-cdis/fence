@@ -1550,6 +1550,7 @@ class UserSyncer(object):
                 self.sync_from_local_yaml_file, encrypted=False, logger=self.logger
             )
         except (EnvironmentError, AssertionError) as e:
+            # TODO return an error code so usersync doesn't fail silently
             self.logger.error(str(e))
             self.logger.error("aborting early")
             return
@@ -2436,6 +2437,7 @@ class UserSyncer(object):
                 self.sync_from_local_yaml_file, encrypted=False, logger=self.logger
             )
         except (EnvironmentError, AssertionError) as e:
+            # TODO return an error code so usersync doesn't fail silently
             self.logger.error(str(e))
             self.logger.error("aborting early")
             return

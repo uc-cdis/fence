@@ -1,6 +1,7 @@
 """
 Test fence.blueprints.data.indexd.IndexedFile
 """
+import json
 from unittest import mock
 from mock import patch
 
@@ -425,14 +426,19 @@ def test_internal_get_gs_signed_url_cache_new_key_if_old_key_expired(
     mock_google_service_account_key = GoogleServiceAccountKey()
     mock_google_service_account_key.expires = 10
     mock_google_service_account_key.private_key = "key"
+    sa_private_key = {
+        "type": "service_account",
+        "project_id": "project_id",
+        "private_key": "pdashoidhaspidhaspidhiash",
+    }
 
     with mock.patch(
         "fence.blueprints.data.indexd.get_or_create_primary_service_account_key",
-        return_value=("sa_private_key", mock_google_service_account_key),
+        return_value=(sa_private_key, mock_google_service_account_key),
     ):
         with mock.patch(
             "fence.blueprints.data.indexd.create_primary_service_account_key",
-            return_value=("sa_private_key"),
+            return_value=(sa_private_key),
         ):
             with mock.patch.object(
                 cirrus.google_cloud.utils,
@@ -441,9 +447,7 @@ def test_internal_get_gs_signed_url_cache_new_key_if_old_key_expired(
             ):
                 indexed_file = IndexedFile(file_id="some id")
                 google_object = GoogleStorageIndexedFileLocation("gs://some/location")
-                keydbentry = UserGoogleAccountToProxyGroup()
-                keydbentry.expires = 10
-                google_object._assume_role_cache_gs = {"1": ("key", keydbentry, 10)}
+                google_object._assume_role_cache_gs = {"1": ("key", 10)}
 
                 assert google_object._assume_role_cache_gs
                 before_cache = db_session.query(AssumeRoleCacheGCP).first()
@@ -459,6 +463,105 @@ def test_internal_get_gs_signed_url_cache_new_key_if_old_key_expired(
 
                 after_cache = db_session.query(AssumeRoleCacheGCP).all()
                 assert before_cache != after_cache
+
+
+@mock.patch.object(utils, "_get_proxy_group_id", return_value=None)
+@mock.patch.object(indexd, "get_or_create_proxy_group_id", return_value="1")
+def test_internal_get_gs_signed_url_clear_cache_and_parse_json(
+    mock_get_or_create_proxy_group_id,
+    mock_get_proxy_group_id,
+    app,
+    indexd_client_accepting_record,
+    db_session,
+):
+    """
+    Test fence.blueprints.data.indexd.GoogleStorageIndexedFileLocation._generate_google_storage_signed_url
+    Scenario: - Create presigned url, cache in-mem and in db
+              - Roll pods, which removes in-mem cache but keeps db entry
+              - Make sure in-mem is populated correctly when creating presigned url again
+
+    create presigned url
+        set cache in db
+    clear cache
+    create presigned url again
+        make sure cache is set correctly
+    """
+
+    indexd_record_with_non_public_authz_and_public_acl_populated = {
+        "urls": [f"gs://some/location"],
+        "authz": ["/programs/DEV/projects/test"],
+        "acl": ["*"],
+    }
+    indexd_client_accepting_record(
+        indexd_record_with_non_public_authz_and_public_acl_populated
+    )
+
+    mock_google_service_account_key = GoogleServiceAccountKey()
+    mock_google_service_account_key.expires = 10
+    mock_google_service_account_key.private_key = "key"
+    sa_private_key = {
+        "type": "service_account",
+        "project_id": "project_id",
+        "private_key": "pdashoidhaspidhaspidhiash",
+    }
+
+    with mock.patch(
+        "fence.blueprints.data.indexd.get_or_create_primary_service_account_key",
+        return_value=(sa_private_key, mock_google_service_account_key),
+    ):
+        with mock.patch(
+            "fence.blueprints.data.indexd.create_primary_service_account_key",
+            return_value=(sa_private_key),
+        ):
+            with mock.patch.object(
+                cirrus.google_cloud.utils,
+                "get_signed_url",
+                return_value="https://cloud.google.com/compute/url",
+            ):
+                indexed_file = IndexedFile(file_id="some id")
+                google_object = GoogleStorageIndexedFileLocation("gs://some/location")
+                google_object._assume_role_cache_gs = {"1": ("key", 10)}
+
+                before_cache = db_session.query(AssumeRoleCacheGCP).first()
+
+                google_object._generate_google_storage_signed_url(
+                    http_verb="GET",
+                    resource_path="gs://some/location",
+                    expires_in=0,
+                    user_id=1,
+                    username="some user",
+                    r_pays_project=None,
+                )
+
+                assert google_object._assume_role_cache_gs["1"][0] == sa_private_key
+
+                after_cache = db_session.query(AssumeRoleCacheGCP).first()
+
+                assert after_cache
+                # check if json loads can properly parse json string stored in cache
+                assert "1" in google_object._assume_role_cache_gs
+                assert len(google_object._assume_role_cache_gs["1"]) > 1
+                assert google_object._assume_role_cache_gs["1"][0] == sa_private_key
+
+                # make sure cache is added back in the proper format after clearing
+                google_object._assume_role_cache_gs = {}
+
+                google_object._generate_google_storage_signed_url(
+                    http_verb="GET",
+                    resource_path="gs://some/location",
+                    expires_in=0,
+                    user_id=1,
+                    username="some user",
+                    r_pays_project=None,
+                )
+
+                redo_cache = db_session.query(AssumeRoleCacheGCP).first()
+
+                assert redo_cache
+                # check if json loads can properly parse json string stored in cache
+                assert "1" in google_object._assume_role_cache_gs
+                assert len(google_object._assume_role_cache_gs["1"]) > 1
+                assert google_object._assume_role_cache_gs["1"][0] == sa_private_key
 
 
 def test_set_acl_missing_unauthorized(

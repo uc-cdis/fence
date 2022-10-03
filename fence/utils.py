@@ -36,9 +36,9 @@ def json_res(data):
 
 
 def create_client(
-    username,
-    urls,
     DB,
+    username=None,
+    urls=[],
     name="",
     description="",
     auto_approve=False,
@@ -52,7 +52,6 @@ def create_client(
     client_id = random_str(40)
     if arborist is not None:
         arborist.create_client(client_id, policies)
-    grant_types = grant_types
     driver = SQLAlchemyDriver(DB)
     client_secret = None
     hashed_secret = None
@@ -62,6 +61,7 @@ def create_client(
             client_secret.encode("utf-8"), bcrypt.gensalt()
         ).decode("utf-8")
     auth_method = "client_secret_basic" if confidential else "none"
+
     allowed_scopes = allowed_scopes or config["CLIENT_ALLOWED_SCOPES"]
     if not set(allowed_scopes).issubset(set(config["CLIENT_ALLOWED_SCOPES"])):
         raise ValueError(
@@ -69,15 +69,19 @@ def create_client(
                 config["CLIENT_ALLOWED_SCOPES"]
             )
         )
+
     if "openid" not in allowed_scopes:
         allowed_scopes.append("openid")
         logger.warning('Adding required "openid" scope to list of allowed scopes.')
-    with driver.session as s:
-        user = query_for_user(session=s, username=username)
 
-        if not user:
-            user = User(username=username, is_admin=is_admin)
-            s.add(user)
+    with driver.session as s:
+        user = None
+        if username:
+            user = query_for_user(session=s, username=username)
+            if not user:
+                user = User(username=username, is_admin=is_admin)
+                s.add(user)
+
         if s.query(Client).filter(Client.name == name).first():
             if arborist is not None:
                 arborist.delete_client(client_id)
@@ -97,6 +101,7 @@ def create_client(
         )
         s.add(client)
         s.commit()
+
     return client_id, client_secret
 
 
