@@ -191,10 +191,17 @@ class Oauth2ClientBase(object):
             refresh_token = row.refresh_token
             expires = row.expires
 
+            if time.time() > expires:
+                # reset to check for next token
+                refresh_token = None
+                expires = None
+
+                # delete expired refresh token
+                db_session.delete(row)
+                db_session.commit()
+
         if not refresh_token:
-            raise AuthError("User doesn't have a refresh token")
-        if time.time() > expires:
-            raise AuthError("Refresh token expired. Please login again.")
+            raise AuthError("User doesn't have a valid, non-expired refresh token")
 
         token_response = self.session.refresh_token(
             url=token_endpoint,
