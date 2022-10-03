@@ -223,6 +223,37 @@ def add_user_to_projects(username):
         admin.add_user_to_projects(current_session, username, projects=projects)
     )
 
+@blueprint.route("/toggle_admin", methods=["POST"])
+@admin_login_required
+@debug_log
+def toggle_admin():
+    """
+    Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/add_resource`
+
+    payload:
+    `{
+        "parent_path": "/services/",
+        "name": "amanuensis",
+        "description": "Amanuensis admin resource"
+    }`
+    """
+    body = request.get_json()
+    user_id = body.get('user_id', None)
+
+    if user_id is None:
+        raise UserError("There are some missing parameters in the payload.")
+
+    res = admin.toggle_admin(current_session, user_id)
+    if res is None or len(res) < 1:
+        raise InternalError(
+            "Resource {} has not been created.".format(
+                user_id
+            )
+        )
+    else:
+        logger.info("Updated resource")
+
+    return jsonify(res)
 
 @blueprint.route("/update_user_authz", methods=["POST"])
 @admin_login_required

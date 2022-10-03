@@ -17,12 +17,14 @@ from fence.resources import group as gp, project as pj, user as us, userdatamode
 from flask import current_app as capp
 
 
+
 __all__ = [
     "connect_user_to_project",
     "get_user_info",
     "get_all_users",
     "get_users",
     "get_users_by_id",
+    "toggle_admin",
     "get_user_groups",
     "create_user",
     "update_user",
@@ -177,6 +179,17 @@ def update_user(current_session, username, role, email, new_name):
         usr.is_admin = role == "admin"
     usr.username = new_name or usr.username
     return us.get_user_info(current_session, usr.username)
+
+def toggle_admin(current_session, user_id):
+    user_ids = []
+    user_ids.append(user_id)
+    users = udm.get_users_by_id(current_session, user_ids)
+
+    ret = []
+    for user in users:
+        ret.append(udm.toggle_admin(current_session, user.id, user.is_admin))
+
+    return ret
 
 
 def add_user_to_projects(current_session, username, projects=None):
