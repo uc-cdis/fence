@@ -42,7 +42,7 @@ DB: 'postgresql://test:test@localhost:5432/fence'
 ENCRYPTION_KEY: ''
 
 # Cross-service keys
-AMANUENSIS_PUBLIC_KEY_PATH: ''
+AMANUENSIS_PUBLIC_KEY_PATH: '/amanuensis/jwt_public_key.pem'
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # DEBUG & SECURITY SETTINGS
