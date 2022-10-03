@@ -5,7 +5,6 @@
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/41ff9d807efa4da8a733793b3539ba3e)](https://www.codacy.com/app/uc-cdis/fence?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=uc-cdis/fence&amp;utm_campaign=Badge_Grade)
 [![Coverage Status](https://coveralls.io/repos/github/uc-cdis/fence/badge.svg?branch=master)](https://coveralls.io/github/uc-cdis/fence?branch=master)
 
-
 A `fence` separates protected resources from the outside world and allows
 only trusted entities to enter.
 
@@ -600,4 +599,4 @@ Table contains various artifacts in fence that have temporary lifetimes and thei
 | Client SA (for User) Key             | 10 days      | FALSE       | N/A                   | Obtained by the user themselves for temp access. Can optionally provide an expiration less than 10 days                              |
 | User Primary SA Key                  | 10 days      | FALSE       | N/A                   | Used for Google URL signing                                                              |
 | User Primary SA Key for URL Signing  | 30 days      | FALSE       | N/A                   |                                                                                          |
-| Sliding Session Window               | 30 minutes   | TRUE        | 8 hours               | access_token cookies get generated automatically when expired if session is still active |
+| Sliding Session Window               | 15 minutes   | TRUE        | 8 hours               | access_token cookies get generated automatically when expired if session is still active |
