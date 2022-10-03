@@ -290,8 +290,8 @@ def upload_file(file_id):
     """
     file_name = flask.request.args.get("file_name")
     if not file_name:
-        logger.warning(f"file_name not provided, using GUID: {file_id}")
-        file_name = str(file_id)
+        file_name = str(file_id).replace("/", "_")
+        logger.warning(f"file_name not provided, using '{file_name}'")
 
     result = get_signed_url_for_file("upload", file_id, file_name=file_name)
     return flask.jsonify(result)
