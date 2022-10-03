@@ -307,7 +307,9 @@ def generate_signed_refresh_token(
     if client_id:
         claims["aud"].append(client_id)
 
-    logger.info("issuing JWT refresh token with id [{}] to [{}]".format(jti, sub))
+    logger.info(
+        "issuing JWT refresh token with id [{}] to user sub [{}]".format(jti, sub)
+    )
     logger.debug(f"issuing JWT refresh token: {claims}")
 
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
@@ -358,9 +360,9 @@ def generate_api_key(kid, private_key, user_id, expires_in, scopes, client_id):
 def generate_signed_access_token(
     kid,
     private_key,
-    user,
     expires_in,
     scopes,
+    user=None,
     iss=None,
     forced_exp_time=None,
     client_id=None,
@@ -373,9 +375,9 @@ def generate_signed_access_token(
     Args:
         kid (str): key id of the keypair used to generate token
         private_key (str): RSA private key to sign and encode the JWT with
-        user (fence.models.User): User to generate ID token for
         expires_in (int): seconds until expiration
         scopes (List[str]): oauth scopes for user
+        user (fence.models.User): optional - User to generate ID token for
 
     Return:
         str: encoded JWT access token signed with ``private_key``
@@ -384,7 +386,6 @@ def generate_signed_access_token(
     iat, exp = issued_and_expiration_times(expires_in)
     # force exp time if provided
     exp = forced_exp_time or exp
-    sub = str(user.id)
     jti = str(uuid.uuid4())
     if not iss:
         try:
@@ -397,20 +398,13 @@ def generate_signed_access_token(
 
     claims = {
         "pur": "access",
-        "sub": sub,
         "iss": iss,
         "aud": [iss],
         "iat": iat,
         "exp": exp,
         "jti": jti,
         "scope": scopes,
-        "context": {
-            "user": {
-                "name": user.username,
-                "is_admin": user.is_admin,
-                "google": {"proxy_group": user.google_proxy_group_id},
-            }
-        },
+        "context": {},
         "azp": client_id or "",
     }
 
@@ -421,13 +415,27 @@ def generate_signed_access_token(
     if scopes:
         claims["aud"] += scopes
 
-    # only add google linkage information if provided
-    if linked_google_email:
-        claims["context"]["user"]["google"][
-            "linked_google_account"
-        ] = linked_google_email
+    sub = None
+    if user:
+        sub = str(user.id)
+        claims["sub"] = sub
+        claims["context"]["user"] = {
+            "name": user.username,
+            "is_admin": user.is_admin,
+            "google": {"proxy_group": user.google_proxy_group_id},
+        }
 
-    logger.info("issuing JWT access token with id [{}] to [{}]".format(jti, sub))
+        # only add google linkage information if provided
+        if linked_google_email:
+            claims["context"]["user"]["google"][
+                "linked_google_account"
+            ] = linked_google_email
+
+    logger.info(
+        "issuing JWT access token with id [{}] to user sub [{}] and client id [{}]".format(
+            jti, sub, client_id
+        )
+    )
     logger.debug(f"issuing JWT access token {claims}")
 
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
