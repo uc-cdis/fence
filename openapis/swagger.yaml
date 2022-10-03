@@ -1668,8 +1668,8 @@ components:
           type: string
           required: true
           description: >-
-            the requested bucket to upload to. If not provided,
-            defaults to the configured DATA_UPLOAD_BUCKET.
+            the requested bucket to upload to.
+            If not provided, defaults to the configured DATA_UPLOAD_BUCKET.
         expires_in:
           type: integer
           description: optional integer specifying the presigned URL lifetime
