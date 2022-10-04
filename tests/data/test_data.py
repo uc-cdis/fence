@@ -390,7 +390,7 @@ def test_indexd_upload_file_bucket(
         assert bucket_in_url in response.json.get("url")
     else:
         # "permission denied for bucket"
-        assert response.status_code == 401, response
+        assert response.status_code == 500, response
 
 
 @pytest.mark.parametrize("indexd_client", ["nonexistent_guid"], indirect=True)

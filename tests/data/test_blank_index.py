@@ -182,7 +182,7 @@ def test_blank_index_upload_bucket(
             assert bucket_in_url in response.json["url"]
         else:
             # "permission denied for bucket"
-            assert response.status_code == 401, response
+            assert response.status_code == 500, response
 
 
 def test_blank_index_upload_missing_indexd_credentials(
