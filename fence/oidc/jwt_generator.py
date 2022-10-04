@@ -51,6 +51,8 @@ def generate_token(client, grant_type, **kwargs):
         return generate_token_response(client, grant_type, **kwargs)
     elif grant_type == "implicit":
         return generate_implicit_response(client, grant_type, **kwargs)
+    elif grant_type == "client_credentials":
+        return generate_client_response(client, **kwargs)
 
 
 def generate_implicit_response(
@@ -63,6 +65,18 @@ def generate_implicit_response(
     nonce=None,
     **kwargs
 ):
+    """
+    Generate the token response for the "implicit" grant.
+
+    Return:
+        dict: token response
+            {
+                "token_type": "Bearer",
+                "id_token": "",
+                "access_token": "",
+                "expires_in": 1200,
+            }
+    """
     # prevent those bothersome "not bound to session" errors
     if user not in current_session:
         user = current_session.query(User).filter_by(id=user.id).first()
@@ -140,6 +154,20 @@ def generate_token_response(
     refresh_token_claims=None,
     **kwargs
 ):
+    """
+    Generate the token response for the "authorization_code" and
+    "refresh_token" grants.
+
+    Return:
+        dict: token response
+            {
+                "token_type": "Bearer",
+                "id_token": "",
+                "access_token": "",
+                "refresh_token": "",
+                "expires_in": 1200,
+            }
+    """
     # prevent those bothersome "not bound to session" errors
     if user not in current_session:
         user = current_session.query(User).filter_by(id=user.id).first()
@@ -218,5 +246,44 @@ def generate_token_response(
         "id_token": id_token,
         "access_token": access_token,
         "refresh_token": refresh_token,
+        "expires_in": expires_in,
+    }
+
+
+def generate_client_response(client, expires_in=None, scope=None, **kwargs):
+    """
+    Generate the token response for the "client_credentials" grant.
+
+    Args:
+        client (Client): OIDC client that initiated the request
+        expires_in (int): Optional (default: configurable
+            `ACCESS_TOKEN_EXPIRES_IN`) - token lifetime in seconds
+        scope (List[str]): list of requested scopes
+
+    Return:
+        dict: token response
+            {
+                "token_type": "Bearer",
+                "access_token": "",
+                "expires_in": 1200,
+            }
+    """
+    keypair = flask.current_app.keypairs[0]
+    expires_in = config["ACCESS_TOKEN_EXPIRES_IN"] or expires_in
+
+    scope = scope or []
+    if not isinstance(scope, list):
+        scope = scope.split(" ")
+
+    access_token = generate_signed_access_token(
+        kid=keypair.kid,
+        private_key=keypair.private_key,
+        expires_in=expires_in,
+        scopes=scope,
+        client_id=client.client_id,
+    ).token
+    return {
+        "token_type": "Bearer",
+        "access_token": access_token,
         "expires_in": expires_in,
     }

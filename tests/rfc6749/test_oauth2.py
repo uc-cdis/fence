@@ -2,6 +2,7 @@
 Test the endpoints in the ``/oauth2`` blueprint.
 """
 
+import jwt
 import pytest
 
 from fence.jwt.token import SCOPE_DESCRIPTION
@@ -42,6 +43,22 @@ def test_oauth2_token_post(oauth_test_client):
     data = {"confirm": "yes"}
     oauth_test_client.authorize(data=data)
     oauth_test_client.token()
+
+    response = oauth_test_client.token_response.response
+    assert response.status_code == 200, response.json
+    response = response.json
+    assert "id_token" in response
+    assert "access_token" in response
+    assert "refresh_token" in response
+    assert "expires_in" in response
+    assert response.get("token_type") == "Bearer"
+
+    payload = jwt.decode(response["access_token"], verify=False)
+    assert payload.get("iss") == "http://localhost/user"
+    assert payload.get("azp") == oauth_test_client.client_id
+    assert "context" in payload
+    assert payload.get("context", {}).get("user", {}).get("name") == "test"
+    assert payload.get("scope") == ["openid", "user"]
 
 
 def test_oauth2_token_post_public_client(oauth_test_client_public):
@@ -86,3 +103,62 @@ def test_oauth2_token_post_revoke(oauth_test_client):
     oauth_test_client.refresh(refresh_token, do_asserts=False)
     response = oauth_test_client.refresh_response.response
     assert response.status_code == 400
+
+
+def test_oauth2_with_client_credentials(
+    oauth_client_with_client_credentials, oauth_test_client_with_client_credentials
+):
+    """
+    Test that a client with the client_credentials grant can exchange its
+    client ID and secret for an access token
+    """
+    # hit /oauth2/token
+    oauth_test_client_with_client_credentials.token(
+        scope=" ".join(oauth_client_with_client_credentials.scopes)
+    )
+
+    response = oauth_test_client_with_client_credentials.token_response.response
+    assert response.status_code == 200, response.json
+    response = response.json
+    assert "access_token" in response
+    assert "expires_in" in response
+    assert response.get("token_type") == "Bearer"
+
+    payload = jwt.decode(response["access_token"], verify=False)
+    assert payload.get("iss") == "http://localhost/user"
+    assert payload.get("azp") == oauth_test_client_with_client_credentials.client_id
+    assert payload.get("context") == {}  # no user linked to this token
+    assert payload.get("scope") == oauth_client_with_client_credentials.scopes
+
+
+def test_oauth2_with_client_credentials_bad_scope(
+    oauth_test_client_with_client_credentials,
+):
+    """
+    Test that a client with the client_credentials grant cannot exchange its
+    client ID and secret for an access token when requesting a scope it does
+    not have
+    """
+    # hit /oauth2/token
+    oauth_test_client_with_client_credentials.token(
+        scope="openid unknown-scope", do_asserts=False
+    )
+
+    response = oauth_test_client_with_client_credentials.token_response.response
+    assert response.status_code == 400, response.json
+    assert response.json.get("error") == "invalid_scope"
+
+
+def test_oauth2_without_client_credentials(oauth_test_client):
+    """
+    Test that a client without the client_credentials grant cannot exchange its
+    client ID and secret for an access token
+    """
+    oauth_test_client.authorize(data={"confirm": "yes"})
+
+    oauth_test_client.grant_types = ["client_credentials"]
+    oauth_test_client.token(do_asserts=False)  # hit /oauth2/token
+
+    response = oauth_test_client.token_response.response
+    assert response.status_code == 400, response.json
+    assert response.json.get("error") == "unauthorized_client"

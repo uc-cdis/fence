@@ -159,10 +159,54 @@ def test_create_client_doesnt_create_client_with_invalid_scope(db_session):
         client_after = db_session.query(Client).filter_by(name=client_name).all()
         assert len(client_after) == 0
 
+    with pytest.raises(ValueError):
+        create_client_action_wrapper(
+            to_test,
+            client_name=client_name,
+            allowed_scopes=["openid", "user", "data", "invalid_scope"],
+        )
+
+
+def test_create_client_without_user_and_url(db_session):
+    """
+    Test that a client with the authorization_code grant cannot be created
+    without providing a username or redirect URLs.
+    """
+    client_name = "client_with_client_credentials"
+    grant_types = ["authorization_code", "client_credentials"]
+
+    def to_test():
+        client_after = db_session.query(Client).filter_by(name=client_name).all()
+        assert len(client_after) == 0
+
+    with pytest.raises(AssertionError):
+        create_client_action_wrapper(
+            to_test,
+            client_name=client_name,
+            username=None,
+            urls=None,
+            grant_types=grant_types,
+        )
+
+
+def test_create_client_with_client_credentials(db_session):
+    """
+    Test that a client with the client_credentials grant can be created
+    without providing a username or redirect URLs.
+    """
+    client_name = "client_with_client_credentials"
+    grant_types = ["client_credentials"]
+
+    def to_test():
+        saved_client = db_session.query(Client).filter_by(name=client_name).first()
+        assert saved_client.grant_types == grant_types
+
     create_client_action_wrapper(
         to_test,
         client_name=client_name,
-        allowed_scopes=["openid", "user", "data", "invalid_scope"],
+        username=None,
+        urls=None,
+        grant_types=grant_types,
     )
 
 
@@ -172,7 +216,13 @@ def test_client_delete(app, db_session, cloud_manager, test_user_a):
     service accounts and the client themself.
     """
     client_name = "test123"
-    client = Client(client_id=client_name, client_secret="secret", name=client_name)
+    client = Client(
+        client_id=client_name,
+        client_secret="secret",
+        name=client_name,
+        user=User(username="client_user"),
+        redirect_uris="localhost",
+    )
     db_session.add(client)
     db_session.commit()
 
@@ -207,7 +257,13 @@ def test_client_delete_error(app, db_session, cloud_manager, test_user_a):
     we don't remove it from the db.
     """
     client_name = "test123"
-    client = Client(client_id=client_name, client_secret="secret", name=client_name)
+    client = Client(
+        client_id=client_name,
+        client_secret="secret",
+        name=client_name,
+        user=User(username="client_user"),
+        redirect_uris=["localhost"],
+    )
     db_session.add(client)
     db_session.commit()
 
@@ -1261,7 +1317,13 @@ def test_delete_expired_service_account_keys_both_user_and_client(
 
 def test_list_client_action(db_session, capsys):
     client_name = "test123"
-    client = Client(client_id=client_name, client_secret="secret", name=client_name)
+    client = Client(
+        client_id=client_name,
+        client_secret="secret",
+        name=client_name,
+        user=User(username="client_user"),
+        redirect_uris=["localhost"],
+    )
     db_session.add(client)
     db_session.commit()
     list_client_action(db_session)
@@ -1274,7 +1336,13 @@ def test_list_client_action(db_session, capsys):
 def test_modify_client_action(db_session):
     client_id = "testid"
     client_name = "test123"
-    client = Client(client_id=client_id, client_secret="secret", name=client_name)
+    client = Client(
+        client_id=client_id,
+        client_secret="secret",
+        name=client_name,
+        user=User(username="client_user"),
+        redirect_uris=["localhost"],
+    )
     db_session.add(client)
     db_session.commit()
     modify_client_action(
@@ -1387,6 +1455,8 @@ def test_modify_client_action_modify_allowed_scopes(db_session):
         client_secret="secret",  # pragma: allowlist secret
         name=client_name,
         _allowed_scopes="openid user data",
+        user=User(username="client_user"),
+        redirect_uris=["localhost"],
     )
     db_session.add(client)
     db_session.commit()
@@ -1415,6 +1485,8 @@ def test_modify_client_action_modify_allowed_scopes_append_true(db_session):
         client_secret="secret",  # pragma: allowlist secret
         name=client_name,
         _allowed_scopes="openid user data",
+        user=User(username="client_user"),
+        redirect_uris=["localhost"],
     )
     db_session.add(client)
     db_session.commit()
@@ -1444,6 +1516,7 @@ def test_modify_client_action_modify_append_url(db_session):
         client_secret="secret",  # pragma: allowlist secret
         name=client_name,
         _allowed_scopes="openid user data",
+        user=User(username="client_user"),
         redirect_uris="abcd",
     )
     db_session.add(client)

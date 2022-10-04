@@ -576,7 +576,11 @@ def test_google_attempt_delete_unowned_access_token(
 
     # create a service account for A DIFFERENT CLIENT
     client_entry = Client(
-        client_id="NOT_THIS_GUY", client_secret="a0987u23on192y", name="NOT_THIS_GUY"
+        client_id="NOT_THIS_GUY",
+        client_secret="a0987u23on192y",
+        name="NOT_THIS_GUY",
+        user=User(username="client_user"),
+        redirect_uris=["localhost"],
     )
     service_account = GoogleServiceAccount(
         google_unique_id="123456789",
