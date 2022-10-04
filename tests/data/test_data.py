@@ -347,7 +347,13 @@ def test_indexd_upload_file_filename_key_error(
 @pytest.mark.parametrize("indexd_client", ["s3"], indirect=True)
 @pytest.mark.parametrize(
     "bucket,expect_success",
-    [[None, True], ["bucket1", True], ["not-a-configured-bucket", False]],
+    [
+        [None, True],
+        ["bucket2", True],
+        # bucket3 is in S3_BUCKETS but not in ALLOWED_DATA_UPLOAD_BUCKETS
+        ["bucket3", False],
+        ["not-a-configured-bucket", False],
+    ],
 )
 def test_indexd_upload_file_bucket(
     client,

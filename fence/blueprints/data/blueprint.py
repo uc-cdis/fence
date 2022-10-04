@@ -177,6 +177,15 @@ def upload_data_file():
 
     protocol = params["protocol"] if "protocol" in params else None
     bucket = params.get("bucket")
+    if bucket:
+        s3_buckets = get_value(
+            flask.current_app.config,
+            "ALLOWED_DATA_UPLOAD_BUCKETS",
+            InternalError("ALLOWED_DATA_UPLOAD_BUCKETS not configured"),
+        )
+        if bucket not in s3_buckets:
+            logger.debug(f"Bucket '{bucket}' not in ALLOWED_DATA_UPLOAD_BUCKETS config")
+            raise InternalError("permission denied for bucket")
 
     response = {
         "guid": blank_index.guid,
@@ -305,11 +314,11 @@ def upload_file(file_id):
     if bucket:
         s3_buckets = get_value(
             flask.current_app.config,
-            "S3_BUCKETS",
-            InternalError("S3_BUCKETS not configured"),
+            "ALLOWED_DATA_UPLOAD_BUCKETS",
+            InternalError("ALLOWED_DATA_UPLOAD_BUCKETS not configured"),
         )
         if bucket not in s3_buckets:
-            logger.debug(f"Bucket '{bucket}' not found in S3_BUCKETS config")
+            logger.debug(f"Bucket '{bucket}' not in ALLOWED_DATA_UPLOAD_BUCKETS config")
             raise InternalError("permission denied for bucket")
 
     result = get_signed_url_for_file(

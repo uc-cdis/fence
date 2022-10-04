@@ -79,7 +79,7 @@ def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_cl
             json={"file_name": file_name, "uploader": user_client.username},
             headers={},
         )
-        assert response.status_code == 201, response
+        assert response.status_code == 201, response.json
         assert "guid" in response.json
         assert "url" in response.json
 
@@ -123,14 +123,20 @@ def test_blank_index_upload_authz(
             json={"file_name": file_name, "uploader": None, "authz": authz},
             headers={"Authorization": "bearer " + encoded_creds_jwt.jwt},
         )
-        assert response.status_code == 201, response
+        assert response.status_code == 201, response.json
         assert "guid" in response.json
         assert "url" in response.json
 
 
 @pytest.mark.parametrize(
     "bucket,expect_success",
-    [[None, True], ["bucket1", True], ["not-a-configured-bucket", False]],
+    [
+        [None, True],
+        ["bucket2", True],
+        # bucket3 is in S3_BUCKETS but not in ALLOWED_DATA_UPLOAD_BUCKETS
+        ["bucket3", False],
+        ["not-a-configured-bucket", False],
+    ],
 )
 def test_blank_index_upload_bucket(
     app, client, auth_client, encoded_creds_jwt, user_client, bucket, expect_success
@@ -175,7 +181,7 @@ def test_blank_index_upload_bucket(
             headers={},
         )
         if expect_success:
-            assert response.status_code == 201, response
+            assert response.status_code == 201, response.json
             assert "guid" in response.json
             assert "url" in response.json
             bucket_in_url = bucket if bucket else config["DATA_UPLOAD_BUCKET"]
