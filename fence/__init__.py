@@ -308,9 +308,10 @@ def _check_buckets_aws_creds_and_region(app):
     if config["DATA_UPLOAD_BUCKET"]:
         bucket_names.append(config["DATA_UPLOAD_BUCKET"])
     for bucket_name in bucket_names:
-        assert (
-            bucket_name in buckets
-        ), f"Data upload bucket '{bucket_name}' is not configured in 'S3_BUCKETS'"
+        if bucket_name not in buckets:
+            logger.warning(
+                f"Data upload bucket '{bucket_name}' is not configured in 'S3_BUCKETS'"
+            )
 
 
 def app_config(
