@@ -480,7 +480,7 @@ S3_BUCKETS:
     region: 'us-east-1'
     role-arn: 'arn:aws:iam::707767160287:role/bucket_reader_writer_to_cdistest-presigned-url_role'
 
-ALLOWED_DATA_UPLOAD_BUCKETS: ['bucket2']
+ALLOWED_DATA_UPLOAD_BUCKETS: ['bucket3']
 
 DATA_UPLOAD_BUCKET: 'bucket1'
 

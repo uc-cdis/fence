@@ -10,8 +10,7 @@ from fence.blueprints.data.indexd import (
     IndexedFile,
     get_signed_url_for_file,
 )
-from fence.config import config
-from fence.errors import Forbidden, InternalError, UserError, Forbidden, Unauthorized
+from fence.errors import Forbidden, InternalError, UserError, Unauthorized
 from fence.resources.audit.utils import enable_audit_logging
 from fence.utils import get_valid_expiration
 
@@ -185,7 +184,7 @@ def upload_data_file():
         )
         if bucket not in s3_buckets:
             logger.debug(f"Bucket '{bucket}' not in ALLOWED_DATA_UPLOAD_BUCKETS config")
-            raise InternalError("permission denied for bucket")
+            raise Forbidden(f"Uploading to bucket '{bucket}' is not allowed")
 
     response = {
         "guid": blank_index.guid,
@@ -319,7 +318,7 @@ def upload_file(file_id):
         )
         if bucket not in s3_buckets:
             logger.debug(f"Bucket '{bucket}' not in ALLOWED_DATA_UPLOAD_BUCKETS config")
-            raise InternalError("permission denied for bucket")
+            raise Forbidden(f"Uploading to bucket '{bucket}' is not allowed")
 
     result = get_signed_url_for_file(
         "upload", file_id, file_name=file_name, bucket=bucket

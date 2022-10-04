@@ -346,13 +346,16 @@ def test_indexd_upload_file_filename_key_error(
 
 @pytest.mark.parametrize("indexd_client", ["s3"], indirect=True)
 @pytest.mark.parametrize(
-    "bucket,expect_success",
+    "bucket,expected_status_code",
     [
-        [None, True],
-        ["bucket2", True],
-        # bucket3 is in S3_BUCKETS but not in ALLOWED_DATA_UPLOAD_BUCKETS
-        ["bucket3", False],
-        ["not-a-configured-bucket", False],
+        # fallback to default DATA_UPLOAD_BUCKET
+        [None, 200],
+        # bucket configured in S3_BUCKETS AND in ALLOWED_DATA_UPLOAD_BUCKETS
+        ["bucket3", 200],
+        # bucket configured in S3_BUCKETS but NOT in ALLOWED_DATA_UPLOAD_BUCKETS
+        ["bucket2", 403],
+        # bucket NOT configured in S3_BUCKETS or ALLOWED_DATA_UPLOAD_BUCKETS
+        ["not-a-configured-bucket", 403],
     ],
 )
 def test_indexd_upload_file_bucket(
@@ -367,7 +370,7 @@ def test_indexd_upload_file_bucket(
     cloud_manager,
     google_signed_url,
     bucket,
-    expect_success,
+    expected_status_code,
 ):
     """
     Test ``GET /data/upload/<guid>?bucket=<bucket>``.
@@ -388,15 +391,13 @@ def test_indexd_upload_file_bucket(
         ).decode("utf-8")
     }
     response = client.get(path, headers=headers)
-    if expect_success:
-        assert response.status_code == 200, response
+
+    assert response.status_code == expected_status_code, response.json
+    if expected_status_code == 200:
         assert "url" in response.json.keys()
-        assert guid in response.json.get("url")
+        assert guid in response.json["url"]
         bucket_in_url = bucket if bucket else config["DATA_UPLOAD_BUCKET"]
-        assert bucket_in_url in response.json.get("url")
-    else:
-        # "permission denied for bucket"
-        assert response.status_code == 500, response
+        assert bucket_in_url in response.json["url"]
 
 
 @pytest.mark.parametrize("indexd_client", ["nonexistent_guid"], indirect=True)

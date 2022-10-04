@@ -129,17 +129,26 @@ def test_blank_index_upload_authz(
 
 
 @pytest.mark.parametrize(
-    "bucket,expect_success",
+    "bucket,expected_status_code",
     [
-        [None, True],
-        ["bucket2", True],
-        # bucket3 is in S3_BUCKETS but not in ALLOWED_DATA_UPLOAD_BUCKETS
-        ["bucket3", False],
-        ["not-a-configured-bucket", False],
+        # fallback to default DATA_UPLOAD_BUCKET
+        [None, 201],
+        # bucket configured in S3_BUCKETS AND in ALLOWED_DATA_UPLOAD_BUCKETS
+        ["bucket3", 201],
+        # bucket configured in S3_BUCKETS but NOT in ALLOWED_DATA_UPLOAD_BUCKETS
+        ["bucket2", 403],
+        # bucket NOT configured in S3_BUCKETS or ALLOWED_DATA_UPLOAD_BUCKETS
+        ["not-a-configured-bucket", 403],
     ],
 )
 def test_blank_index_upload_bucket(
-    app, client, auth_client, encoded_creds_jwt, user_client, bucket, expect_success
+    app,
+    client,
+    auth_client,
+    encoded_creds_jwt,
+    user_client,
+    bucket,
+    expected_status_code,
 ):
     """
     Same test as above, except request a specific bucket to upload the file to
@@ -180,15 +189,13 @@ def test_blank_index_upload_bucket(
             json={"file_name": file_name, "uploader": user_client.username},
             headers={},
         )
-        if expect_success:
-            assert response.status_code == 201, response.json
+
+        assert response.status_code == expected_status_code, response.json
+        if expected_status_code == 201:
             assert "guid" in response.json
             assert "url" in response.json
             bucket_in_url = bucket if bucket else config["DATA_UPLOAD_BUCKET"]
             assert bucket_in_url in response.json["url"]
-        else:
-            # "permission denied for bucket"
-            assert response.status_code == 500, response
 
 
 def test_blank_index_upload_missing_indexd_credentials(
