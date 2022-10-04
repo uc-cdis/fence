@@ -887,7 +887,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         s3_buckets = get_value(
             flask.current_app.config,
             "S3_BUCKETS",
-            InternalError("buckets not configured"),
+            InternalError("S3_BUCKETS not configured"),
         )
         for bucket in s3_buckets:
             if re.match("^" + bucket + "$", self.parsed_url.netloc):
@@ -903,7 +903,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         cls, bucket_name, aws_creds, expires_in, boto=None
     ):
         s3_buckets = get_value(
-            config, "S3_BUCKETS", InternalError("buckets not configured")
+            config, "S3_BUCKETS", InternalError("S3_BUCKETS not configured")
         )
         if len(aws_creds) == 0 and len(s3_buckets) == 0:
             raise InternalError("no bucket is configured")
@@ -913,7 +913,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         bucket_cred = s3_buckets.get(bucket_name)
         if bucket_cred is None:
             logger.debug(f"Bucket '{bucket_name}' not found in S3_BUCKETS config")
-            raise Unauthorized("permission denied for bucket")
+            raise InternalError("permission denied for bucket")
 
         cred_key = get_value(
             bucket_cred, "cred", InternalError("credential of that bucket is missing")
@@ -942,7 +942,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
     def get_bucket_region(self):
         s3_buckets = get_value(
-            config, "S3_BUCKETS", InternalError("buckets not configured")
+            config, "S3_BUCKETS", InternalError("S3_BUCKETS not configured")
         )
         if len(s3_buckets) == 0:
             return None
@@ -969,7 +969,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
         s3_buckets = get_value(
-            config, "S3_BUCKETS", InternalError("buckets not configured")
+            config, "S3_BUCKETS", InternalError("S3_BUCKETS not configured")
         )
 
         bucket_name = self.bucket_name()

@@ -306,11 +306,11 @@ def upload_file(file_id):
         s3_buckets = get_value(
             flask.current_app.config,
             "S3_BUCKETS",
-            InternalError("buckets not configured"),
+            InternalError("S3_BUCKETS not configured"),
         )
         if bucket not in s3_buckets:
             logger.debug(f"Bucket '{bucket}' not found in S3_BUCKETS config")
-            raise Unauthorized("permission denied for bucket")
+            raise InternalError("permission denied for bucket")
 
     result = get_signed_url_for_file(
         "upload", file_id, file_name=file_name, bucket=bucket
