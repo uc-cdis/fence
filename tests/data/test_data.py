@@ -344,6 +344,62 @@ def test_indexd_upload_file_filename_key_error(
         assert response.status_code == 500
 
 
+@pytest.mark.parametrize("indexd_client", ["s3"], indirect=True)
+@pytest.mark.parametrize(
+    "bucket,expected_status_code",
+    [
+        # fallback to default DATA_UPLOAD_BUCKET
+        [None, 200],
+        # bucket configured in S3_BUCKETS AND in ALLOWED_DATA_UPLOAD_BUCKETS
+        ["bucket3", 200],
+        # bucket configured in S3_BUCKETS but NOT in ALLOWED_DATA_UPLOAD_BUCKETS
+        ["bucket2", 403],
+        # bucket NOT configured in S3_BUCKETS or ALLOWED_DATA_UPLOAD_BUCKETS
+        ["not-a-configured-bucket", 403],
+    ],
+)
+def test_indexd_upload_file_bucket(
+    client,
+    oauth_client,
+    user_client,
+    indexd_client,
+    kid,
+    rsa_private_key,
+    google_proxy_group,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+    bucket,
+    expected_status_code,
+):
+    """
+    Test ``GET /data/upload/<guid>?bucket=<bucket>``.
+    """
+    guid = "1"
+    path = f"/data/upload/{guid}"
+    if bucket:
+        path += f"?bucket={bucket}"
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_upload_context_claims(
+                user_client.username, user_client.user_id
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ).decode("utf-8")
+    }
+    response = client.get(path, headers=headers)
+
+    assert response.status_code == expected_status_code, response.json
+    if expected_status_code == 200:
+        assert "url" in response.json.keys()
+        assert guid in response.json["url"]
+        bucket_in_url = bucket if bucket else config["DATA_UPLOAD_BUCKET"]
+        assert bucket_in_url in response.json["url"]
+
+
 @pytest.mark.parametrize("indexd_client", ["nonexistent_guid"], indirect=True)
 def test_indexd_upload_file_doesnt_exist(
     client,
