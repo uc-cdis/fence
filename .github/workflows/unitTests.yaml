@@ -3,7 +3,7 @@ on: push
 #comment
 jobs:
   run_tests:
-    uses: uc-cdis/.github/.github/workflows/python_unit_test.yaml@f28f640c029adf2680ead19bb64053227dc86976
+    uses: uc-cdis/.github/.github/workflows/python_unit_test.yaml@8f4e6dc485119895a9afc6576002beea82aac493
     with:
       setup-script-location: https://raw.githubusercontent.com/AidanHilt/.github/master/unit_test_scripts/fence.sh
       dependency-file-location: https://raw.githubusercontent.com/AidanHilt/.github/master/requirements/fence_requirements.txt
