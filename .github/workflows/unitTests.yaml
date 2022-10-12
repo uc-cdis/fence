@@ -6,5 +6,4 @@ jobs:
     uses: uc-cdis/.github/.github/workflows/python_unit_test.yaml@826ccf7c3aebe705f22f2a64d36b689a5e7fc936
     with:
       setup-script-location: https://raw.githubusercontent.com/AidanHilt/.github/master/unit_test_scripts/fence.sh
-      dependency-file-location: https://raw.githubusercontent.com/AidanHilt/.github/master/requirements/fence_requirements.txt
       python-versions: "['3.6.7', '3.9']"
