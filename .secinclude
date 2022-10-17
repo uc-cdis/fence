@@ -1,7 +1,0 @@
-bin/*
-cfg_help.py
-fence/*
-run.py
-wsgi.py
-poetry.lock
-pyproject.toml
