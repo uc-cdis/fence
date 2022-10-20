@@ -111,6 +111,7 @@ def test_app_config():
     )
 
     assert fence.app.config  # nosec
+    fence.app.blueprints = {}
 
     for patcher in patchers:
         patcher.stop()

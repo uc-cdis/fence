@@ -188,7 +188,6 @@ def generate_signed_session_token(kid, private_key, expires_in, context=None):
     }
     logger.debug(f"issuing JWT session token: {claims}")
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
-    token = to_unicode(token, "UTF-8")
 
     # Browser may clip cookies larger than 4096 bytes
     if len(token) > 4096:
@@ -313,7 +312,6 @@ def generate_signed_refresh_token(
     logger.debug(f"issuing JWT refresh token: {claims}")
 
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
-    token = to_unicode(token, "UTF-8")
 
     return JWTResult(token=token, kid=kid, claims=claims)
 
@@ -353,7 +351,6 @@ def generate_api_key(kid, private_key, user_id, expires_in, scopes, client_id):
     logger.debug(f"issuing JWT API key: {claims}")
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     logger.debug(str(token))
-    token = to_unicode(token, "UTF-8")
     return JWTResult(token=token, kid=kid, claims=claims)
 
 
@@ -439,7 +436,6 @@ def generate_signed_access_token(
     logger.debug(f"issuing JWT access token {claims}")
 
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
-    token = to_unicode(token, "UTF-8")
 
     # Browser may clip cookies larger than 4096 bytes
     if len(token) > 4096:

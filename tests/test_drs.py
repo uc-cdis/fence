@@ -79,7 +79,7 @@ def test_get_presigned_url_with_access_id(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
 
     res = client.get(
@@ -112,7 +112,7 @@ def test_get_presigned_url_no_access_id(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
 
     res = client.get(
@@ -156,7 +156,7 @@ def test_get_presigned_url_wrong_access_id(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
     res = client.get(
         "/ga4gh/drs/v1/objects/" + test_guid + "/access/s2",
@@ -189,7 +189,7 @@ def test_get_presigned_url_with_encoded_slash(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
     data = get_doc()
     data["did"] = "dg.TEST/ed8f4658-6acd-4f96-9dd8-3709890c959e"
@@ -226,7 +226,7 @@ def test_get_presigned_url_with_query_params(
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
-        ).decode("utf-8")
+        )
     }
     data = get_doc()
     data["did"] = "dg.TEST/ed8f4658-6acd-4f96-9dd8-3709890c959e"
@@ -363,7 +363,7 @@ def test_passport_use_disabled(
     }
     encoded_visa = jwt.encode(
         decoded_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
     passport_header = {
         "type": "JWT",
@@ -380,7 +380,7 @@ def test_passport_use_disabled(
     }
     encoded_passport = jwt.encode(
         passport, key=rsa_private_key, headers=passport_header, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
     access_id = indexd_client["indexed_file_location"]
     test_guid = "1"
@@ -522,7 +522,7 @@ def test_get_presigned_url_for_non_public_data_with_passport(
     }
     encoded_visa = jwt.encode(
         decoded_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
     passport_header = {
         "type": "JWT",
@@ -539,7 +539,7 @@ def test_get_presigned_url_for_non_public_data_with_passport(
     }
     encoded_passport = jwt.encode(
         passport, key=rsa_private_key, headers=passport_header, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
     access_id = indexd_client["indexed_file_location"]
     test_guid = "1"
@@ -680,7 +680,7 @@ def test_get_presigned_url_with_passport_with_incorrect_authz(
     }
     encoded_visa = jwt.encode(
         decoded_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
     passport_header = {
         "type": "JWT",
@@ -697,7 +697,7 @@ def test_get_presigned_url_with_passport_with_incorrect_authz(
     }
     encoded_passport = jwt.encode(
         passport, key=rsa_private_key, headers=passport_header, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
     access_id = indexd_client["indexed_file_location"]
     test_guid = "1"
@@ -976,7 +976,7 @@ def test_passport_cache_valid_passport(
     }
     encoded_visa = jwt.encode(
         decoded_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
     passport_header = {
         "type": "JWT",
@@ -993,7 +993,7 @@ def test_passport_cache_valid_passport(
     }
     encoded_passport = jwt.encode(
         passport, key=rsa_private_key, headers=passport_header, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
     access_id = indexd_client["indexed_file_location"]
     test_guid = "1"
@@ -1189,7 +1189,7 @@ def test_passport_cache_invalid_passport(
     }
     encoded_visa = jwt.encode(
         decoded_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
     passport_header = {
         "type": "JWT",
@@ -1206,7 +1206,7 @@ def test_passport_cache_invalid_passport(
     }
     invalid_encoded_passport = "invalid" + jwt.encode(
         passport, key=rsa_private_key, headers=passport_header, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
     access_id = indexd_client["indexed_file_location"]
     test_guid = "1"
@@ -1406,7 +1406,7 @@ def test_passport_cache_expired_in_memory_valid_in_db(
     }
     encoded_visa = jwt.encode(
         decoded_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
     passport_header = {
         "type": "JWT",
@@ -1423,7 +1423,7 @@ def test_passport_cache_expired_in_memory_valid_in_db(
     }
     encoded_passport = jwt.encode(
         passport, key=rsa_private_key, headers=passport_header, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
     access_id = indexd_client["indexed_file_location"]
     test_guid = "1"
@@ -1637,7 +1637,7 @@ def test_passport_cache_expired(
     }
     encoded_visa = jwt.encode(
         decoded_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
     passport_header = {
         "type": "JWT",
@@ -1654,7 +1654,7 @@ def test_passport_cache_expired(
     }
     encoded_passport = jwt.encode(
         passport, key=rsa_private_key, headers=passport_header, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
     access_id = indexd_client["indexed_file_location"]
     test_guid = "1"

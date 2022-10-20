@@ -1,5 +1,5 @@
 import flask
-from flask_sqlalchemy_session import current_session
+from fence.dbSession import current_session
 
 from fence.errors import Unauthorized
 from fence.models import query_for_user

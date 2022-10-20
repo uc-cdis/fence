@@ -323,7 +323,7 @@ def test_update_visa_empty_visa_returned(
     }
     encoded_passport = jwt.encode(
         new_passport, key=rsa_private_key, headers=passport_header, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
     userinfo_response["passport_jwt_v11"] = encoded_passport
     mock_userinfo.return_value = userinfo_response
@@ -441,7 +441,7 @@ def test_update_visa_token_with_invalid_visa(
 
     encoded_visa = jwt.encode(
         new_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
     passport_header = {
         "type": "JWT",
@@ -459,7 +459,7 @@ def test_update_visa_token_with_invalid_visa(
 
     encoded_passport = jwt.encode(
         new_passport, key=rsa_private_key, headers=passport_header, algorithm="RS256"
-    ).decode("utf-8")
+    )
     userinfo_response["passport_jwt_v11"] = encoded_passport
 
     mock_userinfo.return_value = userinfo_response
@@ -547,7 +547,7 @@ def test_update_visa_fetch_pkey(
     headers = {"kid": kid}
     encoded_visa = jwt.encode(
         new_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
     passport_header = {
         "type": "JWT",
@@ -565,7 +565,7 @@ def test_update_visa_fetch_pkey(
 
     encoded_passport = jwt.encode(
         new_passport, key=rsa_private_key, headers=passport_header, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
     mock_userinfo.return_value = {
         "passport_jwt_v11": encoded_passport,
@@ -685,7 +685,7 @@ def test_visa_update_cronjob(
             key=rsa_private_key,
             headers=passport_header,
             algorithm="RS256",
-        ).decode("utf-8")
+        )
         user_id_to_ga4gh_info[str(test_user.id)]["encoded_passport"] = encoded_passport
 
         userinfo_response["passport_jwt_v11"] = encoded_passport

@@ -102,7 +102,7 @@ def encoded_jwt(kid, rsa_private_key):
     headers = {"kid": kid}
     return jwt.encode(
         utils.default_claims(), key=rsa_private_key, headers=headers, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
 
 @pytest.fixture(scope="session")
@@ -121,7 +121,7 @@ def encoded_jwt_expired(kid, rsa_private_key):
     claims_expired["iat"] -= 10000
     return jwt.encode(
         claims_expired, key=rsa_private_key, headers=headers, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
 
 @pytest.fixture(scope="session")
@@ -138,7 +138,7 @@ def encoded_jwt_refresh_token(claims_refresh, kid, rsa_private_key):
     headers = {"kid": kid}
     return jwt.encode(
         claims_refresh, key=rsa_private_key, headers=headers, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
 
 class Mocker(object):
@@ -304,7 +304,7 @@ def get_subjects_to_passports(
             for visa in visas:
                 encoded_visa = jwt.encode(
                     visa, key=rsa_private_key, headers=headers, algorithm="RS256"
-                ).decode("utf-8")
+                )
                 encoded_visas.append(encoded_visa)
 
         passport_header = {
@@ -328,7 +328,7 @@ def get_subjects_to_passports(
             key=rsa_private_key,
             headers=passport_header,
             algorithm="RS256",
-        ).decode("utf-8")
+        )
 
         output[subject] = {
             "visas": visas,
@@ -1625,7 +1625,7 @@ def encoded_creds_jwt(
             key=rsa_private_key,
             headers=headers,
             algorithm="RS256",
-        ).decode("utf-8"),
+        ),
         user_id=user_client["user_id"],
         client_id=oauth_client["client_id"],
         proxy_group_id=google_proxy_group["id"],
@@ -1655,7 +1655,7 @@ def encoded_jwt_no_proxy_group(kid, rsa_private_key, user_client, oauth_client):
             key=rsa_private_key,
             headers=headers,
             algorithm="RS256",
-        ).decode("utf-8"),
+        ),
         user_id=user_client["user_id"],
         client_id=oauth_client["client_id"],
     )

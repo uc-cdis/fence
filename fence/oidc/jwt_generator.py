@@ -1,6 +1,6 @@
 import flask
-from flask_sqlalchemy_session import current_session
 
+from fence.dbSession import current_session
 from fence.jwt.token import (
     AuthFlowTypes,
     generate_signed_access_token,

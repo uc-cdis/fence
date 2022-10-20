@@ -3,7 +3,6 @@ import json
 import os
 from cryptography.fernet import Fernet
 import flask
-from flask_sqlalchemy_session import current_session
 from sqlalchemy import desc, func
 
 from cdislogging import get_logger
@@ -19,6 +18,7 @@ from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 
 from fence.auth import current_token
 from fence.config import config
+from fence.dbSession import current_session
 from fence.errors import NotSupported, InternalError, UserError
 from fence.models import (
     GoogleServiceAccount,

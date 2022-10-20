@@ -7,7 +7,7 @@ will maintain coherence between both systems.
 import functools
 
 from flask import request, jsonify, Blueprint, current_app
-from flask_sqlalchemy_session import current_session
+from fence.dbSession import current_session
 
 from cdislogging import get_logger
 

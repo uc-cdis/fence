@@ -1,5 +1,4 @@
 import flask
-from flask_sqlalchemy_session import current_session
 from functools import wraps
 import urllib.request, urllib.parse, urllib.error
 
@@ -12,6 +11,7 @@ from authutils.token.validate import (
 )
 from cdislogging import get_logger
 
+from fence.dbSession import current_session
 from fence.errors import Unauthorized, InternalError
 from fence.jwt.validate import validate_jwt
 from fence.models import User, IdentityProvider, query_for_user

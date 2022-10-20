@@ -4,7 +4,8 @@ import tempfile
 from urllib.parse import urljoin
 import flask
 from flask_cors import CORS
-from flask_sqlalchemy_session import flask_scoped_session, current_session
+
+# from flask_sqlalchemy_session import flask_scoped_session, current_session
 
 from authutils.oauth2.client import OAuthClient
 from cdislogging import get_logger
@@ -22,6 +23,7 @@ logger = get_logger(__name__, log_level="debug")
 
 # Load the configuration *before* importing modules that rely on it
 from fence.config import config
+from fence.dbSession import current_session
 from fence.settings import CONFIG_SEARCH_FOLDERS
 
 config.load(
@@ -112,7 +114,7 @@ def app_sessions(app):
     SQLAlchemyDriver.setup_db = lambda _: None
     app.db = SQLAlchemyDriver(config["DB"])
 
-    session = flask_scoped_session(app.db.Session, app)  # noqa
+    # session = flask_scoped_session(app.db.Session, app)  # noqa
     app.session_interface = UserSessionInterface()
 
 
