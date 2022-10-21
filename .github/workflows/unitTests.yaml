@@ -3,7 +3,7 @@ on: push
 #comment
 jobs:
   run_tests:
-    uses: uc-cdis/.github/.github/workflows/python_unit_test.yaml@bf95ae6b77fb034677f81aedc56d13c7ad832897
+    uses: uc-cdis/.github/.github/workflows/python_unit_test.yaml@1c57e03e1377c0636d9eaf100ad704252c885ee2
     with:
       setup-script-location: https://raw.githubusercontent.com/uc-cdis/fence/reusable-unit-test-workflow/tests/setup/fence.sh
       python-versions: "['3.6.7', '3.9']"
