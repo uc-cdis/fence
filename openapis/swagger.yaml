@@ -236,26 +236,33 @@ paths:
               properties:
                 grant_type:
                   description: >-
-                    Value MUST be `"authorization_code"` (which is the
-                    authorization flow used in this implementation)
+                    Value MUST be one of the supported grant types:
+                    `"authorization_code"` or `"client_credentials"`
                   type: string
                 code:
                   description: >-
-                    The authorization code returned from the OAuth2
-                    authorization request
+                    (Required if `grant_type` is `"authorization_code"`;
+                    unused otherwise) The authorization code returned from the
+                    OAuth2 authorization request
                   type: string
                 redirect_uri:
                   description: >-
-                    Must be identical to the `"redirect_uri"` included in the
-                    original authorization request
+                    (Required if `grant_type` is `"authorization_code"`;
+                    unused otherwise) Must be identical to the
+                    `"redirect_uri"` included in the original authorization
+                    request
+                  type: string
+                scope:
+                  description: >-
+                    (Optional if `grant_type` is `"client_credentials"`;
+                    unused otherwise) Requested authorization scope. If
+                    provided, must include `openid`. `user` allows getting a
+                    user's access information.
                   type: string
                 client_id:
                   type: string
               required:
                 - grant_type
-                - code
-                - redirect_uri
-                - client_id
   /oauth2/revoke:
     post:
       tags:
@@ -461,7 +468,7 @@ paths:
           required: false
           in: query
           description: >-
-            if `no_force_sign=True` and the file requested is actually public, this will
+            if `no_force_sign=True`, this will
             request to *not* sign the resulting URL (i.e. just provide the
             public url without using anonymous signing creds).
           schema:
@@ -626,7 +633,15 @@ paths:
           in: query
           description: >-
             the requested file name in the cloud bucket you will upload to.
-            if not provided, will use the GUID/file_id
+            If not provided, will use the GUID/file_id
+          schema:
+            type: string
+        - name: bucket
+          required: false
+          in: query
+          description: >-
+            the requested bucket to upload to.
+            If not provided, defaults to the configured DATA_UPLOAD_BUCKET.
           schema:
             type: string
       responses:
@@ -661,7 +676,7 @@ paths:
         content:
           application/json:
             schema:
-              $ref: '#/components/schemas/RequestUploadBlank'
+              $ref: '#/components/schemas/InitMultipartUpload'
       responses:
         201:
           description: successful operation; created new blank record in indexd and uploadId for multipart upload
@@ -1642,6 +1657,34 @@ components:
             user: generic user access
   schemas:
     RequestUploadBlank:
+      type: object
+      required:
+      properties:
+        file_name:
+          type: string
+          required: true
+          description: the file name to use for this upload
+        bucket:
+          type: string
+          required: true
+          description: >-
+            the requested bucket to upload to.
+            If not provided, defaults to the configured DATA_UPLOAD_BUCKET.
+        expires_in:
+          type: integer
+          description: optional integer specifying the presigned URL lifetime
+        authz:
+          type: array
+          items:
+            type: string
+          description: requested authorization resources to be set on the
+            resulting indexed record. You must have proper authorization to set this
+      example:
+        file_name: "my_file.bam"
+        bucket: "bucket1"
+        expires_in: 1200
+        authz: ["/programs/A"]
+    InitMultipartUpload:
       type: object
       required:
       properties:

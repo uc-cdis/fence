@@ -116,6 +116,7 @@ def login_user(
 
         if id_from_idp:
             user.id_from_idp = id_from_idp
+            # TODO: update iss_sub mapping table?
 
     # setup idp connection for new user (or existing user w/o it setup)
     idp = (
@@ -235,12 +236,14 @@ def has_oauth(scope=None):
         )
     except JWTError as e:
         raise Unauthorized("failed to validate token: {}".format(e))
-    user_id = access_token_claims["sub"]
-    user = current_session.query(User).filter_by(id=int(user_id)).first()
-    if not user:
-        raise Unauthorized("no user found with id: {}".format(user_id))
-    # set some application context for current user and client id
-    flask.g.user = user
+    if "sub" in access_token_claims:
+        user_id = access_token_claims["sub"]
+        user = current_session.query(User).filter_by(id=int(user_id)).first()
+        if not user:
+            raise Unauthorized("no user found with id: {}".format(user_id))
+        # set some application context for current user
+        flask.g.user = user
+    # set some application context for current client id
     # client_id should be None if the field doesn't exist or is empty
     flask.g.client_id = access_token_claims.get("azp") or None
     flask.g.token = access_token_claims

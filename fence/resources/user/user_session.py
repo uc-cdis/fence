@@ -317,9 +317,9 @@ def _create_access_token_cookie(app, session, response, user):
     access_token = generate_signed_access_token(
         keypair.kid,
         keypair.private_key,
-        user,
         config.get("ACCESS_TOKEN_EXPIRES_IN"),
         scopes,
+        user=user,
         forced_exp_time=expiration,
         linked_google_email=linked_google_email,
     ).token

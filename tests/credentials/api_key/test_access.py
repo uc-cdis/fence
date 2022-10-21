@@ -2,8 +2,6 @@
 Test using an API key to generate an access token.
 """
 
-import json
-
 from tests.utils.api_key import get_api_key
 
 

@@ -9,10 +9,15 @@ import json
 import os
 import copy
 import time
+import flask
 from datetime import datetime
 import mock
+import uuid
+import random
+import string
 
 from addict import Dict
+from alembic.config import main as alembic_main
 from authutils.testing.fixtures import (
     _hazmat_rsa_private_key,
     _hazmat_rsa_private_key_2,
@@ -29,7 +34,10 @@ from mock import patch, MagicMock, PropertyMock
 import pytest
 import requests
 from sqlalchemy.ext.compiler import compiles
-from sqlalchemy.schema import DropTable
+
+# Set FENCE_CONFIG_PATH *before* loading the configuration
+CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
+os.environ["FENCE_CONFIG_PATH"] = os.path.join(CURRENT_DIR, "test-fence-config.yaml")
 
 import fence
 from fence import app_init
@@ -38,16 +46,13 @@ from fence.jwt.keys import Keypair
 from fence.config import config
 from fence.errors import NotFound
 from fence.resources.openid.microsoft_oauth2 import MicrosoftOauth2Client
+from fence.jwt.validate import validate_jwt
 
 import tests
 from tests import test_settings
 from tests import utils
+from tests.utils import TEST_RAS_USERNAME, TEST_RAS_SUB
 from tests.utils.oauth2.client import OAuth2TestClient
-
-
-@compiles(DropTable, "postgresql")
-def _compile_drop_table(element, compiler, **kwargs):
-    return compiler.visit_drop_table(element) + " CASCADE"
 
 
 # Allow authlib to use HTTP for local testing.
@@ -176,7 +181,7 @@ class FakeAzureCredential:
     """
 
     def __init__(self):
-        self.account_key = "FakefakeAccountKey"
+        self.account_key = "FakefakeAccountKey"  # pragma: allowlist secret
 
 
 class FakeBlobServiceClient:
@@ -255,6 +260,120 @@ def kid_2():
     return "test-keypair-2"
 
 
+def random_txn():
+    """Return a random txn to use for mocking passports and visas"""
+    random_chars = random.choices(string.ascii_lowercase + string.digits, k=33)
+    random_chars[16] = "."
+    return "".join(random_chars)
+
+
+def get_subjects_to_passports(
+    subject_to_encoded_visas=None, passport_exp=None, kid=None, rsa_private_key=None
+):
+    subject_to_encoded_visas = subject_to_encoded_visas or {}
+    passport_exp = passport_exp or int(time.time()) + 1000
+    subjects = subject_to_encoded_visas.keys() or [TEST_RAS_SUB]
+
+    output = {}
+    for subject in subjects:
+        visas = []
+        encoded_visas = subject_to_encoded_visas.get(subject)
+        if not encoded_visas:
+            visas = [
+                {
+                    "iss": "https://stsstg.nih.gov",
+                    "sub": subject,
+                    "iat": int(time.time()),
+                    "exp": int(time.time()) + 1000,
+                    "scope": "openid ga4gh_passport_v1 email profile",
+                    "jti": str(uuid.uuid4()),
+                    "txn": random_txn(),
+                    "name": "",
+                    "ga4gh_visa_v1": {
+                        "type": "https://ras.nih.gov/visas/v1",
+                        "asserted": int(time.time()),
+                        "value": "https://stsstg.nih.gov/passport/dbgap/v1.1",
+                        "source": "https://ncbi.nlm.nih.gov/gap",
+                    },
+                }
+            ]
+
+            headers = {"kid": kid}
+            encoded_visas = []
+
+            for visa in visas:
+                encoded_visa = jwt.encode(
+                    visa, key=rsa_private_key, headers=headers, algorithm="RS256"
+                ).decode("utf-8")
+                encoded_visas.append(encoded_visa)
+
+        passport_header = {
+            "type": "JWT",
+            "alg": "RS256",
+            "kid": kid,
+        }
+        new_passport = {
+            "jti": str(uuid.uuid4()),
+            "txn": random_txn(),
+            "iss": "https://stsstg.nih.gov",
+            "sub": subject,
+            "iat": int(time.time()),
+            "scope": "openid ga4gh_passport_v1 email profile",
+            "exp": int(time.time()) + 1000,
+            "ga4gh_passport_v1": encoded_visas,
+        }
+
+        encoded_passport = jwt.encode(
+            new_passport,
+            key=rsa_private_key,
+            headers=passport_header,
+            algorithm="RS256",
+        ).decode("utf-8")
+
+        output[subject] = {
+            "visas": visas,
+            "encoded_visas": encoded_visas,
+            "new_passport": new_passport,
+            "encoded_passport": encoded_passport,
+        }
+    return output
+
+
+@pytest.fixture(scope="function")
+def no_app_context_no_public_keys():
+    mock_validate_jwt = MagicMock()()
+
+    # ensure we don't actually try to reach out to external sites to refresh public keys
+    def validate_jwt_no_key_refresh(*args, **kwargs):
+        kwargs.update({"attempt_refresh": False})
+        return validate_jwt(*args, **kwargs)
+
+    mock_validate_jwt.side_effect = validate_jwt_no_key_refresh
+
+    # ensure there is no application context or cached keys
+    if flask.current_app and flask.current_app.jwt_public_keys:
+        temp_stored_public_keys = flask.current_app.jwt_public_keys
+        temp_app_context = flask.has_app_context
+        flask.current_app.jwt_public_keys = {}
+
+    def return_false():
+        return False
+
+    flask.has_app_context = return_false
+
+    patcher = patch("fence.resources.ga4gh.passports.validate_jwt", mock_validate_jwt)
+    patcher.start()
+
+    yield mock_validate_jwt
+
+    patcher.stop()
+
+    # restore public keys and context
+    if flask.current_app:
+        flask.current_app.jwt_public_keys = temp_stored_public_keys
+        flask.has_app_context = temp_app_context
+
+
 @pytest.fixture(scope="function")
 def mock_arborist_requests(request):
     """
@@ -329,6 +448,10 @@ def app(kid, rsa_private_key, rsa_public_key):
         config_path=os.path.join(root_dir, "test-fence-config.yaml"),
     )
 
+    # migrate the database to the latest version
+    os.environ["TEST_CONFIG_PATH"] = os.path.join(root_dir, "test-fence-config.yaml")
+    alembic_main(["--raiseerr", "upgrade", "head"])
+
     # We want to set up the keys so that the test application can load keys
     # from the test keys directory, but the default keypair used will be the
     # one using the fixtures. So, stick the keypair at the front of the
@@ -348,6 +471,7 @@ def app(kid, rsa_private_key, rsa_public_key):
 
     yield fence.app
 
+    alembic_main(["--raiseerr", "downgrade", "base"])
     mocker.unmock_functions()
 
 
@@ -412,7 +536,11 @@ def db(app, request):
     """
 
     def drop_all():
-        models.Base.metadata.drop_all(app.db.engine)
+        connection = app.db.engine.connect()
+        connection.begin()
+        for table in reversed(models.Base.metadata.sorted_tables):
+            connection.execute(table.delete())
+        connection.close()
 
     request.addfinalizer(drop_all)
 
@@ -472,10 +600,20 @@ def db_session(db, patch_app_db_session):
 
     patch_app_db_session(session)
 
+    session.query(models.GA4GHPassportCache).delete()
+    session.commit()
+
     yield session
 
+    # clear out user and project tables upon function close in case unit test didn't
+    session.query(models.User).delete()
+    session.query(models.IssSubPairToUser).delete()
+    session.query(models.Project).delete()
+    session.query(models.GA4GHVisaV1).delete()
+    session.query(models.GA4GHPassportCache).delete()
+    session.commit()
+
     session.close()
-    transaction.rollback()
     connection.close()
 
 
@@ -1148,6 +1286,8 @@ def patch_app_db_session(app, monkeypatch):
             "fence.user",
             "fence.blueprints.login.synapse",
             "fence.blueprints.login.ras",
+            "fence.blueprints.data.indexd",
+            "fence.resources.ga4gh.passports",
         ]
         for module in modules_to_patch:
             monkeypatch.setattr("{}.current_session".format(module), session)
@@ -1168,6 +1308,7 @@ def oauth_client(app, db_session, oauth_user, get_all_shib_idps_patcher):
         client_secret.encode("utf-8"), bcrypt.gensalt()
     ).decode("utf-8")
     test_user = db_session.query(models.User).filter_by(id=oauth_user.user_id).first()
+    grant_types = ["authorization_code", "refresh_token"]
     db_session.add(
         models.Client(
             client_id=client_id,
@@ -1178,11 +1319,16 @@ def oauth_client(app, db_session, oauth_user, get_all_shib_idps_patcher):
             description="",
             is_confidential=True,
             name="testclient",
-            grant_types=["authorization_code", "refresh_token"],
+            grant_types=grant_types,
         )
     )
     db_session.commit()
-    return Dict(client_id=client_id, client_secret=client_secret, url=url)
+    return Dict(
+        client_id=client_id,
+        client_secret=client_secret,
+        url=url,
+        grant_types=grant_types,
+    )
 
 
 @pytest.fixture(scope="function")
@@ -1202,6 +1348,7 @@ def oauth_client_B(app, request, db_session):
     if not test_user:
         test_user = models.User(username="test", is_admin=False)
         db_session.add(test_user)
+    grant_types = ["authorization_code", "refresh_token"]
     db_session.add(
         models.Client(
             client_id=client_id,
@@ -1212,12 +1359,17 @@ def oauth_client_B(app, request, db_session):
             description="",
             is_confidential=True,
             name="testclientb",
-            grant_types=["authorization_code", "refresh_token"],
+            grant_types=grant_types,
         )
     )
     db_session.commit()
 
-    return Dict(client_id=client_id, client_secret=client_secret, url=url)
+    return Dict(
+        client_id=client_id,
+        client_secret=client_secret,
+        url=url,
+        grant_types=grant_types,
+    )
 
 
 @pytest.fixture(scope="function")
@@ -1228,6 +1380,7 @@ def oauth_client_public(app, db_session, oauth_user):
     url = "https://oauth-test-client-public.net"
     client_id = "test-client-public"
     test_user = db_session.query(models.User).filter_by(id=oauth_user.user_id).first()
+    grant_types = ["authorization_code", "refresh_token"]
     db_session.add(
         models.Client(
             client_id=client_id,
@@ -1237,11 +1390,46 @@ def oauth_client_public(app, db_session, oauth_user):
             description="",
             is_confidential=False,
             name="testclient-public",
-            grant_types=["authorization_code", "refresh_token"],
+            grant_types=grant_types,
         )
     )
     db_session.commit()
-    return Dict(client_id=client_id, url=url)
+    return Dict(client_id=client_id, url=url, grant_types=grant_types)
+
+
+@pytest.fixture(scope="function")
+def oauth_client_with_client_credentials(db_session, get_all_shib_idps_patcher):
+    """
+    Create a confidential OAuth2 client and add it to the database along with a
+    test user for the client.
+    """
+    url = "https://oauth-test-client-with-client-credentials.net"
+    client_id = "test-client-with-client-credentials"
+    client_secret = fence.utils.random_str(50)
+    hashed_secret = bcrypt.hashpw(
+        client_secret.encode("utf-8"), bcrypt.gensalt()
+    ).decode("utf-8")
+    grant_types = ["client_credentials"]
+    scopes = ["openid", "user", "data"]
+    db_session.add(
+        models.Client(
+            client_id=client_id,
+            client_secret=hashed_secret,
+            allowed_scopes=scopes,
+            description="",
+            is_confidential=True,
+            name="testclient-with-client-credentials",
+            grant_types=grant_types,
+        )
+    )
+    db_session.commit()
+    return Dict(
+        client_id=client_id,
+        client_secret=client_secret,
+        url=url,
+        grant_types=grant_types,
+        scopes=scopes,
+    )
 
 
 @pytest.fixture(scope="function")
@@ -1257,6 +1445,15 @@ def oauth_test_client_B(client, oauth_client_B):
 @pytest.fixture(scope="function")
 def oauth_test_client_public(client, oauth_client_public):
     return OAuth2TestClient(client, oauth_client_public, confidential=False)
+
+
+@pytest.fixture(scope="function")
+def oauth_test_client_with_client_credentials(
+    client, oauth_client_with_client_credentials
+):
+    return OAuth2TestClient(
+        client, oauth_client_with_client_credentials, confidential=True
+    )
 
 
 @pytest.fixture(scope="session")

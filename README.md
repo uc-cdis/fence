@@ -5,7 +5,6 @@
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/41ff9d807efa4da8a733793b3539ba3e)](https://www.codacy.com/app/uc-cdis/fence?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=uc-cdis/fence&amp;utm_campaign=Badge_Grade)
 [![Coverage Status](https://coveralls.io/repos/github/uc-cdis/fence/badge.svg?branch=master)](https://coveralls.io/github/uc-cdis/fence?branch=master)
 
-
 A `fence` separates protected resources from the outside world and allows
 only trusted entities to enter.
 
@@ -415,7 +414,7 @@ We use JSON Web Tokens (JWTs) as the format for all tokens of the following type
       }
     }
   },
-  "iss": "https://bionimbus-pdc.opensciencedatacloud.org",
+  "iss": "https://commons.org",
   "jti": "3ae2910b-0294-43dc-af2a-03fd60082aef",
   "exp": 1516983302,
   "iat": 1516982102,
@@ -454,7 +453,7 @@ We use JSON Web Tokens (JWTs) as the format for all tokens of the following type
       }
     }
   },
-  "iss": "https://bionimbus-pdc.opensciencedatacloud.org",
+  "iss": "https://commons.org",
   "jti": "2e6ade06-5afb-4ce7-9ab5-e206225ce291",
   "exp": 1516983302,
   "iat": 1516982102
@@ -473,7 +472,7 @@ We use JSON Web Tokens (JWTs) as the format for all tokens of the following type
     "user",
     "test-client"
   ],
-  "iss": "https://bionimbus-pdc.opensciencedatacloud.org",
+  "iss": "https://commons.org",
   "jti": "c72e5573-39fa-4391-a445-191e370b7cc5",
   "exp": 1517010902,
   "iat": 1516982102
@@ -514,6 +513,28 @@ To specify allowed scopes, use the `allowed-scopes` argument:
 ```bash
 fence-create client-create ...  --allowed-scopes openid user data
 ```
+
+#### Register an Oauth Client for a Client Credentials flow
+
+The OAuth2 Client Credentials flow is used for machine-to-machine communication and scenarios in which typical authentication schemes like username + password do not make sense. The system authenticates and authorizes the app rather than a user. See the [OAuth2 specification](https://www.rfc-editor.org/rfc/rfc6749#section-4.4) for more details.
+
+As a Gen3 commons administrator, if you want to create an OAuth client for a client credentials flow:
+
+```bash
+fence-create client-create --client CLIENT_NAME --grant-types client_credentials
+```
+
+This command will return a client ID and client secret, which you can then use to obtain an access token:
+
+```bash
+curl --request POST https://FENCE_URL/oauth2/token?grant_type=client_credentials -d scope="openid user" --user CLIENT_ID:CLIENT_SECRET
+```
+
+NOTE: In Gen3, you can grant specific access to a client the same way you would to a user. See the [user.yaml guide](https://github.com/uc-cdis/fence/blob/master/docs/user.yaml_guide.md) for more details.
+
+NOTE: Client credentials tokens are not linked to a user. They are not supported by all Gen3 endpoints.
+
+NOTE: The recommendation is to rotate these credentials at least once a year. Credentials expiration is not enforced at the moment but may be in the future.
 
 #### Modify OAuth Client
 
@@ -578,4 +599,4 @@ Table contains various artifacts in fence that have temporary lifetimes and thei
 | Client SA (for User) Key             | 10 days      | FALSE       | N/A                   | Obtained by the user themselves for temp access. Can optionally provide an expiration less than 10 days                              |
 | User Primary SA Key                  | 10 days      | FALSE       | N/A                   | Used for Google URL signing                                                              |
 | User Primary SA Key for URL Signing  | 30 days      | FALSE       | N/A                   |                                                                                          |
-| Sliding Session Window               | 30 minutes   | TRUE        | 8 hours               | access_token cookies get generated automatically when expired if session is still active |
+| Sliding Session Window               | 15 minutes   | TRUE        | 8 hours               | access_token cookies get generated automatically when expired if session is still active |

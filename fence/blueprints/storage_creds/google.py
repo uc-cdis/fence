@@ -183,6 +183,7 @@ class GoogleCredentialsList(Resource):
         :statuscode 405 Method Not Allowed if ?all=true is not included
         """
         user_id = current_token["sub"]
+        username = current_token.get("context", {}).get("user", {}).get("name")
 
         try:
             all_arg = strtobool(flask.request.args.get("all", "false").lower())
@@ -197,7 +198,7 @@ class GoogleCredentialsList(Resource):
 
         with GoogleCloudManager() as g_cloud:
             client_id = current_token.get("azp") or None
-            service_account = get_service_account(client_id, user_id)
+            service_account = get_service_account(client_id, user_id, username=username)
 
             if service_account:
                 keys_for_account = g_cloud.get_service_account_keys_info(
@@ -259,9 +260,10 @@ class GoogleCredentials(Resource):
         :statuscode 404 Access key doesn't exist
         """
         user_id = current_token["sub"]
+        username = current_token.get("context", {}).get("user", {}).get("name")
         with GoogleCloudManager() as g_cloud:
             client_id = current_token.get("azp") or None
-            service_account = get_service_account(client_id, user_id)
+            service_account = get_service_account(client_id, user_id, username=username)
 
             if service_account:
                 keys_for_account = g_cloud.get_service_account_keys_info(

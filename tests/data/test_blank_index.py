@@ -16,30 +16,36 @@ from fence.blueprints.data.indexd import BlankIndex, flask
 from fence.errors import InternalError
 
 
+class MockResponse:
+    """
+    Mock response for requests lib
+    """
+
+    def __init__(self, data, status_code=200):
+        """
+        Set up mock response
+        """
+        self.data = data
+        self.status_code = status_code
+
+    def json(self):
+        """
+        Mock json() call
+        """
+        return self.data
+
+    def text(self):
+        """
+        Mock text() call
+        """
+        return self.data
+
+
 def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_client):
     """
     test BlankIndex upload
     POST /data/upload
     """
-
-    class MockResponse:
-        """
-        Mock response for requests lib
-        """
-
-        def __init__(self, data, status_code=200):
-            """
-            Set up mock response
-            """
-            self.data = data
-            self.status_code = status_code
-
-        def json(self):
-            """
-            Mock json() call
-            """
-            return self.data
-
     data_requests_mocker = mock.patch(
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
@@ -73,7 +79,7 @@ def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_cl
             json={"file_name": file_name, "uploader": user_client.username},
             headers={},
         )
-        assert response.status_code == 201, response
+        assert response.status_code == 201, response.json
         assert "guid" in response.json
         assert "url" in response.json
 
@@ -84,25 +90,6 @@ def test_blank_index_upload_authz(
     """
     Same test as above, except request a specific "authz" for the new record
     """
-
-    class MockResponse:
-        """
-        Mock response for requests lib
-        """
-
-        def __init__(self, data, status_code=200):
-            """
-            Set up mock response
-            """
-            self.data = data
-            self.status_code = status_code
-
-        def json(self):
-            """
-            Mock json() call
-            """
-            return self.data
-
     data_requests_mocker = mock.patch(
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
@@ -130,19 +117,85 @@ def test_blank_index_upload_authz(
         response = client.post("/data/upload", headers=headers, data=data)
         indexd_url = app.config.get("INDEXD") or app.config.get("BASE_URL") + "/index"
         endpoint = indexd_url + "/index/blank/"
-        indexd_auth = (
-            config["INDEXD_USERNAME"],
-            config["INDEXD_PASSWORD"],
-        )
         data_requests.post.assert_called_once_with(
             endpoint,
             auth=None,
             json={"file_name": file_name, "uploader": None, "authz": authz},
             headers={"Authorization": "bearer " + encoded_creds_jwt.jwt},
         )
-        assert response.status_code == 201, response
+        assert response.status_code == 201, response.json
         assert "guid" in response.json
         assert "url" in response.json
+
+
+@pytest.mark.parametrize(
+    "bucket,expected_status_code",
+    [
+        # fallback to default DATA_UPLOAD_BUCKET
+        [None, 201],
+        # bucket configured in S3_BUCKETS AND in ALLOWED_DATA_UPLOAD_BUCKETS
+        ["bucket3", 201],
+        # bucket configured in S3_BUCKETS but NOT in ALLOWED_DATA_UPLOAD_BUCKETS
+        ["bucket2", 403],
+        # bucket NOT configured in S3_BUCKETS or ALLOWED_DATA_UPLOAD_BUCKETS
+        ["not-a-configured-bucket", 403],
+    ],
+)
+def test_blank_index_upload_bucket(
+    app,
+    client,
+    auth_client,
+    encoded_creds_jwt,
+    user_client,
+    bucket,
+    expected_status_code,
+):
+    """
+    Same test as above, except request a specific bucket to upload the file to
+    """
+    data_requests_mocker = mock.patch(
+        "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
+    )
+    arborist_requests_mocker = mock.patch(
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
+    )
+    with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
+        data_requests.post.return_value = MockResponse(
+            {
+                "did": str(uuid.uuid4()),
+                "rev": str(uuid.uuid4())[:8],
+                "baseid": str(uuid.uuid4()),
+            }
+        )
+        data_requests.post.return_value.status_code = 200
+        arborist_requests.return_value = MockResponse({"auth": True})
+        arborist_requests.return_value.status_code = 200
+        headers = {
+            "Authorization": "Bearer " + encoded_creds_jwt.jwt,
+            "Content-Type": "application/json",
+        }
+        file_name = "asdf"
+        data = json.dumps({"file_name": file_name, "bucket": bucket})
+        response = client.post("/data/upload", headers=headers, data=data)
+        indexd_url = app.config.get("INDEXD") or app.config.get("BASE_URL") + "/index"
+        endpoint = indexd_url + "/index/blank/"
+        indexd_auth = (
+            config["INDEXD_USERNAME"],
+            config["INDEXD_PASSWORD"],
+        )
+        data_requests.post.assert_called_once_with(
+            endpoint,
+            auth=indexd_auth,
+            json={"file_name": file_name, "uploader": user_client.username},
+            headers={},
+        )
+
+        assert response.status_code == expected_status_code, response.json
+        if expected_status_code == 201:
+            assert "guid" in response.json
+            assert "url" in response.json
+            bucket_in_url = bucket if bucket else config["DATA_UPLOAD_BUCKET"]
+            assert bucket_in_url in response.json["url"]
 
 
 def test_blank_index_upload_missing_indexd_credentials(
@@ -151,25 +204,6 @@ def test_blank_index_upload_missing_indexd_credentials(
     """
     test BlankIndex upload with missing indexd credentials
     """
-
-    class MockResponse:
-        """
-        Mock response for requests lib
-        """
-
-        def __init__(self, data, status_code=200):
-            """
-            Set up mock response
-            """
-            self.data = data
-            self.status_code = status_code
-
-        def json(self):
-            """
-            Mock json() call
-            """
-            return self.data
-
     data_requests_mocker = mock.patch(
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
@@ -229,30 +263,6 @@ def test_blank_index_upload_missing_indexd_credentials_unable_to_load_json(
         def json(self):
             """
             Mock json() call
-            """
-            return self.data
-
-    class MockResponse:
-        """
-        Mock response for requests lib
-        """
-
-        def __init__(self, data, status_code=200):
-            """
-            Set up mock response
-            """
-            self.data = data
-            self.status_code = status_code
-
-        def json(self):
-            """
-            Mock json() call
-            """
-            raise ValueError("unable to get json")
-
-        def text(self):
-            """
-            Mock text() call
             """
             return self.data
 
@@ -415,7 +425,7 @@ def test_generate_aws_presigned_url_for_part(app, indexd_client):
     blank_index = BlankIndex(uploader=uploader)
     assert blank_index
     with patch(
-        "fence.blueprints.data.indexd.S3IndexedFileLocation.generate_presigne_url_for_part_upload"
+        "fence.blueprints.data.indexd.S3IndexedFileLocation.generate_presigned_url_for_part_upload"
     ):
         blank_index.generate_aws_presigned_url_for_part(
             key="some key", uploadId="some id", partNumber=1, expires_in=10

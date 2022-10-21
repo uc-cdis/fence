@@ -1,6 +1,7 @@
 import flask
 
 from cdislogging import get_logger
+from cdispyutils.config import get_value
 
 from fence.auth import login_required, require_auth_header, current_token, get_jwt
 from fence.authz.auth import check_arborist_auth
@@ -9,7 +10,7 @@ from fence.blueprints.data.indexd import (
     IndexedFile,
     get_signed_url_for_file,
 )
-from fence.errors import Forbidden, InternalError, UserError
+from fence.errors import Forbidden, InternalError, UserError, Unauthorized
 from fence.resources.audit.utils import enable_audit_logging
 from fence.utils import get_valid_expiration
 
@@ -174,11 +175,24 @@ def upload_data_file():
     )
 
     protocol = params["protocol"] if "protocol" in params else None
+    bucket = params.get("bucket")
+    if bucket:
+        s3_buckets = get_value(
+            flask.current_app.config,
+            "ALLOWED_DATA_UPLOAD_BUCKETS",
+            InternalError("ALLOWED_DATA_UPLOAD_BUCKETS not configured"),
+        )
+        if bucket not in s3_buckets:
+            logger.debug(f"Bucket '{bucket}' not in ALLOWED_DATA_UPLOAD_BUCKETS config")
+            raise Forbidden(f"Uploading to bucket '{bucket}' is not allowed")
 
     response = {
         "guid": blank_index.guid,
         "url": blank_index.make_signed_url(
-            file_name=params["file_name"], protocol=protocol, expires_in=expires_in
+            file_name=params["file_name"],
+            protocol=protocol,
+            expires_in=expires_in,
+            bucket=bucket,
         ),
     }
 
@@ -192,6 +206,9 @@ def upload_data_file():
 def init_multipart_upload():
     """
     Initialize a multipart upload request
+
+    NOTE This endpoint does not currently accept a `bucket` parameter like
+    `POST /upload` and `GET /upload/<GUID>` do.
     """
     params = flask.request.get_json()
     if not params:
@@ -289,10 +306,23 @@ def upload_file(file_id):
     """
     file_name = flask.request.args.get("file_name")
     if not file_name:
-        logger.warning(f"file_name not provided, using GUID: {file_id}")
-        file_name = str(file_id)
+        file_name = str(file_id).replace("/", "_")
+        logger.warning(f"file_name not provided, using '{file_name}'")
 
-    result = get_signed_url_for_file("upload", file_id, file_name=file_name)
+    bucket = flask.request.args.get("bucket")
+    if bucket:
+        s3_buckets = get_value(
+            flask.current_app.config,
+            "ALLOWED_DATA_UPLOAD_BUCKETS",
+            InternalError("ALLOWED_DATA_UPLOAD_BUCKETS not configured"),
+        )
+        if bucket not in s3_buckets:
+            logger.debug(f"Bucket '{bucket}' not in ALLOWED_DATA_UPLOAD_BUCKETS config")
+            raise Forbidden(f"Uploading to bucket '{bucket}' is not allowed")
+
+    result = get_signed_url_for_file(
+        "upload", file_id, file_name=file_name, bucket=bucket
+    )
     return flask.jsonify(result)
 
 
