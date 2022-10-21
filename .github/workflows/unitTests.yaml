@@ -7,5 +7,5 @@ jobs:
     with:
       setup-script-location: https://raw.githubusercontent.com/uc-cdis/fence/reusable-unit-test-workflow/tests/setup/fence.sh
       python-versions: "['3.6.7', '3.9']"
-      package-names: "['fence']"
+      package-names: "['fence', 'migrations/versions']"
       
