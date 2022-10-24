@@ -1842,6 +1842,10 @@ class UserSyncer(object):
         self.logger.debug(
             f"_dbgap_study_to_resources: {self._dbgap_study_to_resources}"
         )
+        
+        print("---------------dbgap study to resources---------------")
+        print(self._dbgap_study_to_resources)
+
         all_resources = [
             r
             for resources in self._dbgap_study_to_resources.values()
