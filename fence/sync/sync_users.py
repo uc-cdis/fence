@@ -1843,9 +1843,6 @@ class UserSyncer(object):
             f"_dbgap_study_to_resources: {self._dbgap_study_to_resources}"
         )
         
-        print("---------------dbgap study to resources---------------")
-        print(self._dbgap_study_to_resources)
-
         all_resources = [
             r
             for resources in self._dbgap_study_to_resources.values()
@@ -2204,6 +2201,11 @@ class UserSyncer(object):
         namespaces = dbgap_config.get("study_to_resource_namespaces", {}).get(
             dbgap_study, default_namespaces
         )
+        print("--------------------------------")
+        print(dbgap_study)
+        print(namespaces)
+        print(default_namespaces)
+        print("--------------------------------")
 
         self.logger.debug(f"dbgap study namespaces: {namespaces}")
 
