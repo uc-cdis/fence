@@ -2201,17 +2201,19 @@ class UserSyncer(object):
         namespaces = dbgap_config.get("study_to_resource_namespaces", {}).get(
             dbgap_study, default_namespaces
         )
-        print("--------------------------------")
-        print(dbgap_study)
-        print(namespaces)
-        print(default_namespaces)
-        print("--------------------------------")
+
 
         self.logger.debug(f"dbgap study namespaces: {namespaces}")
 
         arborist_resource_namespaces = [
             namespace.rstrip("/") + "/programs/" for namespace in namespaces
         ]
+        print("--------------------------------")
+        print(dbgap_study)
+        print(namespaces)
+        print(default_namespaces)
+        print(arborist_resource_namespaces)
+        print("--------------------------------")
 
         for resource_namespace in arborist_resource_namespaces:
             full_resource_path = resource_namespace + dbgap_study
