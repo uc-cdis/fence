@@ -11,9 +11,8 @@ addons:
   postgresql: "9.6"
 
 install:
-  - pip install poetry
+  - pip install -U poetry
   - poetry install -vv --no-interaction
-  - poetry show -vv
   - psql -c 'SELECT version();' -U postgres
   - psql -U postgres -c "create database fence_test_tmp"
   - pip list
