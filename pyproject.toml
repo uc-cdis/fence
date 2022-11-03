@@ -50,7 +50,8 @@ werkzeug = "^1.0.0"
 cachelib = "^0.2.0"
 azure-storage-blob = "^12.6.0"
 Flask-WTF = "^0.14.3"
-authutils = "6.1.0"
+#authutils = "6.1.0"
+authutils = {git = "https://github.com/uc-cdis/authutils", rev = "test/66"}
 
 
 [tool.poetry.dev-dependencies]
