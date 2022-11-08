@@ -414,7 +414,7 @@ dbGaP:
     protocol: 'sftp'
     decrypt_key: ''
     allow_non_dbGaP_whitelist: false
-    allowed_whitelist_patterns: ['authentication_file_PROJECT-(\d*).(csv|txt)']
+    allowed_whitelist_patterns: ['authentication_file_PROJECT-(\\d*).(csv|txt)']
     study_to_resource_namespaces:
       # non dbgap study:
       'PROJECT-12345': ['']

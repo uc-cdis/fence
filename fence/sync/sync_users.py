@@ -370,7 +370,7 @@ class UserSyncer(object):
         Returns:
             bool: whether the pattern matches
         """
-        id_patterns.append("authentication_file_phs(\d{6}).(csv|txt)")
+        id_patterns.append("authentication_file_phs(\\\d{6}).(csv|txt)")
         for pattern in id_patterns:
             pattern = r"{}".format(pattern)
             if encrypted:
