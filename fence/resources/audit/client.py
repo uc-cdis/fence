@@ -38,7 +38,7 @@ class AuditServiceClient:
 
         if self.push_type == "aws_sqs":
             aws_sqs_config = config["PUSH_AUDIT_LOGS_CONFIG"]["aws_sqs_config"]
-            # we know the cred is in AWS_CREDENTIALS (see `_check_aws_creds_and_region`)
+            # we know the cred is in AWS_CREDENTIALS (see `_check_buckets_aws_creds_and_region`)
             aws_creds = (
                 config.get("AWS_CREDENTIALS", {})[aws_sqs_config["aws_cred"]]
                 if "aws_cred" in aws_sqs_config
