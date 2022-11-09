@@ -404,16 +404,6 @@ dbGaP:
       'phs000178': ['/orgA/', '/orgB/', '/']
       # study when parsing consent codes
       'phs000178.c2': ['/orgA/', '/orgB/', '/']
-  - info:
-      host: ''
-      username: ''
-      password: ''
-      port: 22
-      proxy: ''
-      proxy_user: ''
-    protocol: 'sftp'
-    decrypt_key: ''
-    allow_non_dbGaP_whitelist: false
     allowed_whitelist_patterns: ['authentication_file_PROJECT-(\\d*).(csv|txt)']
     study_to_resource_namespaces:
       # non dbgap study:

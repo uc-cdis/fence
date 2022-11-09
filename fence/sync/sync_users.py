@@ -1,45 +1,36 @@
+import collections
+import copy
+import datetime
 import glob
-import jwt
+import hashlib
 import os
 import re
 import subprocess as sp
-import yaml
-import copy
-import datetime
 import uuid
-import collections
-import hashlib
-
-from contextlib import contextmanager
 from collections import defaultdict
+from contextlib import contextmanager
 from csv import DictReader
 from io import StringIO
 from stat import S_ISDIR
 
+import jwt
 import paramiko
+import yaml
 from cdislogging import get_logger
-from email_validator import validate_email, EmailNotValidError
+from email_validator import EmailNotValidError, validate_email
 from gen3authz.client.arborist.errors import ArboristError
 from gen3users.validation import validate_user_yaml
 from paramiko.proxy import ProxyCommand
-from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
+from sqlalchemy.exc import IntegrityError
 from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.config import config
-from fence.models import (
-    AccessPrivilege,
-    AuthorizationProvider,
-    Project,
-    Tag,
-    User,
-    query_for_user,
-    Client,
-    IdentityProvider,
-    get_project_to_authz_mapping,
-)
-from fence.resources.storage import StorageManager
+from fence.models import (AccessPrivilege, AuthorizationProvider, Client,
+                          IdentityProvider, Project, Tag, User,
+                          get_project_to_authz_mapping, query_for_user)
 from fence.resources.google.access_utils import bulk_update_google_groups
+from fence.resources.storage import StorageManager
 from fence.sync import utils
 from fence.sync.passport_sync.ras_sync import RASVisa
 

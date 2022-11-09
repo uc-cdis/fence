@@ -91,7 +91,7 @@ def test_sync(
     )
     monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
     monkeypatch.setitem(
-        syncer.dbGaP[2], "allow_non_dbGaP_whitelist", allow_non_dbgap_whitelist
+        syncer.dbGaP[1], "allow_non_dbGaP_whitelist", allow_non_dbgap_whitelist
     )
 
     syncer.sync()
@@ -708,7 +708,7 @@ def test_process_additional_dbgap_servers(syncer, monkeypatch, db_session):
 
     # this function will be called once for each sftp server
     # the test config file has 3 dbgap sftp servers
-    assert syncer._process_dbgap_files.call_count == 3
+    assert syncer._process_dbgap_files.call_count == 2
 
 
 def setup_ras_sync_testing(
