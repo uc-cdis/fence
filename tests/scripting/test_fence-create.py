@@ -1577,3 +1577,41 @@ def test_modify_client_action_modify_append_url(db_session):
     assert client.name == "test321"
     assert client.description == "test client"
     assert client.redirect_uris == ["abcd", "test1", "test2", "test3"]
+
+
+@pytest.mark.parametrize("expires_in", [None, 0, 1000, 0.5, -10, "not-valid"])
+@pytest.mark.parametrize("existing_expiration", [True, False])
+def test_modify_client_expiration(db_session, expires_in, existing_expiration):
+    """
+    Test that a client can be modified with a valid expiration.
+    """
+    # create a client
+    client_name = "test_client"
+    client = Client(
+        client_id="test_client_id",
+        client_secret="secret",
+        name=client_name,
+        user=User(username="client_user"),
+        redirect_uris=["localhost"],
+        expires_in=(2 if existing_expiration else None),
+    )
+    db_session.add(client)
+    db_session.commit()
+    original_expires_at = client.expires_at
+
+    # modify the client's expiration
+    now = datetime.utcnow().timestamp()
+    if expires_in in [-10, "not-valid"]:
+        with pytest.raises(UserError):
+            modify_client_action(
+                DB=db_session, client=client_name, expires_in=expires_in
+            )
+    else:
+        modify_client_action(DB=db_session, client=client_name, expires_in=expires_in)
+        if not expires_in:
+            assert client.expires_at == original_expires_at
+        else:
+            expected_expires_at = now + expires_in * 24 * 60 * 60
+            # allow up to 4 seconds variation to account for test execution
+            assert client.expires_at <= expected_expires_at + 4000
+            assert client.expires_at >= expected_expires_at - 4000

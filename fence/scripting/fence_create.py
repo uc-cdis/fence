@@ -50,6 +50,7 @@ from fence.models import (
     ServiceAccountToGoogleBucketAccessGroup,
     query_for_user,
     GA4GHVisaV1,
+    get_client_expires_at,
 )
 from fence.scripting.google_monitor import email_users_without_access, validation_check
 from fence.config import config
@@ -84,13 +85,14 @@ def modify_client_action(
     policies=None,
     allowed_scopes=None,
     append=False,
-    expires_in=None,  # TODO
+    expires_in=None,
 ):
     driver = SQLAlchemyDriver(DB)
     with driver.session as s:
-        client = s.query(Client).filter(Client.name == client).first()
+        client_name = client
+        client = s.query(Client).filter(Client.name == client_name).first()
         if not client:
-            raise Exception("client {} does not exist".format(client))
+            raise Exception("client {} does not exist".format(client_name))
         if urls:
             if append:
                 client.redirect_uris += urls
@@ -121,6 +123,10 @@ def modify_client_action(
             else:
                 client._allowed_scopes = " ".join(allowed_scopes)
                 logger.info("Updating allowed_scopes to {}".format(allowed_scopes))
+        if expires_in:
+            client.expires_at = get_client_expires_at(
+                expires_in=expires_in, grant_types=client.grant_type
+            )
         s.commit()
     if arborist is not None and policies:
         arborist.update_client(client.client_id, policies)
