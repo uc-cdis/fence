@@ -521,7 +521,7 @@ The OAuth2 Client Credentials flow is used for machine-to-machine communication 
 As a Gen3 commons administrator, if you want to create an OAuth client for a client credentials flow:
 
 ```bash
-fence-create client-create --client CLIENT_NAME --grant-types client_credentials
+fence-create client-create --client CLIENT_NAME --grant-types client_credentials (--expires-in 30)
 ```
 
 This command will return a client ID and client secret, which you can then use to obtain an access token:
@@ -530,11 +530,11 @@ This command will return a client ID and client secret, which you can then use t
 curl --request POST https://FENCE_URL/oauth2/token?grant_type=client_credentials -d scope="openid user" --user CLIENT_ID:CLIENT_SECRET
 ```
 
+The optional `--expires-in` parameter allows specifying the number of days until this client expires. The recommendation is to rotate these credentials at least once a year.
+
 NOTE: In Gen3, you can grant specific access to a client the same way you would to a user. See the [user.yaml guide](https://github.com/uc-cdis/fence/blob/master/docs/user.yaml_guide.md) for more details.
 
 NOTE: Client credentials tokens are not linked to a user. They are not supported by all Gen3 endpoints.
-
-NOTE: The recommendation is to rotate these credentials at least once a year. Credentials expiration is not enforced at the moment but may be in the future.
 
 #### Modify OAuth Client
 
