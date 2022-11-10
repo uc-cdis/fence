@@ -53,6 +53,7 @@ from userdatamodel.models import (
 
 from fence import logger
 from fence.config import config
+from fence.errors import UserError
 
 
 def query_for_user(session, username):
@@ -237,18 +238,27 @@ class Client(Base, OAuth2ClientMixin):
                 "redirect_uri"
             ), "Redirect URL(s) are required for the 'authorization_code' grant"
 
+        if expires_in:
+            try:
+                expires_in = float(expires_in)
+                assert expires_in > 0
+            except (ValueError, AssertionError):
+                raise UserError(
+                    f"Requested expiry must be a positive integer; instead got: {expires_in}"
+                )
+
+            # for backwards compatibility, 0 means no expiration
+            if expires_in != 0:
+                expires_in_secs = expires_in * 24 * 60 * 60  # days to seconds
+                kwargs["expires_at"] = (
+                    datetime.utcnow() + timedelta(seconds=expires_in_secs)
+                ).timestamp()
+
         if "client_credentials" in kwargs["grant_type"].split("\n"):
             if not expires_in or expires_in <= 0 or expires_in > 366:
                 logger.warning(
-                    "Credentials with the 'client_credentials' grant which will be used externally are required to expire within 12 months. Use ther `--expires-in` parameter to add an expiration."
+                    "Credentials with the 'client_credentials' grant which will be used externally are required to expire within 12 months. Use the `--expires-in` parameter to add an expiration."
                 )
-
-        # for backwards compatibility, 0 means no expiration
-        if expires_in and expires_in != 0:
-            expires_in_secs = expires_in * 24 * 60 * 60  # days to seconds
-            kwargs["expires_at"] = (
-                datetime.utcnow() + timedelta(seconds=expires_in_secs)
-            ).timestamp()
 
         super(Client, self).__init__(client_id=client_id, **kwargs)
 

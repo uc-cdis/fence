@@ -142,7 +142,7 @@ def create_client_action(
         urls=urls,
         name=client,
         auto_approve=auto_approve,
-        expires_in=expires_in,  # todo check if this is read as an int. and check if we use half a day
+        expires_in=expires_in,
         **kwargs,
     )
     print("client id, client secret:")
@@ -178,7 +178,7 @@ def delete_client_action(DB, client_name):
                 current_session.delete(client)
             current_session.commit()
 
-        logger.info("Client {} deleted".format(client_name))
+        logger.info("Client '{}' deleted".format(client_name))
     except Exception as e:
         logger.error(str(e))
 

@@ -1,3 +1,4 @@
+from datetime import datetime
 import time
 import mock
 
@@ -10,6 +11,7 @@ from userdatamodel.models import Group
 from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.config import config
+from fence.errors import UserError
 from fence.jwt.validate import validate_jwt
 from fence.utils import create_client
 from fence.models import (
@@ -66,6 +68,7 @@ def create_client_action_wrapper(
     username="exampleuser",
     urls=["https://betawebapp.example/fence", "https://webapp.example/fence"],
     grant_types=["authorization_code", "refresh_token", "implicit"],
+    expires_in=None,
     **kwargs,
 ):
     """
@@ -79,6 +82,7 @@ def create_client_action_wrapper(
         username=username,
         urls=urls,
         grant_types=grant_types,
+        expires_in=expires_in,
         **kwargs,
     )
     to_test()
@@ -208,6 +212,44 @@ def test_create_client_with_client_credentials(db_session):
         urls=None,
         grant_types=grant_types,
     )
+
+
+@pytest.mark.parametrize("expires_in", [None, 0, 1000, 0.5, -10, "not-valid"])
+@pytest.mark.parametrize("grant_type", ["authorization_code", "client_credentials"])
+def test_create_client_with_expiration(db_session, grant_type, expires_in):
+    """
+    Test that a client can be created with a valid expiration.
+    """
+    client_name = "client_with_expiration"
+    grant_types = [grant_type]
+    now = datetime.utcnow().timestamp()
+
+    def to_test():
+        saved_client = db_session.query(Client).filter_by(name=client_name).first()
+        assert saved_client.grant_types == grant_types
+        if not expires_in:
+            assert saved_client.expires_at == 0
+        else:
+            expected_expires_at = now + expires_in * 24 * 60 * 60
+            # allow up to 4 seconds variation to account for test execution
+            assert saved_client.expires_at <= expected_expires_at + 4000
+            assert saved_client.expires_at >= expected_expires_at - 4000
+
+    if expires_in in [-10, "not-valid"]:
+        with pytest.raises(UserError):
+            create_client_action_wrapper(
+                to_test,
+                client_name=client_name,
+                grant_types=grant_types,
+                expires_in=expires_in,
+            )
+    else:
+        create_client_action_wrapper(
+            to_test,
+            client_name=client_name,
+            grant_types=grant_types,
+            expires_in=expires_in,
+        )
 
 
 def test_client_delete(app, db_session, cloud_manager, test_user_a):
