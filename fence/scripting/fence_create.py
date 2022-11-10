@@ -1,3 +1,4 @@
+from datetime import datetime
 import os
 import os.path
 import time
@@ -185,6 +186,37 @@ def delete_client_action(DB, client_name):
             current_session.commit()
 
         logger.info("Client '{}' deleted".format(client_name))
+    except Exception as e:
+        logger.error(str(e))
+
+
+def delete_expired_clients_action(DB):
+    try:
+        cirrus_config.update(**config["CIRRUS_CFG"])
+    except AttributeError:
+        # no cirrus config, continue anyway. we don't have client service accounts
+        # to delete
+        pass
+
+    try:
+        now = datetime.utcnow().timestamp()
+        driver = SQLAlchemyDriver(DB)
+        with driver.session as current_session:
+            clients = (
+                current_session.query(Client)
+                # for backwards compatibility, 0 means no expiration
+                .filter(Client.expires_at != 0)
+                .filter(Client.expires_at <= now)
+                .all()
+            )
+
+            for client in clients:
+                logger.info(
+                    f"Deleting client '{client.name}' (expired at {datetime.fromtimestamp(client.expires_at)})"
+                )
+                _remove_client_service_accounts(current_session, client)
+                current_session.delete(client)
+                current_session.commit()
     except Exception as e:
         logger.error(str(e))
 

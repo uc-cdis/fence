@@ -37,6 +37,7 @@ from fence.scripting.fence_create import (
     JWTCreator,
     create_client_action,
     delete_client_action,
+    delete_expired_clients_action,
     delete_expired_service_accounts,
     delete_expired_google_access,
     link_external_bucket,
@@ -334,6 +335,60 @@ def test_client_delete_error(app, db_session, cloud_manager, test_user_a):
     # make sure client is deleted but service account we couldn't delete stays
     assert len(client_after) == 0
     assert len(client_service_account_after) == 1
+
+
+def test_client_delete_expired(app, db_session, cloud_manager, test_user_a):
+    """
+    Test that the expired clients are correctly deleted along with their service accounts.
+    Clients with "None" or "0" expiration do not expire.
+    """
+    # create a set of clients with different expirations
+    user = User(username="client_user")
+    for i, expires_in in enumerate([0.000001, 0.00001, None, 0, 1000]):
+        client = Client(
+            client_id=f"test_client_id_{i}",
+            client_secret=f"secret_{i}",
+            name=f"test_client_{i}",
+            user=user,
+            redirect_uris="localhost",
+            expires_in=expires_in,
+        )
+        db_session.add(client)
+    db_session.commit()
+
+    # create a service account for one of the clients that will be removed
+    client_service_account = GoogleServiceAccount(
+        google_unique_id="jf09238ufposijf",
+        client_id="test_client_id_0",
+        user_id=test_user_a["user_id"],
+        google_project_id="test",
+        email="someemail@something.com",
+    )
+    db_session.add(client_service_account)
+    db_session.commit()
+
+    # empty return means success
+    cloud_manager.return_value.__enter__.return_value.delete_service_account.return_value = (
+        {}
+    )
+
+    # wait 1 second for the clients to expire, and delete the expired clients
+    time.sleep(1)
+    delete_expired_clients_action(config["DB"])
+
+    # make sure expired clients are deleted
+    clients_after = db_session.query(Client).all()
+    assert sorted([c.name for c in clients_after]) == [
+        "test_client_2",
+        "test_client_3",
+        "test_client_4",
+    ]
+
+    # make sure the service account for the expired client are deleted
+    client_service_account_after = (
+        db_session.query(GoogleServiceAccount).filter_by(client_id="test_client_id_0")
+    ).all()
+    assert len(client_service_account_after) == 0
 
 
 def test_delete_users(app, db_session, example_usernames):
@@ -1592,7 +1647,7 @@ def test_modify_client_expiration(db_session, expires_in, existing_expiration):
         client_secret="secret",
         name=client_name,
         user=User(username="client_user"),
-        redirect_uris=["localhost"],
+        redirect_uris="localhost",
         expires_in=(2 if existing_expiration else None),
     )
     db_session.add(client)
@@ -1608,6 +1663,8 @@ def test_modify_client_expiration(db_session, expires_in, existing_expiration):
             )
     else:
         modify_client_action(DB=db_session, client=client_name, expires_in=expires_in)
+
+        # make sure the expiration was updated if necessary
         if not expires_in:
             assert client.expires_at == original_expires_at
         else:

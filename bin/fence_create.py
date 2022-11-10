@@ -16,6 +16,7 @@ from fence.scripting.fence_create import (
     create_google_logging_bucket,
     create_sample_data,
     delete_client_action,
+    delete_expired_clients_action,
     delete_users,
     delete_expired_google_access,
     cleanup_expired_ga4gh_information,
@@ -148,6 +149,8 @@ def parse_arguments():
 
     client_delete = subparsers.add_parser("client-delete")
     client_delete.add_argument("--client", required=True)
+
+    client_delete_expired = subparsers.add_parser("client-delete-expired")
 
     user_delete = subparsers.add_parser("user-delete")
     user_delete.add_argument("--users", required=True, nargs="+")
@@ -461,6 +464,8 @@ def main():
         delete_client_action(DB, args.client)
     elif args.action == "client-list":
         list_client_action(DB)
+    elif args.action == "client-delete-expired":
+        delete_expired_clients_action(DB)
     elif args.action == "user-delete":
         delete_users(DB, args.users)
     elif args.action == "expired-service-account-delete":
