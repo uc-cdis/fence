@@ -84,6 +84,7 @@ def modify_client_action(
     policies=None,
     allowed_scopes=None,
     append=False,
+    expires_in=None,  # TODO
 ):
     driver = SQLAlchemyDriver(DB)
     with driver.session as s:
@@ -126,7 +127,13 @@ def modify_client_action(
 
 
 def create_client_action(
-    DB, username=None, client=None, urls=None, auto_approve=False, **kwargs
+    DB,
+    username=None,
+    client=None,
+    urls=None,
+    auto_approve=False,
+    expires_in=None,
+    **kwargs,
 ):
     print("\nSave these credentials! Fence will not save the unhashed client secret.")
     res = create_client(
@@ -135,6 +142,7 @@ def create_client_action(
         urls=urls,
         name=client,
         auto_approve=auto_approve,
+        expires_in=expires_in,  # todo check if this is read as an int. and check if we use half a day
         **kwargs,
     )
     print("client id, client secret:")

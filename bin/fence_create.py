@@ -103,6 +103,9 @@ def parse_arguments():
     client_create.add_argument(
         "--allowed-scopes", help="which scopes are allowed for this client", nargs="+"
     )
+    client_create.add_argument(
+        "--expires-in", help="days until this client expires", required=False
+    )
 
     client_modify = subparsers.add_parser("client-modify")
     client_modify.add_argument("--client", required=True)
@@ -136,6 +139,9 @@ def parse_arguments():
         help="which ABAC policies are granted to this client; if given, "
         "previous policies will be revoked",
         nargs="*",
+    )
+    client_modify.add_argument(
+        "--expires-in", help="days until this client expires", required=False
     )
 
     client_list = subparsers.add_parser("client-list")
@@ -433,6 +439,7 @@ def main():
             arborist=arborist,
             policies=args.policies,
             allowed_scopes=args.allowed_scopes,
+            expires_in=args.expires_in,
         )
     elif args.action == "client-modify":
         modify_client_action(
@@ -448,6 +455,7 @@ def main():
             policies=args.policies,
             allowed_scopes=args.allowed_scopes,
             append=args.append,
+            expires_in=args.expires_in,
         )
     elif args.action == "client-delete":
         delete_client_action(DB, args.client)

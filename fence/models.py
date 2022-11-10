@@ -11,6 +11,8 @@ from enum import Enum
 
 from authlib.flask.oauth2.sqla import OAuth2AuthorizationCodeMixin, OAuth2ClientMixin
 import bcrypt
+from datetime import datetime, timedelta
+import flask
 from sqlalchemy import (
     Integer,
     BigInteger,
@@ -184,9 +186,11 @@ class Client(Base, OAuth2ClientMixin):
     _default_scopes = Column(Text)
     _scopes = ["compute", "storage", "user"]
 
+    expires_at = Column(Integer, nullable=False, default=0)
+
     # note that authlib adds a response_type column which is not used here
 
-    def __init__(self, client_id, **kwargs):
+    def __init__(self, client_id, expires_in=0, **kwargs):
         """
         NOTE that for authlib, the client must have an attribute ``redirect_uri`` which
         is a newline-delimited list of valid redirect URIs.
@@ -232,6 +236,19 @@ class Client(Base, OAuth2ClientMixin):
             assert kwargs.get(
                 "redirect_uri"
             ), "Redirect URL(s) are required for the 'authorization_code' grant"
+
+        if "client_credentials" in kwargs["grant_type"].split("\n"):
+            if not expires_in or expires_in <= 0 or expires_in > 366:
+                logger.warning(
+                    "Credentials with the 'client_credentials' grant which will be used externally are required to expire within 12 months. Use ther `--expires-in` parameter to add an expiration."
+                )
+
+        # for backwards compatibility, 0 means no expiration
+        if expires_in and expires_in != 0:
+            expires_in_secs = expires_in * 24 * 60 * 60  # days to seconds
+            kwargs["expires_at"] = (
+                datetime.utcnow() + timedelta(seconds=expires_in_secs)
+            ).timestamp()
 
         super(Client, self).__init__(client_id=client_id, **kwargs)
 
