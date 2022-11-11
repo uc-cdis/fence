@@ -151,6 +151,17 @@ def parse_arguments():
     client_delete.add_argument("--client", required=True)
 
     client_delete_expired = subparsers.add_parser("client-delete-expired")
+    client_delete_expired.add_argument(
+        "--slack-webhook",
+        help="Slack webhook to post warnings when clients are about to expire",
+        required=False,
+    )
+    client_delete_expired.add_argument(
+        "--warning-days",
+        help="how many days before a client expires should we post a warning on Slack",
+        required=False,
+        default=7,
+    )
 
     user_delete = subparsers.add_parser("user-delete")
     user_delete.add_argument("--users", required=True, nargs="+")
@@ -465,7 +476,7 @@ def main():
     elif args.action == "client-list":
         list_client_action(DB)
     elif args.action == "client-delete-expired":
-        delete_expired_clients_action(DB)
+        delete_expired_clients_action(DB, args.slack_webhook, args.warning_days)
     elif args.action == "user-delete":
         delete_users(DB, args.users)
     elif args.action == "expired-service-account-delete":

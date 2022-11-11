@@ -337,20 +337,21 @@ def test_client_delete_error(app, db_session, cloud_manager, test_user_a):
     assert len(client_service_account_after) == 1
 
 
-def test_client_delete_expired(app, db_session, cloud_manager, test_user_a):
+@pytest.mark.parametrize("post_to_slack", [False, True])
+def test_client_delete_expired(app, db_session, cloud_manager, post_to_slack):
     """
     Test that the expired clients are correctly deleted along with their service accounts.
     Clients with "None" or "0" expiration do not expire.
     """
     # create a set of clients with different expirations
     user = User(username="client_user")
-    for i, expires_in in enumerate([0.000001, 0.00001, None, 0, 1000]):
+    for i, expires_in in enumerate([0.0000001, 0.000005, 1, 1000, None, 0]):
         client = Client(
             client_id=f"test_client_id_{i}",
             client_secret=f"secret_{i}",
             name=f"test_client_{i}",
             user=user,
-            redirect_uris="localhost",
+            redirect_uris=["localhost", "other-uri"],
             expires_in=expires_in,
         )
         db_session.add(client)
@@ -360,7 +361,7 @@ def test_client_delete_expired(app, db_session, cloud_manager, test_user_a):
     client_service_account = GoogleServiceAccount(
         google_unique_id="jf09238ufposijf",
         client_id="test_client_id_0",
-        user_id=test_user_a["user_id"],
+        user_id=user.id,
         google_project_id="test",
         email="someemail@something.com",
     )
@@ -372,9 +373,27 @@ def test_client_delete_expired(app, db_session, cloud_manager, test_user_a):
         {}
     )
 
-    # wait 1 second for the clients to expire, and delete the expired clients
+    # wait 1 second for the clients to expire
     time.sleep(1)
-    delete_expired_clients_action(config["DB"])
+
+    requests_mocker = mock.patch(
+        "fence.scripting.fence_create.requests", new_callable=mock.Mock
+    )
+    with requests_mocker as mocked_requests:
+        # delete the expired clients
+        if not post_to_slack:
+            delete_expired_clients_action(config["DB"])
+        else:
+            slack_webhook = "test-webhook"
+            delete_expired_clients_action(
+                config["DB"], slack_webhook=slack_webhook, warning_days=2
+            )
+            mocked_requests.post.assert_called_once()
+            call = mocked_requests.post.call_args_list[0]
+            args, kwargs = call
+            assert len(args) == 1 and args[0] == slack_webhook
+            msg = kwargs.get("json", {}).get("attachments", [{}])[0].get("text")
+            assert "test_client_2" in msg
 
     # make sure expired clients are deleted
     clients_after = db_session.query(Client).all()
@@ -382,13 +401,16 @@ def test_client_delete_expired(app, db_session, cloud_manager, test_user_a):
         "test_client_2",
         "test_client_3",
         "test_client_4",
+        "test_client_5",
     ]
 
     # make sure the service account for the expired client are deleted
-    client_service_account_after = (
-        db_session.query(GoogleServiceAccount).filter_by(client_id="test_client_id_0")
-    ).all()
-    assert len(client_service_account_after) == 0
+    client_sa_after = (
+        db_session.query(GoogleServiceAccount)
+        .filter_by(client_id="test_client_id_0")
+        .all()
+    )
+    assert len(client_sa_after) == 0
 
 
 def test_delete_users(app, db_session, example_usernames):
