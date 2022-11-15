@@ -1517,8 +1517,8 @@ testing = ["pytest (>=6)", "pytest-checkdocs (>=2.4)", "pytest-flake8", "flake8 
 
 [metadata]
 lock-version = "1.1"
-python-versions = "3.9"
-content-hash = "bdbd11d561e60827b25469cfafb8e4d3589c018224b759ee69e6eef4268b5158"
+python-versions = ">=3.9,<4.0.0"
+content-hash = "748e8db5cbad10e479bc3dff6377d0b0a8b965fe23f2f861eab0257b52b05c51"
 
 [metadata.files]
 addict = [
