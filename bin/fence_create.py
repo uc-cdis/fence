@@ -153,7 +153,7 @@ def parse_arguments():
     client_delete_expired = subparsers.add_parser("client-delete-expired")
     client_delete_expired.add_argument(
         "--slack-webhook",
-        help="Slack webhook to post warnings when clients are about to expire",
+        help="Slack webhook to post warnings when clients expired or are about to expire",
         required=False,
     )
     client_delete_expired.add_argument(

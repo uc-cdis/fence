@@ -565,7 +565,7 @@ That command should output the result of the deletion attempt.
 fence-create client-delete-expired
 ```
 
-To post a warning in Slack about any clients that are about to expire:
+To post a warning in Slack about any clients that expired or are about to expire:
 
 ```bash
 fence-create client-delete-expired --slack-webhook <url> --warning-days <default 7: only post about clients expiring in under 7 days>

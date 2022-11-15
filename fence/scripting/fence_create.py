@@ -194,7 +194,7 @@ def delete_client_action(DB, client_name):
 def delete_expired_clients_action(DB, slack_webhook=None, warning_days=None):
     """
     Args:
-        slack_webhook (str): Slack webhook to post warnings when clients are about to expire
+        slack_webhook (str): Slack webhook to post warnings when clients expired or are about to expire
         warning_days (int): how many days before a client expires should we post a warning on
             Slack (default: 7)
     """
@@ -212,6 +212,7 @@ def delete_expired_clients_action(DB, slack_webhook=None, warning_days=None):
 
     now = datetime.utcnow().timestamp()
     driver = SQLAlchemyDriver(DB)
+    expired_messages = ["Some expired OIDC clients have been deleted!"]
     with driver.session as current_session:
         clients = (
             current_session.query(Client)
@@ -222,15 +223,12 @@ def delete_expired_clients_action(DB, slack_webhook=None, warning_days=None):
         )
 
         for client in clients:
-            logger.info(
-                f"Deleting client '{client.name}' ({client.client_id}, expired at {datetime.fromtimestamp(client.expires_at)}, redirect URIs: {split_uris(client.redirect_uri)})"
+            expired_messages.append(
+                f"Client '{client.name}' (ID '{client.client_id}') expired at {datetime.fromtimestamp(client.expires_at)} UTC. Redirect URIs: {split_uris(client.redirect_uri)})"
             )
             _remove_client_service_accounts(current_session, client)
             current_session.delete(client)
             current_session.commit()
-
-        if not slack_webhook:
-            return
 
         # get the clients that are expiring soon
         warning_days = float(warning_days) if warning_days else 7
@@ -245,30 +243,36 @@ def delete_expired_clients_action(DB, slack_webhook=None, warning_days=None):
             .all()
         )
 
-    if not expiring_clients:
-        return
-
-    # post a warning on Slack
-    msg = "Some OIDC clients are expiring soon!"
-    bullets = [
-        f"Client '{client.name}' ({client.client_id}) expires at {datetime.fromtimestamp(client.expires_at)}. Redirect URIs: {split_uris(client.redirect_uri)}"
-        for client in expiring_clients
-    ]
-    logger.info(msg)
-    for e in bullets:
-        logger.info(e)
-    payload = {
-        "attachments": [
-            {
-                "fallback": msg,
-                "title": msg,
-                "text": "\n- " + "\n- ".join(bullets),
-                "color": "#FF5F15",
-            }
+    expiring_messages = ["Some OIDC clients are expiring soon!"]
+    expiring_messages.extend(
+        [
+            f"Client '{client.name}' (ID '{client.client_id}') expires at {datetime.fromtimestamp(client.expires_at)} UTC. Redirect URIs: {split_uris(client.redirect_uri)}"
+            for client in expiring_clients
         ]
-    }
-    resp = requests.post(slack_webhook, json=payload)
-    resp.raise_for_status()
+    )
+
+    for post_msgs, nothing_to_do_msg in (
+        (expired_messages, "No expired clients to delete"),
+        (expiring_messages, "No clients are close to expiring"),
+    ):
+        if len(post_msgs) > 1:
+            for e in post_msgs:
+                logger.info(e)
+            if slack_webhook:  # post a warning on Slack
+                payload = {
+                    "attachments": [
+                        {
+                            "fallback": post_msgs[0],
+                            "title": post_msgs[0],
+                            "text": "\n- " + "\n- ".join(post_msgs[1:]),
+                            "color": "#FF5F15",
+                        }
+                    ]
+                }
+                resp = requests.post(slack_webhook, json=payload)
+                resp.raise_for_status()
+        else:
+            logger.info(nothing_to_do_msg)
 
 
 def _remove_client_service_accounts(db_session, client):

@@ -388,9 +388,20 @@ def test_client_delete_expired(app, db_session, cloud_manager, post_to_slack):
             delete_expired_clients_action(
                 config["DB"], slack_webhook=slack_webhook, warning_days=2
             )
-            mocked_requests.post.assert_called_once()
-            call = mocked_requests.post.call_args_list[0]
-            args, kwargs = call
+            calls = mocked_requests.post.call_args_list
+            assert (
+                len(calls) == 2
+            ), f"Expected 2 Slack webhook calls, but got {len(calls)}."
+
+            # check the call about clients that have expired
+            args, kwargs = calls[0]
+            assert len(args) == 1 and args[0] == slack_webhook
+            msg = kwargs.get("json", {}).get("attachments", [{}])[0].get("text")
+            assert "test_client_0" in msg
+            assert "test_client_1" in msg
+
+            # check the call about clients that expire soon
+            args, kwargs = calls[1]
             assert len(args) == 1 and args[0] == slack_webhook
             msg = kwargs.get("json", {}).get("attachments", [{}])[0].get("text")
             assert "test_client_2" in msg
