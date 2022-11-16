@@ -83,6 +83,7 @@ class Oauth2ClientBase(object):
             token["id_token"],
             keys,
             options={"verify_aud": False, "verify_at_hash": False},
+            algorithms=["RS256"],
         )
 
     def get_value_from_discovery_doc(self, key, default_value):

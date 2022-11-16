@@ -328,7 +328,7 @@ def get_subjects_to_passports(
             key=rsa_private_key,
             headers=passport_header,
             algorithm="RS256",
-        ).decode("utf-8")
+        )
 
         output[subject] = {
             "visas": visas,
