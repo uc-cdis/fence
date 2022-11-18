@@ -259,6 +259,7 @@ def delete_expired_clients_action(DB, slack_webhook=None, warning_days=None):
             for e in post_msgs:
                 logger.info(e)
             if slack_webhook:  # post a warning on Slack
+                logger.info("Posting to Slack...")
                 payload = {
                     "attachments": [
                         {
