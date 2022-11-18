@@ -1655,7 +1655,7 @@ def encoded_jwt_no_proxy_group(kid, rsa_private_key, user_client, oauth_client):
             key=rsa_private_key,
             headers=headers,
             algorithm="RS256",
-        ).decode("utf-8"),
+        ),
         user_id=user_client["user_id"],
         client_id=oauth_client["client_id"],
     )

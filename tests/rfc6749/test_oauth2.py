@@ -158,7 +158,6 @@ def test_oauth2_without_client_credentials(oauth_test_client):
 
     oauth_test_client.grant_types = ["client_credentials"]
     oauth_test_client.token(do_asserts=False)  # hit /oauth2/token
-
     response = oauth_test_client.token_response.response
     assert response.status_code == 400, response.json
     assert response.json.get("error") == "unauthorized_client"
