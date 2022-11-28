@@ -1,4 +1,4 @@
-from datetime import datetime
+from datetime import datetime, timedelta
 import time
 import mock
 
@@ -223,7 +223,7 @@ def test_create_client_with_expiration(db_session, grant_type, expires_in):
     """
     client_name = "client_with_expiration"
     grant_types = [grant_type]
-    now = datetime.utcnow().timestamp()
+    now = datetime.utcnow()
 
     def to_test():
         saved_client = db_session.query(Client).filter_by(name=client_name).first()
@@ -231,10 +231,10 @@ def test_create_client_with_expiration(db_session, grant_type, expires_in):
         if not expires_in:
             assert saved_client.expires_at == 0
         else:
-            expected_expires_at = now + expires_in * 24 * 60 * 60
-            # allow up to 4 seconds variation to account for test execution
-            assert saved_client.expires_at <= expected_expires_at + 4000
-            assert saved_client.expires_at >= expected_expires_at - 4000
+            expected_expires_at = (now + timedelta(days=expires_in)).timestamp()
+            # allow up to 1 second variation to account for test execution
+            assert saved_client.expires_at <= expected_expires_at + 1
+            assert saved_client.expires_at >= expected_expires_at - 1
 
     if expires_in in [-10, "not-valid"]:
         with pytest.raises(UserError):
@@ -1688,7 +1688,7 @@ def test_modify_client_expiration(db_session, expires_in, existing_expiration):
     original_expires_at = client.expires_at
 
     # modify the client's expiration
-    now = datetime.utcnow().timestamp()
+    now = datetime.utcnow()
     if expires_in in [-10, "not-valid"]:
         with pytest.raises(UserError):
             modify_client_action(
@@ -1701,7 +1701,7 @@ def test_modify_client_expiration(db_session, expires_in, existing_expiration):
         if not expires_in:
             assert client.expires_at == original_expires_at
         else:
-            expected_expires_at = now + expires_in * 24 * 60 * 60
-            # allow up to 4 seconds variation to account for test execution
-            assert client.expires_at <= expected_expires_at + 4000
-            assert client.expires_at >= expected_expires_at - 4000
+            expected_expires_at = (now + timedelta(days=expires_in)).timestamp()
+            # allow up to 1 second variation to account for test execution
+            assert client.expires_at <= expected_expires_at + 1
+            assert client.expires_at >= expected_expires_at - 1
