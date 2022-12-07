@@ -210,7 +210,7 @@ def delete_expired_clients_action(DB, slack_webhook=None, warning_days=None):
             return uris
         return uris.split("\n")
 
-    now = datetime.utcnow().timestamp()
+    now = datetime.now().timestamp()
     driver = SQLAlchemyDriver(DB)
     expired_messages = ["Some expired OIDC clients have been deleted!"]
     with driver.session as current_session:
