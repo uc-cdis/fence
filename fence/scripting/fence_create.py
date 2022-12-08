@@ -1,5 +1,7 @@
+from datetime import datetime, timedelta
 import os
 import os.path
+import requests
 import time
 from yaml import safe_load
 import json
@@ -50,6 +52,7 @@ from fence.models import (
     ServiceAccountToGoogleBucketAccessGroup,
     query_for_user,
     GA4GHVisaV1,
+    get_client_expires_at,
 )
 from fence.scripting.google_monitor import email_users_without_access, validation_check
 from fence.config import config
@@ -84,12 +87,14 @@ def modify_client_action(
     policies=None,
     allowed_scopes=None,
     append=False,
+    expires_in=None,
 ):
     driver = SQLAlchemyDriver(DB)
     with driver.session as s:
-        client = s.query(Client).filter(Client.name == client).first()
+        client_name = client
+        client = s.query(Client).filter(Client.name == client_name).first()
         if not client:
-            raise Exception("client {} does not exist".format(client))
+            raise Exception("client {} does not exist".format(client_name))
         if urls:
             if append:
                 client.redirect_uris += urls
@@ -120,13 +125,23 @@ def modify_client_action(
             else:
                 client._allowed_scopes = " ".join(allowed_scopes)
                 logger.info("Updating allowed_scopes to {}".format(allowed_scopes))
+        if expires_in:
+            client.expires_at = get_client_expires_at(
+                expires_in=expires_in, grant_types=client.grant_type
+            )
         s.commit()
     if arborist is not None and policies:
         arborist.update_client(client.client_id, policies)
 
 
 def create_client_action(
-    DB, username=None, client=None, urls=None, auto_approve=False, **kwargs
+    DB,
+    username=None,
+    client=None,
+    urls=None,
+    auto_approve=False,
+    expires_in=None,
+    **kwargs,
 ):
     print("\nSave these credentials! Fence will not save the unhashed client secret.")
     res = create_client(
@@ -135,6 +150,7 @@ def create_client_action(
         urls=urls,
         name=client,
         auto_approve=auto_approve,
+        expires_in=expires_in,
         **kwargs,
     )
     print("client id, client secret:")
@@ -170,9 +186,94 @@ def delete_client_action(DB, client_name):
                 current_session.delete(client)
             current_session.commit()
 
-        logger.info("Client {} deleted".format(client_name))
+        logger.info("Client '{}' deleted".format(client_name))
     except Exception as e:
         logger.error(str(e))
+
+
+def delete_expired_clients_action(DB, slack_webhook=None, warning_days=None):
+    """
+    Args:
+        slack_webhook (str): Slack webhook to post warnings when clients expired or are about to expire
+        warning_days (int): how many days before a client expires should we post a warning on
+            Slack (default: 7)
+    """
+    try:
+        cirrus_config.update(**config["CIRRUS_CFG"])
+    except AttributeError:
+        # no cirrus config, continue anyway. we don't have client service accounts
+        # to delete
+        pass
+
+    def split_uris(uris):
+        if not uris:
+            return uris
+        return uris.split("\n")
+
+    now = datetime.utcnow().timestamp()
+    driver = SQLAlchemyDriver(DB)
+    expired_messages = ["Some expired OIDC clients have been deleted!"]
+    with driver.session as current_session:
+        clients = (
+            current_session.query(Client)
+            # for backwards compatibility, 0 means no expiration
+            .filter(Client.expires_at != 0)
+            .filter(Client.expires_at <= now)
+            .all()
+        )
+
+        for client in clients:
+            expired_messages.append(
+                f"Client '{client.name}' (ID '{client.client_id}') expired at {datetime.fromtimestamp(client.expires_at)} UTC. Redirect URIs: {split_uris(client.redirect_uri)})"
+            )
+            _remove_client_service_accounts(current_session, client)
+            current_session.delete(client)
+            current_session.commit()
+
+        # get the clients that are expiring soon
+        warning_days = float(warning_days) if warning_days else 7
+        warning_days_in_secs = warning_days * 24 * 60 * 60  # days to seconds
+        warning_expiry = (
+            datetime.utcnow() + timedelta(seconds=warning_days_in_secs)
+        ).timestamp()
+        expiring_clients = (
+            current_session.query(Client)
+            .filter(Client.expires_at != 0)
+            .filter(Client.expires_at <= warning_expiry)
+            .all()
+        )
+
+    expiring_messages = ["Some OIDC clients are expiring soon!"]
+    expiring_messages.extend(
+        [
+            f"Client '{client.name}' (ID '{client.client_id}') expires at {datetime.fromtimestamp(client.expires_at)} UTC. Redirect URIs: {split_uris(client.redirect_uri)}"
+            for client in expiring_clients
+        ]
+    )
+
+    for post_msgs, nothing_to_do_msg in (
+        (expired_messages, "No expired clients to delete"),
+        (expiring_messages, "No clients are close to expiring"),
+    ):
+        if len(post_msgs) > 1:
+            for e in post_msgs:
+                logger.info(e)
+            if slack_webhook:  # post a warning on Slack
+                logger.info("Posting to Slack...")
+                payload = {
+                    "attachments": [
+                        {
+                            "fallback": post_msgs[0],
+                            "title": post_msgs[0],
+                            "text": "\n- " + "\n- ".join(post_msgs[1:]),
+                            "color": "#FF5F15",
+                        }
+                    ]
+                }
+                resp = requests.post(slack_webhook, json=payload)
+                resp.raise_for_status()
+        else:
+            logger.info(nothing_to_do_msg)
 
 
 def _remove_client_service_accounts(db_session, client):

@@ -1550,10 +1550,9 @@ class UserSyncer(object):
                 self.sync_from_local_yaml_file, encrypted=False, logger=self.logger
             )
         except (EnvironmentError, AssertionError) as e:
-            # TODO return an error code so usersync doesn't fail silently
             self.logger.error(str(e))
             self.logger.error("aborting early")
-            return
+            raise
 
         print("PASSED USER YAML UPLOAD")
         # parse all projects
@@ -2437,10 +2436,9 @@ class UserSyncer(object):
                 self.sync_from_local_yaml_file, encrypted=False, logger=self.logger
             )
         except (EnvironmentError, AssertionError) as e:
-            # TODO return an error code so usersync doesn't fail silently
             self.logger.error(str(e))
             self.logger.error("aborting early")
-            return
+            raise
 
         user_projects = dict()
         user_info = dict()

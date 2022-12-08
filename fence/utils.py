@@ -48,6 +48,7 @@ def create_client(
     arborist=None,
     policies=None,
     allowed_scopes=None,
+    expires_in=None,
 ):
     client_id = random_str(40)
     if arborist is not None:
@@ -98,6 +99,7 @@ def create_client(
             grant_types=grant_types,
             is_confidential=confidential,
             token_endpoint_auth_method=auth_method,
+            expires_in=expires_in,
         )
         s.add(client)
         s.commit()

@@ -85,7 +85,7 @@ def test_app_config():
             "patch_name": "fence.resources.storage.StorageManager.__init__",
             "return_value": None,
         },
-        {"patch_name": "fence._check_aws_creds_and_region"},
+        {"patch_name": "fence._check_buckets_aws_creds_and_region"},
         {
             "patch_name": "fence.BlobServiceClient.from_connection_string",
             "return_value": fake_blob_service_client,

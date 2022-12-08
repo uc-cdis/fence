@@ -7,7 +7,6 @@ from datetime import datetime
 
 
 
-
 def test_login_user_already_in_db(db_session):
     """
     Test that if a user is already in the database and logs in, the session will contain

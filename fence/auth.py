@@ -321,6 +321,7 @@ def _update_users_id_from_idp(user, id_from_idp):
         current_session.add(user)
         current_session.commit()
 
+
 def _update_users_last_auth(user):
     """
     Update _last_auth.
