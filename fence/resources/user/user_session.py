@@ -184,6 +184,7 @@ class UserSessionInterface(SessionInterface):
         return timeout
 
     def save_session(self, app, session, response):
+        secure = config.get("SESSION_COOKIE_SECURE", True)
         domain = self.get_cookie_domain(app)
         token = session.get_updated_token(app)
         if token:
@@ -194,6 +195,7 @@ class UserSessionInterface(SessionInterface):
                 httponly=True,
                 domain=domain,
                 samesite="Lax",
+                secure=secure,
             )
             # try to get user, exception means they're not logged in
             try:
@@ -212,6 +214,7 @@ class UserSessionInterface(SessionInterface):
                     httponly=True,
                     domain=domain,
                     samesite="Lax",
+                    secure=secure,
                 )
             # check that the current user is the one from the session,
             # clear access token if not
@@ -222,6 +225,7 @@ class UserSessionInterface(SessionInterface):
                     httponly=True,
                     domain=domain,
                     samesite="Lax",
+                    secure=secure,
                 )
 
             # generate an access token and set in cookie if
@@ -245,7 +249,11 @@ class UserSessionInterface(SessionInterface):
             #       expiration it just won't be stored in the cookie
             #       anymore
             response.set_cookie(
-                app.session_cookie_name, expires=0, httponly=True, domain=domain
+                app.session_cookie_name,
+                expires=0,
+                httponly=True,
+                domain=domain,
+                secure=secure,
             )
             response.set_cookie(
                 config["ACCESS_TOKEN_COOKIE_NAME"],
@@ -253,6 +261,7 @@ class UserSessionInterface(SessionInterface):
                 httponly=True,
                 domain=domain,
                 samesite="Lax",
+                secure=secure,
             )
 
 
@@ -305,6 +314,7 @@ def _clear_session_if_expired(app, session):
 def _create_access_token_cookie(app, session, response, user):
     keypair = app.keypairs[0]
     scopes = config["SESSION_ALLOWED_SCOPES"]
+    secure = config.get("SESSION_COOKIE_SECURE", True)
 
     now = int(time.time())
     expiration = now + config.get("ACCESS_TOKEN_EXPIRES_IN")
@@ -332,6 +342,7 @@ def _create_access_token_cookie(app, session, response, user):
         httponly=True,
         domain=domain,
         samesite="Lax",
+        secure=secure,
     )
 
     return response
