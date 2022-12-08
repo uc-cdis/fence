@@ -241,7 +241,7 @@ def _check_azure_storage(app):
             logger.debug(err)
 
 
-def _check_aws_creds_and_region(app):
+def _check_buckets_aws_creds_and_region(app):
     """
     Function to ensure that all s3_buckets have a valid credential.
     Additionally, if there is no region it will produce a warning
@@ -250,6 +250,7 @@ def _check_aws_creds_and_region(app):
     buckets = config.get("S3_BUCKETS") or {}
     aws_creds = config.get("AWS_CREDENTIALS") or {}
 
+    # check that AWS creds and regions are configured
     for bucket_name, bucket_details in buckets.items():
         cred = bucket_details.get("cred")
         region = bucket_details.get("region")
@@ -303,6 +304,16 @@ def _check_aws_creds_and_region(app):
                 cred
             )
         )
+
+    # check that all the configured buckets are in `S3_BUCKETS`
+    bucket_names = config["ALLOWED_DATA_UPLOAD_BUCKETS"] or []
+    if config["DATA_UPLOAD_BUCKET"]:
+        bucket_names.append(config["DATA_UPLOAD_BUCKET"])
+    for bucket_name in bucket_names:
+        if bucket_name not in buckets:
+            logger.warning(
+                f"Data upload bucket '{bucket_name}' is not configured in 'S3_BUCKETS'"
+            )
 
 
 def app_config(
@@ -361,7 +372,7 @@ def app_config(
     _setup_oidc_clients(app)
 
     with app.app_context():
-        _check_aws_creds_and_region(app)
+        _check_buckets_aws_creds_and_region(app)
         _check_azure_storage(app)
 
     # load amanuensis public key for cross-service access

@@ -16,6 +16,7 @@ from fence.scripting.fence_create import (
     create_google_logging_bucket,
     create_sample_data,
     delete_client_action,
+    delete_expired_clients_action,
     delete_users,
     delete_expired_google_access,
     cleanup_expired_ga4gh_information,
@@ -103,6 +104,9 @@ def parse_arguments():
     client_create.add_argument(
         "--allowed-scopes", help="which scopes are allowed for this client", nargs="+"
     )
+    client_create.add_argument(
+        "--expires-in", help="days until this client expires", required=False
+    )
 
     client_modify = subparsers.add_parser("client-modify")
     client_modify.add_argument("--client", required=True)
@@ -137,11 +141,27 @@ def parse_arguments():
         "previous policies will be revoked",
         nargs="*",
     )
+    client_modify.add_argument(
+        "--expires-in", help="days until this client expires", required=False
+    )
 
     client_list = subparsers.add_parser("client-list")
 
     client_delete = subparsers.add_parser("client-delete")
     client_delete.add_argument("--client", required=True)
+
+    client_delete_expired = subparsers.add_parser("client-delete-expired")
+    client_delete_expired.add_argument(
+        "--slack-webhook",
+        help="Slack webhook to post warnings when clients expired or are about to expire",
+        required=False,
+    )
+    client_delete_expired.add_argument(
+        "--warning-days",
+        help="how many days before a client expires should we post a warning on Slack",
+        required=False,
+        default=7,
+    )
 
     user_delete = subparsers.add_parser("user-delete")
     user_delete.add_argument("--users", required=True, nargs="+")
@@ -433,6 +453,7 @@ def main():
             arborist=arborist,
             policies=args.policies,
             allowed_scopes=args.allowed_scopes,
+            expires_in=args.expires_in,
         )
     elif args.action == "client-modify":
         modify_client_action(
@@ -448,11 +469,14 @@ def main():
             policies=args.policies,
             allowed_scopes=args.allowed_scopes,
             append=args.append,
+            expires_in=args.expires_in,
         )
     elif args.action == "client-delete":
         delete_client_action(DB, args.client)
     elif args.action == "client-list":
         list_client_action(DB)
+    elif args.action == "client-delete-expired":
+        delete_expired_clients_action(DB, args.slack_webhook, args.warning_days)
     elif args.action == "user-delete":
         delete_users(DB, args.users)
     elif args.action == "expired-service-account-delete":
