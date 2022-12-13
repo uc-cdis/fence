@@ -223,7 +223,7 @@ def test_create_client_with_expiration(db_session, grant_type, expires_in):
     """
     client_name = "client_with_expiration"
     grant_types = [grant_type]
-    now = datetime.utcnow()
+    now = datetime.now()
 
     def to_test():
         saved_client = db_session.query(Client).filter_by(name=client_name).first()
@@ -1688,7 +1688,7 @@ def test_modify_client_expiration(db_session, expires_in, existing_expiration):
     original_expires_at = client.expires_at
 
     # modify the client's expiration
-    now = datetime.utcnow()
+    now = datetime.now()
     if expires_in in [-10, "not-valid"]:
         with pytest.raises(UserError):
             modify_client_action(

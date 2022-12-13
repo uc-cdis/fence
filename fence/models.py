@@ -146,7 +146,9 @@ def get_client_expires_at(expires_in, grant_types):
 
         # for backwards compatibility, 0 means no expiration
         if expires_in != 0:
-            expires_at = (datetime.utcnow() + timedelta(days=expires_in)).timestamp()
+            # do not use `datetime.utcnow()` or the timestamp will be wrong,
+            # `timestamp()` already converts to UTC
+            expires_at = (datetime.now() + timedelta(days=expires_in)).timestamp()
 
     if "client_credentials" in grant_types.split("\n"):
         if not expires_in or expires_in <= 0 or expires_in > 366:
