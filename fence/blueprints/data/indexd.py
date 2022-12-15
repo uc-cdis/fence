@@ -161,6 +161,8 @@ def get_signed_url_for_file(
     if counter:
         counter.labels(requested_protocol).inc()
 
+    logger.info(flask.current_app.db.engine.pool.status())
+
     return {"url": signed_url}
 
 
@@ -790,7 +792,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         role_arn = get_value(
             bucket_cred, "role-arn", InternalError("role-arn of that bucket is missing")
         )
-        expiry = time.time() + expires_in
+        expiry = int(time.time() + expires_in)
 
         # try to retrieve from local in-memory cache
         rv, expires_at = cls._assume_role_cache.get(role_arn, (None, 0))
@@ -848,9 +850,11 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 InternalError("outdated format. Session token missing"),
             ),
         }
-        expires_at = get_value(
-            cred, "Expiration", InternalError("outdated format. Expiration missing")
-        ).timestamp()
+        expires_at = int(
+            get_value(
+                cred, "Expiration", InternalError("outdated format. Expiration missing")
+            ).timestamp()
+        )
 
         # stores back to cache
         cls._assume_role_cache[role_arn] = rv, expires_at

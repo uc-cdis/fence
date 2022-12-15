@@ -1,7 +1,7 @@
 # To run: docker run --rm -d -v /path/to/fence-config.yaml:/var/www/fence/fence-config.yaml --name=fence -p 80:80 fence
 # To check running container do: docker exec -it fence /bin/bash
 
-FROM quay.io/cdis/python:python3.6-buster-pybase3-3.0.2
+FROM quay.io/cdis/python:python3.6-buster-pybase3-3.0.2_new
 
 ENV appname=fence
 
@@ -41,6 +41,7 @@ RUN poetry config virtualenvs.create false \
 COPY . /$appname
 COPY ./deployment/uwsgi/uwsgi.ini /etc/uwsgi/uwsgi.ini
 COPY ./deployment/uwsgi/wsgi.py /$appname/wsgi.py
+COPY ./deployment/nginx/nginx.conf /etc/nginx/nginx.conf
 COPY clear_prometheus_multiproc /$appname/clear_prometheus_multiproc
 
 # install fence
