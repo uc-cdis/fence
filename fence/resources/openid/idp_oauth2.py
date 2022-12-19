@@ -187,7 +187,7 @@ class Oauth2ClientBase(object):
         expires = None
 
         # get refresh_token and expiration from db
-        for row in sorted(user.upstream_refresh_tokens, key=lambda row:row.expires):
+        for row in sorted(user.upstream_refresh_tokens, key=lambda row: row.expires):
             refresh_token = row.refresh_token
             expires = row.expires
 
