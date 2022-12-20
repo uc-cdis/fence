@@ -1842,7 +1842,7 @@ class UserSyncer(object):
         self.logger.debug(
             f"_dbgap_study_to_resources: {self._dbgap_study_to_resources}"
         )
-        
+
         all_resources = [
             r
             for resources in self._dbgap_study_to_resources.values()
@@ -2078,6 +2078,8 @@ class UserSyncer(object):
         """
         for request_body in utils.combine_provided_and_dbgap_resources({}, resources):
             try:
+                print("------------request body------------")
+                print(request_body)
                 response_json = self.arborist_client.update_resource(
                     "/", request_body, merge=True
                 )
@@ -2201,7 +2203,6 @@ class UserSyncer(object):
         namespaces = dbgap_config.get("study_to_resource_namespaces", {}).get(
             dbgap_study, default_namespaces
         )
-
 
         self.logger.debug(f"dbgap study namespaces: {namespaces}")
 
