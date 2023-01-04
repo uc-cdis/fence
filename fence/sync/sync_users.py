@@ -549,6 +549,7 @@ class UserSyncer(object):
 
                     dbgap_project = phsid[0]
                     print("------------------dbgap project: %s" % dbgap_project)
+                    print("--------------------------------csv: %s" % (csv))
                     if len(phsid) > 1 and self.parse_consent_code:
                         consent_code = phsid[-1]
 
