@@ -532,6 +532,7 @@ class UserSyncer(object):
                 )
                 continue
 
+            self.logger.debug("Working on file: {}".format(filepath))
             with _read_file(
                 filepath, encrypted=encrypted, key=dbgap_key, logger=self.logger
             ) as f:
@@ -548,8 +549,11 @@ class UserSyncer(object):
                         phsid = row.get("phsid", "").split(".")
 
                     dbgap_project = phsid[0]
-                    print("------------------dbgap project: %s" % dbgap_project)
-                    print("--------------------------------csv: %s" % (filepath))
+
+                    self.logger.debug(
+                        "Working on user {} with project {}", username, dbgap_project
+                    )
+
                     if len(phsid) > 1 and self.parse_consent_code:
                         consent_code = phsid[-1]
 
