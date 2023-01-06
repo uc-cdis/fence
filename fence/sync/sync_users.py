@@ -550,10 +550,11 @@ class UserSyncer(object):
                     dbgap_project = phsid[0]
 
                     self.logger.debug(
-                        "Processing file {}, user {} with project {}",
-                        filepath,
-                        username,
-                        dbgap_project,
+                        "Processing file {}, user {} with project {}".format(
+                            filepath,
+                            username,
+                            dbgap_project,
+                        )
                     )
 
                     if len(phsid) > 1 and self.parse_consent_code:
