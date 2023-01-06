@@ -550,7 +550,7 @@ class UserSyncer(object):
                     dbgap_project = phsid[0]
 
                     self.logger.debug(
-                        "Processing file {}, user {} with project {}".format(
+                        "Collecting from file {}, user {} with project {}".format(
                             filepath,
                             username,
                             dbgap_project,
@@ -1851,7 +1851,6 @@ class UserSyncer(object):
         self.logger.debug(
             f"_dbgap_study_to_resources: {self._dbgap_study_to_resources}"
         )
-
         all_resources = [
             r
             for resources in self._dbgap_study_to_resources.values()
@@ -2087,8 +2086,6 @@ class UserSyncer(object):
         """
         for request_body in utils.combine_provided_and_dbgap_resources({}, resources):
             try:
-                print("------------request body------------")
-                print(request_body)
                 response_json = self.arborist_client.update_resource(
                     "/", request_body, merge=True
                 )
@@ -2218,12 +2215,6 @@ class UserSyncer(object):
         arborist_resource_namespaces = [
             namespace.rstrip("/") + "/programs/" for namespace in namespaces
         ]
-        print("--------------------------------")
-        print(dbgap_study)
-        print(namespaces)
-        print(default_namespaces)
-        print(arborist_resource_namespaces)
-        print("--------------------------------")
 
         for resource_namespace in arborist_resource_namespaces:
             full_resource_path = resource_namespace + dbgap_study
