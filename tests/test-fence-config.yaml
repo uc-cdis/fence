@@ -415,6 +415,7 @@ dbGaP:
     decrypt_key: ''
     allow_non_dbGaP_whitelist: false
     allowed_whitelist_patterns: ['authentication_file_PROJECT-(\d*).(csv|txt)']
+    allowed_project_id_patterns: ['PROJECT-(\d*)']
     study_to_resource_namespaces:
       # non dbgap study:
       'PROJECT-12345': ['']

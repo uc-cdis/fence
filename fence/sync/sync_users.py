@@ -514,6 +514,14 @@ class UserSyncer(object):
             self.logger.info(
                 f"using study to common exchange area mapping: {study_common_exchange_areas}"
             )
+
+        project_id_patterns = [r"phsid(/d{6})"]
+        for sftp in self.dbGaP:
+            info = sftp.get("info")
+            project_id_patterns.append(
+                r"{}".format(info.get("allowed_project_id_patterns"))
+            )
+
         for filepath, privileges in file_dict.items():
             self.logger.info("Reading file {}".format(filepath))
             if os.stat(filepath).st_size == 0:
@@ -549,13 +557,17 @@ class UserSyncer(object):
 
                     dbgap_project = phsid[0]
 
-                    self.logger.debug(
-                        "Collecting from file {}, user {} with project {}".format(
-                            filepath,
-                            username,
-                            dbgap_project,
-                        )
-                    )
+                    # if row phsid does not match regex then skip adding row to user_projects and user_info
+                    for pattern in project_id_patterns:
+                        if not re.match(pattern, dbgap_project):
+                            self.logger.warning(
+                                "Skip processing from file {}, user {} with project {}".format(
+                                    filepath,
+                                    username,
+                                    dbgap_project,
+                                )
+                            )
+                            continue
 
                     if len(phsid) > 1 and self.parse_consent_code:
                         consent_code = phsid[-1]

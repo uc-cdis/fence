@@ -546,6 +546,8 @@ dbGaP:
       # 'studyX': ['/orgA/', '/orgB/']
       # 'studyX.c2': ['/orgB/', '/orgC/']
       # 'studyZ': ['/orgD/']
+    # Allowed patterns for project_ids. The default value in usersync is 'phs(\d{6}) for dbgap projects'
+    allowed_project_id_patterns: []
 # Regex to match an assession number that has consent information in forms like:
 #   phs00301123.c999
 #   phs000123.v3.p1.c3
