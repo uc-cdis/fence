@@ -5,7 +5,6 @@
 [![Codacy Badge](https://api.codacy.com/project/badge/Grade/41ff9d807efa4da8a733793b3539ba3e)](https://www.codacy.com/app/uc-cdis/fence?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=uc-cdis/fence&amp;utm_campaign=Badge_Grade)
 [![Coverage Status](https://coveralls.io/repos/github/uc-cdis/fence/badge.svg?branch=master)](https://coveralls.io/github/uc-cdis/fence?branch=master)
 
-
 A `fence` separates protected resources from the outside world and allows
 only trusted entities to enter.
 
@@ -492,8 +491,10 @@ WARNING: fence-create directly modifies the database in some cases and may circu
 As a Gen3 commons administrator, if you want to create an oauth client that skips user consent step, use the following command:
 
 ```bash
-fence-create client-create --client CLIENT_NAME --urls OAUTH_REDIRECT_URL --username USERNAME --auto-approve
+fence-create client-create --client CLIENT_NAME --urls OAUTH_REDIRECT_URL --username USERNAME --auto-approve (--expires-in 30)
 ```
+
+The optional `--expires-in` parameter allows specifying the number of days until this client expires.
 
 #### Register an Implicit Oauth Client
 
@@ -522,7 +523,7 @@ The OAuth2 Client Credentials flow is used for machine-to-machine communication 
 As a Gen3 commons administrator, if you want to create an OAuth client for a client credentials flow:
 
 ```bash
-fence-create client-create --client CLIENT_NAME --grant-types client_credentials
+fence-create client-create --client CLIENT_NAME --grant-types client_credentials (--expires-in 30)
 ```
 
 This command will return a client ID and client secret, which you can then use to obtain an access token:
@@ -531,11 +532,11 @@ This command will return a client ID and client secret, which you can then use t
 curl --request POST https://FENCE_URL/oauth2/token?grant_type=client_credentials -d scope="openid user" --user CLIENT_ID:CLIENT_SECRET
 ```
 
+The optional `--expires-in` parameter allows specifying the number of *days* until this client expires. The recommendation is to rotate credentials with the `client_credentials` grant at least once a year.
+
 NOTE: In Gen3, you can grant specific access to a client the same way you would to a user. See the [user.yaml guide](https://github.com/uc-cdis/fence/blob/master/docs/user.yaml_guide.md) for more details.
 
 NOTE: Client credentials tokens are not linked to a user. They are not supported by all Gen3 endpoints.
-
-NOTE: The recommendation is to rotate these credentials at least once a year. Credentials expiration is not enforced at the moment but may be in the future.
 
 #### Modify OAuth Client
 
@@ -548,7 +549,7 @@ allowed here too.
 
 Add `--append` argument to add new callback urls or allowed scopes to existing client (instead of replacing them) using `--append --urls` or `--append --allowed-scopes`
 ```bash
-fence-create client-modify --client CLIENT_NAME --urls http://localhost/api/v0/new/oauth2/authorize --append
+fence-create client-modify --client CLIENT_NAME --urls http://localhost/api/v0/new/oauth2/authorize --append (--expires-in 30)
 ```
 
 #### Delete OAuth Client
@@ -557,6 +558,19 @@ fence-create client-modify --client CLIENT_NAME --urls http://localhost/api/v0/n
 fence-create client-delete --client CLIENT_NAME
 ```
 That command should output the result of the deletion attempt.
+
+#### Delete Expired OAuth Clients
+
+```bash
+fence-create client-delete-expired
+```
+
+To post a warning in Slack about any clients that expired or are about to expire:
+
+```bash
+fence-create client-delete-expired --slack-webhook <url> --warning-days <default 7: only post about clients expiring in under 7 days>
+```
+
 
 #### List OAuth Clients
 
@@ -600,4 +614,4 @@ Table contains various artifacts in fence that have temporary lifetimes and thei
 | Client SA (for User) Key             | 10 days      | FALSE       | N/A                   | Obtained by the user themselves for temp access. Can optionally provide an expiration less than 10 days                              |
 | User Primary SA Key                  | 10 days      | FALSE       | N/A                   | Used for Google URL signing                                                              |
 | User Primary SA Key for URL Signing  | 30 days      | FALSE       | N/A                   |                                                                                          |
-| Sliding Session Window               | 30 minutes   | TRUE        | 8 hours               | access_token cookies get generated automatically when expired if session is still active |
+| Sliding Session Window               | 15 minutes   | TRUE        | 8 hours               | access_token cookies get generated automatically when expired if session is still active |
