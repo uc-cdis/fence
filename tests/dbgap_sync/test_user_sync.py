@@ -133,6 +133,16 @@ def test_sync(
                     "PROJECT-12345": ["read", "read-storage"],
                 },
             )
+            # Assertion to ensure an invalid project id is not used
+            user = models.query_for_user(session=db_session, username="USERF")
+            assert "(888)-888-8888" not in user.project_access
+            assert equal_project_access(
+                user.project_access,
+                {
+                    "phs000178.c1": ["read", "read-storage"],
+                    "phs000178.c2": ["read", "read-storage"],
+                },
+            )
         else:
             user = models.query_for_user(session=db_session, username="USERC")
             assert equal_project_access(
