@@ -515,12 +515,15 @@ class UserSyncer(object):
                 f"using study to common exchange area mapping: {study_common_exchange_areas}"
             )
 
-        project_id_patterns = [r"phsid(/d{6})"]
-        for sftp in self.dbGaP:
-            info = sftp.get("info")
-            project_id_patterns.append(
-                r"{}".format(info.get("allowed_project_id_patterns"))
-            )
+        project_id_patterns = [r"phs(\d{6})"]
+        if dbgap_config.get("allow_non_dbGaP_whitelist", False):
+            if "allowed_project_id_patterns" in dbgap_config:
+                patterns = dbgap_config.get("allowed_project_id_patterns")
+                patterns = [
+                    r"{}".format(pattern.encode().decode("unicode_escape"))
+                    for pattern in patterns
+                ]  # when converting the YAML from fence-config, python reads it as Python string literal. So "\" turns into "\\" which messes with the regex match
+                project_id_patterns += patterns
 
         for filepath, privileges in file_dict.items():
             self.logger.info("Reading file {}".format(filepath))
@@ -556,10 +559,10 @@ class UserSyncer(object):
                         phsid = row.get("phsid", "").split(".")
 
                     dbgap_project = phsid[0]
-
-                    # if row phsid does not match regex then skip adding row to user_projects and user_info
+                    # There are issues where dbgap has a wrong entry in their whitelist. Since we do a bulk arborist request, there are wrong entries in it that invalidates the whole request causing other correct entries not to be added
+                    skip = False
                     for pattern in project_id_patterns:
-                        if not re.match(pattern, dbgap_project):
+                        if re.match(pattern, dbgap_project):
                             self.logger.warning(
                                 "Skip processing from file {}, user {} with project {}".format(
                                     filepath,
@@ -567,7 +570,12 @@ class UserSyncer(object):
                                     dbgap_project,
                                 )
                             )
-                            continue
+                            skip = False
+                            break
+                        else:
+                            skip = True
+                    if skip:
+                        continue
 
                     if len(phsid) > 1 and self.parse_consent_code:
                         consent_code = phsid[-1]
