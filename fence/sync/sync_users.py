@@ -564,10 +564,12 @@ class UserSyncer(object):
                     for pattern in project_id_patterns:
                         if re.match(pattern, dbgap_project):
                             self.logger.warning(
-                                "Skip processing from file {}, user {} with project {}".format(
+                                "Skip processing from file {}, user {} with project {} {} {}".format(
                                     filepath,
                                     username,
                                     dbgap_project,
+                                    project_id_patterns,
+                                    pattern,
                                 )
                             )
                             skip = False
