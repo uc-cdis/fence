@@ -253,6 +253,32 @@ def test_create_client_with_expiration(db_session, grant_type, expires_in):
         )
 
 
+def test_create_client_duplicate_name(db_session):
+    """
+    Test that we can't create a new client with the same name as an existing client.
+    """
+    client_name = "non_unique_client_name"
+
+    create_client_action(
+        config["DB"],
+        client=client_name,
+        username="exampleuser",
+        urls=["https://localhost"],
+        grant_types=["authorization_code"],
+    )
+    saved_client = db_session.query(Client).filter_by(name=client_name).first()
+    assert saved_client.name == client_name
+
+    with pytest.raises(Exception, match=f"client {client_name} already exists"):
+        create_client_action(
+            config["DB"],
+            client=client_name,
+            username="exampleuser",
+            urls=["https://localhost"],
+            grant_types=["authorization_code"],
+        )
+
+
 def test_client_delete(app, db_session, cloud_manager, test_user_a):
     """
     Test that the client delete function correctly cleans up the client's

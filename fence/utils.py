@@ -86,6 +86,7 @@ def create_client(
             if arborist is not None:
                 arborist.delete_client(client_id)
             raise Exception("client {} already exists".format(name))
+
         client = Client(
             client_id=client_id,
             client_secret=hashed_secret,
