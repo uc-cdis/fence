@@ -562,19 +562,22 @@ class UserSyncer(object):
                     # There are issues where dbgap has a wrong entry in their whitelist. Since we do a bulk arborist request, there are wrong entries in it that invalidates the whole request causing other correct entries not to be added
                     skip = False
                     for pattern in project_id_patterns:
-                        if re.match(pattern, dbgap_project):
-                            self.logger.warning(
-                                "Skip processing from file {}, user {} with project {} {} {}".format(
-                                    filepath,
-                                    username,
-                                    dbgap_project,
-                                    project_id_patterns,
-                                    pattern,
-                                )
+                        self.logger.debug(
+                            "Checking pattern:{} with project_id:{}".format(
+                                pattern, dbgap_project
                             )
+                        )
+                        if re.match(pattern, dbgap_project):
                             skip = False
                             break
                         else:
+                            self.logger.warning(
+                                "Skip processing from file {}, user {} with project {}".format(
+                                    filepath,
+                                    username,
+                                    dbgap_project,
+                                )
+                            )
                             skip = True
                     if skip:
                         continue
