@@ -38,6 +38,7 @@ from fence.scripting.fence_create import (
     create_client_action,
     delete_client_action,
     delete_expired_clients_action,
+    rotate_client_action,
     delete_expired_service_accounts,
     delete_expired_google_access,
     link_external_bucket,
@@ -457,6 +458,50 @@ def test_client_delete_expired(app, db_session, cloud_manager, post_to_slack):
         .all()
     )
     assert len(client_sa_after) == 0
+
+
+def test_client_rotate(db_session):
+    """
+    Create a client, rotate it and check that the 2 rows in the DB are identical except
+    for the client ID, secret and expiration.
+    """
+    client_name = "client_abc"
+
+    create_client_action(
+        config["DB"],
+        client=client_name,
+        username="exampleuser",
+        urls=["https://localhost"],
+        grant_types=["authorization_code"],
+        expires_in=30,
+    )
+    clients = db_session.query(Client).filter_by(name=client_name).all()
+    assert len(clients) == 1
+    assert clients[0].name == client_name
+
+    rotate_client_action(config["DB"], client_name, 20)
+
+    clients = db_session.query(Client).filter_by(name=client_name).all()
+    assert len(clients) == 2
+
+    assert clients[0].name == client_name
+    assert clients[1].name == client_name
+    for attr in [
+        "user",
+        "redirect_uris",
+        "_allowed_scopes",
+        "description",
+        "auto_approve",
+        "grant_types",
+        "is_confidential",
+        "token_endpoint_auth_method",
+    ]:
+        assert getattr(clients[0], attr) == getattr(
+            clients[1], attr
+        ), f"attribute '{attr}' differs"
+    assert clients[0].client_id != clients[1].client_id
+    assert clients[0].client_secret != clients[1].client_secret
+    assert clients[0].expires_at != clients[1].expires_at
 
 
 def test_delete_users(app, db_session, example_usernames):
