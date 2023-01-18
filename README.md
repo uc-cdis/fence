@@ -552,6 +552,14 @@ Add `--append` argument to add new callback urls or allowed scopes to existing c
 fence-create client-modify --client CLIENT_NAME --urls http://localhost/api/v0/new/oauth2/authorize --append (--expires-in 30)
 ```
 
+#### Rotate client credentials
+
+Use the `client-rotate` command to receive a new set of credentials for a client. The old credentials are NOT deactivated and must be deleted or expired separately. This allows for a rotation without downtime.
+
+```bash
+fence-create client-rotate --client CLIENT_NAME (--expires-in 30)
+```
+
 #### Delete OAuth Client
 
 ```bash
