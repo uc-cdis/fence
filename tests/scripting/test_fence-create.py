@@ -62,6 +62,19 @@ def mock_arborist(mock_arborist_requests):
     mock_arborist_requests()
 
 
+def delete_client_if_exists(db, client_name, username=None):
+    driver = SQLAlchemyDriver(db)
+    with driver.session as session:
+        client = session.query(Client).filter_by(name=client_name).first()
+        if client is not None:
+            session.delete(client)
+        if username:
+            user = session.query(User).filter_by(username=username).first()
+            if user is not None:
+                session.delete(user)
+        session.commit()
+
+
 def create_client_action_wrapper(
     to_test,
     db=None,
@@ -87,15 +100,7 @@ def create_client_action_wrapper(
         **kwargs,
     )
     to_test()
-    driver = SQLAlchemyDriver(db)
-    with driver.session as session:
-        client = session.query(Client).filter_by(name=client_name).first()
-        user = session.query(User).filter_by(username=username).first()
-        if client is not None:
-            session.delete(client)
-        if user is not None:
-            session.delete(user)
-        session.commit()
+    delete_client_if_exists(db, client_name, username)
 
 
 def test_create_client_inits_default_allowed_scopes(db_session):
@@ -258,18 +263,8 @@ def test_create_client_duplicate_name(db_session):
     Test that we can't create a new client with the same name as an existing client.
     """
     client_name = "non_unique_client_name"
-
-    create_client_action(
-        config["DB"],
-        client=client_name,
-        username="exampleuser",
-        urls=["https://localhost"],
-        grant_types=["authorization_code"],
-    )
-    saved_client = db_session.query(Client).filter_by(name=client_name).first()
-    assert saved_client.name == client_name
-
-    with pytest.raises(Exception, match=f"client {client_name} already exists"):
+    try:
+        # successfully create a client
         create_client_action(
             config["DB"],
             client=client_name,
@@ -277,6 +272,20 @@ def test_create_client_duplicate_name(db_session):
             urls=["https://localhost"],
             grant_types=["authorization_code"],
         )
+        saved_client = db_session.query(Client).filter_by(name=client_name).first()
+        assert saved_client.name == client_name
+
+        # we should fail to create a 2nd client with the same name
+        with pytest.raises(Exception, match=f"client {client_name} already exists"):
+            create_client_action(
+                config["DB"],
+                client=client_name,
+                username="exampleuser",
+                urls=["https://localhost"],
+                grant_types=["authorization_code"],
+            )
+    finally:
+        delete_client_if_exists(config["DB"], client_name)
 
 
 def test_client_delete(app, db_session, cloud_manager, test_user_a):
