@@ -498,11 +498,8 @@ class UserSyncer(object):
         # parse dbGaP sftp server information
         dbgap_key = dbgap_config.get("decrypt_key", None)
 
-        self.id_patterns += (
-            dbgap_config.get("allowed_whitelist_patterns", [])
-            if dbgap_config.get("allow_non_dbGaP_whitelist", False)
-            else []
-        )
+        self.id_patterns += dbgap_config.get("allowed_whitelist_patterns", [])
+
         enable_common_exchange_area_access = dbgap_config.get(
             "enable_common_exchange_area_access", False
         )
@@ -516,14 +513,13 @@ class UserSyncer(object):
             )
 
         project_id_patterns = [r"phs(\d{6})"]
-        if dbgap_config.get("allow_non_dbGaP_whitelist", False):
-            if "allowed_project_id_patterns" in dbgap_config:
-                patterns = dbgap_config.get("allowed_project_id_patterns")
-                patterns = [
-                    r"{}".format(pattern.encode().decode("unicode_escape"))
-                    for pattern in patterns
-                ]  # when converting the YAML from fence-config, python reads it as Python string literal. So "\" turns into "\\" which messes with the regex match
-                project_id_patterns += patterns
+        if "additional_allowed_project_id_patterns" in dbgap_config:
+            patterns = dbgap_config.get("additional_allowed_project_id_patterns")
+            patterns = [
+                r"{}".format(pattern.encode().decode("unicode_escape"))
+                for pattern in patterns
+            ]  # when converting the YAML from fence-config, python reads it as Python string literal. So "\" turns into "\\" which messes with the regex match
+            project_id_patterns += patterns
 
         for filepath, privileges in file_dict.items():
             self.logger.info("Reading file {}".format(filepath))
@@ -553,10 +549,7 @@ class UserSyncer(object):
                         continue
 
                     phsid_privileges = {}
-                    if dbgap_config.get("allow_non_dbGaP_whitelist", False):
-                        phsid = row.get("phsid", row.get("project_id", "")).split(".")
-                    else:
-                        phsid = row.get("phsid", "").split(".")
+                    phsid = row.get("phsid", row.get("project_id", "")).split(".")
 
                     dbgap_project = phsid[0]
                     # There are issues where dbgap has a wrong entry in their whitelist. Since we do a bulk arborist request, there are wrong entries in it that invalidates the whole request causing other correct entries not to be added
@@ -571,17 +564,16 @@ class UserSyncer(object):
                             skip = False
                             break
                         else:
-                            self.logger.warning(
-                                "Skip processing from file {}, user {} with project {}".format(
-                                    filepath,
-                                    username,
-                                    dbgap_project,
-                                )
-                            )
                             skip = True
                     if skip:
+                        self.logger.warning(
+                            "Skip processing from file {}, user {} with project {}".format(
+                                filepath,
+                                username,
+                                dbgap_project,
+                            )
+                        )
                         continue
-
                     if len(phsid) > 1 and self.parse_consent_code:
                         consent_code = phsid[-1]
 
