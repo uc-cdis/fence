@@ -74,13 +74,11 @@ def test_sync_incorrect_user_yaml_file(syncer, monkeypatch, db_session):
     assert syncer.arborist_client.create_policy.not_called()
 
 
-@pytest.mark.parametrize("allow_non_dbgap_whitelist", [False, True])
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
 @pytest.mark.parametrize("parse_consent_code_config", [False, True])
 def test_sync(
     syncer,
     db_session,
-    allow_non_dbgap_whitelist,
     storage_client,
     parse_consent_code_config,
     monkeypatch,
@@ -90,9 +88,6 @@ def test_sync(
         syncer.dbGaP[0], "parse_consent_code", parse_consent_code_config
     )
     monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
-    monkeypatch.setitem(
-        syncer.dbGaP[2], "allow_non_dbGaP_whitelist", allow_non_dbgap_whitelist
-    )
 
     syncer.sync()
 
@@ -102,139 +97,79 @@ def test_sync(
     assert len(users) == 9
 
     if parse_consent_code_config:
-        if allow_non_dbgap_whitelist:
-            user = models.query_for_user(session=db_session, username="TESTUSERD")
-            assert equal_project_access(
-                user.project_access,
-                {
-                    "phs000179.c1": ["read", "read-storage"],
-                    "PROJECT-12345": ["read", "read-storage"],
-                },
-            )
+        user = models.query_for_user(session=db_session, username="TESTUSERD")
+        assert equal_project_access(
+            user.project_access,
+            {
+                "phs000179.c1": ["read", "read-storage"],
+                "PROJECT-12345": ["read", "read-storage"],
+            },
+        )
 
-            user = models.query_for_user(session=db_session, username="TESTUSERB")
-            assert equal_project_access(
-                user.project_access,
-                {
-                    "phs000178.c1": ["read", "read-storage"],
-                    "phs000179.c1": ["read", "read-storage"],
-                    "PROJECT-12345": ["read", "read-storage"],
-                },
-            )
+        user = models.query_for_user(session=db_session, username="TESTUSERB")
+        assert equal_project_access(
+            user.project_access,
+            {
+                "phs000178.c1": ["read", "read-storage"],
+                "phs000179.c1": ["read", "read-storage"],
+                "PROJECT-12345": ["read", "read-storage"],
+            },
+        )
 
-            user = models.query_for_user(session=db_session, username="USERC")
-            assert equal_project_access(
-                user.project_access,
-                {
-                    "phs000178.c1": ["read", "read-storage"],
-                    "phs000178.c2": ["read", "read-storage"],
-                    "phs000178.c999": ["read", "read-storage"],
-                    "phs000179.c1": ["read", "read-storage"],
-                    "PROJECT-12345": ["read", "read-storage"],
-                },
-            )
-            # Assertion to ensure an invalid project id is not used
-            user = models.query_for_user(session=db_session, username="USERF")
-            assert "(888)-888-8888" not in user.project_access
-            assert equal_project_access(
-                user.project_access,
-                {
-                    "phs000178.c1": ["read", "read-storage"],
-                    "phs000178.c2": ["read", "read-storage"],
-                },
-            )
-        else:
-            user = models.query_for_user(session=db_session, username="USERC")
-            assert equal_project_access(
-                user.project_access,
-                {
-                    "phs000178.c1": ["read", "read-storage"],
-                    "phs000178.c2": ["read", "read-storage"],
-                    "phs000178.c999": ["read", "read-storage"],
-                    "phs000179.c1": ["read", "read-storage"],
-                },
-            )
-
-            user = models.query_for_user(session=db_session, username="USERF")
-            assert equal_project_access(
-                user.project_access,
-                {
-                    "phs000178.c1": ["read", "read-storage"],
-                    "phs000178.c2": ["read", "read-storage"],
-                },
-            )
-
-            user = models.query_for_user(session=db_session, username="TESTUSERB")
-            assert equal_project_access(
-                user.project_access,
-                {
-                    "phs000179.c1": ["read", "read-storage"],
-                    "phs000178.c1": ["read", "read-storage"],
-                },
-            )
+        user = models.query_for_user(session=db_session, username="USERC")
+        assert equal_project_access(
+            user.project_access,
+            {
+                "phs000178.c1": ["read", "read-storage"],
+                "phs000178.c2": ["read", "read-storage"],
+                "phs000178.c999": ["read", "read-storage"],
+                "phs000179.c1": ["read", "read-storage"],
+                "PROJECT-12345": ["read", "read-storage"],
+            },
+        )
+        # Assertion to ensure an invalid project id is not used
+        user = models.query_for_user(session=db_session, username="USERF")
+        assert "(888)-888-8888" not in user.project_access
+        assert equal_project_access(
+            user.project_access,
+            {
+                "phs000178.c1": ["read", "read-storage"],
+                "phs000178.c2": ["read", "read-storage"],
+            },
+        )
     else:
-        if allow_non_dbgap_whitelist:
-            user = models.query_for_user(session=db_session, username="TESTUSERD")
-            assert equal_project_access(
-                user.project_access,
-                {
-                    "phs000179": ["read", "read-storage"],
-                    "PROJECT-12345": ["read", "read-storage"],
-                },
-            )
+        user = models.query_for_user(session=db_session, username="TESTUSERD")
+        assert equal_project_access(
+            user.project_access,
+            {
+                "phs000179": ["read", "read-storage"],
+                "PROJECT-12345": ["read", "read-storage"],
+            },
+        )
 
-            user = models.query_for_user(session=db_session, username="TESTUSERB")
-            assert equal_project_access(
-                user.project_access,
-                {
-                    "phs000178": ["read", "read-storage"],
-                    "phs000179": ["read", "read-storage"],
-                    "PROJECT-12345": ["read", "read-storage"],
-                    "TCGA-PCAWG": ["read", "read-storage"],
-                },
-            )
+        user = models.query_for_user(session=db_session, username="TESTUSERB")
+        assert equal_project_access(
+            user.project_access,
+            {
+                "phs000178": ["read", "read-storage"],
+                "phs000179": ["read", "read-storage"],
+                "PROJECT-12345": ["read", "read-storage"],
+                "TCGA-PCAWG": ["read", "read-storage"],
+            },
+        )
 
-            user = models.query_for_user(session=db_session, username="USERC")
-            assert equal_project_access(
-                user.project_access,
-                {
-                    "phs000178": ["read", "read-storage"],
-                    "phs000178": ["read", "read-storage"],
-                    "phs000178": ["read", "read-storage"],
-                    "phs000179": ["read", "read-storage"],
-                    "TCGA-PCAWG": ["read", "read-storage"],
-                    "PROJECT-12345": ["read", "read-storage"],
-                },
-            )
-        else:
-            user = models.query_for_user(session=db_session, username="USERC")
-            assert equal_project_access(
-                user.project_access,
-                {
-                    "phs000178": ["read", "read-storage"],
-                    "TCGA-PCAWG": ["read", "read-storage"],
-                    "phs000179": ["read", "read-storage"],
-                },
-            )
-
-            user = models.query_for_user(session=db_session, username="USERF")
-            assert equal_project_access(
-                user.project_access,
-                {
-                    "phs000178": ["read", "read-storage"],
-                    "TCGA-PCAWG": ["read", "read-storage"],
-                },
-            )
-
-            user = models.query_for_user(session=db_session, username="TESTUSERB")
-            assert equal_project_access(
-                user.project_access,
-                {
-                    "phs000178": ["read", "read-storage"],
-                    "TCGA-PCAWG": ["read", "read-storage"],
-                    "phs000179": ["read", "read-storage"],
-                },
-            )
+        user = models.query_for_user(session=db_session, username="USERC")
+        assert equal_project_access(
+            user.project_access,
+            {
+                "phs000178": ["read", "read-storage"],
+                "phs000178": ["read", "read-storage"],
+                "phs000178": ["read", "read-storage"],
+                "phs000179": ["read", "read-storage"],
+                "TCGA-PCAWG": ["read", "read-storage"],
+                "PROJECT-12345": ["read", "read-storage"],
+            },
+        )
 
     user = models.query_for_user(session=db_session, username="TESTUSERD")
     assert user.display_name == "USER D"
@@ -301,6 +236,7 @@ def test_dbgap_consent_codes(
                     # should additionally include the study-specific exchange area access and
                     # access to the common exchange area
                     "test_common_exchange_area": ["read", "read-storage"],
+                    "PROJECT-12345": ["read", "read-storage"],
                 },
             )
         else:
@@ -314,6 +250,7 @@ def test_dbgap_consent_codes(
                     "phs000178.c1": ["read", "read-storage"],
                     "phs000178.c2": ["read", "read-storage"],
                     "phs000178.c999": ["read", "read-storage"],
+                    "PROJECT-12345": ["read", "read-storage"],
                 },
             )
     else:
@@ -323,6 +260,7 @@ def test_dbgap_consent_codes(
             {
                 "phs000178": ["read", "read-storage"],
                 "phs000179": ["read", "read-storage"],
+                "PROJECT-12345": ["read", "read-storage"],
             },
         )
 
@@ -337,7 +275,10 @@ def test_dbgap_consent_codes(
         )
     else:
         assert equal_project_access(
-            user.project_access, {"phs000178": ["read", "read-storage"]}
+            user.project_access,
+            {
+                "phs000178": ["read", "read-storage"],
+            },
         )
 
     user = models.query_for_user(session=db_session, username="TESTUSERB")
@@ -347,6 +288,7 @@ def test_dbgap_consent_codes(
             {
                 "phs000178.c1": ["read", "read-storage"],
                 "phs000179.c1": ["read", "read-storage"],
+                "PROJECT-12345": ["read", "read-storage"],
             },
         )
     else:
@@ -355,17 +297,26 @@ def test_dbgap_consent_codes(
             {
                 "phs000178": ["read", "read-storage"],
                 "phs000179": ["read", "read-storage"],
+                "PROJECT-12345": ["read", "read-storage"],
             },
         )
 
     user = models.query_for_user(session=db_session, username="TESTUSERD")
     if parse_consent_code_config:
         assert equal_project_access(
-            user.project_access, {"phs000179.c1": ["read", "read-storage"]}
+            user.project_access,
+            {
+                "phs000179.c1": ["read", "read-storage"],
+                "PROJECT-12345": ["read", "read-storage"],
+            },
         )
     else:
         assert equal_project_access(
-            user.project_access, {"phs000179": ["read", "read-storage"]}
+            user.project_access,
+            {
+                "phs000179": ["read", "read-storage"],
+                "PROJECT-12345": ["read", "read-storage"],
+            },
         )
 
     resource_to_parent_paths = collections.defaultdict(list)
