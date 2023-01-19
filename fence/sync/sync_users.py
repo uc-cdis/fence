@@ -516,14 +516,13 @@ class UserSyncer(object):
             )
 
         project_id_patterns = [r"phs(\d{6})"]
-        if dbgap_config.get("allow_non_dbGaP_whitelist", False):
-            if "allowed_project_id_patterns" in dbgap_config:
-                patterns = dbgap_config.get("allowed_project_id_patterns")
-                patterns = [
-                    r"{}".format(pattern.encode().decode("unicode_escape"))
-                    for pattern in patterns
-                ]  # when converting the YAML from fence-config, python reads it as Python string literal. So "\" turns into "\\" which messes with the regex match
-                project_id_patterns += patterns
+        if "additional_allowed_project_id_patterns" in dbgap_config:
+            patterns = dbgap_config.get("additional_allowed_project_id_patterns")
+            patterns = [
+                r"{}".format(pattern.encode().decode("unicode_escape"))
+                for pattern in patterns
+            ]  # when converting the YAML from fence-config, python reads it as Python string literal. So "\" turns into "\\" which messes with the regex match
+            project_id_patterns += patterns
 
         for filepath, privileges in file_dict.items():
             self.logger.info("Reading file {}".format(filepath))
@@ -571,17 +570,16 @@ class UserSyncer(object):
                             skip = False
                             break
                         else:
-                            self.logger.warning(
-                                "Skip processing from file {}, user {} with project {}".format(
-                                    filepath,
-                                    username,
-                                    dbgap_project,
-                                )
-                            )
                             skip = True
                     if skip:
+                        self.logger.warning(
+                            "Skip processing from file {}, user {} with project {}".format(
+                                filepath,
+                                username,
+                                dbgap_project,
+                            )
+                        )
                         continue
-
                     if len(phsid) > 1 and self.parse_consent_code:
                         consent_code = phsid[-1]
 
