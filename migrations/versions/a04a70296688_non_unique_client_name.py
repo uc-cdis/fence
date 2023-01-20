@@ -16,8 +16,19 @@ depends_on = None
 
 
 def upgrade():
-    # the `name` does not have to be unique anymore
-    op.drop_constraint("client_name_key", "client")
+    # the `name` does not have to be unique anymore: remove the constraint
+    connection = op.get_bind()
+    results = connection.execute(
+        "SELECT conname FROM pg_constraint WHERE conrelid = 'client'::regclass and contype = 'u'"
+    )
+    name_constraints = [e[0] for e in results if "name" in e[0]]
+    if len(name_constraints) != 1:
+        raise Exception(
+            f"Found multiple 'unique client name' constraints: {name_constraints}"
+        )
+
+    print(f"Droppping 'unique client name' constraint: '{name_constraints[0]}'")
+    op.drop_constraint(name_constraints[0], "client")
 
 
 def downgrade():
@@ -33,4 +44,4 @@ def downgrade():
     )
 
     # the `name` must be unique
-    op.create_unique_constraint("client_name_key", "client", ["name"])
+    op.create_unique_constraint("unique_client_name", "client", ["name"])
