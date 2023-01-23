@@ -53,6 +53,7 @@ class UserSession(SessionMixin):
                     scope=None,
                     purpose="session",
                     public_key=default_public_key(),
+                    options={"verify_exp": False},
                 )
             except JWTError:
                 # if session token is invalid, create a new
