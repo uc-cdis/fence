@@ -188,14 +188,21 @@ class Oauth2ClientBase(object):
         expires = None
 
         # get refresh_token and expiration from db
-        for row in user.upstream_refresh_tokens:
+        for row in sorted(user.upstream_refresh_tokens, key=lambda row:row.expires):
             refresh_token = row.refresh_token
             expires = row.expires
 
+            if time.time() > expires:
+                # reset to check for next token
+                refresh_token = None
+                expires = None
+
+                # delete expired refresh token
+                db_session.delete(row)
+                db_session.commit()
+
         if not refresh_token:
-            raise AuthError("User doesn't have a refresh token")
-        if time.time() > expires:
-            raise AuthError("Refresh token expired. Please login again.")
+            raise AuthError("User doesn't have a valid, non-expired refresh token")
 
         token_response = self.session.refresh_token(
             url=token_endpoint,
