@@ -53,7 +53,7 @@ def test_oauth2_token_post(oauth_test_client):
     assert "expires_in" in response
     assert response.get("token_type") == "Bearer"
 
-    payload = jwt.decode(response["access_token"], verify=False)
+    payload = jwt.decode(response["access_token"], options={"verify_signature": False}, algorithms=["RS256"])
     assert payload.get("iss") == "http://localhost/user"
     assert payload.get("azp") == oauth_test_client.client_id
     assert "context" in payload
@@ -124,7 +124,7 @@ def test_oauth2_with_client_credentials(
     assert "expires_in" in response
     assert response.get("token_type") == "Bearer"
 
-    payload = jwt.decode(response["access_token"], verify=False)
+    payload = jwt.decode(response["access_token"], options={"verify_signature": False}, algorithms=["RS256"])
     assert payload.get("iss") == "http://localhost/user"
     assert payload.get("azp") == oauth_test_client_with_client_credentials.client_id
     assert payload.get("context") == {}  # no user linked to this token
@@ -158,7 +158,6 @@ def test_oauth2_without_client_credentials(oauth_test_client):
 
     oauth_test_client.grant_types = ["client_credentials"]
     oauth_test_client.token(do_asserts=False)  # hit /oauth2/token
-
     response = oauth_test_client.token_response.response
     assert response.status_code == 400, response.json
     assert response.json.get("error") == "unauthorized_client"
