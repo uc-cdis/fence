@@ -91,7 +91,7 @@ def blacklist_encoded_token(encoded_token, public_key=None):
         claims = jwt.decode(
             encoded_token,
             public_key,
-            algorithm="RS256",
+            algorithms=["RS256"],
             options={"verify_aud": False},
         )
     except jwt.InvalidTokenError as e:
@@ -143,7 +143,7 @@ def is_token_blacklisted(encoded_token, public_key=None):
         token = jwt.decode(
             encoded_token,
             public_key,
-            algorithm="RS256",
+            algorithms=["RS256"],
             options={"verify_aud": False},
         )
     except jwt.exceptions.InvalidTokenError as e:
