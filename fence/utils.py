@@ -35,6 +35,17 @@ def json_res(data):
 
 
 def generate_client_credentials(confidential):
+    """
+    Generate a new client ID. If the client is confidential, also generate a new client secret.
+    The unhashed secret should be returned to the user and the hashed secret should be stored
+    in the database for later use.
+
+    Args:
+        confidential (bool): true if the client is confidential, false if it is public
+
+    Returns:
+        tuple: (client ID, unhashed client secret or None, hashed client secret or None)
+    """
     client_id = random_str(40)
     client_secret = None
     hashed_secret = None

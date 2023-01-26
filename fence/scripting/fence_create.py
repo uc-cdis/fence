@@ -277,6 +277,19 @@ def delete_expired_clients_action(DB, slack_webhook=None, warning_days=None):
 
 
 def rotate_client_action(DB, client_name, expires_in=None):
+    """
+    Rorate a client's credentials (client ID and secret). The old credentials are
+    NOT deactivated and must be deleted or expired separately. This allows for a
+    rotation without downtime.
+
+    Args:
+        DB (str): database connection string
+        client_name (str): name of the client to rotate credentials for
+        expires_in (optional): number of days until this client expires (by default, no expiration)
+
+    Returns:
+        This functions does not return anything, but it prints the new set of credentials.
+    """
     driver = SQLAlchemyDriver(DB)
     with driver.session as s:
         client = s.query(Client).filter(Client.name == client_name).first()

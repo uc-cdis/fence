@@ -16,17 +16,20 @@ depends_on = None
 
 
 def upgrade():
-    # the `name` does not have to be unique anymore: remove the constraint
+    # get all "unique" constraints on "client" table
     connection = op.get_bind()
     results = connection.execute(
         "SELECT conname FROM pg_constraint WHERE conrelid = 'client'::regclass and contype = 'u'"
     )
+
+    # filter out the constraints that are not for the "name" column; only 1 constraint should be left
     name_constraints = [e[0] for e in results if "name" in e[0]]
     if len(name_constraints) != 1:
         raise Exception(
             f"Found multiple 'unique client name' constraints: {name_constraints}"
         )
 
+    # the `name` does not have to be unique anymore: remove the constraint
     print(f"Droppping 'unique client name' constraint: '{name_constraints[0]}'")
     op.drop_constraint(name_constraints[0], "client")
 
