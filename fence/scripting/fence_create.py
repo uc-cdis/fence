@@ -92,43 +92,44 @@ def modify_client_action(
     driver = SQLAlchemyDriver(DB)
     with driver.session as s:
         client_name = client
-        client = s.query(Client).filter(Client.name == client_name).first()
-        if not client:
+        clients = s.query(Client).filter(Client.name == client_name).all()
+        if not clients:
             raise Exception("client {} does not exist".format(client_name))
-        if urls:
-            if append:
-                client.redirect_uris += urls
-                logger.info("Adding {} to urls".format(urls))
-            else:
-                client.redirect_uris = urls
-                logger.info("Changing urls to {}".format(urls))
-        if delete_urls:
-            client.redirect_uris = []
-            logger.info("Deleting urls")
-        if set_auto_approve:
-            client.auto_approve = True
-            logger.info("Auto approve set to True")
-        if unset_auto_approve:
-            client.auto_approve = False
-            logger.info("Auto approve set to False")
-        if name:
-            client.name = name
-            logger.info("Updating name to {}".format(name))
-        if description:
-            client.description = description
-            logger.info("Updating description to {}".format(description))
-        if allowed_scopes:
-            if append:
-                new_scopes = client._allowed_scopes.split() + allowed_scopes
-                client._allowed_scopes = " ".join(new_scopes)
-                logger.info("Adding {} to allowed_scopes".format(allowed_scopes))
-            else:
-                client._allowed_scopes = " ".join(allowed_scopes)
-                logger.info("Updating allowed_scopes to {}".format(allowed_scopes))
-        if expires_in:
-            client.expires_at = get_client_expires_at(
-                expires_in=expires_in, grant_types=client.grant_type
-            )
+        for client in clients:
+            if urls:
+                if append:
+                    client.redirect_uris += urls
+                    logger.info("Adding {} to urls".format(urls))
+                else:
+                    client.redirect_uris = urls
+                    logger.info("Changing urls to {}".format(urls))
+            if delete_urls:
+                client.redirect_uris = []
+                logger.info("Deleting urls")
+            if set_auto_approve:
+                client.auto_approve = True
+                logger.info("Auto approve set to True")
+            if unset_auto_approve:
+                client.auto_approve = False
+                logger.info("Auto approve set to False")
+            if name:
+                client.name = name
+                logger.info("Updating name to {}".format(name))
+            if description:
+                client.description = description
+                logger.info("Updating description to {}".format(description))
+            if allowed_scopes:
+                if append:
+                    new_scopes = client._allowed_scopes.split() + allowed_scopes
+                    client._allowed_scopes = " ".join(new_scopes)
+                    logger.info("Adding {} to allowed_scopes".format(allowed_scopes))
+                else:
+                    client._allowed_scopes = " ".join(allowed_scopes)
+                    logger.info("Updating allowed_scopes to {}".format(allowed_scopes))
+            if expires_in:
+                client.expires_at = get_client_expires_at(
+                    expires_in=expires_in, grant_types=client.grant_type
+                )
         s.commit()
     if arborist is not None and policies:
         arborist.update_client(client.client_id, policies)
