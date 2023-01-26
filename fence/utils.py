@@ -34,6 +34,29 @@ def json_res(data):
     return flask.Response(json.dumps(data), mimetype="application/json")
 
 
+def generate_client_credentials(confidential):
+    """
+    Generate a new client ID. If the client is confidential, also generate a new client secret.
+    The unhashed secret should be returned to the user and the hashed secret should be stored
+    in the database for later use.
+
+    Args:
+        confidential (bool): true if the client is confidential, false if it is public
+
+    Returns:
+        tuple: (client ID, unhashed client secret or None, hashed client secret or None)
+    """
+    client_id = random_str(40)
+    client_secret = None
+    hashed_secret = None
+    if confidential:
+        client_secret = random_str(55)
+        hashed_secret = bcrypt.hashpw(
+            client_secret.encode("utf-8"), bcrypt.gensalt()
+        ).decode("utf-8")
+    return client_id, client_secret, hashed_secret
+
+
 def create_client(
     DB,
     username=None,
@@ -49,17 +72,10 @@ def create_client(
     allowed_scopes=None,
     expires_in=None,
 ):
-    client_id = random_str(40)
+    client_id, client_secret, hashed_secret = generate_client_credentials(confidential)
     if arborist is not None:
         arborist.create_client(client_id, policies)
     driver = SQLAlchemyDriver(DB)
-    client_secret = None
-    hashed_secret = None
-    if confidential:
-        client_secret = random_str(55)
-        hashed_secret = bcrypt.hashpw(
-            client_secret.encode("utf-8"), bcrypt.gensalt()
-        ).decode("utf-8")
     auth_method = "client_secret_basic" if confidential else "none"
 
     allowed_scopes = allowed_scopes or config["CLIENT_ALLOWED_SCOPES"]
@@ -86,6 +102,7 @@ def create_client(
             if arborist is not None:
                 arborist.delete_client(client_id)
             raise Exception("client {} already exists".format(name))
+
         client = Client(
             client_id=client_id,
             client_secret=hashed_secret,
