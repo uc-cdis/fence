@@ -73,6 +73,7 @@ def get_signed_url_for_file(
     requested_protocol=None,
     ga4gh_passports=None,
     db_session=None,
+    bucket=None,
 ):
     requested_protocol = requested_protocol or flask.request.args.get("protocol", None)
     r_pays_project = flask.request.args.get("userProject", None)
@@ -144,6 +145,7 @@ def get_signed_url_for_file(
         r_pays_project=r_pays_project,
         file_name=file_name,
         users_from_passports=users_from_passports,
+        bucket=bucket,
     )
 
     # a single user from the list was authorized so update the audit log to reflect that
@@ -258,7 +260,7 @@ class BlankIndex(object):
         )
         return document
 
-    def make_signed_url(self, file_name, protocol=None, expires_in=None):
+    def make_signed_url(self, file_name, protocol=None, expires_in=None, bucket=None):
         """
         Works for upload only; S3 or Azure Blob Storage only
         (only supported case for data upload flow currently).
@@ -286,12 +288,15 @@ class BlankIndex(object):
                 "upload", expires_in
             )
         else:
-            try:
-                bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
-            except KeyError:
-                raise InternalError(
-                    "fence not configured with data upload bucket; can't create signed URL"
-                )
+            if not bucket:
+                try:
+                    bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
+                except KeyError:
+                    raise InternalError(
+                        "fence not configured with data upload bucket; can't create signed URL"
+                    )
+
+            self.logger.debug("Attemping to upload to bucket '{}'".format(bucket))
             s3_url = "s3://{}/{}/{}".format(bucket, self.guid, file_name)
             url = S3IndexedFileLocation(s3_url).get_signed_url("upload", expires_in)
 
@@ -450,6 +455,7 @@ class IndexedFile(object):
         r_pays_project=None,
         file_name=None,
         users_from_passports=None,
+        bucket=None,
     ):
         users_from_passports = users_from_passports or {}
         authorized_user = None
@@ -497,6 +503,7 @@ class IndexedFile(object):
                 r_pays_project,
                 file_name,
                 authorized_user,
+                bucket,
             ),
             authorized_user,
         )
@@ -510,6 +517,7 @@ class IndexedFile(object):
         r_pays_project,
         file_name,
         authorized_user=None,
+        bucket=None,
     ):
         if action == "upload":
             # NOTE: self.index_document ensures the GUID exists in indexd and raises
@@ -517,7 +525,10 @@ class IndexedFile(object):
             #       app)
             blank_record = BlankIndex(uploader="", guid=self.index_document.get("did"))
             return blank_record.make_signed_url(
-                protocol=protocol, file_name=file_name, expires_in=expires_in
+                protocol=protocol,
+                file_name=file_name,
+                expires_in=expires_in,
+                bucket=bucket,
             )
 
         if not protocol:
@@ -876,7 +887,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         s3_buckets = get_value(
             flask.current_app.config,
             "S3_BUCKETS",
-            InternalError("buckets not configured"),
+            InternalError("S3_BUCKETS not configured"),
         )
         for bucket in s3_buckets:
             if re.match("^" + bucket + "$", self.parsed_url.netloc):
@@ -892,7 +903,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         cls, bucket_name, aws_creds, expires_in, boto=None
     ):
         s3_buckets = get_value(
-            config, "S3_BUCKETS", InternalError("buckets not configured")
+            config, "S3_BUCKETS", InternalError("S3_BUCKETS not configured")
         )
         if len(aws_creds) == 0 and len(s3_buckets) == 0:
             raise InternalError("no bucket is configured")
@@ -901,7 +912,8 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
         bucket_cred = s3_buckets.get(bucket_name)
         if bucket_cred is None:
-            raise Unauthorized("permission denied for bucket")
+            logger.debug(f"Bucket '{bucket_name}' not found in S3_BUCKETS config")
+            raise InternalError("permission denied for bucket")
 
         cred_key = get_value(
             bucket_cred, "cred", InternalError("credential of that bucket is missing")
@@ -930,7 +942,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
     def get_bucket_region(self):
         s3_buckets = get_value(
-            config, "S3_BUCKETS", InternalError("buckets not configured")
+            config, "S3_BUCKETS", InternalError("S3_BUCKETS not configured")
         )
         if len(s3_buckets) == 0:
             return None
@@ -957,7 +969,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
         s3_buckets = get_value(
-            config, "S3_BUCKETS", InternalError("buckets not configured")
+            config, "S3_BUCKETS", InternalError("S3_BUCKETS not configured")
         )
 
         bucket_name = self.bucket_name()
