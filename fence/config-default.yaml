@@ -31,6 +31,7 @@ SERVICE_NAME: 'fence'
 # postgres db to connect to
 # connection url format:
 #     postgresql://[user[:password]@][netloc][:port][/dbname]
+# can also be set via env var DB
 DB: 'postgresql://test:test@localhost:5432/fence'
 
 # A URL-safe base64-encoded 32-byte key for encrypting keys in db
