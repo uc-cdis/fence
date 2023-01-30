@@ -7,7 +7,6 @@ import pytest
 from sqlalchemy.exc import IntegrityError
 
 from fence.models import Client
-from fence.utils import random_str
 
 
 @pytest.fixture(scope="function", autouse=True)

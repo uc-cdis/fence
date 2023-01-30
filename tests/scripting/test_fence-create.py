@@ -38,6 +38,7 @@ from fence.scripting.fence_create import (
     create_client_action,
     delete_client_action,
     delete_expired_clients_action,
+    rotate_client_action,
     delete_expired_service_accounts,
     delete_expired_google_access,
     link_external_bucket,
@@ -60,6 +61,20 @@ ROOT_DIR = "./"
 @pytest.fixture(autouse=True)
 def mock_arborist(mock_arborist_requests):
     mock_arborist_requests()
+
+
+def delete_client_if_exists(db, client_name, username=None):
+    driver = SQLAlchemyDriver(db)
+    with driver.session as session:
+        clients = session.query(Client).filter_by(name=client_name).all()
+        if clients:
+            for client in clients:
+                session.delete(client)
+        if username:
+            user = session.query(User).filter_by(username=username).first()
+            if user is not None:
+                session.delete(user)
+        session.commit()
 
 
 def create_client_action_wrapper(
@@ -87,15 +102,7 @@ def create_client_action_wrapper(
         **kwargs,
     )
     to_test()
-    driver = SQLAlchemyDriver(db)
-    with driver.session as session:
-        client = session.query(Client).filter_by(name=client_name).first()
-        user = session.query(User).filter_by(username=username).first()
-        if client is not None:
-            session.delete(client)
-        if user is not None:
-            session.delete(user)
-        session.commit()
+    delete_client_if_exists(db, client_name, username)
 
 
 def test_create_client_inits_default_allowed_scopes(db_session):
@@ -251,6 +258,36 @@ def test_create_client_with_expiration(db_session, grant_type, expires_in):
             grant_types=grant_types,
             expires_in=expires_in,
         )
+
+
+def test_create_client_duplicate_name(db_session):
+    """
+    Test that we can't create a new client with the same name as an existing client.
+    """
+    client_name = "non_unique_client_name"
+    try:
+        # successfully create a client
+        create_client_action(
+            config["DB"],
+            client=client_name,
+            username="exampleuser",
+            urls=["https://localhost"],
+            grant_types=["authorization_code"],
+        )
+        saved_client = db_session.query(Client).filter_by(name=client_name).first()
+        assert saved_client.name == client_name
+
+        # we should fail to create a 2nd client with the same name
+        with pytest.raises(Exception, match=f"client {client_name} already exists"):
+            create_client_action(
+                config["DB"],
+                client=client_name,
+                username="exampleuser",
+                urls=["https://localhost"],
+                grant_types=["authorization_code"],
+            )
+    finally:
+        delete_client_if_exists(config["DB"], client_name)
 
 
 def test_client_delete(app, db_session, cloud_manager, test_user_a):
@@ -422,6 +459,105 @@ def test_client_delete_expired(app, db_session, cloud_manager, post_to_slack):
         .all()
     )
     assert len(client_sa_after) == 0
+
+
+def test_client_rotate(db_session):
+    """
+    Create a client, rotate it and check that the 2 rows in the DB are identical except
+    for the client ID, secret and expiration.
+    """
+    client_name = "client_abc"
+
+    try:
+        create_client_action(
+            config["DB"],
+            client=client_name,
+            username="exampleuser",
+            urls=["https://localhost"],
+            grant_types=["authorization_code"],
+            expires_in=30,
+        )
+        clients = db_session.query(Client).filter_by(name=client_name).all()
+        assert len(clients) == 1
+        assert clients[0].name == client_name
+
+        rotate_client_action(config["DB"], client_name, 20)
+
+        clients = db_session.query(Client).filter_by(name=client_name).all()
+        assert len(clients) == 2
+
+        assert clients[0].name == client_name
+        assert clients[1].name == client_name
+        for attr in [
+            "user",
+            "redirect_uris",
+            "_allowed_scopes",
+            "description",
+            "auto_approve",
+            "grant_types",
+            "is_confidential",
+            "token_endpoint_auth_method",
+        ]:
+            assert getattr(clients[0], attr) == getattr(
+                clients[1], attr
+            ), f"attribute '{attr}' differs"
+        assert clients[0].client_id != clients[1].client_id
+        assert clients[0].client_secret != clients[1].client_secret
+        assert clients[0].expires_at != clients[1].expires_at
+    finally:
+        delete_client_if_exists(config["DB"], client_name)
+
+
+def test_client_rotate_and_actions(db_session, capsys):
+    """
+    Check that listing, modifying or deleting a client (after rotating it) affects
+    all of this client's rows in the DB.
+    """
+    client_name = "client_abc"
+
+    # create a client and rotate the credentials twice
+    url1 = "https://localhost"
+    create_client_action(
+        config["DB"],
+        client=client_name,
+        username="exampleuser",
+        urls=[url1],
+        grant_types=["authorization_code"],
+        expires_in=30,
+    )
+    rotate_client_action(config["DB"], client_name, 20)
+    rotate_client_action(config["DB"], client_name, 10)
+
+    # this should result in 3 rows for this client in the DB
+    clients = db_session.query(Client).filter_by(name=client_name).all()
+    assert len(clients) == 3
+    for i in range(3):
+        assert clients[i].name == client_name
+
+    # check that `list_client_action` lists all the rows
+    capsys.readouterr()  # clear the buffer
+    list_client_action(db_session)
+    captured_logs = str(capsys.readouterr())
+    assert captured_logs.count("'name': 'client_abc'") == 3
+    for i in range(3):
+        assert captured_logs.count(f"'client_id': '{clients[i].client_id}'") == 1
+
+    # check that `modify_client_action` updates all the rows
+    description = "new description"
+    url2 = "new url"
+    modify_client_action(
+        db_session, client_name, description=description, urls=[url2], append=True
+    )
+    clients = db_session.query(Client).filter_by(name=client_name).all()
+    assert len(clients) == 3
+    for i in range(3):
+        assert clients[i].description == description
+        assert clients[i].redirect_uri == f"{url1}\n{url2}"
+
+    # check that `delete_client_action` deletes all the rows
+    delete_client_action(config["DB"], client_name)
+    clients = db_session.query(Client).filter_by(name=client_name).all()
+    assert len(clients) == 0
 
 
 def test_delete_users(app, db_session, example_usernames):

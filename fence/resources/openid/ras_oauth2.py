@@ -133,11 +133,15 @@ class RASOauth2Client(Oauth2ClientBase):
                 token["id_token"],
                 keys,
                 options={"verify_aud": False, "verify_at_hash": False},
+                algorithms=["RS256"],
             )
 
             # Log txn in access token for RAS ISA compliance
             at_claims = jose_jwt.decode(
-                token["access_token"], keys, options={"verify_aud": False}
+                token["access_token"],
+                keys,
+                options={"verify_aud": False},
+                algorithms=["RS256"],
             )
             self.logger.info(
                 "Received RAS access token with txn: {}".format(at_claims.get("txn"))
