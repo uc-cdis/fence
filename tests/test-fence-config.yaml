@@ -413,6 +413,7 @@ dbGaP:
       proxy_user: ''
     protocol: 'sftp'
     decrypt_key: ''
+    allow_non_dbGaP_whitelist: false
     allowed_whitelist_patterns: ['authentication_file_PROJECT-(\d*).(csv|txt)']
     # Additional allowed patterns for project_ids. The default value in usersync is 'phs(\d{6}) for dbgap projects'
     additional_allowed_project_id_patterns: ['PROJECT-(\d*)']

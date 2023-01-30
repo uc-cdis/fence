@@ -498,7 +498,11 @@ class UserSyncer(object):
         # parse dbGaP sftp server information
         dbgap_key = dbgap_config.get("decrypt_key", None)
 
-        self.id_patterns += dbgap_config.get("allowed_whitelist_patterns", [])
+        self.id_patterns += (
+            dbgap_config.get("allowed_whitelist_patterns", [])
+            if dbgap_config.get("allow_non_dbGaP_whitelist", False)
+            else []
+        )
 
         enable_common_exchange_area_access = dbgap_config.get(
             "enable_common_exchange_area_access", False
@@ -549,7 +553,10 @@ class UserSyncer(object):
                         continue
 
                     phsid_privileges = {}
-                    phsid = row.get("phsid", row.get("project_id", "")).split(".")
+                    if dbgap_config.get("allow_non_dbGaP_whitelist", False):
+                        phsid = row.get("phsid", row.get("project_id", "")).split(".")
+                    else:
+                        phsid = row.get("phsid", "").split(".")
 
                     dbgap_project = phsid[0]
                     # There are issues where dbgap has a wrong entry in their whitelist. Since we do a bulk arborist request, there are wrong entries in it that invalidates the whole request causing other correct entries not to be added

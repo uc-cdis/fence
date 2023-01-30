@@ -87,7 +87,9 @@ class RASCallback(DefaultOAuth2Callback):
         refresh_token = flask.g.tokens["refresh_token"]
         assert "id_token" in flask.g.tokens, "No id_token in user tokens"
         id_token = flask.g.tokens["id_token"]
-        decoded_id = jwt.decode(id_token, algorithms=["RS256"], options={"verify_signature": False})
+        decoded_id = jwt.decode(
+            id_token, algorithms=["RS256"], options={"verify_signature": False}
+        )
 
         # Add 15 days to iat to calculate refresh token expiration time
         # TODO do they really not provide exp?
