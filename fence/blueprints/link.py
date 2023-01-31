@@ -298,6 +298,13 @@ class GoogleCallback(Resource):
         user_id = flask.session.get("user_id")
         proxy_group = flask.session.get("google_proxy_group_id")
         expires_in = flask.session.get("google_link_expires_in")
+        print("--------------------------------")
+        print(user_id)
+        print(proxy_group)
+        print(expires_in)
+        print(provided_redirect)
+        print(code)
+        print("--------------------------------")
         _clear_google_link_info_from_session()
 
         if not email:
