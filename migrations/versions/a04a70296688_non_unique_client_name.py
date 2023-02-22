@@ -33,8 +33,8 @@ def upgrade():
 
     # the `name` does not have to be unique anymore: remove the constraints
     for name in name_constraints:
-        logger.info(f"Droppping 'unique client name' constraint: '{name[0]}'")
-        op.drop_constraint(name[0], "client")
+        logger.info(f"Droppping 'unique client name' constraint: '{name}'")
+        op.drop_constraint(name, "client")
 
 
 def downgrade():
