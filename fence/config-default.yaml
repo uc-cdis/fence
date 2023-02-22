@@ -516,6 +516,13 @@ dbGaP:
       proxy_user: ''
     protocol: 'sftp'
     decrypt_key: ''
+    # allow non_dbgap_whitelist allows you to read a non-dbgap sftp server.
+    # by default Fence only allows usersync to read a dbgap whitelist with
+    # the format authentication_file_phs000123.csv enabling this with addition to
+    # providing a list of additional_allowed_project_id_patterns allows usersyn to
+    # read any filename that matches the patterns in the list.
+    allow_non_dbGaP_whitelist: false
+    additional_allowed_project_id_patterns: []
     # parse out the consent from the dbgap accession number such that something
     # like "phs000123.v1.p1.c2" becomes "phs000123.c2".
     #
