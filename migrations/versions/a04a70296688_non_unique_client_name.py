@@ -26,7 +26,7 @@ def upgrade():
     name_constraints = [e[0] for e in results if "name" in e[0]]
     if len(name_constraints) != 1:
         raise Exception(
-            f"Found multiple 'unique client name' constraints: {name_constraints}"
+            f"Did not find exactly one 'unique client name' constraint: {name_constraints}"
         )
 
     # the `name` does not have to be unique anymore: remove the constraint
