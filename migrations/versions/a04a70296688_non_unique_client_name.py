@@ -25,7 +25,7 @@ def upgrade():
         "SELECT conname FROM pg_constraint WHERE conrelid = 'client'::regclass and contype = 'u'"
     )
 
-    # filter out the constraints that are not for the "name" column; only 1 constraint should be left
+    # filter out the constraints that are not for the "name" column
     name_constraints = [e[0] for e in results if "name" in e[0]]
     logger.info(
         f"Found {len(name_constraints)} 'unique client name' constraints; deleting all of them: {name_constraints}"
