@@ -6,6 +6,7 @@ Create Date: 2022-12-23 09:36:28.425744
 
 """
 from alembic import op
+import logging
 
 
 # revision identifiers, used by Alembic.
@@ -13,6 +14,8 @@ revision = "a04a70296688"
 down_revision = "ea7e1b843f82"
 branch_labels = None
 depends_on = None
+
+logger = logging.getLogger("fence.alembic")
 
 
 def upgrade():
@@ -24,14 +27,14 @@ def upgrade():
 
     # filter out the constraints that are not for the "name" column; only 1 constraint should be left
     name_constraints = [e[0] for e in results if "name" in e[0]]
-    if len(name_constraints) != 1:
-        raise Exception(
-            f"Found multiple 'unique client name' constraints: {name_constraints}"
-        )
+    logger.info(
+        f"Found {len(name_constraints)} 'unique client name' constraints; deleting all of them: {name_constraints}"
+    )
 
-    # the `name` does not have to be unique anymore: remove the constraint
-    print(f"Droppping 'unique client name' constraint: '{name_constraints[0]}'")
-    op.drop_constraint(name_constraints[0], "client")
+    # the `name` does not have to be unique anymore: remove the constraints
+    for name in name_constraints:
+        logger.info(f"Droppping 'unique client name' constraint: '{name[0]}'")
+        op.drop_constraint(name[0], "client")
 
 
 def downgrade():
