@@ -404,7 +404,19 @@ dbGaP:
       'phs000178': ['/orgA/', '/orgB/', '/']
       # study when parsing consent codes
       'phs000178.c2': ['/orgA/', '/orgB/', '/']
-    allowed_whitelist_patterns: ['authentication_file_PROJECT-(\\d*).(csv|txt)']
+  - info:
+      host: ''
+      username: ''
+      password: ''
+      port: 22
+      proxy: ''
+      proxy_user: ''
+    protocol: 'sftp'
+    decrypt_key: ''
+    allow_non_dbGaP_whitelist: false
+    allowed_whitelist_patterns: ['authentication_file_PROJECT-(\d*).(csv|txt)']
+    # Additional allowed patterns for project_ids. The default value in usersync is 'phs(\d{6}) for dbgap projects'
+    additional_allowed_project_id_patterns: ['PROJECT-(\d*)']
     study_to_resource_namespaces:
       # non dbgap study:
       'PROJECT-12345': ['']

@@ -1,3 +1,4 @@
+from datetime import datetime, timedelta
 import time
 import mock
 
@@ -10,6 +11,7 @@ from userdatamodel.models import Group
 from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.config import config
+from fence.errors import UserError
 from fence.jwt.validate import validate_jwt
 from fence.utils import create_client
 from fence.models import (
@@ -35,6 +37,8 @@ from fence.scripting.fence_create import (
     JWTCreator,
     create_client_action,
     delete_client_action,
+    delete_expired_clients_action,
+    rotate_client_action,
     delete_expired_service_accounts,
     delete_expired_google_access,
     link_external_bucket,
@@ -59,6 +63,20 @@ def mock_arborist(mock_arborist_requests):
     mock_arborist_requests()
 
 
+def delete_client_if_exists(db, client_name, username=None):
+    driver = SQLAlchemyDriver(db)
+    with driver.session as session:
+        clients = session.query(Client).filter_by(name=client_name).all()
+        if clients:
+            for client in clients:
+                session.delete(client)
+        if username:
+            user = session.query(User).filter_by(username=username).first()
+            if user is not None:
+                session.delete(user)
+        session.commit()
+
+
 def create_client_action_wrapper(
     to_test,
     db=None,
@@ -66,6 +84,7 @@ def create_client_action_wrapper(
     username="exampleuser",
     urls=["https://betawebapp.example/fence", "https://webapp.example/fence"],
     grant_types=["authorization_code", "refresh_token", "implicit"],
+    expires_in=None,
     **kwargs,
 ):
     """
@@ -79,18 +98,11 @@ def create_client_action_wrapper(
         username=username,
         urls=urls,
         grant_types=grant_types,
+        expires_in=expires_in,
         **kwargs,
     )
     to_test()
-    driver = SQLAlchemyDriver(db)
-    with driver.session as session:
-        client = session.query(Client).filter_by(name=client_name).first()
-        user = session.query(User).filter_by(username=username).first()
-        if client is not None:
-            session.delete(client)
-        if user is not None:
-            session.delete(user)
-        session.commit()
+    delete_client_if_exists(db, client_name, username)
 
 
 def test_create_client_inits_default_allowed_scopes(db_session):
@@ -210,6 +222,74 @@ def test_create_client_with_client_credentials(db_session):
     )
 
 
+@pytest.mark.parametrize("expires_in", [None, 0, 1000, 0.5, -10, "not-valid"])
+@pytest.mark.parametrize("grant_type", ["authorization_code", "client_credentials"])
+def test_create_client_with_expiration(db_session, grant_type, expires_in):
+    """
+    Test that a client can be created with a valid expiration.
+    """
+    client_name = "client_with_expiration"
+    grant_types = [grant_type]
+    now = datetime.now()
+
+    def to_test():
+        saved_client = db_session.query(Client).filter_by(name=client_name).first()
+        assert saved_client.grant_types == grant_types
+        if not expires_in:
+            assert saved_client.expires_at == 0
+        else:
+            expected_expires_at = (now + timedelta(days=expires_in)).timestamp()
+            # allow up to 1 second variation to account for test execution
+            assert saved_client.expires_at <= expected_expires_at + 1
+            assert saved_client.expires_at >= expected_expires_at - 1
+
+    if expires_in in [-10, "not-valid"]:
+        with pytest.raises(UserError):
+            create_client_action_wrapper(
+                to_test,
+                client_name=client_name,
+                grant_types=grant_types,
+                expires_in=expires_in,
+            )
+    else:
+        create_client_action_wrapper(
+            to_test,
+            client_name=client_name,
+            grant_types=grant_types,
+            expires_in=expires_in,
+        )
+
+
+def test_create_client_duplicate_name(db_session):
+    """
+    Test that we can't create a new client with the same name as an existing client.
+    """
+    client_name = "non_unique_client_name"
+    try:
+        # successfully create a client
+        create_client_action(
+            config["DB"],
+            client=client_name,
+            username="exampleuser",
+            urls=["https://localhost"],
+            grant_types=["authorization_code"],
+        )
+        saved_client = db_session.query(Client).filter_by(name=client_name).first()
+        assert saved_client.name == client_name
+
+        # we should fail to create a 2nd client with the same name
+        with pytest.raises(Exception, match=f"client {client_name} already exists"):
+            create_client_action(
+                config["DB"],
+                client=client_name,
+                username="exampleuser",
+                urls=["https://localhost"],
+                grant_types=["authorization_code"],
+            )
+    finally:
+        delete_client_if_exists(config["DB"], client_name)
+
+
 def test_client_delete(app, db_session, cloud_manager, test_user_a):
     """
     Test that the client delete function correctly cleans up the client's
@@ -292,6 +372,192 @@ def test_client_delete_error(app, db_session, cloud_manager, test_user_a):
     # make sure client is deleted but service account we couldn't delete stays
     assert len(client_after) == 0
     assert len(client_service_account_after) == 1
+
+
+@pytest.mark.parametrize("post_to_slack", [False, True])
+def test_client_delete_expired(app, db_session, cloud_manager, post_to_slack):
+    """
+    Test that the expired clients are correctly deleted along with their service accounts.
+    Clients with "None" or "0" expiration do not expire.
+    """
+    # create a set of clients with different expirations
+    user = User(username="client_user")
+    for i, expires_in in enumerate([0.0000001, 0.000005, 1, 1000, None, 0]):
+        client = Client(
+            client_id=f"test_client_id_{i}",
+            client_secret=f"secret_{i}",
+            name=f"test_client_{i}",
+            user=user,
+            redirect_uris=["localhost", "other-uri"],
+            expires_in=expires_in,
+        )
+        db_session.add(client)
+    db_session.commit()
+
+    # create a service account for one of the clients that will be removed
+    client_service_account = GoogleServiceAccount(
+        google_unique_id="jf09238ufposijf",
+        client_id="test_client_id_0",
+        user_id=user.id,
+        google_project_id="test",
+        email="someemail@something.com",
+    )
+    db_session.add(client_service_account)
+    db_session.commit()
+
+    # empty return means success
+    cloud_manager.return_value.__enter__.return_value.delete_service_account.return_value = (
+        {}
+    )
+
+    # wait 1 second for the clients to expire
+    time.sleep(1)
+
+    requests_mocker = mock.patch(
+        "fence.scripting.fence_create.requests", new_callable=mock.Mock
+    )
+    with requests_mocker as mocked_requests:
+        # delete the expired clients
+        if not post_to_slack:
+            delete_expired_clients_action(config["DB"])
+        else:
+            slack_webhook = "test-webhook"
+            delete_expired_clients_action(
+                config["DB"], slack_webhook=slack_webhook, warning_days=2
+            )
+            calls = mocked_requests.post.call_args_list
+            assert (
+                len(calls) == 2
+            ), f"Expected 2 Slack webhook calls, but got {len(calls)}."
+
+            # check the call about clients that have expired
+            args, kwargs = calls[0]
+            assert len(args) == 1 and args[0] == slack_webhook
+            msg = kwargs.get("json", {}).get("attachments", [{}])[0].get("text")
+            assert "test_client_0" in msg
+            assert "test_client_1" in msg
+
+            # check the call about clients that expire soon
+            args, kwargs = calls[1]
+            assert len(args) == 1 and args[0] == slack_webhook
+            msg = kwargs.get("json", {}).get("attachments", [{}])[0].get("text")
+            assert "test_client_2" in msg
+
+    # make sure expired clients are deleted
+    clients_after = db_session.query(Client).all()
+    assert sorted([c.name for c in clients_after]) == [
+        "test_client_2",
+        "test_client_3",
+        "test_client_4",
+        "test_client_5",
+    ]
+
+    # make sure the service account for the expired client are deleted
+    client_sa_after = (
+        db_session.query(GoogleServiceAccount)
+        .filter_by(client_id="test_client_id_0")
+        .all()
+    )
+    assert len(client_sa_after) == 0
+
+
+def test_client_rotate(db_session):
+    """
+    Create a client, rotate it and check that the 2 rows in the DB are identical except
+    for the client ID, secret and expiration.
+    """
+    client_name = "client_abc"
+
+    try:
+        create_client_action(
+            config["DB"],
+            client=client_name,
+            username="exampleuser",
+            urls=["https://localhost"],
+            grant_types=["authorization_code"],
+            expires_in=30,
+        )
+        clients = db_session.query(Client).filter_by(name=client_name).all()
+        assert len(clients) == 1
+        assert clients[0].name == client_name
+
+        rotate_client_action(config["DB"], client_name, 20)
+
+        clients = db_session.query(Client).filter_by(name=client_name).all()
+        assert len(clients) == 2
+
+        assert clients[0].name == client_name
+        assert clients[1].name == client_name
+        for attr in [
+            "user",
+            "redirect_uris",
+            "_allowed_scopes",
+            "description",
+            "auto_approve",
+            "grant_types",
+            "is_confidential",
+            "token_endpoint_auth_method",
+        ]:
+            assert getattr(clients[0], attr) == getattr(
+                clients[1], attr
+            ), f"attribute '{attr}' differs"
+        assert clients[0].client_id != clients[1].client_id
+        assert clients[0].client_secret != clients[1].client_secret
+        assert clients[0].expires_at != clients[1].expires_at
+    finally:
+        delete_client_if_exists(config["DB"], client_name)
+
+
+def test_client_rotate_and_actions(db_session, capsys):
+    """
+    Check that listing, modifying or deleting a client (after rotating it) affects
+    all of this client's rows in the DB.
+    """
+    client_name = "client_abc"
+
+    # create a client and rotate the credentials twice
+    url1 = "https://localhost"
+    create_client_action(
+        config["DB"],
+        client=client_name,
+        username="exampleuser",
+        urls=[url1],
+        grant_types=["authorization_code"],
+        expires_in=30,
+    )
+    rotate_client_action(config["DB"], client_name, 20)
+    rotate_client_action(config["DB"], client_name, 10)
+
+    # this should result in 3 rows for this client in the DB
+    clients = db_session.query(Client).filter_by(name=client_name).all()
+    assert len(clients) == 3
+    for i in range(3):
+        assert clients[i].name == client_name
+
+    # check that `list_client_action` lists all the rows
+    capsys.readouterr()  # clear the buffer
+    list_client_action(db_session)
+    captured_logs = str(capsys.readouterr())
+    assert captured_logs.count("'name': 'client_abc'") == 3
+    for i in range(3):
+        assert captured_logs.count(f"'client_id': '{clients[i].client_id}'") == 1
+
+    # check that `modify_client_action` updates all the rows
+    description = "new description"
+    url2 = "new url"
+    modify_client_action(
+        db_session, client_name, description=description, urls=[url2], append=True
+    )
+    clients = db_session.query(Client).filter_by(name=client_name).all()
+    assert len(clients) == 3
+    for i in range(3):
+        assert clients[i].description == description
+        assert clients[i].redirect_uri == f"{url1}\n{url2}"
+
+    # check that `delete_client_action` deletes all the rows
+    delete_client_action(config["DB"], client_name)
+    clients = db_session.query(Client).filter_by(name=client_name).all()
+    assert len(clients) == 0
 
 
 def test_delete_users(app, db_session, example_usernames):
@@ -1535,3 +1801,43 @@ def test_modify_client_action_modify_append_url(db_session):
     assert client.name == "test321"
     assert client.description == "test client"
     assert client.redirect_uris == ["abcd", "test1", "test2", "test3"]
+
+
+@pytest.mark.parametrize("expires_in", [None, 0, 1000, 0.5, -10, "not-valid"])
+@pytest.mark.parametrize("existing_expiration", [True, False])
+def test_modify_client_expiration(db_session, expires_in, existing_expiration):
+    """
+    Test that a client can be modified with a valid expiration.
+    """
+    # create a client
+    client_name = "test_client"
+    client = Client(
+        client_id="test_client_id",
+        client_secret="secret",
+        name=client_name,
+        user=User(username="client_user"),
+        redirect_uris="localhost",
+        expires_in=(2 if existing_expiration else None),
+    )
+    db_session.add(client)
+    db_session.commit()
+    original_expires_at = client.expires_at
+
+    # modify the client's expiration
+    now = datetime.now()
+    if expires_in in [-10, "not-valid"]:
+        with pytest.raises(UserError):
+            modify_client_action(
+                DB=db_session, client=client_name, expires_in=expires_in
+            )
+    else:
+        modify_client_action(DB=db_session, client=client_name, expires_in=expires_in)
+
+        # make sure the expiration was updated if necessary
+        if not expires_in:
+            assert client.expires_at == original_expires_at
+        else:
+            expected_expires_at = (now + timedelta(days=expires_in)).timestamp()
+            # allow up to 1 second variation to account for test execution
+            assert client.expires_at <= expected_expires_at + 1
+            assert client.expires_at >= expected_expires_at - 1

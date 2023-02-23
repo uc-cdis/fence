@@ -113,7 +113,7 @@ class UnsignedIDToken(IDToken):
         payload = jwt.decode(
             encoded_token,
             public_key,
-            algorithms="RS256",
+            algorithms=["RS256"],
             verify=verify,
             audience=client_id,
         )

@@ -28,6 +28,7 @@ BASE_URL: 'http://localhost/user'
 # postgres db to connect to
 # connection url format:
 #     postgresql://[user[:password]@][netloc][:port][/dbname]
+# can also be set via env var DB
 DB: 'postgresql://test:test@localhost:5432/fence'
 
 # A URL-safe base64-encoded 32-byte key for encrypting keys in db
@@ -515,6 +516,13 @@ dbGaP:
       proxy_user: ''
     protocol: 'sftp'
     decrypt_key: ''
+    # allow non_dbgap_whitelist allows you to read a non-dbgap sftp server.
+    # by default Fence only allows usersync to read a dbgap whitelist with
+    # the format authentication_file_phs000123.csv enabling this with addition to
+    # providing a list of additional_allowed_project_id_patterns allows usersyn to
+    # read any filename that matches the patterns in the list.
+    allow_non_dbGaP_whitelist: false
+    additional_allowed_project_id_patterns: []
     # parse out the consent from the dbgap accession number such that something
     # like "phs000123.v1.p1.c2" becomes "phs000123.c2".
     #
@@ -550,6 +558,10 @@ dbGaP:
       # 'studyX': ['/orgA/', '/orgB/']
       # 'studyX.c2': ['/orgB/', '/orgC/']
       # 'studyZ': ['/orgD/']
+    # Allowed patterns for project_ids. The default value in usersync is 'phs(\d{6}) for dbgap projects'
+    allowed_project_id_patterns: []
+    # Additional allowed patterns for project_ids. The default value in usersync is 'phs(\d{6}) for dbgap projects'
+    additional_allowed_project_id_patterns: []
 # Regex to match an assession number that has consent information in forms like:
 #   phs00301123.c999
 #   phs000123.v3.p1.c3

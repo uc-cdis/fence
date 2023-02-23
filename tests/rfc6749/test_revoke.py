@@ -13,7 +13,13 @@ def test_blacklisted_token(client, oauth_client, encoded_jwt_refresh_token):
     print(encoded_jwt_refresh_token)
     import jwt
 
-    print(jwt.decode(encoded_jwt_refresh_token, verify=False))
+    print(
+        jwt.decode(
+            encoded_jwt_refresh_token,
+            options={"verify_signature": False},
+            algorithms=["RS256"],
+        )
+    )
     assert response.status_code == 200, response.data
     assert is_token_blacklisted(encoded_jwt_refresh_token)
 

@@ -25,7 +25,9 @@ class RASVisa(DefaultVisa):
 
         # do not verify again, assume this happens upstream
         # note that this can fail, upstream should handle the case that parsing fails
-        decoded_visa = jwt.decode(encoded_visa, verify=False)
+        decoded_visa = jwt.decode(
+            encoded_visa, algorithms=["RS256"], options={"verify_signature": False}
+        )
 
         ras_dbgap_permissions = decoded_visa.get("ras_dbgap_permissions", [])
         project = {}

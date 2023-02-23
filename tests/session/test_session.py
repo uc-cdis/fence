@@ -142,7 +142,6 @@ def test_expired_session_timeout(app):
         jwt_expiration,
         context=dict(session_started=last_active, username=username),
     )
-
     with app.test_client() as client:
         # manually set cookie for initial session
         client.set_cookie(

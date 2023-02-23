@@ -26,7 +26,9 @@ def test_passport_access_token(app, kid, rsa_private_key, test_user_a):
         user=test_user_a,
         client_id="client_a",
     )
-    payload = jwt.decode(jwt_token.token, verify=False)
+    payload = jwt.decode(
+        jwt_token.token, options={"verify_signature": False}, algorithms=["RS256"]
+    )
     # assert required fields exist
     assert payload["iss"] is not None or ""
     assert payload["sub"] is not None or ""

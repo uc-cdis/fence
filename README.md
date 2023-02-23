@@ -491,8 +491,10 @@ WARNING: fence-create directly modifies the database in some cases and may circu
 As a Gen3 commons administrator, if you want to create an oauth client that skips user consent step, use the following command:
 
 ```bash
-fence-create client-create --client CLIENT_NAME --urls OAUTH_REDIRECT_URL --username USERNAME --auto-approve
+fence-create client-create --client CLIENT_NAME --urls OAUTH_REDIRECT_URL --username USERNAME --auto-approve (--expires-in 30)
 ```
+
+The optional `--expires-in` parameter allows specifying the number of days until this client expires.
 
 #### Register an Implicit Oauth Client
 
@@ -521,7 +523,7 @@ The OAuth2 Client Credentials flow is used for machine-to-machine communication 
 As a Gen3 commons administrator, if you want to create an OAuth client for a client credentials flow:
 
 ```bash
-fence-create client-create --client CLIENT_NAME --grant-types client_credentials
+fence-create client-create --client CLIENT_NAME --grant-types client_credentials (--expires-in 30)
 ```
 
 This command will return a client ID and client secret, which you can then use to obtain an access token:
@@ -530,11 +532,11 @@ This command will return a client ID and client secret, which you can then use t
 curl --request POST https://FENCE_URL/oauth2/token?grant_type=client_credentials -d scope="openid user" --user CLIENT_ID:CLIENT_SECRET
 ```
 
+The optional `--expires-in` parameter allows specifying the number of *days* until this client expires. The recommendation is to rotate credentials with the `client_credentials` grant at least once a year.
+
 NOTE: In Gen3, you can grant specific access to a client the same way you would to a user. See the [user.yaml guide](https://github.com/uc-cdis/fence/blob/master/docs/user.yaml_guide.md) for more details.
 
 NOTE: Client credentials tokens are not linked to a user. They are not supported by all Gen3 endpoints.
-
-NOTE: The recommendation is to rotate these credentials at least once a year. Credentials expiration is not enforced at the moment but may be in the future.
 
 #### Modify OAuth Client
 
@@ -547,7 +549,15 @@ allowed here too.
 
 Add `--append` argument to add new callback urls or allowed scopes to existing client (instead of replacing them) using `--append --urls` or `--append --allowed-scopes`
 ```bash
-fence-create client-modify --client CLIENT_NAME --urls http://localhost/api/v0/new/oauth2/authorize --append
+fence-create client-modify --client CLIENT_NAME --urls http://localhost/api/v0/new/oauth2/authorize --append (--expires-in 30)
+```
+
+#### Rotate client credentials
+
+Use the `client-rotate` command to receive a new set of credentials for a client. The old credentials are NOT deactivated and must be deleted or expired separately. This allows for a rotation without downtime.
+
+```bash
+fence-create client-rotate --client CLIENT_NAME (--expires-in 30)
 ```
 
 #### Delete OAuth Client
@@ -556,6 +566,19 @@ fence-create client-modify --client CLIENT_NAME --urls http://localhost/api/v0/n
 fence-create client-delete --client CLIENT_NAME
 ```
 That command should output the result of the deletion attempt.
+
+#### Delete Expired OAuth Clients
+
+```bash
+fence-create client-delete-expired
+```
+
+To post a warning in Slack about any clients that expired or are about to expire:
+
+```bash
+fence-create client-delete-expired --slack-webhook <url> --warning-days <default 7: only post about clients expiring in under 7 days>
+```
+
 
 #### List OAuth Clients
 

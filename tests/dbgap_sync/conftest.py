@@ -331,7 +331,7 @@ def get_test_encoded_decoded_visa_and_exp(
 
     encoded_visa = jwt.encode(
         decoded_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
-    ).decode("utf-8")
+    )
 
     expires = int(decoded_visa["exp"])
 

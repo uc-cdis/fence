@@ -11,6 +11,8 @@ from enum import Enum
 
 from authlib.flask.oauth2.sqla import OAuth2AuthorizationCodeMixin, OAuth2ClientMixin
 import bcrypt
+from datetime import datetime, timedelta
+import flask
 from sqlalchemy import (
     Integer,
     BigInteger,
@@ -51,6 +53,7 @@ from userdatamodel.models import (
 
 from fence import logger
 from fence.config import config
+from fence.errors import UserError
 
 
 def query_for_user(session, username):
@@ -123,6 +126,39 @@ def get_project_to_authz_mapping(session):
     return output
 
 
+def get_client_expires_at(expires_in, grant_types):
+    """
+    Given an `expires_in` value (days from now), return an `expires_at` value (timestamp).
+
+    expires_in (int/float/str): days until this client expires
+    grant_types (str): list of the client's grants joined by "\n"
+    """
+    expires_at = None
+
+    if expires_in:
+        try:
+            expires_in = float(expires_in)
+            assert expires_in > 0
+        except (ValueError, AssertionError):
+            raise UserError(
+                f"Requested expiry must be a positive integer; instead got: {expires_in}"
+            )
+
+        # for backwards compatibility, 0 means no expiration
+        if expires_in != 0:
+            # do not use `datetime.utcnow()` or the timestamp will be wrong,
+            # `timestamp()` already converts to UTC
+            expires_at = (datetime.now() + timedelta(days=expires_in)).timestamp()
+
+    if "client_credentials" in grant_types.split("\n"):
+        if not expires_in or expires_in <= 0 or expires_in > 366:
+            logger.warning(
+                "Credentials with the 'client_credentials' grant which will be used externally are required to expire within 12 months. Use the `--expires-in` parameter to add an expiration."
+            )
+
+    return expires_at
+
+
 class ClientAuthType(Enum):
     """
     List the possible types of OAuth client authentication, which are
@@ -157,7 +193,7 @@ class Client(Base, OAuth2ClientMixin):
     client_secret = Column(String(60), unique=True, index=True, nullable=True)
 
     # human readable name
-    name = Column(String(40), unique=True, nullable=False)
+    name = Column(String(40), nullable=False)
 
     # human readable description, not required
     description = Column(String(400))
@@ -184,9 +220,11 @@ class Client(Base, OAuth2ClientMixin):
     _default_scopes = Column(Text)
     _scopes = ["compute", "storage", "user"]
 
+    expires_at = Column(Integer, nullable=False, default=0)
+
     # note that authlib adds a response_type column which is not used here
 
-    def __init__(self, client_id, **kwargs):
+    def __init__(self, client_id, expires_in=0, **kwargs):
         """
         NOTE that for authlib, the client must have an attribute ``redirect_uri`` which
         is a newline-delimited list of valid redirect URIs.
@@ -232,6 +270,12 @@ class Client(Base, OAuth2ClientMixin):
             assert kwargs.get(
                 "redirect_uri"
             ), "Redirect URL(s) are required for the 'authorization_code' grant"
+
+        expires_at = get_client_expires_at(
+            expires_in=expires_in, grant_types=kwargs["grant_type"]
+        )
+        if expires_at:
+            kwargs["expires_at"] = expires_at
 
         super(Client, self).__init__(client_id=client_id, **kwargs)
 

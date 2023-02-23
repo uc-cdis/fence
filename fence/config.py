@@ -49,6 +49,17 @@ class FenceConfig(Config):
         for default in defaults:
             self.force_default_if_none(default, default_cfg=default_config)
 
+        # allow setting DB connection string via env var
+        if os.environ.get("DB"):
+            logger.info(
+                "Found environment variable 'DB': overriding 'DB' field from config file"
+            )
+            self["DB"] = os.environ["DB"]
+        else:
+            logger.info(
+                "Environment variable 'DB' empty or not set: using 'DB' field from config file"
+            )
+
         if "ROOT_URL" not in self._configs and "BASE_URL" in self._configs:
             url = urllib.parse.urlparse(self._configs["BASE_URL"])
             self._configs["ROOT_URL"] = "{}://{}".format(url.scheme, url.netloc)
