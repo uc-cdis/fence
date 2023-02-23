@@ -327,7 +327,10 @@ def test_dbgap_consent_codes(
         )
     else:
         assert equal_project_access(
-            user.project_access, {"phs000178": ["read", "read-storage"]}
+            user.project_access,
+            {
+                "phs000178": ["read", "read-storage"],
+            },
         )
 
     user = models.query_for_user(session=db_session, username="TESTUSERB")
@@ -351,11 +354,17 @@ def test_dbgap_consent_codes(
     user = models.query_for_user(session=db_session, username="TESTUSERD")
     if parse_consent_code_config:
         assert equal_project_access(
-            user.project_access, {"phs000179.c1": ["read", "read-storage"]}
+            user.project_access,
+            {
+                "phs000179.c1": ["read", "read-storage"],
+            },
         )
     else:
         assert equal_project_access(
-            user.project_access, {"phs000179": ["read", "read-storage"]}
+            user.project_access,
+            {
+                "phs000179": ["read", "read-storage"],
+            },
         )
 
     resource_to_parent_paths = collections.defaultdict(list)
