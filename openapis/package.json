@@ -9,6 +9,6 @@
   "author": "",
   "license": "ISC",
   "dependencies": {
-    "swagger-ui": "^3.4.5"
+    "swagger-ui": "^4.16.1"
   }
 }
