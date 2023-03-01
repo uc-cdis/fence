@@ -83,6 +83,7 @@ class Oauth2ClientBase(object):
             token["id_token"],
             keys,
             options={"verify_aud": False, "verify_at_hash": False},
+            algorithms=["RS256"],
         )
 
     def get_value_from_discovery_doc(self, key, default_value):
@@ -187,7 +188,7 @@ class Oauth2ClientBase(object):
         expires = None
 
         # get refresh_token and expiration from db
-        for row in sorted(user.upstream_refresh_tokens, key=lambda row:row.expires):
+        for row in sorted(user.upstream_refresh_tokens, key=lambda row: row.expires):
             refresh_token = row.refresh_token
             expires = row.expires
 

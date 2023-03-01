@@ -232,7 +232,7 @@ class Client(Base, OAuth2ClientMixin):
     client_secret = Column(String(60), unique=True, index=True, nullable=True)
 
     # human readable name
-    name = Column(String(40), unique=True, nullable=False)
+    name = Column(String(40), nullable=False)
 
     # human readable description, not required
     description = Column(String(400))

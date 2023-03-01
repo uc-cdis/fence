@@ -57,7 +57,7 @@ from fence.models import (
 from fence.scripting.google_monitor import email_users_without_access, validation_check
 from fence.config import config
 from fence.sync.sync_users import UserSyncer
-from fence.utils import create_client, get_valid_expiration
+from fence.utils import create_client, get_valid_expiration, generate_client_credentials
 
 from gen3authz.client.arborist.client import ArboristClient
 
@@ -92,43 +92,44 @@ def modify_client_action(
     driver = SQLAlchemyDriver(DB)
     with driver.session as s:
         client_name = client
-        client = s.query(Client).filter(Client.name == client_name).first()
-        if not client:
+        clients = s.query(Client).filter(Client.name == client_name).all()
+        if not clients:
             raise Exception("client {} does not exist".format(client_name))
-        if urls:
-            if append:
-                client.redirect_uris += urls
-                logger.info("Adding {} to urls".format(urls))
-            else:
-                client.redirect_uris = urls
-                logger.info("Changing urls to {}".format(urls))
-        if delete_urls:
-            client.redirect_uris = []
-            logger.info("Deleting urls")
-        if set_auto_approve:
-            client.auto_approve = True
-            logger.info("Auto approve set to True")
-        if unset_auto_approve:
-            client.auto_approve = False
-            logger.info("Auto approve set to False")
-        if name:
-            client.name = name
-            logger.info("Updating name to {}".format(name))
-        if description:
-            client.description = description
-            logger.info("Updating description to {}".format(description))
-        if allowed_scopes:
-            if append:
-                new_scopes = client._allowed_scopes.split() + allowed_scopes
-                client._allowed_scopes = " ".join(new_scopes)
-                logger.info("Adding {} to allowed_scopes".format(allowed_scopes))
-            else:
-                client._allowed_scopes = " ".join(allowed_scopes)
-                logger.info("Updating allowed_scopes to {}".format(allowed_scopes))
-        if expires_in:
-            client.expires_at = get_client_expires_at(
-                expires_in=expires_in, grant_types=client.grant_type
-            )
+        for client in clients:
+            if urls:
+                if append:
+                    client.redirect_uris += urls
+                    logger.info("Adding {} to urls".format(urls))
+                else:
+                    client.redirect_uris = urls
+                    logger.info("Changing urls to {}".format(urls))
+            if delete_urls:
+                client.redirect_uris = []
+                logger.info("Deleting urls")
+            if set_auto_approve:
+                client.auto_approve = True
+                logger.info("Auto approve set to True")
+            if unset_auto_approve:
+                client.auto_approve = False
+                logger.info("Auto approve set to False")
+            if name:
+                client.name = name
+                logger.info("Updating name to {}".format(name))
+            if description:
+                client.description = description
+                logger.info("Updating description to {}".format(description))
+            if allowed_scopes:
+                if append:
+                    new_scopes = client._allowed_scopes.split() + allowed_scopes
+                    client._allowed_scopes = " ".join(new_scopes)
+                    logger.info("Adding {} to allowed_scopes".format(allowed_scopes))
+                else:
+                    client._allowed_scopes = " ".join(allowed_scopes)
+                    logger.info("Updating allowed_scopes to {}".format(allowed_scopes))
+            if expires_in:
+                client.expires_at = get_client_expires_at(
+                    expires_in=expires_in, grant_types=client.grant_type
+                )
         s.commit()
     if arborist is not None and policies:
         arborist.update_client(client.client_id, policies)
@@ -274,6 +275,54 @@ def delete_expired_clients_action(DB, slack_webhook=None, warning_days=None):
                 resp.raise_for_status()
         else:
             logger.info(nothing_to_do_msg)
+
+
+def rotate_client_action(DB, client_name, expires_in=None):
+    """
+    Rorate a client's credentials (client ID and secret). The old credentials are
+    NOT deactivated and must be deleted or expired separately. This allows for a
+    rotation without downtime.
+
+    Args:
+        DB (str): database connection string
+        client_name (str): name of the client to rotate credentials for
+        expires_in (optional): number of days until this client expires (by default, no expiration)
+
+    Returns:
+        This functions does not return anything, but it prints the new set of credentials.
+    """
+    driver = SQLAlchemyDriver(DB)
+    with driver.session as s:
+        client = s.query(Client).filter(Client.name == client_name).first()
+        if not client:
+            raise Exception("client {} does not exist".format(client_name))
+
+        # create a new row in the DB for the same client, with a new ID, secret and expiration
+        client_id, client_secret, hashed_secret = generate_client_credentials(
+            client.is_confidential
+        )
+        client = Client(
+            client_id=client_id,
+            client_secret=hashed_secret,
+            expires_in=expires_in,
+            # the rest is identical to the client being rotated
+            user=client.user,
+            redirect_uris=client.redirect_uris,
+            _allowed_scopes=client._allowed_scopes,
+            description=client.description,
+            name=client.name,
+            auto_approve=client.auto_approve,
+            grant_types=client.grant_types,
+            is_confidential=client.is_confidential,
+            token_endpoint_auth_method=client.token_endpoint_auth_method,
+        )
+        s.add(client)
+        s.commit()
+
+    res = (client_id, client_secret)
+    print(
+        f"\nSave these credentials! Fence will not save the unhashed client secret.\nclient id, client secret:\n{res}"
+    )
 
 
 def _remove_client_service_accounts(db_session, client):

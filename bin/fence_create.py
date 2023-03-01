@@ -17,6 +17,7 @@ from fence.scripting.fence_create import (
     create_sample_data,
     delete_client_action,
     delete_expired_clients_action,
+    rotate_client_action,
     delete_users,
     delete_expired_google_access,
     cleanup_expired_ga4gh_information,
@@ -161,6 +162,14 @@ def parse_arguments():
         help="how many days before a client expires should we post a warning on Slack",
         required=False,
         default=7,
+    )
+
+    client_rotate = subparsers.add_parser("client-rotate")
+    client_rotate.add_argument("--client", required=True)
+    client_rotate.add_argument(
+        "--expires-in",
+        help="days until the new client credentials expire",
+        required=False,
     )
 
     user_delete = subparsers.add_parser("user-delete")
@@ -477,6 +486,8 @@ def main():
         list_client_action(DB)
     elif args.action == "client-delete-expired":
         delete_expired_clients_action(DB, args.slack_webhook, args.warning_days)
+    elif args.action == "client-rotate":
+        rotate_client_action(DB, args.client, args.expires_in)
     elif args.action == "user-delete":
         delete_users(DB, args.users)
     elif args.action == "expired-service-account-delete":

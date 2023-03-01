@@ -11,9 +11,10 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = "^3.6"
+python = ">=3.9,<4.0.0"
 alembic = "^1.7.7"
-authlib = "^0.11"
+authlib = "*" # let authutils decide which version we're using
+authutils = "^6.2.2"
 bcrypt = "^3.1.4"
 boto3 = "~1.9.91"
 botocore = "^1.12.253"
@@ -38,7 +39,7 @@ prometheus-client = "^0.9.0"
 prometheus-flask-exporter = "^0.18.1"
 psycopg2 = "^2.8.3"
 pycryptodome = "3.9.8"
-pyjwt = "^1.5.3"
+PyJWT = "^2.4.0"
 python_dateutil = "^2.6.1"
 python-jose = "^2.0.2"
 pyyaml = "^5.1"
@@ -54,7 +55,7 @@ azure-storage-blob = "^12.6.0"
 Flask-WTF = "^0.14.3"
 pcdcutils = {git = "https://github.com/chicagopcdc/pcdcutils.git", rev = "0.1.2"}
 # pcdcutils = {git = "https://github.com/chicagopcdc/pcdcutils.git", rev = "pcdc_dev"}
-authutils = "6.1.0"
+
 
 
 [tool.poetry.dev-dependencies]
