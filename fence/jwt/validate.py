@@ -104,9 +104,9 @@ def validate_jwt(
         if oidc_iss:
             issuers.append(oidc_iss)
     try:
-        token_iss = jwt.decode(encoded_token, algorithms=["RS256"], options={"verify_signature": False}).get(
-            "iss"
-        )
+        token_iss = jwt.decode(
+            encoded_token, algorithms=["RS256"], options={"verify_signature": False}
+        ).get("iss")
     except jwt.InvalidTokenError as e:
         raise JWTError(e)
     attempt_refresh = attempt_refresh and (token_iss != iss)
@@ -176,7 +176,7 @@ def validate_jwt(
             ##### end refresh token, API key patch block #####
             msg = "Invalid token : {}".format(str(e))
             unverified_claims = jwt.decode(
-                encoded_token, algorithms=["RS256"],  options={"verify_signature": False}
+                encoded_token, algorithms=["RS256"], options={"verify_signature": False}
             )
             if not unverified_claims.get("scope") or "" in unverified_claims["scope"]:
                 msg += "; was OIDC client configured with scopes?"

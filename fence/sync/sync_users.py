@@ -533,6 +533,7 @@ class UserSyncer(object):
             if dbgap_config.get("allow_non_dbGaP_whitelist", False)
             else []
         )
+
         enable_common_exchange_area_access = dbgap_config.get(
             "enable_common_exchange_area_access", False
         )
@@ -544,6 +545,16 @@ class UserSyncer(object):
             self.logger.info(
                 f"using study to common exchange area mapping: {study_common_exchange_areas}"
             )
+
+        project_id_patterns = [r"phs(\d{6})"]
+        if "additional_allowed_project_id_patterns" in dbgap_config:
+            patterns = dbgap_config.get("additional_allowed_project_id_patterns")
+            patterns = [
+                r"{}".format(pattern.encode().decode("unicode_escape"))
+                for pattern in patterns
+            ]  # when converting the YAML from fence-config, python reads it as Python string literal. So "\" turns into "\\" which messes with the regex match
+            project_id_patterns += patterns
+
         for filepath, privileges in file_dict.items():
             self.logger.info("Reading file {}".format(filepath))
             if os.stat(filepath).st_size == 0:
@@ -578,6 +589,28 @@ class UserSyncer(object):
                         phsid = row.get("phsid", "").split(".")
 
                     dbgap_project = phsid[0]
+                    # There are issues where dbgap has a wrong entry in their whitelist. Since we do a bulk arborist request, there are wrong entries in it that invalidates the whole request causing other correct entries not to be added
+                    skip = False
+                    for pattern in project_id_patterns:
+                        self.logger.debug(
+                            "Checking pattern:{} with project_id:{}".format(
+                                pattern, dbgap_project
+                            )
+                        )
+                        if re.match(pattern, dbgap_project):
+                            skip = False
+                            break
+                        else:
+                            skip = True
+                    if skip:
+                        self.logger.warning(
+                            "Skip processing from file {}, user {} with project {}".format(
+                                filepath,
+                                username,
+                                dbgap_project,
+                            )
+                        )
+                        continue
                     if len(phsid) > 1 and self.parse_consent_code:
                         consent_code = phsid[-1]
 
