@@ -125,6 +125,11 @@ S3_BUCKETS = {
     "bucket3": {"cred": "CRED1", "role-arn": "arn:aws:iam::role1"},
 }
 
+GS_BUCKETS = {
+    "bucket1": {"cred": "CRED1"},
+    "bucket2": {"cred": "CRED2"},
+}
+
 #: Confiure which identity providers this fence instance can use for login.
 #:
 #: See ``fence/blueprints/login/__init__.py`` for which identity providers can
