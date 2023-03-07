@@ -144,6 +144,10 @@ def app_register_blueprints(app):
     app.register_blueprint(fence.blueprints.register.blueprint, url_prefix="/register")
     app.register_blueprint(fence.blueprints.ga4gh.blueprint, url_prefix="/ga4gh")
 
+    app.register_blueprint(
+        fence.blueprints.bucket_info.blueprint, url_prefix="/bucket_info"
+    )
+
     fence.blueprints.misc.register_misc(app)
 
     @app.route("/")

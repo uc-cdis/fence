@@ -1,10 +1,9 @@
-from http import client
-import flask
-from fence.blueprints.bucket_info import get_bucket_info
+import fence.blueprints.bucket_info
 
 
 def test_get_bucket_info(client):
-    res = get_bucket_info()
+    res = client.get("/bucket_info")
+
     print(res.json)
     assert res.status_code == 200
 

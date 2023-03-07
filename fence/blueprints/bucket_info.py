@@ -1,12 +1,11 @@
 import flask
-from flask import request
 from fence.config import config
 
 blueprint = flask.Blueprint("bucket_info", __name__)
 
 
 @blueprint.route(
-    "/info",
+    "/",
     methods=["GET"],
 )
 def get_bucket_info():
