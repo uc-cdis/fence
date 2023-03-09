@@ -53,7 +53,11 @@ def test_oauth2_token_post(oauth_test_client):
     assert "expires_in" in response
     assert response.get("token_type") == "Bearer"
 
-    payload = jwt.decode(response["access_token"], options={"verify_signature": False}, algorithms=["RS256"])
+    payload = jwt.decode(
+        response["access_token"],
+        options={"verify_signature": False},
+        algorithms=["RS256"],
+    )
     assert payload.get("iss") == "http://localhost/user"
     assert payload.get("azp") == oauth_test_client.client_id
     assert "context" in payload
@@ -124,7 +128,11 @@ def test_oauth2_with_client_credentials(
     assert "expires_in" in response
     assert response.get("token_type") == "Bearer"
 
-    payload = jwt.decode(response["access_token"], options={"verify_signature": False}, algorithms=["RS256"])
+    payload = jwt.decode(
+        response["access_token"],
+        options={"verify_signature": False},
+        algorithms=["RS256"],
+    )
     assert payload.get("iss") == "http://localhost/user"
     assert payload.get("azp") == oauth_test_client_with_client_credentials.client_id
     assert payload.get("context") == {}  # no user linked to this token
