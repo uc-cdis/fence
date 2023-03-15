@@ -10,7 +10,6 @@ blueprint = flask.Blueprint("bucket_info", __name__)
     "/region",
     methods=["GET"],
 )
-@require_auth_header(scope={"bucket_info"})
 def get_bucket_region_info():
     S3_BUCKETS = config.get("S3_BUCKETS", {}).copy()
     GS_BUCKETS = config.get("GS_BUCKETS", {}).copy()
