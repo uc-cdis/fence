@@ -64,6 +64,7 @@ import fence.blueprints.google
 import fence.blueprints.privacy
 import fence.blueprints.register
 import fence.blueprints.ga4gh
+import fence.blueprints.bucket_info
 
 
 # for some reason the temp dir does not get created properly if we move
