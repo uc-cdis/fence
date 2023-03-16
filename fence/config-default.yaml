@@ -338,7 +338,7 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
   #   fence_idp: shibboleth
   #   # "shib_idps" can be '*' or a list of one or more entity IDs
   #   shib_idps:
-  #     - urn:mace:incommon:nih.gov
+  #     - https://auth.nih.gov/IDP
   #     - urn:mace:incommon:uchicago.edu
 # The following can be used for shibboleth login, simply uncomment.
 # NOTE: Don't enable shibboleth if the deployment is not protected by

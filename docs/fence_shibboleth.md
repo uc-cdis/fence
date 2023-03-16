@@ -72,7 +72,7 @@ LOGIN_OPTIONS:
     idp: fence
     fence_idp: shibboleth
     shib_idps:
-      - urn:mace:incommon:nih.gov
+      - https://auth.nih.gov/IDP
   - name: 'UChicago Login'
     idp: fence
     fence_idp: shibboleth
@@ -82,7 +82,7 @@ LOGIN_OPTIONS:
     idp: fence
     fence_idp: shibboleth
     shib_idps:
-      - urn:mace:incommon:nih.gov
+      - https://auth.nih.gov/IDP
       - urn:mace:incommon:uchicago.edu
   - name: 'InCommon Login all'
     idp: fence
@@ -104,7 +104,7 @@ LOGIN_OPTIONS:
     idp: fence
     fence_idp: shibboleth
     shib_idps:
-      - urn:mace:incommon:nih.gov
+      - https://auth.nih.gov/IDP
   - name: 'Do not do this'
     idp: fence
     fence_idp: shibboleth
