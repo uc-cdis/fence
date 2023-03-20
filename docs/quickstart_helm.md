@@ -12,6 +12,7 @@ helm upgrade --install gen3/fence
 These commands will add the Gen3 helm chart repo and install the fence service to your Kubernetes cluster.
 
 Deploying fence this way will use the defaults that are defined in this [values.yaml file](https://github.com/uc-cdis/gen3-helm/blob/master/helm/fence/values.yaml)
+
 You can learn more about these values by accessing the fence [README.md](https://github.com/uc-cdis/gen3-helm/blob/master/helm/fence/README.md)
 
 If you would like to override any of the default values, simply copy the above values.yaml file into a local file and make any changes needed.
