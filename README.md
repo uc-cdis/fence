@@ -366,6 +366,11 @@ This command should output a tuple of `(client_id, client_secret)` which must be
 saved by the OAuth client to use with
 `fence`.
 
+### Quickstart with Helm
+
+You can now deploy individual services via Helm!
+Please refer to the Helm quickstart guide HERE (https://github.com/uc-cdis/fence/blob/master/docs/quickstart_helm.md)
+
 ## Token management
 
 Fence utilizes [OpenID Connect](#OIDC) to generate tokens
