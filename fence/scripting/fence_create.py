@@ -1471,7 +1471,12 @@ def _create_or_update_google_bucket_and_db(
             project_db_entry = (
                 db_session.query(Project).filter_by(auth_id=project_auth_id).first()
             )
-            if project_db_entry:
+            if not project_db_entry:
+                logger.info(
+                    "No project with auth_id {} found. No linking "
+                    "occured.".format(project_auth_id)
+                )
+            else:
                 project_linkage = (
                     db_session.query(ProjectToBucket)
                     .filter_by(
@@ -1491,26 +1496,23 @@ def _create_or_update_google_bucket_and_db(
                     "Successfully linked project with auth_id {} "
                     "to the bucket.".format(project_auth_id)
                 )
-            else:
-                logger.info(
-                    "No project with auth_id {} found. No linking "
-                    "occured.".format(project_auth_id)
-                )
 
-            # Add StorageAccess if it doesn't exist for the project
-            storage_access = (
-                db_session.query(StorageAccess)
-                .filter_by(
-                    project_id=project_db_entry.id, provider_id=google_cloud_provider.id
+                # Add StorageAccess if it doesn't exist for the project
+                storage_access = (
+                    db_session.query(StorageAccess)
+                    .filter_by(
+                        project_id=project_db_entry.id,
+                        provider_id=google_cloud_provider.id,
+                    )
+                    .first()
                 )
-                .first()
-            )
-            if not storage_access:
-                storage_access = StorageAccess(
-                    project_id=project_db_entry.id, provider_id=google_cloud_provider.id
-                )
-                db_session.add(storage_access)
-                db_session.commit()
+                if not storage_access:
+                    storage_access = StorageAccess(
+                        project_id=project_db_entry.id,
+                        provider_id=google_cloud_provider.id,
+                    )
+                    db_session.add(storage_access)
+                    db_session.commit()
 
     return bucket_db_entry
 
