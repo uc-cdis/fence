@@ -2,12 +2,12 @@
 Utilities for determine access and validity for service account
 registration.
 """
+import backoff
 import time
 import flask
 from urllib.parse import unquote
 
 from cirrus.google_cloud.iam import GooglePolicyMember
-
 from cirrus.google_cloud.errors import GoogleAPIError
 from cirrus.google_cloud.iam import GooglePolicy
 from cirrus import GoogleCloudManager
@@ -32,7 +32,7 @@ from fence.resources.google.utils import (
     get_monitoring_service_account_email,
     is_google_managed_service_account,
 )
-from fence.utils import get_valid_expiration_from_request
+from fence.utils import get_valid_expiration_from_request, DEFAULT_BACKOFF_SETTINGS
 
 logger = get_logger(__name__)
 
@@ -75,6 +75,21 @@ def bulk_update_google_groups(google_bulk_mapping):
             for member_email in to_delete:
                 logger.info(f"Removing from group {group}: {member_email}")
                 gcm.remove_member_from_group(member_email, group)
+
+
+@backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
+def _get_members_from_google_group(gcm, group):
+    return gcm.get_group_members(group)
+
+
+@backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
+def _add_member_to_google_group(gcm, add_member_to_group, group):
+    gcm.add_member_to_group(member_email, group)
+
+
+@backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
+def _remove_member_to_google_group(gcm, add_member_to_group, group):
+    gcm.remove_member_from_group(member_email, group)
 
 
 def get_google_project_number(google_project_id, google_cloud_manager):
@@ -716,7 +731,6 @@ def _revoke_user_service_account_from_google(
                     if not g_manager.remove_member_from_group(
                         member_email=service_account.email, group_id=access_group.email
                     ):
-
                         logger.debug(
                             "Removed {} from google group {}".format(
                                 service_account.email, access_group.email
