@@ -54,7 +54,7 @@ def bulk_update_google_groups(google_bulk_mapping):
 
             # get members list from google
             google_members = set(
-                member.get("email") for member in gcm.get_group_members(group)
+                member.get("email") for member in _get_members_from_google_group(group)
             )
             logger.debug(f"Google membership for {group}: {google_members}")
             logger.debug(f"Expected membership for {group}: {expected_members}")
@@ -69,12 +69,12 @@ def bulk_update_google_groups(google_bulk_mapping):
             # do add
             for member_email in to_add:
                 logger.info(f"Adding to group {group}: {member_email}")
-                gcm.add_member_to_group(member_email, group)
+                _add_member_to_google_group(member_email, group)
 
             # do remove
             for member_email in to_delete:
                 logger.info(f"Removing from group {group}: {member_email}")
-                gcm.remove_member_from_group(member_email, group)
+                _remove_member_to_google_group(member_email, group)
 
 
 @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
