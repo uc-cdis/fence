@@ -541,7 +541,7 @@ The optional `--expires-in` parameter allows specifying the number of *days* unt
 
 NOTE: In Gen3, you can grant specific access to a client the same way you would to a user. See the [user.yaml guide](https://github.com/uc-cdis/fence/blob/master/docs/user.yaml_guide.md) for more details.
 
-NOTE: Client credentials tokens are not linked to a user (the claims contain no `sub` or `context.user.name` like other tokens). Some Gen3 endpoints that assume the token is linked to a user, or whose logic require there being a user, do not support them. For an example of how to adapt an endpoint to support client credentials tokens, see [here](https://github.com/uc-cdis/requestor/commit/a5078fae27fa258ac78045cf2bb89cb2104f53cf). For an example of how to explicitely reject client credentials tokens, see [here](https://github.com/uc-cdis/requestor/commit/0f4974c25343d2185c7cdb48dcdeb58f97800672).
+NOTE: Client credentials tokens are not linked to a user (the claims contain no `sub` or `context.user.name` like other tokens). Some Gen3 endpoints that assume the token is linked to a user, or whose logic require there being a user, do not support them. For an example of how to adapt an endpoint to support client credentials tokens, see [here](https://github.com/uc-cdis/requestor/commit/a5078fae27fa258ac78045cf2bb89cb2104f53cf). For an example of how to explicitly reject client credentials tokens, see [here](https://github.com/uc-cdis/requestor/commit/0f4974c25343d2185c7cdb48dcdeb58f97800672).
 
 #### Modify OAuth Client
 
