@@ -7,7 +7,10 @@ def test_get_bucket_info(client):
     correct_value = {
         "S3_BUCKETS": {
             "bucket1": {},
-            "bucket2": {"region": "us-east-1"},
+            "bucket2": {
+                "region": "us-east-1",
+                "endpoint_url": "https://cleversafe.example.com/",
+            },
             "bucket3": {"region": "us-east-1"},
             "bucket4": {"region": "us-east-1"},
             "bucket5": {"region": "us-east-1"},
@@ -26,6 +29,7 @@ def test_get_bucket_info(client):
     for cloud, buckets in bucket_info.items():
         for bucket, info in buckets.items():
             assert "cred" not in info
+            assert "role-arn" not in info
 
     assert len(bucket_info["S3_BUCKETS"]) == 5
     assert len(bucket_info["GS_BUCKETS"]) == 2

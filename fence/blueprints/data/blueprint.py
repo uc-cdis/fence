@@ -347,12 +347,11 @@ def get_bucket_region_info():
     S3_BUCKETS = config.get("S3_BUCKETS", {}).copy()
     GS_BUCKETS = config.get("GS_BUCKETS", {}).copy()
     result = {"S3_BUCKETS": S3_BUCKETS, "GS_BUCKETS": GS_BUCKETS}
-
     for cloud, buckets in result.items():
         for bucket, info in buckets.items():
             info_copy = info.copy()
             for key in info.keys():
-                if key != "region":
+                if key.lower() == "role-arn" or key.lower() == "cred":
                     del info_copy[key]
             buckets[bucket] = info_copy
 
