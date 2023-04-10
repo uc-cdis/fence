@@ -1,5 +1,11 @@
-from fence import app, app_init, config
 import argparse
+
+import dotenv
+
+dotenv.load_dotenv()
+
+from fence import app, app_init, config
+
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
