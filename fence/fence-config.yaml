@@ -1,0 +1,112 @@
+APP_NAME: 'Gen3 Data Commons'
+BASE_URL: 'https://ec2-3-138-140-131.us-east-2.compute.amazonaws.com/user'
+DB: 'postgresql+pg8000://postgres:postgres@postgres:5432/fence'
+ENCRYPTION_KEY: ''
+DEBUG: true
+MOCK_AUTH: false
+MOCK_GOOGLE_AUTH: false
+MOCK_STORAGE: true
+AUTHLIB_INSECURE_TRANSPORT: false
+SESSION_COOKIE_SECURE: true
+ENABLE_CSRF_PROTECTION: true
+DEFAULT_LOGIN_URL: '{{BASE_URL}}/login/cognito'
+LOGIN_OPTIONS:
+   - name: 'Login from WISEcode'
+     desc: 'WISEcode Platform login'
+     idp: wisecode
+DEFAULT_LOGIN_IDP: wisecode
+OAUTH2_JWT_ALG: 'RS256'
+OAUTH2_JWT_ENABLED: true
+OAUTH2_JWT_ISS: '{{BASE_URL}}'
+OAUTH2_PROVIDER_ERROR_URI: '/api/oauth2/errors'
+APPLICATION_ROOT: '/user'
+ACCESS_TOKEN_COOKIE_NAME: "access_token"
+SESSION_COOKIE_NAME: "fence"
+OAUTH2_TOKEN_EXPIRES_IN:
+  "authorization_code": 1200
+  "implicit": 1200
+ACCESS_TOKEN_EXPIRES_IN: 1200
+REFRESH_TOKEN_EXPIRES_IN: 2592000
+SESSION_TIMEOUT: 1800
+SESSION_LIFETIME: 28800
+MAX_PRESIGNED_URL_TTL: 3600
+MAX_API_KEY_TTL: 2592000
+MAX_ACCESS_TOKEN_TTL: 3600
+SUPPORT_EMAIL_FOR_ERRORS: null
+dbGaP:
+  info:
+    host: ''
+    username: ''
+    password: ''
+    port: 22
+    proxy: ''
+    proxy_user: ''
+  protocol: 'sftp'
+  decrypt_key: ''
+  parse_consent_code: true
+AWS_CREDENTIALS: {}
+S3_BUCKETS: {}
+DATA_UPLOAD_BUCKET: null
+HTTP_PROXY:
+  host: null
+  port: 3128
+INDEXD: http://indexd-service
+INDEXD_USERNAME: 'indexd_client'
+INDEXD_PASSWORD: 'indexd_client_pass'
+ARBORIST: http://arborist-service
+CIRRUS_CFG:
+  GOOGLE_API_KEY: ''
+  GOOGLE_PROJECT_ID: ''
+  GOOGLE_APPLICATION_CREDENTIALS: ''
+  GOOGLE_STORAGE_CREDS: ''
+  GOOGLE_ADMIN_EMAIL: ''
+  GOOGLE_IDENTITY_DOMAIN: ''
+  GOOGLE_CLOUD_IDENTITY_ADMIN_EMAIL: ''
+GOOGLE_GROUP_PREFIX: ''
+GUN_MAIL:
+  'datacommons.io':
+    smtp_hostname: 'smtp.mailgun.org'
+    api_key: ''
+    default_login: 'postmaster@mailgun.example.com'
+    api_url: 'https://api.mailgun.net/v3/mailgun.example.com'
+    smtp_password: ''
+EMAIL_SERVER: 'localhost'
+SEND_FROM: 'example@gmail.com'
+SEND_TO: 'example@gmail.com'
+RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION: true
+WHITE_LISTED_GOOGLE_PARENT_ORGS: []
+WHITE_LISTED_SERVICE_ACCOUNT_EMAILS: []
+REMOVE_SERVICE_ACCOUNT_EMAIL_NOTIFICATION:
+  enable: false
+  domain: 'example.com'
+  from: 'do-not-reply@example.com'
+  subject: 'User service account removal notification'
+  content: >
+    Service accounts were removed from access control data because some users or
+    service accounts of GCP Project {} are not authorized to access the data sets
+    associated to the service accounts, or do not adhere to the security policies.
+  admin:
+    - 'admin@example.edu'
+GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS:
+  - 'dataflow-service-producer-prod.iam.gserviceaccount.com'
+  - 'cloudbuild.gserviceaccount.com'
+  - 'cloud-ml.google.com.iam.gserviceaccount.com'
+  - 'container-engine-robot.iam.gserviceaccount.com'
+  - 'dataflow-service-producer-prod.iam.gserviceaccount.com'
+  - 'sourcerepo-service-accounts.iam.gserviceaccount.com'
+  - 'dataproc-accounts.iam.gserviceaccount.com'
+  - 'gae-api-prod.google.com.iam.gserviceaccount.com'
+  - 'genomics-api.google.com.iam.gserviceaccount.com'
+  - 'containerregistry.iam.gserviceaccount.com'
+  - 'container-analysis.iam.gserviceaccount.com'
+  - 'cloudservices.gserviceaccount.com'
+  - 'stackdriver-service.iam.gserviceaccount.com'
+  - 'appspot.gserviceaccount.com'
+  - 'partnercontent.gserviceaccount.com'
+  - 'trifacta-gcloud-prod.iam.gserviceaccount.com'
+  - 'gcf-admin-robot.iam.gserviceaccount.com'
+  - 'compute-system.iam.gserviceaccount.com'
+  - 'gcp-sa-websecurityscanner.iam.gserviceaccount.com'
+  - 'storage-transfer-service.iam.gserviceaccount.com'
+
+ENABLE_DB_MIGRATION: true

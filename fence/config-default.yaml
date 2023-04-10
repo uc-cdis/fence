@@ -93,130 +93,7 @@ ENABLE_DB_MIGRATION: true
 # providers can be configured.
 # //////////////////////////////////////////////////////////////////////////////////////
 OPENID_CONNECT:
-  # These Google values must be obtained from Google's Cloud Console
-  # Follow: https://developers.google.com/identity/protocols/OpenIDConnect
-  #
-  # You'll need to obtain a Client ID and Client Secret. Set the redirect URIs
-  # in Google to be '{{BASE_URL}}/login/google/login', but expand BASE_URL to
-  # whatever you set it to above.
-  google:
-    client_id: ''
-    client_secret: ''
-    # this is be the allowed redirect back to fence, should not need to change
-    redirect_url: '{{BASE_URL}}/login/google/login/'
-    # if mock is true, will fake a successful login response from Google in /login/google
-    #     NOTE: this will also modify the behavior of /link/google endpoints
-    # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
-    # will login as the username set in cookie DEV_LOGIN_COOKIE_NAME or default provided
-    # here
-    mock: '{{MOCK_GOOGLE_AUTH}}'  # for backwards compatibility with older cfg files
-    mock_default_user: 'test@example.com'
-  # Support for multi-tenant fence (another fence is this fence's IDP)
-  # If this fence instance is a client of another fence, fill this cfg out.
-  # REMOVE if not needed
-  fence:
-    # this api_base_url should be the root url for the OTHER fence
-    # something like: https://example.com
-    api_base_url: ''
-    # this client_id and client_secret should be obtained by registering THIS fence as
-    # a new client of the OTHER fence
-    client_id: ''
-    client_secret: ''
-    client_kwargs:
-      # openid is required to use OIDC flow
-      scope: 'openid'
-      # callback after logging in through the other fence
-      redirect_uri: '{{BASE_URL}}/login/fence/login'
-    # The next 3 should not need to be changed if the provider is following
-    # Oauth2 endpoint naming conventions
-    authorize_url: '{{api_base_url}}/oauth2/authorize'
-    access_token_url: '{{api_base_url}}/oauth2/token'
-    refresh_token_url: '{{api_base_url}}/oauth2/token'
-    # Custom name to display for consent screens. If not provided, will use `fence`.
-    # If the other fence is using NIH Login, you should make name: `NIH Login`
-    name: ''
-    # if mock is true, will fake a successful login response for login
-    # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
-    mock: false
-    mock_default_user: 'test@example.com'
-    # this is needed to enable InCommon login, if some LOGIN_OPTIONS are configured with idp=fence and a list of shib_idps:
-    shibboleth_discovery_url: 'https://login.bionimbus.org/Shibboleth.sso/DiscoFeed'
-  # you can setup up an orcid client here: https://orcid.org/developer-tools
-  orcid:
-    client_id: ''
-    client_secret: ''
-    # make sure you put the FULL url for this deployment in the allowed redirects in
-    # ORCID.org. DO NOT include {{BASE_URL}} at ORCID.org, you need to actually put the
-    # full url
-    redirect_url: '{{BASE_URL}}/login/orcid/login/'
-    # if mock is true, will fake a successful login response for login
-    # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
-    mock: false
-    mock_default_user: '0000-0002-2601-8132'
-  ras:
-    discovery_url: 'https://sts.nih.gov/.well-known/openid-configuration'
-    client_id: ''
-    client_secret: ''
-    redirect_url: '{{BASE_URL}}/login/ras/callback'
-    # if mock is true, will fake a successful login response for login
-    # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
-    mock: false
-    mock_default_user: 'test@example.com'
-  # Create a client in Azure here:
-  #   https://portal.azure.com/#blade/Microsoft_AAD_IAM/ActiveDirectoryMenuBlade/RegisteredAppsPreview
-  # Currently supports organizational account only, so when registering a new App in
-  # Azure, make sure to select the `Accounts in any organizational directory` for
-  # supported account types.
-  microsoft:
-    # after registering a new appl, client_id can be found as
-    # "APPLICATION (CLIENT) ID" in Microsoft Azure
-    client_id: ''
-    # You have a generate a secret in Azure for this app, there should be a
-    # "Certificates & secrets" section where you can create a "New client secret"
-    client_secret: ''
-    # make sure you put the FULL url for this deployment in the allowed redirects in
-    # your app in Azure. DO NOT include {{BASE_URL}} in Azure, you need to actually put the
-    # full url
-    redirect_url: '{{BASE_URL}}/login/microsoft/login/'
-    # if mock is true, will fake a successful login response for login
-    # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
-    mock: false
-    mock_default_user: 'test@example.com'
-  # For information on configuring an Okta tenant as an OIDC IdP refer to Okta documentation at:
-  # https://developer.okta.com/docs/reference/api/oidc/#2-okta-as-the-identity-platform-for-your-app-or-api
-  okta:
-    discovery_url: ''
-    client_id: ''
-    client_secret: ''
-    redirect_url: '{{BASE_URL}}/login/okta/login/'
-  cognito:
-    # You must create a user pool in order to have a discovery url
-    discovery_url: 'https://cognito-idp.{REGION}.amazonaws.com/{USER-POOL-ID}/.well-known/openid-configuration'
-    client_id: ''
-    client_secret: ''
-    redirect_url: '{{BASE_URL}}/login/cognito/login/'
-    # In the case where Cognito is being used solely as an intermediary to a single IdP,
-    # and that IdP is a SAML IdP with no 'email_verified' outgoing claim, but it is safe
-    # to assume all emails from this SAML IdP are in fact verified, we may set this to True
-    assume_emails_verified: False
-  # CILogon subscribers can create and manage OIDC clients using COmanage Registry.
-  # Free tier users may request OIDC clients at https://cilogon.org/oauth2/register
-  cilogon:
-    client_id: ''
-    client_secret: ''
-    # When registering the Callback URLs for your CILogon OIDC client be
-    # sure to include the FULL url for this deployment, including the https:// scheme
-    # and server FQDN.
-    redirect_url: '{{BASE_URL}}/login/cilogon/login/'
-    # if mock is true, will fake a successful login response for login
-    # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
-    mock: false
-    mock_default_user: 'http://cilogon.org/serverT/users/64703'
-  synapse:
-    client_id: ''
-    client_secret: ''
-    redirect_url: ''
-  shibboleth:
+  wisecode:
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/shib/login'
@@ -320,7 +197,7 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
 # - must be configured in LOGIN_OPTIONS and OPENID_CONNECT
 # - if several options in LOGIN_OPTIONS are defined for this IDP, will default
 # to the first one.
-DEFAULT_LOGIN_IDP: null
+DEFAULT_LOGIN_IDP: wisecode
 
 # Default login URL: DEPRECATED and replaced by LOGIN_OPTIONS + DEFAULT_LOGIN_IDP configs
 # - Google? Use: '{{BASE_URL}}/login/google'
