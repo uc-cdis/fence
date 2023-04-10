@@ -201,11 +201,7 @@ class RASOauth2Client(Oauth2ClientBase):
             self.logger.exception("{}: {}".format(err_msg, e))
             return {"error": err_msg}
 
-        return {
-            "username": username,
-            "email": userinfo.get("email"),
-            "sub": userinfo.get("sub"),
-        }
+        return {"username": username, "email": userinfo.get("email")}
 
     def refresh_cronjob_pkey_cache(self, issuer, kid, pkey_cache):
         """

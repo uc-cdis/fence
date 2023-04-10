@@ -2,8 +2,8 @@ from addict import Dict
 from authutils.oauth2.client import OAuthClient
 from collections import OrderedDict
 import pytest
-from unittest.mock import MagicMock, patch
 
+import fence
 from fence.config import config
 from fence.jwt.keys import Keypair
 
@@ -34,14 +34,7 @@ def config_idp_in_client(
             "BASE_URL": "/",
             "MOCK_AUTH": False,
             "DEFAULT_LOGIN_IDP": "fence",
-            "LOGIN_OPTIONS": [
-                {
-                    "name": "InCommon login",
-                    "idp": "fence",
-                    "fence_idp": "shibboleth",
-                    "shib_idps": ["some-incommon-entity-id"],
-                }
-            ],
+            "DEFAULT_LOGIN_URL": "/login/fence",
             "OPENID_CONNECT": {
                 "fence": {
                     "client_id": "other_fence_client_id",
@@ -64,9 +57,7 @@ def config_idp_in_client(
     app.db.Session = saved_db_Session
 
 
-def test_redirect_oauth2_authorize(
-    app, client, config_idp_in_client, get_all_shib_idps_patcher
-):
+def test_redirect_oauth2_authorize(app, client, config_idp_in_client):
     """
     Test that the ``/oauth2/authorize`` endpoint on the client fence redirects to the
     ``/login/fence`` endpoint, also on the client fence,
@@ -76,20 +67,6 @@ def test_redirect_oauth2_authorize(
     assert r.status_code == 302
     assert "/login/fence" in r.location
     assert config["BASE_URL"] in r.location
-
-
-def test_redirect_oauth2_authorize_default_params(
-    client, app, config_idp_in_client, get_all_shib_idps_patcher
-):
-    """
-    Test that when the `/oauth2/authorize` endpoint redirects to the default
-    IDP, the default IDP's parameters are included in the redirect URL.
-    """
-    r = client.get("/oauth2/authorize")
-    assert r.status_code == 302
-    assert "/login/fence" in r.location
-    assert "idp=shibboleth" in r.location
-    assert "shib_idp=some-incommon-entity-id" in r.location
 
 
 def test_redirect_login_fence(app, client, config_idp_in_client):

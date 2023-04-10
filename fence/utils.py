@@ -1,3 +1,7 @@
+"""
+Utils
+"""
+
 import bcrypt
 import collections
 from functools import wraps
@@ -10,11 +14,23 @@ import requests
 from urllib.parse import urlencode
 from urllib.parse import parse_qs, urlsplit, urlunsplit
 import sys
+from typing import Any
+import os
+import hmac
+import base64
+import hashlib
+import subprocess
 
 from cdislogging import get_logger
 import flask
-from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
+import botocore
+import boto3
+from sqlalchemy.exc import ProgrammingError
+import wisecode_sql
+from userdatamodel.models import * # noqa
+from userdatamodel.init_defaults import init_defaults
+from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.models import Client, User, query_for_user
 from fence.errors import NotFound, UserError
@@ -192,7 +208,7 @@ def clear_cookies(response):
     Set all cookies to empty and expired.
     """
     for cookie_name in list(flask.request.cookies.keys()):
-        response.set_cookie(cookie_name, "", expires=0, httponly=True)
+        response.set_cookie(cookie_name, "", expires=0, httponly=False)
 
 
 def get_error_params(error, description):
@@ -371,3 +387,199 @@ DEFAULT_BACKOFF_SETTINGS = {
     "max_tries": 3,
     "giveup": exception_do_not_retry,
 }
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# Logging
+# ----------------------------------------------------------------------------------------------------------------------
+def configure_logging() -> None:
+    """
+    Configures logging
+    """
+
+    log_config = {
+        "version": 1,
+        "disable_existing_loggers": False,
+        "formatters": {
+            "standard": {
+                "format": "[%(asctime)s] {%(pathname)s:%(lineno)d} %(levelname)s - %(message)s"
+            },
+        },
+        "handlers": {
+            "stdout": {"class": "logging.StreamHandler", "formatter": "standard"},
+        },
+        "loggers": {
+            "": {
+                "handlers": ["stdout"],
+                "level": get_env_var("LOG_LEVEL"),
+            },
+            "botocore": {
+                "handlers": ["stdout"],
+                "level": "INFO",
+            },
+            "urllib3": {
+                "handlers": ["stdout"],
+                "level": "INFO",
+            },
+        },
+    }
+    if os.environ.get("ENVIRONMENT") == "local":
+        log_config["handlers"]["file"] = {
+            "class": "logging.handlers.RotatingFileHandler",
+            "level": get_env_var("LOG_LEVEL"),
+            "formatter": "standard",
+            "filename": "logs/fence-cli.log",
+            "mode": "a",
+            "maxBytes": 1048576,
+            "backupCount": 1,
+        }
+        log_config["loggers"][""]["handlers"] = ["stdout", "file"]
+
+    logging.config.dictConfig(log_config)
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# Environment vars
+# ----------------------------------------------------------------------------------------------------------------------
+def get_env_var(
+    key: str,
+    default: Any = None,
+    is_list: bool = False,
+    is_bool: bool = False,
+    is_int: bool = False,
+    exce: bool = True,
+) -> Any:
+    """
+    Gets an environment variables
+    """
+
+    value = os.environ.get(key, default)
+    if exce and not value:
+        raise AttributeError(f"Missing required environment variable {key}")
+
+    if is_list:
+        value = value.split(",")
+    elif is_int:
+        value = int(value)
+    elif is_bool:
+        lower_val = value.lower()
+        if lower_val in ["t", "true"]:
+            value = True
+        elif lower_val in ["f", "false"]:
+            value = False
+
+    elif value == "NONE":
+        value = None
+
+    return value
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# SQL
+# ----------------------------------------------------------------------------------------------------------------------
+def set_up_sqldb():
+    """
+    Sets up the Fence SQL database
+    """
+
+    try:
+        wisecode_sql.create_sqldb()
+    except ProgrammingError:
+        pass
+
+    db = SQLAlchemyDriver(
+        wisecode_sql.sql_connection_string(),
+        ignore_db_error=False
+    )
+    init_defaults(db)
+    logger.info("Set up SQL database")
+
+
+
+# ----------------------------------------------------------------------------------------------------------------------
+# AWS
+# ----------------------------------------------------------------------------------------------------------------------
+cognito_client = None
+
+
+def get_cognito_client(reset=False) -> botocore.client.ClientCreator:
+    """
+    Gets an AWS Cognito client
+    """
+
+    global cognito_client
+    if not cognito_client or reset:
+        cognito_client = boto3.client(
+            "cognito-idp",
+            region_name=get_env_var("AWS_COGNITO_REGION"),
+            aws_access_key_id=get_env_var("AWS_ACCESS_KEY_ID"),
+            aws_secret_access_key=get_env_var("AWS_SECRET_ACCESS_KEY"),
+        )
+
+    return cognito_client
+
+
+def cognito_user_hmac(username: str) -> str:
+    """
+    Gets a keyed-hash message authentication code (HMAC) using a Cognito user pool client id and username
+    """
+
+    digest = hmac.new(
+        get_env_var("AWS_COGNITO_APP_CLIENT_SECRET").encode("utf-8"),
+        msg=f"{username}{get_env_var('AWS_COGNITO_APP_CLIENT_ID')}".encode("utf-8"),
+        digestmod=hashlib.sha256,
+    ).digest()
+    return base64.b64encode(digest).decode()
+
+
+def cognito_user_jwt(
+    username: str, password: str, cognito_client: botocore.client.ClientCreator = None,
+) -> str:
+    """
+    Gets a Cognito user JWT
+    """
+
+    if not cognito_client:
+        cognito_client = get_cognito_client()
+
+    try:
+        response = cognito_client.admin_initiate_auth(
+            UserPoolId=get_env_var("AWS_COGNITO_USER_POOL_ID"),
+            ClientId=get_env_var("AWS_COGNITO_APP_CLIENT_ID"),
+            AuthFlow="ADMIN_NO_SRP_AUTH",
+            AuthParameters={
+                "USERNAME": username,
+                "PASSWORD": password,
+                "SECRET_HASH": cognito_user_hmac(username),
+            },
+        )
+        return response["AuthenticationResult"]["AccessToken"]
+    except Exception as e:
+        logger.info(f"Failed to get Congito user JWT with {e}")
+
+
+def create_cognito_user(
+    cognito_client: botocore.client.ClientCreator,
+    username: str,
+    password: str,
+    confirm_signup: bool = True,
+):
+    """
+    Creates a Cognito user
+    """
+
+    sign_up_response = cognito_client.sign_up(
+        ClientId=get_env_var("AWS_COGNITO_APP_CLIENT_ID"),
+        SecretHash=cognito_user_hmac(username),
+        Username=username,
+        Password=password,
+        UserAttributes=[
+            {"Name": "email", "Value": username},
+        ],
+    )
+    if confirm_signup:
+        cognito_client.admin_confirm_sign_up(
+            UserPoolId=get_env_var("AWS_COGNITO_USER_POOL_ID"), Username=username
+        )
+
+    return sign_up_response["UserSub"]

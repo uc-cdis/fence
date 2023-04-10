@@ -22,7 +22,7 @@ import json
 
 from authutils.errors import JWTExpiredError
 
-from fence.blueprints.login import IDP_URL_MAP, get_login_providers_info
+from fence.blueprints.login import IDP_URL_MAP
 from fence.errors import Unauthorized, UserError
 from fence.jwt.errors import JWTError
 from fence.jwt.token import SCOPE_DESCRIPTION
@@ -77,17 +77,15 @@ def authorize(*args, **kwargs):
     shib_idp = flask.request.args.get("shib_idp")
 
     login_url = None
-    if not idp:
-        if not config.get("DEFAULT_LOGIN_IDP") and "default" not in config.get(
-            "ENABLED_IDENTITY_PROVIDERS", {}
-        ):
-            # fall back on deprecated DEFAULT_LOGIN_URL
-            login_url = config.get("DEFAULT_LOGIN_URL")
-        else:
-            default_provider_info, _ = get_login_providers_info()
-            idp = default_provider_info["idp"]
-            # if more than 1 URL is configured, default to the 1st one
-            login_url = default_provider_info["urls"][0]["url"]
+    if not idp:  # use default login IDP
+        idp = config.get("DEFAULT_LOGIN_IDP")
+        if not idp:
+            if "default" in config.get("ENABLED_IDENTITY_PROVIDERS", {}):
+                # fall back on ENABLED_IDENTITY_PROVIDERS.default
+                idp = config["ENABLED_IDENTITY_PROVIDERS"]["default"]
+            else:
+                # fall back on deprecated DEFAULT_LOGIN_URL
+                login_url = config.get("DEFAULT_LOGIN_URL")
 
     if need_authentication or not user:
         redirect_url = config.get("BASE_URL") + flask.request.full_path
@@ -96,8 +94,8 @@ def authorize(*args, **kwargs):
         if not login_url:
             if idp not in IDP_URL_MAP or idp not in config["OPENID_CONNECT"]:
                 raise UserError("idp {} is not supported".format(idp))
-            idp_endpoint = IDP_URL_MAP[idp]
-            login_url = "{}/login/{}".format(config.get("BASE_URL"), idp_endpoint)
+            idp_url = IDP_URL_MAP[idp]
+            login_url = "{}/login/{}".format(config.get("BASE_URL"), idp_url)
 
         # handle valid extra params for fence multi-tenant and shib login
         if idp == "fence" and fence_idp:

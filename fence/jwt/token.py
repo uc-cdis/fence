@@ -189,7 +189,7 @@ def generate_signed_session_token(kid, private_key, expires_in, context=None):
     logger.debug("issuing JWT session token\n" + json.dumps(claims, indent=4))
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     token = to_unicode(token, "UTF-8")
-
+    logger.debug("issuing JWT " + str(token))
     # Browser may clip cookies larger than 4096 bytes
     if len(token) > 4096:
         raise JWTSizeError("JWT exceeded 4096 bytes")
@@ -432,7 +432,7 @@ def generate_signed_access_token(
 
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     token = to_unicode(token, "UTF-8")
-
+    logger.debug("issuing JWT " + str(token))
     # Browser may clip cookies larger than 4096 bytes
     if len(token) > 4096:
         raise JWTSizeError("JWT exceeded 4096 bytes")
@@ -472,7 +472,8 @@ def generate_id_token(
         max_age (int, optional):
             max number of seconds allowed since last user AuthN
         nonce (str, optional):
-            string value used to associate a Client session with an ID Token
+            string vissuing JWT access token
+alue used to associate a Client session with an ID Token
         include_project_access (bool, optional):
             whether to include user.project_access in the token context.user.projects
         auth_flow_type (AuthFlowTypes, optional):

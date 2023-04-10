@@ -22,6 +22,7 @@ def user_info():
     client_id = None
     if current_token and current_token["azp"]:
         client_id = current_token["azp"]
+
     info = get_current_user_info()
     info["azp"] = client_id
 

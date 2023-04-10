@@ -323,7 +323,6 @@ def _create_access_token_cookie(app, session, response, user):
         forced_exp_time=expiration,
         linked_google_email=linked_google_email,
     ).token
-
     domain = app.session_interface.get_cookie_domain(app)
     response.set_cookie(
         config["ACCESS_TOKEN_COOKIE_NAME"],
@@ -331,7 +330,7 @@ def _create_access_token_cookie(app, session, response, user):
         expires=expiration,
         httponly=True,
         domain=domain,
-        samesite="Lax",
+        samesite="Lax"
     )
 
     return response

@@ -4,8 +4,8 @@ import urllib.parse
 
 import cirrus
 from gen3config import Config
-
 from cdislogging import get_logger
+
 
 logger = get_logger(__name__)
 

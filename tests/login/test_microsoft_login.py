@@ -24,8 +24,7 @@ def test_get_user_id(microsoft_oauth2_client):
         return_value=return_value,
     ):
         user_id = microsoft_oauth2_client.get_user_id(code="123")
-        for key, value in expected_value.items():
-            assert return_value[key] == value
+        assert user_id == expected_value  # nosec
 
 
 def test_get_user_id_missing_claim(microsoft_oauth2_client):

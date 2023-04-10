@@ -14,6 +14,7 @@ from cdislogging import get_logger
 
 from fence.blueprints.login.cilogon import CilogonLogin, CilogonCallback
 from fence.blueprints.login.cognito import CognitoLogin, CognitoCallback
+from fence.blueprints.login.wisecode import WISEcodePlatformLogin
 from fence.blueprints.login.fence_login import FenceLogin, FenceCallback
 from fence.blueprints.login.google import GoogleLogin, GoogleCallback
 from fence.blueprints.login.shib import ShibbolethLogin, ShibbolethCallback
@@ -44,190 +45,11 @@ IDP_URL_MAP = {
 }
 
 
-def absolute_login_url(provider_id, fence_idp=None, shib_idp=None):
+def make_login_blueprint(app):
     """
     Args:
-        provider_id (str): provider to log in with; an IDP_URL_MAP key.
-        fence_idp (str, optional): if provider_id is "fence"
-            (multi-tenant Fence setup), fence_idp can be any of the
-            providers supported by the other Fence. If not specified,
-            will default to NIH login.
-        shib_idp (str, optional): if provider_id is "fence" and
-            fence_idp is "shibboleth", shib_idp can be any Shibboleth/
-            InCommon provider. If not specified, will default to NIH
-            login.
+        app (flask.Flask): a flask app (with `app.config` set up)
 
-    Returns:
-        str: login URL for this provider, including extra query
-            parameters if fence_idp and/or shib_idp are specified.
-    """
-    try:
-        base_url = config["BASE_URL"].rstrip("/")
-        login_url = base_url + "/login/{}".format(IDP_URL_MAP[provider_id])
-    except KeyError as e:
-        raise InternalError("identity provider misconfigured: {}".format(str(e)))
-
-    params = {}
-    if fence_idp:
-        params["idp"] = fence_idp
-    if shib_idp:
-        params["shib_idp"] = shib_idp
-    login_url = add_params_to_uri(login_url, params)
-
-    return login_url
-
-
-def provider_info(login_details):
-    """
-    Args:
-        login_details (dict):
-        { name, desc, idp, fence_idp, shib_idps, secondary }
-        - "idp": a configured provider.
-        Multiple options can be configured with the same idp.
-        - if provider_id is "fence", "fence_idp" can be any of the
-        providers supported by the other Fence. If not specified, will
-        default to NIH login.
-        - if provider_id is "fence" and fence_idp is "shibboleth", a
-        list of "shib_idps" can be configured for InCommon login. If
-        not specified, will default to NIH login.
-        - Optional parameters: "desc" (description) and "secondary"
-        (boolean - can be used by the frontend to display secondary
-        buttons differently).
-
-    Returns:
-        dict: { name, desc, idp, urls, secondary }
-        - urls: list of { name, url } dictionaries
-    """
-    info = {
-        # "id" deprecated, replaced by "idp"
-        "id": login_details["idp"],
-        "idp": login_details["idp"],
-        "name": login_details["name"],
-        # "url" deprecated, replaced by "urls"
-        "url": absolute_login_url(login_details["idp"]),
-        "desc": login_details.get("desc", None),
-        "secondary": login_details.get("secondary", False),
-    }
-
-    # for Fence multi-tenant login
-    fence_idp = None
-    if login_details["idp"] == "fence":
-        fence_idp = login_details.get("fence_idp")
-
-    # handle Shibboleth IDPs: InCommon login can either be configured
-    # directly in this Fence, or through multi-tenant Fence
-    if (
-        login_details["idp"] == "shibboleth" or fence_idp == "shibboleth"
-    ) and "shib_idps" in login_details:
-        # get list of all available shib IDPs
-        if not hasattr(flask.current_app, "all_shib_idps"):
-            flask.current_app.all_shib_idps = get_all_shib_idps()
-
-        requested_shib_idps = login_details["shib_idps"]
-        if requested_shib_idps == "*":
-            shib_idps = flask.current_app.all_shib_idps
-        elif isinstance(requested_shib_idps, list):
-            # get the display names for each requested shib IDP
-            shib_idps = []
-            for requested_shib_idp in requested_shib_idps:
-                shib_idp = next(
-                    (
-                        available_shib_idp
-                        for available_shib_idp in flask.current_app.all_shib_idps
-                        if available_shib_idp["idp"] == requested_shib_idp
-                    ),
-                    None,
-                )
-                if not shib_idp:
-                    raise InternalError(
-                        'Requested shib_idp "{}" does not exist'.format(
-                            requested_shib_idp
-                        )
-                    )
-                shib_idps.append(shib_idp)
-        else:
-            raise InternalError(
-                'fence provider misconfigured: "shib_idps" must be a list or "*", got {}'.format(
-                    requested_shib_idps
-                )
-            )
-
-        info["urls"] = [
-            {
-                "name": shib_idp["name"],
-                "url": absolute_login_url(
-                    login_details["idp"], fence_idp, shib_idp["idp"]
-                ),
-            }
-            for shib_idp in shib_idps
-        ]
-
-    # non-Shibboleth provider
-    else:
-        info["urls"] = [
-            {
-                "name": login_details["name"],
-                "url": absolute_login_url(login_details["idp"], fence_idp),
-            }
-        ]
-
-    return info
-
-
-def get_login_providers_info():
-    # default login option
-    if config.get("DEFAULT_LOGIN_IDP"):
-        default_idp = config["DEFAULT_LOGIN_IDP"]
-    elif "default" in config.get("ENABLED_IDENTITY_PROVIDERS", {}):
-        # fall back on ENABLED_IDENTITY_PROVIDERS.default
-        default_idp = config["ENABLED_IDENTITY_PROVIDERS"]["default"]
-    else:
-        logger.warning("DEFAULT_LOGIN_IDP not configured")
-        default_idp = None
-
-    # other login options
-    if config["LOGIN_OPTIONS"]:
-        login_options = config["LOGIN_OPTIONS"]
-    elif "providers" in config.get("ENABLED_IDENTITY_PROVIDERS", {}):
-        # fall back on "providers" and convert to "login_options" format
-        enabled_providers = config["ENABLED_IDENTITY_PROVIDERS"]["providers"]
-        login_options = [
-            {
-                "name": details.get("name"),
-                "idp": idp,
-                "desc": details.get("desc"),
-                "secondary": details.get("secondary"),
-            }
-            for idp, details in enabled_providers.items()
-        ]
-    else:
-        logger.warning("LOGIN_OPTIONS not configured or empty")
-        login_options = []
-
-    try:
-        all_provider_info = [
-            provider_info(login_details) for login_details in login_options
-        ]
-    except KeyError as e:
-        raise InternalError("LOGIN_OPTIONS misconfigured: cannot find key {}".format(e))
-
-    # if several login_options are defined for this default IDP, will
-    # default to the first one:
-    default_provider_info = next(
-        (info for info in all_provider_info if info["idp"] == default_idp), None
-    )
-    if not default_provider_info:
-        raise InternalError(
-            "default provider misconfigured: DEFAULT_LOGIN_IDP is set to {}, which is not configured in LOGIN_OPTIONS".format(
-                default_idp
-            )
-        )
-
-    return default_provider_info, all_provider_info
-
-
-def make_login_blueprint():
-    """
     Return:
         flask.Blueprint: the blueprint used for ``/login`` endpoints
 
@@ -243,7 +65,184 @@ def make_login_blueprint():
         """
         The default root login route.
         """
-        default_provider_info, all_provider_info = get_login_providers_info()
+        # default login option
+        if config.get("DEFAULT_LOGIN_IDP"):
+            default_idp = config["DEFAULT_LOGIN_IDP"]
+        elif "default" in config.get("ENABLED_IDENTITY_PROVIDERS", {}):
+            # fall back on ENABLED_IDENTITY_PROVIDERS.default
+            default_idp = config["ENABLED_IDENTITY_PROVIDERS"]["default"]
+        else:
+            logger.warning("DEFAULT_LOGIN_IDP not configured")
+            default_idp = None
+
+        # other login options
+        if config["LOGIN_OPTIONS"]:
+            login_options = config["LOGIN_OPTIONS"]
+        elif "providers" in config.get("ENABLED_IDENTITY_PROVIDERS", {}):
+            # fall back on "providers" and convert to "login_options" format
+            enabled_providers = config["ENABLED_IDENTITY_PROVIDERS"]["providers"]
+            login_options = [
+                {
+                    "name": details.get("name"),
+                    "idp": idp,
+                    "desc": details.get("desc"),
+                    "secondary": details.get("secondary"),
+                }
+                for idp, details in enabled_providers.items()
+            ]
+        else:
+            logger.warning("LOGIN_OPTIONS not configured or empty")
+            login_options = []
+
+        def absolute_login_url(provider_id, fence_idp=None, shib_idp=None):
+            """
+            Args:
+                provider_id (str): provider to log in with; an IDP_URL_MAP key.
+                fence_idp (str, optional): if provider_id is "fence"
+                    (multi-tenant Fence setup), fence_idp can be any of the
+                    providers supported by the other Fence. If not specified,
+                    will default to NIH login.
+                shib_idp (str, optional): if provider_id is "fence" and
+                    fence_idp is "shibboleth", shib_idp can be any Shibboleth/
+                    InCommon provider. If not specified, will default to NIH
+                    login.
+
+            Returns:
+                str: login URL for this provider, including extra query
+                    parameters if fence_idp and/or shib_idp are specified.
+            """
+            try:
+                base_url = config["BASE_URL"].rstrip("/")
+                login_url = base_url + "/login/{}".format(IDP_URL_MAP[provider_id])
+            except KeyError as e:
+                raise InternalError(
+                    "identity provider misconfigured: {}".format(str(e))
+                )
+
+            params = {}
+            if fence_idp:
+                params["idp"] = fence_idp
+            if shib_idp:
+                params["shib_idp"] = shib_idp
+            login_url = add_params_to_uri(login_url, params)
+
+            return login_url
+
+        def provider_info(login_details):
+            """
+            Args:
+                login_details (dict):
+                { name, desc, idp, fence_idp, shib_idps, secondary }
+                - "idp": a configured provider.
+                Multiple options can be configured with the same idp.
+                - if provider_id is "fence", "fence_idp" can be any of the
+                providers supported by the other Fence. If not specified, will
+                default to NIH login.
+                - if provider_id is "fence" and fence_idp is "shibboleth", a
+                list of "shib_idps" can be configured for InCommon login. If
+                not specified, will default to NIH login.
+                - Optional parameters: "desc" (description) and "secondary"
+                (boolean - can be used by the frontend to display secondary
+                buttons differently).
+
+            Returns:
+                dict: { name, desc, idp, urls, secondary }
+                - urls: list of { name, url } dictionaries
+            """
+            info = {
+                # "id" deprecated, replaced by "idp"
+                "id": login_details["idp"],
+                "idp": login_details["idp"],
+                "name": login_details["name"],
+                # "url" deprecated, replaced by "urls"
+                "url": absolute_login_url(login_details["idp"]),
+                "desc": login_details.get("desc", None),
+                "secondary": login_details.get("secondary", False),
+            }
+
+            # for Fence multi-tenant login
+            fence_idp = None
+            if login_details["idp"] == "fence":
+                fence_idp = login_details.get("fence_idp")
+
+            # handle Shibboleth IDPs: InCommon login can either be configured
+            # directly in this Fence, or through multi-tenant Fence
+            if (
+                login_details["idp"] == "shibboleth" or fence_idp == "shibboleth"
+            ) and "shib_idps" in login_details:
+                # get list of all available shib IDPs
+                if not hasattr(app, "all_shib_idps"):
+                    app.all_shib_idps = get_all_shib_idps()
+
+                requested_shib_idps = login_details["shib_idps"]
+                if requested_shib_idps == "*":
+                    shib_idps = app.all_shib_idps
+                elif isinstance(requested_shib_idps, list):
+                    # get the display names for each requested shib IDP
+                    shib_idps = []
+                    for requested_shib_idp in requested_shib_idps:
+                        shib_idp = next(
+                            (
+                                available_shib_idp
+                                for available_shib_idp in app.all_shib_idps
+                                if available_shib_idp["idp"] == requested_shib_idp
+                            ),
+                            None,
+                        )
+                        if not shib_idp:
+                            raise InternalError(
+                                'Requested shib_idp "{}" does not exist'.format(
+                                    requested_shib_idp
+                                )
+                            )
+                        shib_idps.append(shib_idp)
+                else:
+                    raise InternalError(
+                        'fence provider misconfigured: "shib_idps" must be a list or "*", got {}'.format(
+                            requested_shib_idps
+                        )
+                    )
+
+                info["urls"] = [
+                    {
+                        "name": shib_idp["name"],
+                        "url": absolute_login_url(
+                            login_details["idp"], fence_idp, shib_idp["idp"]
+                        ),
+                    }
+                    for shib_idp in shib_idps
+                ]
+
+            # non-Shibboleth provider
+            else:
+                info["urls"] = [
+                    {
+                        "name": login_details["name"],
+                        "url": absolute_login_url(login_details["idp"], fence_idp),
+                    }
+                ]
+
+            return info
+
+        try:
+            all_provider_info = [
+                provider_info(login_details) for login_details in login_options
+            ]
+        except KeyError as e:
+            raise InternalError("LOGIN_OPTIONS misconfigured: {}".format(e))
+
+        # if several login_options are defined for this default IDP, will
+        # default to the first one:
+        default_provider_info = next(
+            (info for info in all_provider_info if info["idp"] == default_idp), None
+        )
+        if not default_provider_info:
+            raise InternalError(
+                "default provider misconfigured: DEFAULT_LOGIN_IDP is set to {}, which is not configured in LOGIN_OPTIONS".format(
+                    default_idp
+                )
+            )
+
         return flask.jsonify(
             {"default_provider": default_provider_info, "providers": all_provider_info}
         )
@@ -302,6 +301,11 @@ def make_login_blueprint():
         blueprint_api.add_resource(CilogonLogin, "/cilogon", strict_slashes=False)
         blueprint_api.add_resource(
             CilogonCallback, "/cilogon/login", strict_slashes=False
+        )
+
+    if "wisecode" in configured_idps:
+        blueprint_api.add_resource(
+            WISEcodePlatformLogin, "/wisecode", strict_slashes=False
         )
 
     return blueprint

@@ -1,6 +1,11 @@
 import flask
 
-from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
+from fence.blueprints.login.base import (
+    DefaultOAuth2Login,
+    DefaultOAuth2Callback,
+    _login,
+    prepare_login_log,
+)
 from fence.models import IdentityProvider
 
 

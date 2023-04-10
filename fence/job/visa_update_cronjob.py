@@ -67,10 +67,8 @@ class Visa_Token_Update(object):
         Initialize a producer-consumer workflow.
 
         Producer: Collects users from db and feeds it to the workers
-          Worker: Takes in the users from the Producer and passes it to the Updater to
-                  update the tokens and passes those updated tokens for JWT validation
-         Updater: Updates refresh_tokens and visas by calling the update_user_visas from
-                  the correct client
+        Worker: Takes in the users from the Producer and passes it to the Updater to update the tokens and passes those updated tokens for JWT validation
+        Updater: Updates refresh_tokens and visas by calling the update_user_visas from the correct client
 
         """
         start_time = time.time()

@@ -1,4 +1,4 @@
-# Fence
+# WISEcode for Science Fence Authorization Service
 
 [![Build Status](https://travis-ci.org/uc-cdis/fence.svg?branch=master)](https://travis-ci.org/uc-cdis/fence)
 

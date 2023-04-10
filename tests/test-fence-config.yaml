@@ -122,6 +122,7 @@ OPENID_CONNECT:
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/fence/login'
+    shibboleth_discovery_url: 'https://login.bionimbus.org/Shibboleth.sso/DiscoFeed'
   shibboleth:
     client_id: ''
     client_secret: ''
@@ -482,7 +483,7 @@ ARBORIST: '/arborist'
 AZ_BLOB_CREDENTIALS: 'fake connection string'
 
 # AZ_BLOB_CONTAINER_URL: 'https://storageaccount.blob.core.windows.net/container/'
-# this is the container used for uploading, and should match the storage account
+# this is the container used for uploading, and should match the storage account 
 # used in the connection string for AZ_BLOB_CREDENTIALS
 AZ_BLOB_CONTAINER_URL: 'https://myfakeblob.blob.core.windows.net/my-fake-container/'
 

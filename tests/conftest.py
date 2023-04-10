@@ -1137,7 +1137,7 @@ def patch_app_db_session(app, monkeypatch):
 
 
 @pytest.fixture(scope="function")
-def oauth_client(app, db_session, oauth_user, get_all_shib_idps_patcher):
+def oauth_client(app, db_session, oauth_user):
     """
     Create a confidential OAuth2 client and add it to the database along with a
     test user for the client.
@@ -1497,35 +1497,3 @@ def restore_config():
 
     # restore old configs
     config.update(saved_config)
-
-
-@pytest.fixture(scope="function")
-def get_all_shib_idps_patcher():
-    """
-    Don't make real requests to the list of InCommon IDPs exposed
-    by login.bionimbus
-    """
-    mock = MagicMock()
-    mock.return_value = [
-        {
-            "idp": "some-incommon-entity-id",
-            "name": "Some InCommon Provider",
-        },
-        {
-            "idp": "urn:mace:incommon:nih.gov",
-            "name": "National Institutes of Health (NIH)",
-        },
-        {
-            "idp": "urn:mace:incommon:uchicago.edu",
-            "name": "University of Chicago",
-        },
-    ]
-    get_all_shib_idps_patch = patch(
-        "fence.blueprints.login.get_all_shib_idps",
-        mock,
-    )
-    get_all_shib_idps_patch.start()
-
-    yield mock
-
-    get_all_shib_idps_patch.stop()

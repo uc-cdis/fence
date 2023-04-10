@@ -57,9 +57,7 @@ def build_redirect_url(hostname, path):
     return redirect_base + path
 
 
-def login_user(
-    username, provider, fence_idp=None, shib_idp=None, email=None, id_from_idp=None
-):
+def login_user(username, provider, fence_idp=None, shib_idp=None, email=None):
     """
     Login a user with the given username and provider. Set values in Flask
     session to indicate the user being logged in. In addition, commit the user
@@ -72,8 +70,6 @@ def login_user(
         shib_idp (str, optional): Downstreawm shibboleth IdP
         email (str, optional): email of user (may or may not match username depending
             on the IdP)
-        id_from_idp (str, optional): id from the IDP (which may be different than
-            the username)
     """
 
     def set_flask_session_values(user):
@@ -97,7 +93,6 @@ def login_user(
     user = query_for_user(session=current_session, username=username)
     if user:
         _update_users_email(user, email)
-        _update_users_id_from_idp(user, id_from_idp)
 
         #  This expression is relevant to those users who already have user and
         #  idp info persisted to the database. We return early to avoid
@@ -106,16 +101,11 @@ def login_user(
             set_flask_session_values(user)
             return
     else:
-        # we need a new user
-        user = User(username=username)
-
         if email:
-            user.email = email
+            user = User(username=username, email=email)
+        else:
+            user = User(username=username)
 
-        if id_from_idp:
-            user.id_from_idp = id_from_idp
-
-    # setup idp connection for new user (or existing user w/o it setup)
     idp = (
         current_session.query(IdentityProvider)
         .filter(IdentityProvider.name == provider)
@@ -206,6 +196,12 @@ def login_required(scope=None):
             # if there is authorization header for oauth
             if "Authorization" in flask.request.headers:
                 has_oauth(scope=scope)
+                try:
+                    if not flask.session.get("username"):
+                        login_user(flask.g.user.username, flask.g.user.identity_provider.name)
+                except:
+                    pass
+
                 return f(*args, **kwargs)
             # if there is shibboleth session, then create user session and
             # log user in
@@ -233,6 +229,7 @@ def has_oauth(scope=None):
         )
     except JWTError as e:
         raise Unauthorized("failed to validate token: {}".format(e))
+
     user_id = access_token_claims["sub"]
     user = current_session.query(User).filter_by(id=int(user_id)).first()
     if not user:
@@ -278,20 +275,6 @@ def _update_users_email(user, email):
             f"Updating username {user.username}'s email from {user.email} to {email}"
         )
         user.email = email
-
-        current_session.add(user)
-        current_session.commit()
-
-
-def _update_users_id_from_idp(user, id_from_idp):
-    """
-    Update id_from_idp if provided and doesn't match db entry.
-    """
-    if id_from_idp and user.id_from_idp != id_from_idp:
-        logger.info(
-            f"Updating username {user.username}'s id_from_idp from {user.id_from_idp} to {id_from_idp}"
-        )
-        user.id_from_idp = id_from_idp
 
         current_session.add(user)
         current_session.commit()

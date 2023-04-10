@@ -53,7 +53,7 @@ class GoogleOauth2Client(Oauth2ClientBase):
             claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
 
             if claims["email"] and claims["email_verified"]:
-                return {"email": claims["email"], "sub": claims.get("sub")}
+                return {"email": claims["email"]}
             elif claims["email"]:
                 return {"error": "Email is not verified"}
             else:
