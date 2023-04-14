@@ -53,6 +53,7 @@ class RASCallback(DefaultOAuth2Callback):
             )
         )
         if parse_visas and not config["ENABLE_VISA_UPDATE_CRON"]:
+            # Note: this should not happen because the configuration is checked on app startup
             msg = "Trying to parse visas but `ENABLE_VISA_UPDATE_CRON` is disabled!"
             logger.error(msg)
             raise InternalError(msg)
