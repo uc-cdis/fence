@@ -85,13 +85,11 @@ def bulk_update_google_groups(google_bulk_mapping):
             # do add
             for member_email in to_add:
                 logger.info(f"Adding to group {group}: {member_email}")
-
                 try:
-                    _add_member_to_google_group(member_email, group)
+                    gcm.add_member_to_group(member_email, group)
                 except Exception as exc:
                     logging.error(
-                        f"ERROR: FAILED TO ADD MEMBER {member_email} TO GOOGLE "
-                        f"GROUP {group}! This sync will SKIP "
+                        f"ERROR: FAILED TO ADD MEMBER TO GOOGLE GROUP! This sync will SKIP "
                         f"the above user to try and update other authorization "
                         f"(rather than failing early). The error will be re-raised "
                         f"after attempting to update all other users. Exc: "
@@ -102,6 +100,22 @@ def bulk_update_google_groups(google_bulk_mapping):
             # do remove
             for member_email in to_delete:
                 logger.info(f"Removing from group {group}: {member_email}")
+                try:
+                    gcm.remove_member_from_group(member_email, group)
+                except Exception as exc:
+                    logging.error(
+                        f"ERROR: FAILED TO REMOVE MEMBER TO GOOGLE GROUP! This sync will SKIP "
+                        f"the above user to try and update other authorization "
+                        f"(rather than failing early). The error will be re-raised "
+                        f"after attempting to update all other users. Exc: "
+                        f"{traceback.format_exc()}"
+                    )
+                    google_update_failures = True
+
+            if google_update_failures:
+                raise Exception(
+                    f"FAILED TO UPDATE GOOGLE GROUPS (see previous errors)."
+                )
 
                 try:
                     _remove_member_to_google_group(member_email, group)
