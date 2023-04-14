@@ -7,15 +7,13 @@ import fence.scripting.fence_create
 from distutils.util import strtobool
 from urllib.parse import urlparse, parse_qs
 
-from authutils.errors import JWTError
 from cdislogging import get_logger
 from flask_sqlalchemy_session import current_session
-from gen3authz.client.arborist.client import ArboristClient
 
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 from fence.config import config
-from fence.jwt.validate import validate_jwt
-from fence.models import GA4GHVisaV1, IdentityProvider
+from fence.errors import InternalError
+from fence.models import IdentityProvider
 from fence.utils import get_valid_expiration
 import fence.resources.ga4gh.passports
 
@@ -54,6 +52,11 @@ class RASCallback(DefaultOAuth2Callback):
                 else False
             )
         )
+        if parse_visas and not config["ENABLE_VISA_UPDATE_CRON"]:
+            msg = "Trying to parse visas but `ENABLE_VISA_UPDATE_CRON` is disabled!"
+            logger.error(msg)
+            raise InternalError(msg)
+
         # do an on-the-fly usersync for this user to give them instant access after logging in through RAS
         # if GLOBAL_PARSE_VISAS_ON_LOGIN is true then we want to run it regardless of whether or not the client sent parse_visas on request
         if parse_visas:
