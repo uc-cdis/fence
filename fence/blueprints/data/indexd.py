@@ -156,11 +156,6 @@ def get_signed_url_for_file(
             "sub": authorized_user_from_passport.id,
         }
 
-    # increment counter for gen3-metrics
-    counter = flask.current_app.prometheus_counters.get("pre_signed_url_req")
-    if counter:
-        counter.labels(requested_protocol).inc()
-
     return {"url": signed_url}
 
 
