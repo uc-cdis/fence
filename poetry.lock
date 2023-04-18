@@ -979,8 +979,9 @@ description = "Gen3 Configuration Library"
 category = "main"
 optional = false
 python-versions = "^3.9"
-files = []
-develop = false
+files = [
+    {file = "gen3config-1.1.0.tar.gz", hash = "sha256:a8f460d683131a4ad7d46f35e84c6f4f77cd8f1d87126642c37e248404aa0b16"},
+]
 
 [package.dependencies]
 cdiserrors = "*"
@@ -988,12 +989,6 @@ cdislogging = "*"
 jinja2 = "*"
 pyyaml = "*"
 six = "*"
-
-[package.source]
-type = "git"
-url = "https://github.com/uc-cdis/gen3config"
-reference = "feat/poetry"
-resolved_reference = "845222a965340d9ea127cf7257eaef68c8fdf360"
 
 [[package]]
 name = "gen3users"
@@ -1414,14 +1409,14 @@ files = [
 
 [[package]]
 name = "importlib-metadata"
-version = "6.4.1"
+version = "6.5.0"
 description = "Read metadata from Python packages"
 category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "importlib_metadata-6.4.1-py3-none-any.whl", hash = "sha256:63ace321e24167d12fbb176b6015f4dbe06868c54a2af4f15849586afb9027fd"},
-    {file = "importlib_metadata-6.4.1.tar.gz", hash = "sha256:eb1a7933041f0f85c94cd130258df3fb0dec060ad8c1c9318892ef4192c47ce1"},
+    {file = "importlib_metadata-6.5.0-py3-none-any.whl", hash = "sha256:03ba783c3a2c69d751b109fc0c94a62c51f581b3d6acf8ed1331b6d5729321ff"},
+    {file = "importlib_metadata-6.5.0.tar.gz", hash = "sha256:7a8bdf1bc3a726297f5cfbc999e6e7ff6b4fa41b26bba4afc580448624460045"},
 ]
 
 [package.dependencies]
@@ -2453,23 +2448,18 @@ socks = ["PySocks (>=1.5.6,!=1.5.7,<2.0)"]
 
 [[package]]
 name = "userdatamodel"
-version = "2.4.0"
+version = "2.4.3"
 description = ""
 category = "main"
 optional = false
 python-versions = "*"
-files = []
-develop = false
+files = [
+    {file = "userdatamodel-2.4.3.tar.gz", hash = "sha256:760e41bc7f29bc16b3a9964956b52a3386db971a64dc3c873d362e135adda5b9"},
+]
 
 [package.dependencies]
 cdislogging = "*"
 sqlalchemy = ">=1.3.3"
-
-[package.source]
-type = "git"
-url = "https://github.com/uc-cdis/userdatamodel"
-reference = "fix/deps"
-resolved_reference = "593efb04ccff13bb37e7b3f404da8288adcc3425"
 
 [[package]]
 name = "websocket-client"
@@ -2640,4 +2630,4 @@ testing = ["big-O", "flake8 (<5)", "jaraco.functools", "jaraco.itertools", "more
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<4.0.0"
-content-hash = "3d059cb739b1a4391378ba488a5c3bc9e33e11fda22737d1683ae7266e7cd3f5"
+content-hash = "d86ef8b74c0707b148ad9818a7dcb882d611e535b4f06052355686fc0eb84e42"
