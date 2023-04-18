@@ -509,26 +509,13 @@ def _setup_prometheus(app):
         multiprocess,
         make_wsgi_app,
     )
-    from prometheus_flask_exporter import Counter
-    from prometheus_flask_exporter.multiprocess import (
-        UWsgiPrometheusMetrics,
-    )
 
     app.prometheus_registry = CollectorRegistry()
     multiprocess.MultiProcessCollector(app.prometheus_registry)
 
-    UWsgiPrometheusMetrics(app)
-
     # Add prometheus wsgi middleware to route /metrics requests
     app.wsgi_app = DispatcherMiddleware(
         app.wsgi_app, {"/metrics": make_wsgi_app(registry=app.prometheus_registry)}
-    )
-
-    # set up counters
-    app.prometheus_counters["pre_signed_url_req"] = Counter(
-        "pre_signed_url_req",
-        "tracking presigned url requests",
-        ["requested_protocol"],
     )
 
 
