@@ -12,7 +12,7 @@ import fence.scripting.fence_create
 from authutils.errors import JWTError
 from authutils.token.core import get_iss, get_kid
 from cdislogging import get_logger
-from flask_sqlalchemy_session import current_session
+from flask import current_app
 
 from fence.jwt.validate import validate_jwt
 from fence.config import config
@@ -54,7 +54,7 @@ def sync_gen3_users_authz_from_ga4gh_passports(
         list: a list of users, each corresponding to a valid visa identity
               embedded within the passports passed in
     """
-    db_session = db_session or current_session
+    db_session = db_session or current_app.scoped_session()
 
     # {"username": user, "username2": user2}
     users_from_all_passports = {}
@@ -321,7 +321,7 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id, db_session=None):
     Return:
         userdatamodel.user.User: the Fence user corresponding to issuer and subject_id
     """
-    db_session = db_session or current_session
+    db_session = db_session or current_app.scoped_session()
     logger.debug(
         f"get_or_create_gen3_user_from_iss_sub: issuer: {issuer} & subject_id: {subject_id}"
     )
@@ -387,7 +387,7 @@ def _sync_validated_visa_authorization(
     Return:
         None
     """
-    db_session = db_session or current_session
+    db_session = db_session or current_app.scoped_session()
     default_args = fence.scripting.fence_create.get_default_init_syncer_inputs(
         authz_provider="GA4GH"
     )
@@ -423,7 +423,7 @@ def get_gen3_usernames_for_passport_from_cache(passport, db_session=None):
         list[str]: list of usernames for users referred to by the previously validated
                    and non-expired passport
     """
-    db_session = db_session or current_session
+    db_session = db_session or current_app.scoped_session()
     user_ids_from_passports = None
     current_time = int(time.time())
 
@@ -486,7 +486,7 @@ def put_gen3_usernames_for_passport_into_cache(
             the previously validated and non-expired passport
         expires_at (int): expiration time in unix time
     """
-    db_session = db_session or current_session
+    db_session = db_session or current_app.scoped_session()
 
     passport_hash = hashlib.sha256(passport.encode("utf-8")).hexdigest()
 

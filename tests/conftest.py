@@ -1270,27 +1270,9 @@ def public_bucket_indexd_client(app, request):
 
 @pytest.fixture(scope="function")
 def patch_app_db_session(app, monkeypatch):
-    """
-    TODO
-    """
-
     def do_patch(session):
         monkeypatch.setattr(app.db, "Session", lambda: session)
-        modules_to_patch = [
-            "fence.auth",
-            "fence.resources.google.utils",
-            "fence.blueprints.admin",
-            "fence.blueprints.link",
-            "fence.blueprints.google",
-            "fence.oidc.jwt_generator",
-            "fence.user",
-            "fence.blueprints.login.synapse",
-            "fence.blueprints.login.ras",
-            "fence.blueprints.data.indexd",
-            "fence.resources.ga4gh.passports",
-        ]
-        for module in modules_to_patch:
-            monkeypatch.setattr("{}.current_session".format(module), session)
+        monkeypatch.setattr(app, "scoped_session", lambda: session)
 
     return do_patch
 

@@ -3,7 +3,7 @@ import json
 import os
 from cryptography.fernet import Fernet
 import flask
-from flask_sqlalchemy_session import current_session
+from flask import current_app
 from sqlalchemy import desc, func
 
 from cdislogging import get_logger
@@ -99,7 +99,8 @@ def _get_primary_service_account_key(user_id, username, proxy_group_id):
 
     if user_google_service_account:
         user_service_account_key = (
-            current_session.query(GoogleServiceAccountKey)
+            current_app.scoped_session()
+            .query(GoogleServiceAccountKey)
             .filter(
                 GoogleServiceAccountKey.service_account_id
                 == user_google_service_account.id
@@ -376,8 +377,8 @@ def add_custom_service_account_key_expiration(
         expires=expires,
         private_key=private_key,
     )
-    current_session.add(sa_key)
-    current_session.commit()
+    current_app.scoped_session().add(sa_key)
+    current_app.scoped_session().commit()
 
 
 def get_service_account(client_id, user_id, username):
@@ -394,7 +395,8 @@ def get_service_account(client_id, user_id, username):
         fence.models.GoogleServiceAccount: Client's service account
     """
     service_accounts = (
-        current_session.query(GoogleServiceAccount)
+        current_app.scoped_session()
+        .query(GoogleServiceAccount)
         .filter_by(client_id=client_id, user_id=user_id)
         .all()
     )
@@ -430,19 +432,20 @@ def get_service_account(client_id, user_id, username):
             )
 
             old_service_account_keys_db_entries = (
-                current_session.query(GoogleServiceAccountKey)
+                current_app.scoped_session()
+                .query(GoogleServiceAccountKey)
                 .filter(GoogleServiceAccountKey.service_account_id == sa.id)
                 .all()
             )
 
             # remove the keys then the sa itself from db
             for old_key in old_service_account_keys_db_entries:
-                current_session.delete(old_key)
+                current_app.scoped_session().delete(old_key)
 
             # commit the deletion of keys first, then do SA deletion
-            current_session.commit()
-            current_session.delete(sa)
-            current_session.commit()
+            current_app.scoped_session().commit()
+            current_app.scoped_session().delete(sa)
+            current_app.scoped_session().commit()
 
     return service_account
 
@@ -507,7 +510,8 @@ def _update_service_account_db_entry(
 
         # clear out old SA and keys if there is one
         old_service_account_db_entry = (
-            current_session.query(GoogleServiceAccount)
+            current_app.scoped_session()
+            .query(GoogleServiceAccount)
             .filter(GoogleServiceAccount.email == old_sa_email)
             .first()
         )
@@ -521,7 +525,8 @@ def _update_service_account_db_entry(
             )
 
             old_service_account_keys_db_entries = (
-                current_session.query(GoogleServiceAccountKey)
+                current_app.scoped_session()
+                .query(GoogleServiceAccountKey)
                 .filter(
                     GoogleServiceAccountKey.service_account_id
                     == old_service_account_db_entry.id
@@ -531,13 +536,14 @@ def _update_service_account_db_entry(
 
             # remove the keys then the sa itself from db
             for old_key in old_service_account_keys_db_entries:
-                current_session.delete(old_key)
+                current_app.scoped_session().delete(old_key)
 
-            current_session.commit()
-            current_session.delete(old_service_account_db_entry)
+            current_app.scoped_session().commit()
+            current_app.scoped_session().delete(old_service_account_db_entry)
 
     service_account_db_entry = (
-        current_session.query(GoogleServiceAccount)
+        current_app.scoped_session()
+        .query(GoogleServiceAccount)
         .filter(GoogleServiceAccount.email == new_service_account["email"])
         .first()
     )
@@ -550,13 +556,13 @@ def _update_service_account_db_entry(
             email=new_service_account["email"],
             google_project_id=new_service_account["projectId"],
         )
-        current_session.add(service_account_db_entry)
+        current_app.scoped_session().add(service_account_db_entry)
     else:
         service_account_db_entry.google_unique_id = new_service_account["uniqueId"]
         service_account_db_entry.email = new_service_account["email"]
         service_account_db_entry.google_project_id = (new_service_account["projectId"],)
 
-    current_session.commit()
+    current_app.scoped_session().commit()
 
     logger.info(
         "Created service account {} for proxy group {}.".format(
@@ -578,9 +584,9 @@ def get_or_create_proxy_group_id(expires=None, user_id=None, username=None):
     proxy_group_id = _get_proxy_group_id(user_id=user_id, username=username)
     if not proxy_group_id:
         try:
-            user_by_id = query_for_user_by_id(current_session, user_id)
+            user_by_id = query_for_user_by_id(current_app.scoped_session(), user_id)
             user_by_username = query_for_user(
-                session=current_session, username=username
+                session=current_app.scoped_session(), username=username
             )
         except Exception:
             user_by_id = None
@@ -603,8 +609,10 @@ def get_or_create_proxy_group_id(expires=None, user_id=None, username=None):
 
         proxy_group_id = _create_proxy_group(user_id, username).id
 
-        privileges = current_session.query(AccessPrivilege).filter(
-            AccessPrivilege.user_id == user_id
+        privileges = (
+            current_app.scoped_session()
+            .query(AccessPrivilege)
+            .filter(AccessPrivilege.user_id == user_id)
         )
 
         for p in privileges:
@@ -612,7 +620,6 @@ def get_or_create_proxy_group_id(expires=None, user_id=None, username=None):
 
             for sa in storage_accesses:
                 if sa.provider.name == STORAGE_ACCESS_PROVIDER_NAME:
-
                     flask.current_app.storage_manager.logger.info(
                         "grant {} access {} to {} in {}".format(
                             username, p.privilege, p.project_id, p.auth_provider
@@ -624,7 +631,7 @@ def get_or_create_proxy_group_id(expires=None, user_id=None, username=None):
                         username=username,
                         project=p.project,
                         access=p.privilege,
-                        session=current_session,
+                        session=current_app.scoped_session(),
                         expires=expires,
                     )
 
@@ -645,9 +652,9 @@ def _get_proxy_group_id(user_id=None, username=None):
         user_id = user_id or current_token["sub"]
 
         try:
-            user = query_for_user_by_id(current_session, user_id)
+            user = query_for_user_by_id(current_app.scoped_session(), user_id)
             if not user:
-                user = query_for_user(current_session, username)
+                user = query_for_user(current_app.scoped_session(), username)
         except Exception:
             user = None
 
@@ -680,11 +687,11 @@ def _create_proxy_group(user_id, username):
     )
 
     # link proxy group to user
-    user = current_session.query(User).filter_by(id=user_id).first()
+    user = current_app.scoped_session().query(User).filter_by(id=user_id).first()
     user.google_proxy_group_id = proxy_group.id
 
-    current_session.add(proxy_group)
-    current_session.commit()
+    current_app.scoped_session().add(proxy_group)
+    current_app.scoped_session().commit()
 
     logger.info(
         "Created proxy group {} for user {} with id {}.".format(
@@ -962,4 +969,4 @@ def get_db_session(db=None):
     if db:
         return SQLAlchemyDriver(db).Session()
     else:
-        return current_session
+        return current_app.scoped_session()

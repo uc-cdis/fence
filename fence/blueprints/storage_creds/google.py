@@ -4,7 +4,7 @@ import re
 import time
 from distutils.util import strtobool
 from flask_restful import Resource
-from flask_sqlalchemy_session import current_session
+from flask import current_app
 
 from cirrus import GoogleCloudManager
 from cirrus.config import config as cirrus_config
@@ -85,7 +85,8 @@ class GoogleCredentialsList(Resource):
             for i, key in enumerate(keys):
                 key_id = reg.findall(key["name"])[0]
                 db_entry = (
-                    current_session.query(GoogleServiceAccountKey)
+                    current_app.scoped_session()
+                    .query(GoogleServiceAccountKey)
                     .filter_by(service_account_id=service_account.id)
                     .filter_by(key_id=key_id)
                     .first()
@@ -315,13 +316,14 @@ def _delete_service_account_key(g_cloud, service_account_id, access_key):
     )
 
     db_entry = (
-        current_session.query(GoogleServiceAccountKey)
+        current_app.scoped_session()
+        .query(GoogleServiceAccountKey)
         .filter_by(key_id=access_key)
         .first()
     )
     if db_entry:
-        current_session.delete(db_entry)
-        current_session.commit()
+        current_app.scoped_session().delete(db_entry)
+        current_app.scoped_session().commit()
 
     logger.info(
         "Removed Google Service Account {} Key with ID: {} from Google and our DB.".format(
