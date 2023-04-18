@@ -1,5 +1,5 @@
 import flask
-from flask_sqlalchemy_session import current_session
+from flask import current_app
 
 from fence.auth import require_auth_header
 from fence.blueprints.storage_creds.api import AccessKey, ApiKey, ApiKeyList
@@ -76,6 +76,8 @@ def make_creds_blueprint():
                 if info.get("backend")
             ]
         )
-        return flask.jsonify(get_endpoints_descriptions(services, current_session))
+        return flask.jsonify(
+            get_endpoints_descriptions(services, current_app.scoped_session())
+        )
 
     return blueprint

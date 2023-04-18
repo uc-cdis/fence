@@ -121,6 +121,12 @@ def test_get_presigned_url_no_access_id(
     )
     assert res.status_code == 400
 
+    res = client.get(
+        "/ga4gh/drs/v1/objects/" + test_guid + "/access",
+        headers=user,
+    )
+    assert res.status_code == 400
+
 
 @pytest.mark.parametrize("indexd_client", ["s3", "gs"], indirect=True)
 def test_get_presigned_url_no_bearer_token(

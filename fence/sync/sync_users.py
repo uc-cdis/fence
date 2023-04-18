@@ -370,15 +370,15 @@ class UserSyncer(object):
         Returns:
             bool: whether the pattern matches
         """
-        id_patterns.append("authentication_file_phs(\d{6}).(csv|txt)")
+        id_patterns.append(r"authentication_file_phs(\d{6}).(csv|txt)")
         for pattern in id_patterns:
-            pattern = r"{}".format(pattern)
             if encrypted:
-                pattern += ".enc"
-            pattern += "$"
-            pattern = pattern.encode().decode(
-                "unicode_escape"
-            )  # when converting the YAML from fence-config, python reads it as Python string literal. So "\" turns into "\\" which messes with the regex match
+                pattern += r".enc"
+            pattern += r"$"
+            # when converting the YAML from fence-config,
+            # python reads it as Python string literal. So "\" turns into "\\"
+            # which messes with the regex match
+            pattern = pattern.encode().decode("unicode_escape")
             if re.match(pattern, os.path.basename(filepath)):
                 return True
         return False
@@ -499,7 +499,10 @@ class UserSyncer(object):
         dbgap_key = dbgap_config.get("decrypt_key", None)
 
         self.id_patterns += (
-            dbgap_config.get("allowed_whitelist_patterns", [])
+            [
+                r"{}".format(item)
+                for item in dbgap_config.get("allowed_whitelist_patterns", [])
+            ]
             if dbgap_config.get("allow_non_dbGaP_whitelist", False)
             else []
         )
@@ -943,7 +946,7 @@ class UserSyncer(object):
         Return:
             None
         """
-        for (username, project_auth_id) in to_delete:
+        for username, project_auth_id in to_delete:
             q = (
                 sess.query(AccessPrivilege)
                 .filter(AccessPrivilege.project.has(auth_id=project_auth_id))
@@ -999,7 +1002,7 @@ class UserSyncer(object):
             None
         """
 
-        for (username, project_auth_id) in to_update:
+        for username, project_auth_id in to_update:
             q = (
                 sess.query(AccessPrivilege)
                 .filter(AccessPrivilege.project.has(auth_id=project_auth_id))
@@ -1026,7 +1029,7 @@ class UserSyncer(object):
         Return:
             None
         """
-        for (username, project_auth_id) in to_add:
+        for username, project_auth_id in to_add:
             u = query_for_user(session=sess, username=username)
 
             auth_provider = auth_provider_list[0]
@@ -1117,7 +1120,7 @@ class UserSyncer(object):
         Return:
             None
         """
-        for (username, project_auth_id) in to_delete:
+        for username, project_auth_id in to_delete:
             project = (
                 sess.query(Project).filter(Project.auth_id == project_auth_id).first()
             )
@@ -1161,7 +1164,7 @@ class UserSyncer(object):
         Return:
             None
         """
-        for (username, project_auth_id) in to_add:
+        for username, project_auth_id in to_add:
             project = self._projects[project_auth_id]
             for sa in project.storage_access:
                 access = list(user_project[username][project_auth_id])
@@ -1391,7 +1394,6 @@ class UserSyncer(object):
         dbgap_config,
         sess,
     ):
-
         for username in user_projects.keys():
             for project in user_projects[username].keys():
                 phsid = project.split(".")

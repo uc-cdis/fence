@@ -22,8 +22,6 @@ from fence.models import (
 
 from tests import utils
 
-from flask_sqlalchemy_session import current_session
-
 from userdatamodel.models import Project, Bucket, ProjectToBucket
 from fence.models import GoogleBucketAccessGroup
 
@@ -788,7 +786,6 @@ def add_user_service_account_to_google_mock():
 
 @pytest.fixture(scope="function")
 def test_project(db_session):
-
     project = Project(id=1, name="test_project", auth_id="test_project")
     db_session.add(project)
     db_session.commit()
@@ -798,7 +795,6 @@ def test_project(db_session):
 
 @pytest.fixture(scope="function")
 def test_user(db_session):
-
     user = User(id=1, email="google_test_user@gmail.com")
     test_user = db_session.query(User).filter_by(id=1).first()
     if not test_user:
@@ -810,7 +806,6 @@ def test_user(db_session):
 
 @pytest.fixture(scope="function")
 def test_linked_user(db_session, test_user):
-
     user_google_account = UserGoogleAccount(
         id=1, email="google_test_linked_user@gmail.com", user_id=1
     )
@@ -822,7 +817,6 @@ def test_linked_user(db_session, test_user):
 
 @pytest.fixture(scope="function")
 def test_linked_user_with_access(db_session, test_linked_user, test_project):
-
     access_privilege = AccessPrivilege(
         user_id=test_linked_user.user_id, project_id=test_project.id
     )

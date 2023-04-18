@@ -7,7 +7,7 @@ will maintain coherence between both systems.
 import functools
 
 from flask import request, jsonify, Blueprint, current_app
-from flask_sqlalchemy_session import current_session
+from flask import current_app
 
 from cdislogging import get_logger
 
@@ -52,7 +52,7 @@ def get_user(username):
 
     Returns a json object
     """
-    return jsonify(admin.get_user_info(current_session, username))
+    return jsonify(admin.get_user_info(current_app.scoped_session(), username))
 
 
 @blueprint.route("/users", methods=["GET"])
@@ -65,7 +65,7 @@ def get_all_users():
 
     Returns a json object.
     """
-    return jsonify(admin.get_all_users(current_session))
+    return jsonify(admin.get_all_users(current_app.scoped_session()))
 
 
 @blueprint.route("/users", methods=["POST"])
@@ -81,7 +81,9 @@ def create_user():
     username = request.get_json().get("name", None)
     role = request.get_json().get("role", None)
     email = request.get_json().get("email", None)
-    return jsonify(admin.create_user(current_session, username, role, email))
+    return jsonify(
+        admin.create_user(current_app.scoped_session(), username, role, email)
+    )
 
 
 @blueprint.route("/users/<username>", methods=["PUT"])
@@ -97,7 +99,9 @@ def update_user(username):
     name = request.get_json().get("name", None)
     role = request.get_json().get("role", None)
     email = request.get_json().get("email", None)
-    return jsonify(admin.update_user(current_session, username, role, email, name))
+    return jsonify(
+        admin.update_user(current_app.scoped_session(), username, role, email, name)
+    )
 
 
 @blueprint.route("/users/<username>", methods=["DELETE"])
@@ -111,7 +115,7 @@ def delete_user(username):
 
     Returns json object
     """
-    response = jsonify(admin.delete_user(current_session, username))
+    response = jsonify(admin.delete_user(current_app.scoped_session(), username))
     return response
 
 
@@ -125,7 +129,7 @@ def get_user_groups(username):
 
     Returns a json object
     """
-    return jsonify(admin.get_user_groups(current_session, username))
+    return jsonify(admin.get_user_groups(current_app.scoped_session(), username))
 
 
 @blueprint.route("/users/<username>/groups", methods=["PUT"])
@@ -139,7 +143,9 @@ def add_user_to_groups(username):
     Returns a json object
     """
     groups = request.get_json().get("groups", [])
-    return jsonify(admin.add_user_to_groups(current_session, username, groups=groups))
+    return jsonify(
+        admin.add_user_to_groups(current_app.scoped_session(), username, groups=groups)
+    )
 
 
 @blueprint.route("/users/<username>/groups", methods=["DELETE"])
@@ -154,7 +160,9 @@ def remove_user_from_groups(username):
     """
     groups = request.get_json().get("groups", [])
     return jsonify(
-        admin.remove_user_from_groups(current_session, username, groups=groups)
+        admin.remove_user_from_groups(
+            current_app.scoped_session(), username, groups=groups
+        )
     )
 
 
@@ -169,7 +177,11 @@ def remove_user_from_projects(username):
     Returns a json object
     """
     projects = request.get_json().get("projects", [])
-    return jsonify(admin.remove_user_from_projects(current_session, username, projects))
+    return jsonify(
+        admin.remove_user_from_projects(
+            current_app.scoped_session(), username, projects
+        )
+    )
 
 
 @blueprint.route("/users/<username>/projects", methods=["PUT"])
@@ -185,7 +197,9 @@ def add_user_to_projects(username):
     """
     projects = request.get_json().get("projects", [])
     return jsonify(
-        admin.add_user_to_projects(current_session, username, projects=projects)
+        admin.add_user_to_projects(
+            current_app.scoped_session(), username, projects=projects
+        )
     )
 
 
@@ -201,7 +215,7 @@ def get_project(projectname):
     from the userdatamodel database
     Returns a json object
     """
-    return jsonify(admin.get_project_info(current_session, projectname))
+    return jsonify(admin.get_project_info(current_app.scoped_session(), projectname))
 
 
 @blueprint.route("/projects", methods=["GET"])
@@ -213,7 +227,7 @@ def get_all_projects():
     from the userdatamodel database
     Returns a json object
     """
-    return jsonify(admin.get_all_projects(current_session))
+    return jsonify(admin.get_all_projects(current_app.scoped_session()))
 
 
 @blueprint.route("/projects/<projectname>", methods=["POST"])
@@ -227,7 +241,9 @@ def create_project(projectname):
     auth_id = request.get_json().get("auth_id")
     storage_accesses = request.get_json().get("storage_accesses", [])
     response = jsonify(
-        admin.create_project(current_session, projectname, auth_id, storage_accesses)
+        admin.create_project(
+            current_app.scoped_session(), projectname, auth_id, storage_accesses
+        )
     )
     return response
 
@@ -240,7 +256,7 @@ def delete_project(projectname):
     Remove project. No Buckets should be associated with it.
     Returns a json object.
     """
-    response = jsonify(admin.delete_project(current_session, projectname))
+    response = jsonify(admin.delete_project(current_app.scoped_session(), projectname))
     return response
 
 
@@ -254,7 +270,9 @@ def remove_projects_from_group(groupname):
     """
     projects = request.get_json().get("projects", [])
     return jsonify(
-        admin.remove_projects_from_group(current_session, groupname, projects)
+        admin.remove_projects_from_group(
+            current_app.scoped_session(), groupname, projects
+        )
     )
 
 
@@ -267,7 +285,9 @@ def add_project_to_groups(projectname):
     """
     groups = request.get_json().get("groups", [])
     return jsonify(
-        admin.add_project_to_groups(current_session, username, groups=groups)
+        admin.add_project_to_groups(
+            current_app.scoped_session(), username, groups=groups
+        )
     )
 
 
@@ -281,7 +301,7 @@ def create_bucket_in_project(projectname, bucketname):
     providername = request.get_json().get("provider")
     response = jsonify(
         admin.create_bucket_on_project(
-            current_session, projectname, bucketname, providername
+            current_app.scoped_session(), projectname, bucketname, providername
         )
     )
     return response
@@ -297,7 +317,9 @@ def delete_bucket_from_project(projectname, bucketname):
     Returns a json object.
     """
     return jsonify(
-        admin.delete_bucket_on_project(current_session, projectname, bucketname)
+        admin.delete_bucket_on_project(
+            current_app.scoped_session(), projectname, bucketname
+        )
     )
 
 
@@ -310,7 +332,7 @@ def list_buckets_from_project(projectname):
     Returns a json object.
     """
     response = jsonify(
-        admin.list_buckets_on_project_by_name(current_session, projectname)
+        admin.list_buckets_on_project_by_name(current_app.scoped_session(), projectname)
     )
     return response
 
@@ -326,7 +348,7 @@ def get_group_info(groupname):
     buckets created within a project.
     Returns a json object.
     """
-    return jsonify(admin.get_group_info(current_session, groupname))
+    return jsonify(admin.get_group_info(current_app.scoped_session(), groupname))
 
 
 @blueprint.route("/groups", methods=["GET"])
@@ -337,7 +359,7 @@ def get_all_groups():
     buckets created within a project.
     Returns a json object.
     """
-    return jsonify(admin.get_all_groups(current_session))
+    return jsonify(admin.get_all_groups(current_app.scoped_session()))
 
 
 @blueprint.route("/groups/<groupname>/users", methods=["GET"])
@@ -348,7 +370,7 @@ def get_group_users(groupname):
     buckets created within a project.
     Returns a json object.
     """
-    return jsonify(admin.get_group_users(current_session, groupname))
+    return jsonify(admin.get_group_users(current_app.scoped_session(), groupname))
 
 
 @blueprint.route("/groups", methods=["POST"])
@@ -361,9 +383,9 @@ def create_group():
     """
     groupname = request.get_json().get("name")
     description = request.get_json().get("description")
-    grp = admin.create_group(current_session, groupname, description)
+    grp = admin.create_group(current_app.scoped_session(), groupname, description)
     if grp:
-        response = admin.get_group_info(current_session, groupname)
+        response = admin.get_group_info(current_app.scoped_session(), groupname)
     else:
         response = {"result": "group creation failed"}
     response = jsonify(response)
@@ -381,7 +403,7 @@ def update_group(groupname):
     name = request.get_json().get("name", None)
     description = request.get_json().get("description", None)
     response = jsonify(
-        admin.update_group(current_session, groupname, description, name)
+        admin.update_group(current_app.scoped_session(), groupname, description, name)
     )
     return response
 
@@ -394,7 +416,7 @@ def delete_group(groupname):
     buckets created within a project.
     Returns a json object.
     """
-    response = jsonify(admin.delete_group(current_session, groupname))
+    response = jsonify(admin.delete_group(current_app.scoped_session(), groupname))
     return response
 
 
@@ -407,7 +429,7 @@ def add_projects_to_group(groupname):
     """
     projects = request.get_json().get("projects", [])
     response = jsonify(
-        admin.add_projects_to_group(current_session, groupname, projects)
+        admin.add_projects_to_group(current_app.scoped_session(), groupname, projects)
     )
     return response
 
@@ -419,7 +441,7 @@ def get_group_projects(groupname):
     Create a user to group relationship in the database
     Returns a json object
     """
-    values = admin.get_group_projects(current_session, groupname)
+    values = admin.get_group_projects(current_app.scoped_session(), groupname)
     return jsonify({"projects": values})
 
 
@@ -434,7 +456,7 @@ def get_cloud_provider(providername):
     Retriev the information related to a cloud provider
     Returns a json object.
     """
-    return jsonify(admin.get_provider(current_session, providername))
+    return jsonify(admin.get_provider(current_app.scoped_session(), providername))
 
 
 @blueprint.route("/cloud_providers/<providername>", methods=["POST"])
@@ -449,7 +471,10 @@ def create_cloud_provider(providername):
     service_name = request.get_json().get("service")
     response = jsonify(
         admin.create_provider(
-            current_session, providername, backend=backend_name, service=service_name
+            current_app.scoped_session(),
+            providername,
+            backend=backend_name,
+            service=service_name,
         )
     )
     return response
@@ -465,7 +490,9 @@ def delete_cloud_provider(providername):
     or removed.
     Returns a json object.
     """
-    response = jsonify(admin.delete_provider(current_session, providername))
+    response = jsonify(
+        admin.delete_provider(current_app.scoped_session(), providername)
+    )
     return response
 
 
@@ -478,7 +505,8 @@ def get_registered_users():
     - Response json structure is provisional.
     """
     registered_users = (
-        current_session.query(User)
+        current_app.scoped_session()
+        .query(User)
         .filter(User.additional_info["registration_info"] != "{}")
         .all()
     )

@@ -12,7 +12,7 @@ from cdislogging import get_logger
 from cdispyutils.config import get_value
 from cdispyutils.hmac4 import generate_aws_presigned_url
 import flask
-from flask_sqlalchemy_session import current_session
+from flask import current_app
 import requests
 from azure.storage.blob import (
     BlobServiceClient,
@@ -77,7 +77,7 @@ def get_signed_url_for_file(
 ):
     requested_protocol = requested_protocol or flask.request.args.get("protocol", None)
     r_pays_project = flask.request.args.get("userProject", None)
-    db_session = db_session or current_session
+    db_session = db_session or current_app.scoped_session()
 
     # default to signing the url
     force_signed_url = True
@@ -967,7 +967,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
         authorized_user=None,
         **kwargs,
     ):
-
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
@@ -1538,7 +1537,7 @@ def _get_auth_info_for_id_or_from_request(
              IT WILL ALWAYS GIVE YOU BACK ANONYMOUS USER INFO. Only use this
              after you've authorized the access to the data via other means.
     """
-    db_session = db_session or current_session
+    db_session = db_session or current_app.scoped_session()
 
     # set default "anonymous" user_id and username
     # this is fine b/c it might be public data or a client token that is not
