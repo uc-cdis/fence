@@ -415,6 +415,8 @@ dbGaP:
     decrypt_key: ''
     allow_non_dbGaP_whitelist: false
     allowed_whitelist_patterns: ['authentication_file_PROJECT-(\d*).(csv|txt)']
+    # Additional allowed patterns for project_ids. The default value in usersync is 'phs(\d{6}) for dbgap projects'
+    additional_allowed_project_id_patterns: ['PROJECT-(\d*)']
     study_to_resource_namespaces:
       # non dbgap study:
       'PROJECT-12345': ['']
@@ -681,11 +683,13 @@ GA4GH_VISA_V1_CLAIM_REQUIRED_FIELDS:
   source:
     - "https://ncbi.nlm.nih.gov/gap"
 EXPIRED_AUTHZ_REMOVAL_JOB_FREQ_IN_SECONDS: 1
+
 # Global sync visas during login
 # None(Default): Allow per client i.e. a fence client can pick whether or not to sync their visas during login with parse_visas param in /authorization endpoint
 # True: Parse for all clients i.e. a fence client will always sync their visas during login
 # False: Parse for no clients i.e. a fence client will not be able to sync visas during login even with parse_visas param
-GLOBAL_PARSE_VISAS_ON_LOGIN:
+GLOBAL_PARSE_VISAS_ON_LOGIN: false
+
 # Settings for usersync with visas
 USERSYNC:
   visa_types:

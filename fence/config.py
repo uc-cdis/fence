@@ -123,5 +123,13 @@ class FenceConfig(Config):
                 )
                 self._configs["SESSION_ALLOWED_SCOPES"].remove("google_credentials")
 
+        if (
+            not self._configs["ENABLE_VISA_UPDATE_CRON"]
+            and self._configs["GLOBAL_PARSE_VISAS_ON_LOGIN"] != False
+        ):
+            raise Exception(
+                "Visa parsing on login is enabled but `ENABLE_VISA_UPDATE_CRON` is disabled!"
+            )
+
 
 config = FenceConfig(DEFAULT_CFG_PATH)

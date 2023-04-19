@@ -516,6 +516,13 @@ dbGaP:
       proxy_user: ''
     protocol: 'sftp'
     decrypt_key: ''
+    # allow non_dbgap_whitelist allows you to read a non-dbgap sftp server.
+    # by default Fence only allows usersync to read a dbgap whitelist with
+    # the format authentication_file_phs000123.csv enabling this with addition to
+    # providing a list of additional_allowed_project_id_patterns allows usersyn to
+    # read any filename that matches the patterns in the list.
+    allow_non_dbGaP_whitelist: false
+    additional_allowed_project_id_patterns: []
     # parse out the consent from the dbgap accession number such that something
     # like "phs000123.v1.p1.c2" becomes "phs000123.c2".
     #
@@ -551,6 +558,10 @@ dbGaP:
       # 'studyX': ['/orgA/', '/orgB/']
       # 'studyX.c2': ['/orgB/', '/orgC/']
       # 'studyZ': ['/orgD/']
+    # Allowed patterns for project_ids. The default value in usersync is 'phs(\d{6}) for dbgap projects'
+    allowed_project_id_patterns: []
+    # Additional allowed patterns for project_ids. The default value in usersync is 'phs(\d{6}) for dbgap projects'
+    additional_allowed_project_id_patterns: []
 # Regex to match an assession number that has consent information in forms like:
 #   phs00301123.c999
 #   phs000123.v3.p1.c3
@@ -937,11 +948,19 @@ GA4GH_VISA_V1_CLAIM_REQUIRED_FIELDS:
   source:
     - 'https://ncbi.nlm.nih.gov/gap'
 EXPIRED_AUTHZ_REMOVAL_JOB_FREQ_IN_SECONDS: 300
+
 # Global sync visas during login
-# None(Default): Allow per client i.e. a fence client can pick whether or not to sync their visas during login with parse_visas param in /authorization endpoint
-# True: Parse for all clients i.e. a fence client will always sync their visas during login
-# False: Parse for no clients i.e. a fence client will not be able to sync visas during login even with parse_visas param
-GLOBAL_PARSE_VISAS_ON_LOGIN:
+# - None (Default): Allow per client i.e. a fence client can pick whether or not to sync their visas during login with `parse_visas` param in /authorization endpoint
+# - True: Parse for all clients i.e. a fence client will always sync their visas during login
+# - False: Parse for no clients i.e. a fence client will not be able to sync visas during login even with `parse_visas` param
+GLOBAL_PARSE_VISAS_ON_LOGIN: false
+
+# whether or not to enable the `fence-visa-update` cronjob which updates users' visas.
+# Note: this cronjob lives outstide of fence
+# /!\ if `ENABLE_VISA_UPDATE_CRON` is false, `GLOBAL_PARSE_VISAS_ON_LOGIN` CANNOT be none/true and
+# `parse_visas` CANNOT be used
+ENABLE_VISA_UPDATE_CRON: false
+
 # Settings for usersync with visas
 USERSYNC:
   visa_types:
