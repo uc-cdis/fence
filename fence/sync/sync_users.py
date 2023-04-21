@@ -1967,25 +1967,28 @@ class UserSyncer(object):
         if user_yaml:
             for client_name, client_details in user_yaml.clients.items():
                 client_policies = client_details.get("policies", [])
-                client = session.query(Client).filter_by(name=client_name).first()
+                clients = session.query(Client).filter_by(name=client_name).all()
                 # update existing clients, do not create new ones
-                if not client:
+                if not clients:
                     self.logger.warning(
                         "client to update (`{}`) does not exist in fence: skipping".format(
                             client_name
                         )
                     )
                     continue
-                try:
-                    self.arborist_client.update_client(
-                        client.client_id, client_policies
-                    )
-                except ArboristError as e:
-                    self.logger.info(
-                        "not granting policies {} to client `{}`; {}".format(
-                            client_policies, client_name, str(e)
+                # there may be more than 1 client with this name if credentials are being rotated,
+                # so we grant access to each client ID
+                for client in clients:
+                    try:
+                        self.arborist_client.update_client(
+                            client.client_id, client_policies
                         )
-                    )
+                    except ArboristError as e:
+                        self.logger.info(
+                            "not granting policies {} to client `{}` (`{}`); {}".format(
+                                client_policies, client_name, client.client_id, str(e)
+                            )
+                        )
 
         return True
 
