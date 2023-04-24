@@ -537,7 +537,7 @@ This command will return a client ID and client secret, which you can then use t
 curl --request POST https://FENCE_URL/oauth2/token?grant_type=client_credentials -d scope="openid user" --user CLIENT_ID:CLIENT_SECRET
 ```
 
-The optional `--expires-in` parameter allows specifying the number of *days* until this client expires. The recommendation is to rotate credentials with the `client_credentials` grant at least once a year.
+The optional `--expires-in` parameter allows specifying the number of *days* until this client expires. The recommendation is to rotate credentials with the `client_credentials` grant at least once a year (see [Rotate client credentials](#rotate-client-credentials) section).
 
 NOTE: In Gen3, you can grant specific access to a client the same way you would to a user. See the [user.yaml guide](https://github.com/uc-cdis/fence/blob/master/docs/user.yaml_guide.md) for more details.
 
@@ -559,11 +559,13 @@ fence-create client-modify --client CLIENT_NAME --urls http://localhost/api/v0/n
 
 #### Rotate client credentials
 
-Use the `client-rotate` command to receive a new set of credentials for a client. The old credentials are NOT deactivated and must be deleted or expired separately. This allows for a rotation without downtime.
+Use the `client-rotate` command to receive a new set of credentials (client ID and secret) for a client. The old credentials are NOT deactivated and must be deleted or expired separately (see [Delete Expired OAuth Clients](#delete-expired-oauth-clients) section). This allows for a rotation without downtime.
 
 ```bash
 fence-create client-rotate --client CLIENT_NAME (--expires-in 30)
 ```
+
+Note that the `usersync` job must be run after rotating the credentials so that the new client ID is granted the same access as the old one.
 
 #### Delete OAuth Client
 
