@@ -378,7 +378,7 @@ class UserSyncer(object):
             # when converting the YAML from fence-config,
             # python reads it as Python string literal. So "\" turns into "\\"
             # which messes with the regex match
-            pattern = pattern.encode().decode("unicode_escape")
+            pattern.replace("\\\\", "\\")
             if re.match(pattern, os.path.basename(filepath)):
                 return True
         return False
@@ -500,7 +500,7 @@ class UserSyncer(object):
 
         self.id_patterns += (
             [
-                r"{}".format(item)
+                item.replace("\\\\", "\\")
                 for item in dbgap_config.get("allowed_whitelist_patterns", [])
             ]
             if dbgap_config.get("allow_non_dbGaP_whitelist", False)
@@ -523,8 +523,7 @@ class UserSyncer(object):
         if "additional_allowed_project_id_patterns" in dbgap_config:
             patterns = dbgap_config.get("additional_allowed_project_id_patterns")
             patterns = [
-                r"{}".format(pattern.encode().decode("unicode_escape"))
-                for pattern in patterns
+                pattern.replace("\\\\", "\\") for pattern in patterns
             ]  # when converting the YAML from fence-config, python reads it as Python string literal. So "\" turns into "\\" which messes with the regex match
             project_id_patterns += patterns
 
