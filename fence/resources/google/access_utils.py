@@ -55,9 +55,22 @@ def bulk_update_google_groups(google_bulk_mapping):
             logger.debug(f"Starting diff for group {group}...")
 
             # get members list from google
-            google_members = set(
-                member.get("email") for member in gcm.get_group_members(group)
-            )
+            members_from_google = []
+
+            try:
+                members_from_google = gcm.get_group_members(group)
+            except Exception as exc:
+                logging.error(
+                    f"ERROR: FAILED TO GET MEMBERS FROM GOOGLE GROUP {group}! "
+                    f"This sync will SKIP "
+                    f"the above user to try and update other authorization "
+                    f"(rather than failing early). The error will be re-raised "
+                    f"after attempting to update all other users. Exc: "
+                    f"{traceback.format_exc()}"
+                )
+                google_update_failures = True
+
+            google_members = set(member.get("email") for member in members_from_google)
             logger.debug(f"Google membership for {group}: {google_members}")
             logger.debug(f"Expected membership for {group}: {expected_members}")
 
@@ -75,7 +88,8 @@ def bulk_update_google_groups(google_bulk_mapping):
                     gcm.add_member_to_group(member_email, group)
                 except Exception as exc:
                     logging.error(
-                        f"ERROR: FAILED TO ADD MEMBER TO GOOGLE GROUP! This sync will SKIP "
+                        f"ERROR: FAILED TO ADD MEMBER {member_email} TO GOOGLE "
+                        f"GROUP {group}! This sync will SKIP "
                         f"the above user to try and update other authorization "
                         f"(rather than failing early). The error will be re-raised "
                         f"after attempting to update all other users. Exc: "
@@ -90,7 +104,8 @@ def bulk_update_google_groups(google_bulk_mapping):
                     gcm.remove_member_from_group(member_email, group)
                 except Exception as exc:
                     logging.error(
-                        f"ERROR: FAILED TO REMOVE MEMBER TO GOOGLE GROUP! This sync will SKIP "
+                        f"ERROR: FAILED TO REMOVE MEMBER {member_email} FROM "
+                        f"GOOGLE GROUP {group}! This sync will SKIP "
                         f"the above user to try and update other authorization "
                         f"(rather than failing early). The error will be re-raised "
                         f"after attempting to update all other users. Exc: "
