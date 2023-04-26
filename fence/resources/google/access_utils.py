@@ -5,6 +5,7 @@ registration.
 import time
 import flask
 from urllib.parse import unquote
+import traceback
 
 from cirrus.google_cloud.iam import GooglePolicyMember
 
@@ -47,15 +48,29 @@ def bulk_update_google_groups(google_bulk_mapping):
     google_project_id = (
         config["STORAGE_CREDENTIALS"].get("google", {}).get("google_project_id")
     )
+    google_update_failures = False
     with GoogleCloudManager(google_project_id) as gcm:
         for group, expected_members in google_bulk_mapping.items():
             expected_members = set(expected_members)
             logger.debug(f"Starting diff for group {group}...")
 
             # get members list from google
-            google_members = set(
-                member.get("email") for member in gcm.get_group_members(group)
-            )
+            members_from_google = []
+
+            try:
+                members_from_google = gcm.get_group_members(group)
+            except Exception as exc:
+                logging.error(
+                    f"ERROR: FAILED TO GET MEMBERS FROM GOOGLE GROUP {group}! "
+                    f"This sync will SKIP "
+                    f"the above user to try and update other authorization "
+                    f"(rather than failing early). The error will be re-raised "
+                    f"after attempting to update all other users. Exc: "
+                    f"{traceback.format_exc()}"
+                )
+                google_update_failures = True
+
+            google_members = set(member.get("email") for member in members_from_google)
             logger.debug(f"Google membership for {group}: {google_members}")
             logger.debug(f"Expected membership for {group}: {expected_members}")
 
@@ -69,12 +84,39 @@ def bulk_update_google_groups(google_bulk_mapping):
             # do add
             for member_email in to_add:
                 logger.info(f"Adding to group {group}: {member_email}")
-                gcm.add_member_to_group(member_email, group)
+                try:
+                    gcm.add_member_to_group(member_email, group)
+                except Exception as exc:
+                    logging.error(
+                        f"ERROR: FAILED TO ADD MEMBER {member_email} TO GOOGLE "
+                        f"GROUP {group}! This sync will SKIP "
+                        f"the above user to try and update other authorization "
+                        f"(rather than failing early). The error will be re-raised "
+                        f"after attempting to update all other users. Exc: "
+                        f"{traceback.format_exc()}"
+                    )
+                    google_update_failures = True
 
             # do remove
             for member_email in to_delete:
                 logger.info(f"Removing from group {group}: {member_email}")
-                gcm.remove_member_from_group(member_email, group)
+                try:
+                    gcm.remove_member_from_group(member_email, group)
+                except Exception as exc:
+                    logging.error(
+                        f"ERROR: FAILED TO REMOVE MEMBER {member_email} FROM "
+                        f"GOOGLE GROUP {group}! This sync will SKIP "
+                        f"the above user to try and update other authorization "
+                        f"(rather than failing early). The error will be re-raised "
+                        f"after attempting to update all other users. Exc: "
+                        f"{traceback.format_exc()}"
+                    )
+                    google_update_failures = True
+
+            if google_update_failures:
+                raise Exception(
+                    f"FAILED TO UPDATE GOOGLE GROUPS (see previous errors)."
+                )
 
 
 def get_google_project_number(google_project_id, google_cloud_manager):
@@ -716,7 +758,6 @@ def _revoke_user_service_account_from_google(
                     if not g_manager.remove_member_from_group(
                         member_email=service_account.email, group_id=access_group.email
                     ):
-
                         logger.debug(
                             "Removed {} from google group {}".format(
                                 service_account.email, access_group.email
