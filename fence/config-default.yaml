@@ -944,11 +944,19 @@ GA4GH_VISA_V1_CLAIM_REQUIRED_FIELDS:
   source:
     - 'https://ncbi.nlm.nih.gov/gap'
 EXPIRED_AUTHZ_REMOVAL_JOB_FREQ_IN_SECONDS: 300
+
 # Global sync visas during login
-# None(Default): Allow per client i.e. a fence client can pick whether or not to sync their visas during login with parse_visas param in /authorization endpoint
-# True: Parse for all clients i.e. a fence client will always sync their visas during login
-# False: Parse for no clients i.e. a fence client will not be able to sync visas during login even with parse_visas param
-GLOBAL_PARSE_VISAS_ON_LOGIN:
+# - None (Default): Allow per client i.e. a fence client can pick whether or not to sync their visas during login with `parse_visas` param in /authorization endpoint
+# - True: Parse for all clients i.e. a fence client will always sync their visas during login
+# - False: Parse for no clients i.e. a fence client will not be able to sync visas during login even with `parse_visas` param
+GLOBAL_PARSE_VISAS_ON_LOGIN: false
+
+# whether or not to enable the `fence-visa-update` cronjob which updates users' visas.
+# Note: this cronjob lives outstide of fence
+# /!\ if `ENABLE_VISA_UPDATE_CRON` is false, `GLOBAL_PARSE_VISAS_ON_LOGIN` CANNOT be none/true and
+# `parse_visas` CANNOT be used
+ENABLE_VISA_UPDATE_CRON: false
+
 # Settings for usersync with visas
 USERSYNC:
   visa_types:
