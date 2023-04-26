@@ -67,7 +67,7 @@ class FenceConfig(Config):
             )
             self["INDEXD_PASSWORD"] = os.environ["INDEXD_PASSWORD"]
         else:
-            logger.info(
+            logger.debug(
                 "Environment variable 'INDEXD_PASSWORD' empty or not set: using 'INDEXD_PASSWORD' field from config file"
             )
 
