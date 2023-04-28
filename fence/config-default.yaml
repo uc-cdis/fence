@@ -480,6 +480,10 @@ PRIVACY_POLICY_URL: null
 # In the absence of this OVERRIDE prefixed config, the legacy NGINX_RATE_LIMIT from the k8s deployment yaml is applied
 OVERRIDE_NGINX_RATE_LIMIT: 18
 
+# This is the maximum numbers of retries when exponentially backing off against an
+# error from an external API.
+DEFAULT_BACKOFF_SETTINGS_MAX_TRIES: 3
+
 # //////////////////////////////////////////////////////////////////////////////////////
 # SUPPORT INFO
 # //////////////////////////////////////////////////////////////////////////////////////
