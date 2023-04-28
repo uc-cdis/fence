@@ -344,15 +344,19 @@ def download_file(file_id):
     methods=["GET"],
 )
 def get_bucket_region_info():
+    """
+    Get bucket information from fence-config.
+    Returns all the information available for the configured buckets except creds and role-arn info.
+    """
     S3_BUCKETS = config.get("S3_BUCKETS", {}).copy()
     GS_BUCKETS = config.get("GS_BUCKETS", {}).copy()
     result = {"S3_BUCKETS": S3_BUCKETS, "GS_BUCKETS": GS_BUCKETS}
     for cloud, buckets in result.items():
         for bucket, info in buckets.items():
-            info_copy = info.copy()
-            for key in info.keys():
-                if key.lower() == "role-arn" or key.lower() == "cred":
-                    del info_copy[key]
+            info_copy = {}
+            for key, value in info.items():
+                if not (key.lower() == "role-arn" or key.lower() == "cred"):
+                    info_copy[key] = value
             buckets[bucket] = info_copy
 
     return flask.jsonify(result)
