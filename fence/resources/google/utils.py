@@ -565,7 +565,7 @@ def _update_service_account_db_entry(
     current_app.scoped_session().commit()
 
     logger.info(
-        "Created service account {} for proxy group {}.".format(
+        "Created or updated service account {} for proxy group {}.".format(
             new_service_account["email"], proxy_group_id
         )
     )
