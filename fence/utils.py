@@ -421,6 +421,6 @@ def get_from_cache(item_id, memory_cache, db_cache_table, db_cache_table_id_fiel
 DEFAULT_BACKOFF_SETTINGS = {
     "on_backoff": log_backoff_retry,
     "on_giveup": log_backoff_giveup,
-    "max_tries": 3,
+    "max_tries": config["DEFAULT_BACKOFF_SETTINGS_MAX_TRIES"],
     "giveup": exception_do_not_retry,
 }
