@@ -749,7 +749,23 @@ paths:
       responses:
         200:
           description: successful operation
-
+  '/data/buckets':
+    get:
+      tags:
+        - data
+      summary: >-
+       Get list of buckets and relevant bucket info
+      description: >-
+       Returns a list of buckets and relevant bucket information provided in the fence-config under AWS_BUCKETS and GS_BUCKETS.
+       It filters out sensitive information about the bucket and only shows information like bucket region.
+      operationId: getBuckets
+      responses:
+        '200':
+          description: successful operation
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/BucketInfo'
   /credentials:
     get:
       tags:
@@ -2313,6 +2329,37 @@ components:
         azp:
           type: string
           description: 'authorized party - the party to which the ID token was issued.'
+    BucketInfo:
+      type: object
+      properties:
+        S3_BUCKETS:
+          type: object
+          description: list and info on S3 buckets configured in the fence config
+          properties:
+           bucket1:
+            type: object
+            properties:
+             region:
+               type: string
+           bucket2:
+            type: object
+            properties:
+              region:
+               type: string
+        GS_BUCKETS:
+          type: object
+          description: list and info on GS buckets configured in the fence config
+          properties:
+           bucket1:
+            type: object
+            properties:
+             region:
+               type: string
+           bucket2:
+            type: object
+            properties:
+              region:
+               type: string
     SignedURL:
       type: object
       properties:
