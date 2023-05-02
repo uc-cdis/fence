@@ -687,6 +687,7 @@ INDEXD: null
 # this is the username which fence uses to make authenticated requests to indexd
 INDEXD_USERNAME: 'fence'
 # this is the password which fence uses to make authenticated requests to indexd
+# can also be set via env var INDEXD_PASSWORD
 INDEXD_PASSWORD: ''
 
 # //////////////////////////////////////////////////////////////////////////////////////
