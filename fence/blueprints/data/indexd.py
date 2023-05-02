@@ -425,6 +425,11 @@ class IndexedFile(object):
                         "indexd: {}".format(url + self.file_id)
                     )
                     raise InternalError("URLs and metadata not found")
+
+                # indexd can resolve GUIDs without prefix, but cannot perform other operations
+                # (such as delete) without the prefix, so make sure `file_id` is the whole GUID
+                self.file_id = json_response["did"]
+
                 return res.json()
             except Exception as e:
                 logger.error(
