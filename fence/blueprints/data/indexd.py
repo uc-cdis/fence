@@ -721,9 +721,7 @@ class IndexedFile(object):
         # it's possible that for some reason (something else modified the record in the
         # meantime) that the revision doesn't match, which would lead to error here
         if response.status_code != 200:
-            logger.error(
-                f"Unable to delete indexd record '{self.file_id}': {response.status_code} - {response.text}"
-            )
+            logger.error(f"Unable to delete indexd record '{self.file_id}': {response}")
             return (flask.jsonify(response.json()), 500)
         return ("", 204)
 
