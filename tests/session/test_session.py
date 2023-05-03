@@ -36,9 +36,6 @@ def test_session_cookie_creation_session_modified(app):
         with client.session_transaction() as session:
             session["username"] = "Captain Janeway"
 
-        import pdb
-
-        pdb.set_trace()
         client_cookies = [cookie.key for cookie in client.cookie_jar]
         assert config["SESSION_COOKIE_NAME"] in client_cookies
         session_cookie = [
