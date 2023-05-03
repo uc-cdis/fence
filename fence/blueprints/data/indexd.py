@@ -420,6 +420,13 @@ class IndexedFile(object):
                         "indexd: {}".format(url + self.file_id)
                     )
                     raise InternalError("URLs and metadata not found")
+
+                # indexd can resolve GUIDs without prefix, but cannot perform other operations
+                # (such as delete) without the prefix, so make sure `file_id` is the whole GUID
+                real_guid = json_response.get("did")
+                if real_guid and real_guid != self.file_id:
+                    self.file_id = real_guid
+
                 return res.json()
             except Exception as e:
                 logger.error(
@@ -709,6 +716,7 @@ class IndexedFile(object):
         # it's possible that for some reason (something else modified the record in the
         # meantime) that the revision doesn't match, which would lead to error here
         if response.status_code != 200:
+            logger.error(f"Unable to delete indexd record '{self.file_id}': {response}")
             return (flask.jsonify(response.json()), 500)
         return ("", 204)
 

@@ -1977,6 +1977,11 @@ class UserSyncer(object):
                         )
                     )
                     continue
+                self.logger.debug(
+                    "updating client `{}` (found {} client IDs)".format(
+                        client_name, len(clients)
+                    )
+                )
                 # there may be more than 1 client with this name if credentials are being rotated,
                 # so we grant access to each client ID
                 for client in clients:
