@@ -1,6 +1,8 @@
 import time
 import json
 import os
+
+import backoff
 from cryptography.fernet import Fernet
 import flask
 from flask import current_app
@@ -35,6 +37,8 @@ from fence.errors import NotSupported, NotFound
 from fence.utils import get_SQLAlchemyDriver
 
 from cdislogging import get_logger
+
+from fence.utils import DEFAULT_BACKOFF_SETTINGS
 
 logger = get_logger(__name__)
 
@@ -221,10 +225,7 @@ def give_service_account_billing_access_if_necessary(
             # the SA access to bill the project provided
             # NOTE: this may fail if our fence SA doesn't have the right permissions
             #       to add this role and update the project policy
-            with GoogleCloudManager(project_id=r_pays_project) as g_cloud_manager:
-                g_cloud_manager.give_service_account_billing_access(
-                    sa_account_id, project_id=r_pays_project
-                )
+            _give_service_account_billing_access(sa_account_id, r_pays_project)
         except Exception as exc:
             logger.error(
                 "Unable to create a custom role in Google Project {} to "
@@ -262,6 +263,14 @@ def give_service_account_billing_access_if_necessary(
             "give Google service account {} rights to bill the project.".format(
                 r_pays_project, sa_account_id
             )
+        )
+
+
+@backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
+def _give_service_account_billing_access(sa_account_id, r_pays_project):
+    with GoogleCloudManager(project_id=r_pays_project) as g_cloud_manager:
+        g_cloud_manager.give_service_account_billing_access(
+            sa_account_id, project_id=r_pays_project
         )
 
 

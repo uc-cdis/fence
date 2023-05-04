@@ -5,7 +5,6 @@ from unittest.mock import MagicMock, patch
 from sqlalchemy import or_
 
 from cirrus.errors import CirrusError
-from cirrus.google_cloud import GoogleCloudManager
 from cirrus.google_cloud.iam import GooglePolicyMember
 
 import fence
