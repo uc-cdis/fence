@@ -36,7 +36,10 @@ def upgrade():
     # The state of the DB after the old migration script runs is the same as
     # after this initial Alembic migration.
     conn = op.get_bind()
-    inspector = sa.engine.reflection.Inspector.from_engine(conn)
+
+    # the below was previously: `sa.engine.reflection.Inspector.from_engine(conn)`
+    # but that is deprecated and will be removed soon.
+    inspector = sa.inspect(conn)
     tables = inspector.get_table_names()
     if len(tables) > 0 and tables != ["alembic_version"]:
         logger.info(

@@ -755,7 +755,6 @@ class GoogleServiceAccountValidity(ValidityInfo):
                 self.set("policy_accessible", policy_accessible)
 
         if check_external_access:
-
             if not policy_accessible:
                 logger.warning(
                     "Invalid function use. External Access check requires "
@@ -781,7 +780,6 @@ class GoogleServiceAccountValidity(ValidityInfo):
 
         # check if the SA is an allowed type
         if check_type:
-
             if not policy_accessible:
                 logger.warning(
                     "Policy access was not checked. If the service account's "

@@ -118,9 +118,9 @@ def get_user_info(current_session, username):
                 user.username
             )
             auth_mapping = flask.current_app.arborist.auth_mapping(user.username)
-        except ArboristError:
+        except ArboristError as exc:
             logger.error(
-                "request to arborist for user's resources failed; going to list empty"
+                f"request to arborist for user's resources failed; going to list empty. Error: {exc}"
             )
             resources = []
             auth_mapping = {}

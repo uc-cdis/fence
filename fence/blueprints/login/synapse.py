@@ -1,7 +1,7 @@
 from datetime import datetime, timezone, timedelta
 
 import flask
-from flask_sqlalchemy_session import current_session
+from flask import current_app
 
 from fence.config import config
 from fence.models import IdentityProvider
@@ -35,8 +35,8 @@ class SynapseCallback(DefaultOAuth2Callback):
         info.pop("fence_username", None)
         info.pop("exp", None)
         user.additional_info = info
-        current_session.add(user)
-        current_session.commit()
+        current_app.scoped_session().add(user)
+        current_app.scoped_session().commit()
 
         with flask.current_app.arborist.context(authz_provider="synapse"):
             if config["DREAM_CHALLENGE_TEAM"] in token_result.get("team", []):

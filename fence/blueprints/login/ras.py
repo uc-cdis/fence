@@ -8,7 +8,8 @@ from distutils.util import strtobool
 from urllib.parse import urlparse, parse_qs
 
 from cdislogging import get_logger
-from flask_sqlalchemy_session import current_session
+from flask import current_app
+from gen3authz.client.arborist.client import ArboristClient
 
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 from fence.config import config
@@ -77,7 +78,7 @@ class RASCallback(DefaultOAuth2Callback):
             users_from_passports = fence.resources.ga4gh.passports.sync_gen3_users_authz_from_ga4gh_passports(
                 [passport],
                 pkey_cache=PKEY_CACHE,
-                db_session=current_session,
+                db_session=current_app.scoped_session(),
             )
             user_ids_from_passports = list(users_from_passports.keys())
 

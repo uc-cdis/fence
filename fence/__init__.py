@@ -4,7 +4,9 @@ import tempfile
 from urllib.parse import urljoin
 import flask
 from flask_cors import CORS
-from flask_sqlalchemy_session import flask_scoped_session, current_session
+from sqlalchemy.orm import scoped_session
+from flask import _app_ctx_stack, current_app
+from werkzeug.local import LocalProxy
 
 from authutils.oauth2.client import OAuthClient
 from cdislogging import get_logger
@@ -112,7 +114,24 @@ def app_sessions(app):
     SQLAlchemyDriver.setup_db = lambda _: None
     app.db = SQLAlchemyDriver(config["DB"])
 
-    session = flask_scoped_session(app.db.Session, app)  # noqa
+    # app.db.Session is from SQLAlchemyDriver and uses
+    # SQLAlchemy's sessionmaker. Using scoped_session here ensures
+    # a thread-local db session is created. Effectively the below is expanded to:
+    #   app.scoped_session = scoped_session(
+    #       sessionmaker(
+    #            bind=sqlalchemy.create_engine(config["DB"]),
+    #            expire_on_commit=False,
+    #       )
+    #   )
+    #
+    # From the sqlalchemy docs: "The scoped_session object by default uses
+    # [Python's threading.local() construct] as
+    # storage, so that a single Session is maintained for all who call upon the
+    # scoped_session registry, but only within the scope of a single thread.
+    # Callers who call upon the registry in a different thread get a Session
+    # instance that is local to that other thread."
+    app.scoped_session = scoped_session(app.db.Session)
+
     app.session_interface = UserSessionInterface()
 
 
@@ -509,26 +528,13 @@ def _setup_prometheus(app):
         multiprocess,
         make_wsgi_app,
     )
-    from prometheus_flask_exporter import Counter
-    from prometheus_flask_exporter.multiprocess import (
-        UWsgiPrometheusMetrics,
-    )
 
     app.prometheus_registry = CollectorRegistry()
     multiprocess.MultiProcessCollector(app.prometheus_registry)
 
-    UWsgiPrometheusMetrics(app)
-
     # Add prometheus wsgi middleware to route /metrics requests
     app.wsgi_app = DispatcherMiddleware(
         app.wsgi_app, {"/metrics": make_wsgi_app(registry=app.prometheus_registry)}
-    )
-
-    # set up counters
-    app.prometheus_counters["pre_signed_url_req"] = Counter(
-        "pre_signed_url_req",
-        "tracking presigned url requests",
-        ["requested_protocol"],
     )
 
 
@@ -569,3 +575,12 @@ def check_csrf():
             logger.debug("HTTP REFERER " + str(referer))
         except Exception as e:
             raise UserError("CSRF verification failed: {}. Request aborted".format(e))
+
+
+@app.teardown_appcontext
+def remove_scoped_session(*args, **kwargs):
+    if hasattr(app, "scoped_session"):
+        try:
+            app.scoped_session.remove()
+        except Exception as exc:
+            logger.warning(f"could not remove app.scoped_session. Error: {exc}")

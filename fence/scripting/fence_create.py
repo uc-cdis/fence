@@ -1102,7 +1102,6 @@ def _verify_google_service_account_member(session, access_group, member):
 
 
 class JWTCreator(object):
-
     required_kwargs = ["kid", "private_key", "username", "scopes"]
     all_kwargs = required_kwargs + ["expires_in"]
 
@@ -1521,7 +1520,6 @@ def _setup_google_bucket_access_group(
     storage_creds_project_id,
     privileges,
 ):
-
     access_group = _create_google_bucket_access_group(
         db_session, google_bucket_name, bucket_db_id, google_project_id, privileges
     )
@@ -1590,7 +1588,6 @@ def _get_or_create_google_provider(db_session):
 
 
 def link_external_bucket(db, name):
-
     """
     Link with bucket owned by an external party. This will create the bucket
     in fence database and create a google group to access the bucket in both
@@ -1645,7 +1642,11 @@ def link_external_bucket(db, name):
         privileges = ["read"]
 
         access_group = _create_google_bucket_access_group(
-            current_session, name, bucket_db_entry.id, google_project_id, privileges
+            current_session,
+            name,
+            bucket_db_entry.id,
+            google_project_id,
+            privileges,
         )
 
     logger.info("bucket access group email: {}".format(access_group.email))

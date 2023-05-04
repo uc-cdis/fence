@@ -2,7 +2,7 @@ import time
 
 import flask
 from flask_restful import Resource
-from flask_sqlalchemy_session import current_session
+from flask import current_app
 
 from cdislogging import get_logger
 
@@ -197,7 +197,8 @@ class GoogleLinkRedirect(Resource):
         user_id = current_token["sub"]
 
         g_account = (
-            current_session.query(UserGoogleAccount)
+            current_app.scoped_session()
+            .query(UserGoogleAccount)
             .filter(UserGoogleAccount.user_id == user_id)
             .first()
         )
@@ -214,7 +215,8 @@ class GoogleLinkRedirect(Resource):
             return error_message, 404
 
         g_account_access = (
-            current_session.query(UserGoogleAccountToProxyGroup)
+            current_app.scoped_session()
+            .query(UserGoogleAccountToProxyGroup)
             .filter(
                 UserGoogleAccountToProxyGroup.user_google_account_id == g_account.id
             )
@@ -239,11 +241,11 @@ class GoogleLinkRedirect(Resource):
                 _clear_google_link_info_from_session()
                 return error_message, 400
 
-            current_session.delete(g_account_access)
-            current_session.commit()
+            current_app.scoped_session().delete(g_account_access)
+            current_app.scoped_session().commit()
 
-        current_session.delete(g_account)
-        current_session.commit()
+        current_app.scoped_session().delete(g_account)
+        current_app.scoped_session().commit()
 
         # clear session and cookies so access token and session don't have
         # outdated linkage info
@@ -376,7 +378,8 @@ def get_errors_update_user_google_account_dry_run(
     error_description = None
 
     user_google_account = (
-        current_session.query(UserGoogleAccount)
+        current_app.scoped_session()
+        .query(UserGoogleAccount)
         .filter(UserGoogleAccount.email == google_email)
         .first()
     )
@@ -449,7 +452,8 @@ def _force_update_user_google_account(
         Expiration time of the newly updated google account's access
     """
     user_google_account = (
-        current_session.query(UserGoogleAccount)
+        current_app.scoped_session()
+        .query(UserGoogleAccount)
         .filter(UserGoogleAccount.email == google_email)
         .first()
     )
@@ -458,7 +462,7 @@ def _force_update_user_google_account(
         if _allow_new:
             if user_id is not None:
                 user_google_account = add_new_user_google_account(
-                    user_id, google_email, current_session
+                    user_id, google_email, current_app.scoped_session()
                 )
                 logger.info(
                     "Linking Google account {} to user with id {}.".format(
@@ -483,7 +487,11 @@ def _force_update_user_google_account(
         expiration = min(requested_expiration, expiration)
 
     force_update_user_google_account_expiration(
-        user_google_account, proxy_group_id, google_email, expiration, current_session
+        user_google_account,
+        proxy_group_id,
+        google_email,
+        expiration,
+        current_app.scoped_session(),
     )
 
     logger.info(
@@ -493,7 +501,7 @@ def _force_update_user_google_account(
         )
     )
 
-    current_session.commit()
+    current_app.scoped_session().commit()
 
     return expiration
 
