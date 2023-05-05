@@ -10,6 +10,7 @@ from fence.blueprints.data.indexd import (
     IndexedFile,
     get_signed_url_for_file,
 )
+from fence.config import config
 from fence.errors import Forbidden, InternalError, UserError, Unauthorized
 from fence.resources.audit.utils import enable_audit_logging
 from fence.utils import get_valid_expiration
@@ -336,3 +337,26 @@ def download_file(file_id):
     if not "redirect" in flask.request.args or not "url" in result:
         return flask.jsonify(result)
     return flask.redirect(result["url"])
+
+
+@blueprint.route(
+    "/buckets",
+    methods=["GET"],
+)
+def get_bucket_region_info():
+    """
+    Get bucket information from fence-config.
+    Returns all the information available for the configured buckets except creds and role-arn info.
+    """
+    S3_BUCKETS = config.get("S3_BUCKETS", {}).copy()
+    GS_BUCKETS = config.get("GS_BUCKETS", {}).copy()
+    result = {"S3_BUCKETS": S3_BUCKETS, "GS_BUCKETS": GS_BUCKETS}
+    for cloud, buckets in result.items():
+        for bucket, info in buckets.items():
+            info_copy = {}
+            for key, value in info.items():
+                if not (key.lower() == "role-arn" or key.lower() == "cred"):
+                    info_copy[key] = value
+            buckets[bucket] = info_copy
+
+    return flask.jsonify(result)
