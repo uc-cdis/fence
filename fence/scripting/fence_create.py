@@ -14,7 +14,6 @@ from cirrus.google_cloud.errors import GoogleAuthError
 from cirrus.config import config as cirrus_config
 from cdislogging import get_logger
 from sqlalchemy import func
-from userdatamodel.driver import SQLAlchemyDriver
 from userdatamodel.models import (
     AccessPrivilege,
     Bucket,
@@ -57,7 +56,12 @@ from fence.models import (
 from fence.scripting.google_monitor import email_users_without_access, validation_check
 from fence.config import config
 from fence.sync.sync_users import UserSyncer
-from fence.utils import create_client, get_valid_expiration, generate_client_credentials
+from fence.utils import (
+    create_client,
+    get_valid_expiration,
+    generate_client_credentials,
+    get_SQLAlchemyDriver,
+)
 
 from gen3authz.client.arborist.client import ArboristClient
 
@@ -66,7 +70,7 @@ logger = get_logger(__name__)
 
 def list_client_action(db):
     try:
-        driver = SQLAlchemyDriver(db)
+        driver = get_SQLAlchemyDriver(db)
         with driver.session as s:
             for row in s.query(Client).all():
                 pprint.pprint(row.__dict__)
@@ -89,7 +93,7 @@ def modify_client_action(
     append=False,
     expires_in=None,
 ):
-    driver = SQLAlchemyDriver(DB)
+    driver = get_SQLAlchemyDriver(DB)
     with driver.session as s:
         client_name = client
         clients = s.query(Client).filter(Client.name == client_name).all()
@@ -169,7 +173,7 @@ def delete_client_action(DB, client_name):
         pass
 
     try:
-        driver = SQLAlchemyDriver(DB)
+        driver = get_SQLAlchemyDriver(DB)
         with driver.session as current_session:
             if (
                 not current_session.query(Client)
@@ -212,7 +216,7 @@ def delete_expired_clients_action(DB, slack_webhook=None, warning_days=None):
         return uris.split("\n")
 
     now = datetime.now().timestamp()
-    driver = SQLAlchemyDriver(DB)
+    driver = get_SQLAlchemyDriver(DB)
     expired_messages = ["Some expired OIDC clients have been deleted!"]
     with driver.session as current_session:
         clients = (
@@ -291,7 +295,7 @@ def rotate_client_action(DB, client_name, expires_in=None):
     Returns:
         This functions does not return anything, but it prints the new set of credentials.
     """
-    driver = SQLAlchemyDriver(DB)
+    driver = get_SQLAlchemyDriver(DB)
     with driver.session as s:
         client = s.query(Client).filter(Client.name == client_name).first()
         if not client:
@@ -510,7 +514,7 @@ def create_sample_data(DB, yaml_file_path):
     with open(yaml_file_path, "r") as f:
         data = safe_load(f)
 
-    db = SQLAlchemyDriver(DB)
+    db = get_SQLAlchemyDriver(DB)
     with db.session as s:
         create_cloud_providers(s, data)
         create_projects(s, data)
@@ -705,7 +709,7 @@ def google_init(db):
 def remove_expired_google_service_account_keys(db):
     cirrus_config.update(**config["CIRRUS_CFG"])
 
-    db = SQLAlchemyDriver(db)
+    db = get_SQLAlchemyDriver(db)
     with db.session as current_session:
         client_service_accounts = current_session.query(
             GoogleServiceAccount, Client
@@ -776,7 +780,7 @@ def remove_expired_google_service_account_keys(db):
 def remove_expired_google_accounts_from_proxy_groups(db):
     cirrus_config.update(**config["CIRRUS_CFG"])
 
-    db = SQLAlchemyDriver(db)
+    db = get_SQLAlchemyDriver(db)
     with db.session as current_session:
         current_time = int(time.time())
         logger.info("Current time: {}".format(current_time))
@@ -828,7 +832,7 @@ def remove_expired_google_accounts_from_proxy_groups(db):
 
 
 def delete_users(DB, usernames):
-    driver = SQLAlchemyDriver(DB)
+    driver = get_SQLAlchemyDriver(DB)
     with driver.session as session:
         # NOTE that calling ``.delete()`` on the query itself will not follow
         # cascade deletion rules set up in any relationships.
@@ -850,7 +854,7 @@ def cleanup_expired_ga4gh_information(DB):
     IMPORTANT NOTE: This DOES NOT actually remove authorization, it assumes that the
                     same expiration was set and honored in the authorization system.
     """
-    driver = SQLAlchemyDriver(DB)
+    driver = get_SQLAlchemyDriver(DB)
     with driver.session as session:
         current_time = int(time.time())
 
@@ -892,7 +896,7 @@ def delete_expired_google_access(DB):
     """
     cirrus_config.update(**config["CIRRUS_CFG"])
 
-    driver = SQLAlchemyDriver(DB)
+    driver = get_SQLAlchemyDriver(DB)
     with driver.session as session:
         current_time = int(time.time())
 
@@ -947,7 +951,7 @@ def delete_expired_service_accounts(DB):
     """
     cirrus_config.update(**config["CIRRUS_CFG"])
 
-    driver = SQLAlchemyDriver(DB)
+    driver = get_SQLAlchemyDriver(DB)
     with driver.session as session:
         current_time = int(time.time())
         records_to_delete = (
@@ -992,7 +996,7 @@ def verify_bucket_access_group(DB):
     """
     cirrus_config.update(**config["CIRRUS_CFG"])
 
-    driver = SQLAlchemyDriver(DB)
+    driver = get_SQLAlchemyDriver(DB)
     with driver.session as session:
         access_groups = session.query(GoogleBucketAccessGroup).all()
         with GoogleCloudManager() as manager:
@@ -1145,7 +1149,7 @@ class JWTCreator(object):
         Return:
             JWTResult: result containing the encoded token and claims
         """
-        driver = SQLAlchemyDriver(self.db)
+        driver = get_SQLAlchemyDriver(self.db)
         with driver.session as current_session:
             user = query_for_user(session=current_session, username=self.username)
 
@@ -1169,7 +1173,7 @@ class JWTCreator(object):
         Return:
             JWTResult: the refresh token result
         """
-        driver = SQLAlchemyDriver(self.db)
+        driver = get_SQLAlchemyDriver(self.db)
         with driver.session as current_session:
             user = query_for_user(session=current_session, username=self.username)
 
@@ -1211,7 +1215,7 @@ def link_bucket_to_project(db, bucket_id, bucket_provider, project_auth_id):
         bucket_provider (str): CloudProvider.name for the bucket
         project_auth_id (str): Project.auth_id to link to bucket
     """
-    driver = SQLAlchemyDriver(db)
+    driver = get_SQLAlchemyDriver(db)
     with driver.session as current_session:
         cloud_provider = (
             current_session.query(CloudProvider).filter_by(name=bucket_provider).first()
@@ -1352,7 +1356,7 @@ def create_or_update_google_bucket(
     # default to read access
     allowed_privileges = allowed_privileges or ["read", "write"]
 
-    driver = SQLAlchemyDriver(db)
+    driver = get_SQLAlchemyDriver(db)
     with driver.session as current_session:
         # use storage creds to create bucket
         # (default creds don't have permission)
@@ -1600,7 +1604,7 @@ def link_external_bucket(db, name):
 
     google_project_id = cirrus_config.GOOGLE_PROJECT_ID
 
-    db = SQLAlchemyDriver(db)
+    db = get_SQLAlchemyDriver(db)
     with db.session as current_session:
         google_cloud_provider = _get_or_create_google_provider(current_session)
 
@@ -1691,7 +1695,7 @@ def force_update_google_link(DB, username, google_email, expires_in=None):
     """
     cirrus_config.update(**config["CIRRUS_CFG"])
 
-    db = SQLAlchemyDriver(DB)
+    db = get_SQLAlchemyDriver(DB)
     with db.session as session:
         user_account = query_for_user(session=session, username=username)
 
@@ -1762,7 +1766,7 @@ def google_list_authz_groups(db):
 
     db (string): database instance
     """
-    driver = SQLAlchemyDriver(db)
+    driver = get_SQLAlchemyDriver(db)
 
     with driver.session as db_session:
         google_authz = (
@@ -1798,7 +1802,7 @@ def access_token_polling_job(
     thread_pool_size (int): number of Docker container CPU used for jwt verifcation
     buffer_size (int): max size of queue
     """
-    driver = SQLAlchemyDriver(db)
+    driver = get_SQLAlchemyDriver(db)
     job = Visa_Token_Update(
         chunk_size=int(chunk_size) if chunk_size else None,
         concurrency=int(concurrency) if concurrency else None,

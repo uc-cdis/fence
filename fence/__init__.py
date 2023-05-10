@@ -12,7 +12,6 @@ from authutils.oauth2.client import OAuthClient
 from cdislogging import get_logger
 from gen3authz.client.arborist.client import ArboristClient
 from flask_wtf.csrf import validate_csrf
-from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
@@ -52,7 +51,7 @@ from fence.resources.openid.ras_oauth2 import RASOauth2Client
 from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
 from fence.error_handler import get_error_response
-from fence.utils import random_str
+from fence.utils import get_SQLAlchemyDriver
 import fence.blueprints.admin
 import fence.blueprints.data
 import fence.blueprints.login
@@ -107,12 +106,7 @@ def app_init(
 
 def app_sessions(app):
     app.url_map.strict_slashes = False
-
-    # override userdatamodel's `setup_db` function which creates tables
-    # and runs database migrations, because Alembic handles that now.
-    # TODO move userdatamodel code to Fence and remove dependencies to it
-    SQLAlchemyDriver.setup_db = lambda _: None
-    app.db = SQLAlchemyDriver(config["DB"])
+    app.db = get_SQLAlchemyDriver(config["DB"])
 
     # app.db.Session is from SQLAlchemyDriver and uses
     # SQLAlchemy's sessionmaker. Using scoped_session here ensures

@@ -14,7 +14,6 @@ from cirrus.google_cloud.utils import (
     get_valid_service_account_id_for_user,
 )
 
-from userdatamodel.driver import SQLAlchemyDriver
 from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 
 from fence.auth import current_token
@@ -33,6 +32,7 @@ from fence.models import (
 )
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
 from fence.errors import NotSupported, NotFound
+from fence.utils import get_SQLAlchemyDriver
 
 from cdislogging import get_logger
 
@@ -967,6 +967,6 @@ def is_google_managed_service_account(service_account_email):
 
 def get_db_session(db=None):
     if db:
-        return SQLAlchemyDriver(db).Session()
+        return get_SQLAlchemyDriver(db).Session()
     else:
         return current_app.scoped_session()
