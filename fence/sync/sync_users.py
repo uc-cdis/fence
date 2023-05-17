@@ -439,7 +439,7 @@ class UserSyncer(object):
         with paramiko.SSHClient() as client:
             client.set_log_channel(self.logger.name)
 
-            client.set_missing_host_key_policy(paramiko.WarningPolicy())
+            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
             parameters = {
                 "hostname": str(server.get("host", "")),
                 "username": str(server.get("username", "")),
