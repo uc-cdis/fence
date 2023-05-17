@@ -60,7 +60,7 @@ def bulk_update_google_groups(google_bulk_mapping):
             try:
                 members_from_google = _get_members_from_google_group(group)
             except Exception as exc:
-                logging.error(
+                logger.error(
                     f"ERROR: FAILED TO GET MEMBERS FROM GOOGLE GROUP {group}! "
                     f"This sync will SKIP "
                     f"the above user to try and update other authorization "
@@ -86,10 +86,11 @@ def bulk_update_google_groups(google_bulk_mapping):
             for member_email in to_add:
                 logger.info(f"Adding to group {group}: {member_email}")
                 try:
-                    gcm.add_member_to_group(member_email, group)
+                    _add_member_to_google_group(member_email, group)
                 except Exception as exc:
-                    logging.error(
-                        f"ERROR: FAILED TO ADD MEMBER TO GOOGLE GROUP! This sync will SKIP "
+                    logger.error(
+                        f"ERROR: FAILED TO ADD MEMBER {member_email} TO GOOGLE "
+                        f"GROUP {group}! This sync will SKIP "
                         f"the above user to try and update other authorization "
                         f"(rather than failing early). The error will be re-raised "
                         f"after attempting to update all other users. Exc: "
@@ -100,27 +101,11 @@ def bulk_update_google_groups(google_bulk_mapping):
             # do remove
             for member_email in to_delete:
                 logger.info(f"Removing from group {group}: {member_email}")
-                try:
-                    gcm.remove_member_from_group(member_email, group)
-                except Exception as exc:
-                    logging.error(
-                        f"ERROR: FAILED TO REMOVE MEMBER TO GOOGLE GROUP! This sync will SKIP "
-                        f"the above user to try and update other authorization "
-                        f"(rather than failing early). The error will be re-raised "
-                        f"after attempting to update all other users. Exc: "
-                        f"{traceback.format_exc()}"
-                    )
-                    google_update_failures = True
-
-            if google_update_failures:
-                raise Exception(
-                    f"FAILED TO UPDATE GOOGLE GROUPS (see previous errors)."
-                )
 
                 try:
                     _remove_member_to_google_group(member_email, group)
                 except Exception as exc:
-                    logging.error(
+                    logger.error(
                         f"ERROR: FAILED TO REMOVE MEMBER {member_email} FROM "
                         f"GOOGLE GROUP {group}! This sync will SKIP "
                         f"the above user to try and update other authorization "
@@ -135,6 +120,7 @@ def bulk_update_google_groups(google_bulk_mapping):
                     f"FAILED TO UPDATE GOOGLE GROUPS (see previous errors)."
                 )
 
+
 @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
 def _get_members_from_google_group(gcm, group):
     return gcm.get_group_members(group)
@@ -142,12 +128,13 @@ def _get_members_from_google_group(gcm, group):
 
 @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
 def _add_member_to_google_group(gcm, add_member_to_group, group):
-    gcm.add_member_to_group(member_email, group)
+    gcm.add_member_to_group(add_member_to_group, group)
 
 
 @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
-def _remove_member_to_google_group(gcm, add_member_to_group, group):
-    gcm.remove_member_from_group(member_email, group)
+def _remove_member_to_google_group(gcm, remove_member_from_group, group):
+    gcm.remove_member_from_group(remove_member_from_group, group)
+
 
 def get_google_project_number(google_project_id, google_cloud_manager):
     """
