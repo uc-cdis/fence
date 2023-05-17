@@ -132,7 +132,7 @@ def _add_member_to_google_group(gcm, add_member_to_group, group):
 
 
 @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
-def _remove_member_to_google_group(gcm, remove_member_from_group, group):
+def _remove_member_from_google_group(gcm, remove_member_from_group, group):
     gcm.remove_member_from_group(remove_member_from_group, group)
 
 
