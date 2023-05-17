@@ -103,7 +103,7 @@ def bulk_update_google_groups(google_bulk_mapping):
                 logger.info(f"Removing from group {group}: {member_email}")
 
                 try:
-                    _remove_member_to_google_group(member_email, group)
+                    _remove_member_from_google_group(member_email, group)
                 except Exception as exc:
                     logger.error(
                         f"ERROR: FAILED TO REMOVE MEMBER {member_email} FROM "
