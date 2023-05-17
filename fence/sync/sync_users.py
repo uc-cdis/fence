@@ -554,7 +554,6 @@ class UserSyncer(object):
                     if username == "":
                         continue
 
-                    phsid_privileges = {}
                     if dbgap_config.get("allow_non_dbGaP_whitelist", False):
                         phsid = (
                             row.get("phsid") or (row.get("project_id") or "")
