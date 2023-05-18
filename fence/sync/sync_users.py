@@ -550,15 +550,16 @@ class UserSyncer(object):
             ) as f:
                 csv = DictReader(f, quotechar='"', skipinitialspace=True)
                 for row in csv:
-                    username = row.get("login", "")
+                    username = row.get("login") or ""
                     if username == "":
                         continue
 
-                    phsid_privileges = {}
                     if dbgap_config.get("allow_non_dbGaP_whitelist", False):
-                        phsid = row.get("phsid", row.get("project_id", "")).split(".")
+                        phsid = (
+                            row.get("phsid") or (row.get("project_id") or "")
+                        ).split(".")
                     else:
-                        phsid = row.get("phsid", "").split(".")
+                        phsid = (row.get("phsid") or "").split(".")
 
                     dbgap_project = phsid[0]
                     # There are issues where dbgap has a wrong entry in their whitelist. Since we do a bulk arborist request, there are wrong entries in it that invalidates the whole request causing other correct entries not to be added
@@ -620,8 +621,8 @@ class UserSyncer(object):
 
                         dbgap_project += "." + consent_code
 
-                    display_name = row.get("user name", "")
-                    tags = {"dbgap_role": row.get("role", "")}
+                    display_name = row.get("user name") or ""
+                    tags = {"dbgap_role": row.get("role") or ""}
 
                     # some dbgap telemetry files have information about a researchers PI
                     if "downloader for" in row:
@@ -632,9 +633,9 @@ class UserSyncer(object):
                         tags["pi"] = row["downloader for names"]
 
                     user_info[username] = {
-                        "email": row.get("email", ""),
+                        "email": row.get("email") or "",
                         "display_name": display_name,
-                        "phone_number": row.get("phone", ""),
+                        "phone_number": row.get("phone") or "",
                         "tags": tags,
                     }
 
