@@ -4,4 +4,4 @@ jobs:
   run_tests:
     uses: uc-cdis/.github/.github/workflows/python_unit_test.yaml@80066424162580ee47367cb6138bb57a8479323d
     with:
-      postgres-needed: 'true'
+      postgres-needed: 'false'
