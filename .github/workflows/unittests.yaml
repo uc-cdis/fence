@@ -2,6 +2,6 @@ name: Run Fence unit tests
 on: push
 jobs:
   run_tests:
-    uses: uc-cdis/.github/.github/workflows/python_unit_test.yaml@cfa52318402cf911cc45a0c57cf8ad1946d12b61
+    uses: uc-cdis/.github/.github/workflows/python_unit_test.yaml@0595a1334e31a98016d2fa0cd919ec0919d4e506
     with:
       postgres-needed: 'false'
