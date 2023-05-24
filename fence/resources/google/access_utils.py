@@ -58,7 +58,7 @@ def bulk_update_google_groups(google_bulk_mapping):
             members_from_google = []
 
             try:
-                members_from_google = _get_members_from_google_group(group)
+                members_from_google = _get_members_from_google_group(gcm, group)
             except Exception as exc:
                 logger.error(
                     f"ERROR: FAILED TO GET MEMBERS FROM GOOGLE GROUP {group}! "
@@ -86,7 +86,7 @@ def bulk_update_google_groups(google_bulk_mapping):
             for member_email in to_add:
                 logger.info(f"Adding to group {group}: {member_email}")
                 try:
-                    _add_member_to_google_group(member_email, group)
+                    _add_member_to_google_group(gcm, member_email, group)
                 except Exception as exc:
                     logger.error(
                         f"ERROR: FAILED TO ADD MEMBER {member_email} TO GOOGLE "
@@ -103,7 +103,7 @@ def bulk_update_google_groups(google_bulk_mapping):
                 logger.info(f"Removing from group {group}: {member_email}")
 
                 try:
-                    _remove_member_from_google_group(member_email, group)
+                    _remove_member_from_google_group(gcm, member_email, group)
                 except Exception as exc:
                     logger.error(
                         f"ERROR: FAILED TO REMOVE MEMBER {member_email} FROM "
