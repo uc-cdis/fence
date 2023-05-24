@@ -868,6 +868,8 @@ class UserSyncer(object):
             bulk_update_google_groups(google_bulk_mapping)
             self.logger.info("Bulk Google update done!")
 
+        sess.commit()
+
     def sync_to_storage_backend(self, user_project, user_info, sess, expires):
         """
         sync user access control to storage backend with given expiration
