@@ -1,4 +1,4 @@
-PGPASSWORD=postgres PGHOST=localhost PGPORT=5432 psql -c 'SELECT version();' -U postgres
+psql -c 'SELECT version();' -U postgres
 psql -U postgres -c "create database fence_test_tmp"
 
 sudo rm -f /etc/boto.cfg
