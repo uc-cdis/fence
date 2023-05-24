@@ -1,3 +1,7 @@
+PGPASSWORD=postgres
+POSTGRES_HOST=localhost
+POSTGRES_PORT=5432
+
 psql -c 'SELECT version();' -U postgres
 psql -U postgres -c "create database fence_test_tmp"
 
