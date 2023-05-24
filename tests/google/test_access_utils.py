@@ -25,7 +25,9 @@ from fence.resources.google.access_utils import (
     extend_service_account_access,
     patch_user_service_account,
     remove_white_listed_service_account_ids,
+    bulk_update_google_groups,
 )
+from fence.utils import DEFAULT_BACKOFF_SETTINGS
 
 
 class MockResponse:
@@ -541,3 +543,95 @@ def test_whitelisted_service_accounts(
     assert "test@123" not in service_account_ids
     assert "test@456" not in service_account_ids
     assert "test@789" in service_account_ids
+
+
+def test_bulk_update_google_groups_get_group_members(cloud_manager):
+    """
+    Tests backoff for when the get_group_member google group API calls error out.
+    """
+    test_mapping = {"googlegroup@google.com": ["member1", "member2"]}
+    cloud_manager_instance = cloud_manager.return_value.__enter__.return_value
+    cloud_manager_instance.get_group_members.side_effect = Exception(
+        "Something's wrong with get_group_members"
+    )
+
+    with pytest.raises(Exception):
+        bulk_update_google_groups(test_mapping)
+
+    assert (
+        cloud_manager_instance.get_group_members.call_count
+        == DEFAULT_BACKOFF_SETTINGS["max_tries"]
+    )
+
+
+def test_bulk_update_google_groups_add_group_members(cloud_manager):
+    """
+    Tests backoff for when the add_member_to_group google group API calls error.
+    """
+    test_mapping = {"googlegroup@google.com": ["member1", "member2"]}
+    cloud_manager_instance = cloud_manager.return_value.__enter__.return_value
+    cloud_manager_instance.get_group_members.return_value = []
+    cloud_manager_instance.add_member_to_group.side_effect = Exception(
+        "Something's wrong with add_member_to_group"
+    )
+
+    with pytest.raises(Exception):
+        bulk_update_google_groups(test_mapping)
+
+    assert cloud_manager_instance.get_group_members.call_count == 1
+    assert (
+        cloud_manager_instance.add_member_to_group.call_count
+        == DEFAULT_BACKOFF_SETTINGS["max_tries"]
+        * len(test_mapping["googlegroup@google.com"])
+    )
+
+
+def test_bulk_update_google_groups_remove_group_members(cloud_manager):
+    """
+    Tests backoff for when the remove_member_to_group group API calls error out.
+    """
+    test_mapping = {"googlegroup@google.com": []}
+    to_remove = [{"email": "member1"}, {"email": "member2"}]
+    cloud_manager_instance = cloud_manager.return_value.__enter__.return_value
+    cloud_manager_instance.get_group_members.return_value = to_remove
+    cloud_manager_instance.remove_member_from_group.side_effect = Exception(
+        "Something's wrong with remove_member_from_group"
+    )
+
+    with pytest.raises(Exception):
+        bulk_update_google_groups(test_mapping)
+
+    assert cloud_manager_instance.get_group_members.call_count == 1
+    assert (
+        cloud_manager_instance.remove_member_from_group.call_count
+        == DEFAULT_BACKOFF_SETTINGS["max_tries"] * len(to_remove)
+    )
+
+
+def test_bulk_update_google_groups_add_remove_group_members(cloud_manager):
+    """
+    Tests backoff for when both the add_member_to_group and remove_member_to_group group API calls error out.
+    """
+    test_mapping = {"googlegroup@google.com": ["member1"]}
+    to_remove = [{"email": "member2"}]
+    cloud_manager_instance = cloud_manager.return_value.__enter__.return_value
+    cloud_manager_instance.get_group_members.return_value = to_remove
+    cloud_manager_instance.add_member_to_group.side_effect = Exception(
+        "Something's wrong with add_member_to_group"
+    )
+    cloud_manager_instance.remove_member_from_group.side_effect = Exception(
+        "Something's wrong with remove_member_from_group"
+    )
+
+    with pytest.raises(Exception):
+        bulk_update_google_groups(test_mapping)
+
+    assert cloud_manager_instance.get_group_members.call_count == 1
+    assert (
+        cloud_manager_instance.add_member_to_group.call_count
+        == DEFAULT_BACKOFF_SETTINGS["max_tries"]
+    )
+    assert (
+        cloud_manager_instance.remove_member_from_group.call_count
+        == DEFAULT_BACKOFF_SETTINGS["max_tries"]
+    )
