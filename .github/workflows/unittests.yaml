@@ -3,5 +3,3 @@ on: push
 jobs:
   run_tests:
     uses: uc-cdis/.github/.github/workflows/python_unit_test.yaml@27516b5385d75dfebb0f6d74e9b0bc89f269e695
-    with:
-      postgres-needed: 'false'
