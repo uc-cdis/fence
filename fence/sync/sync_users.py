@@ -861,6 +861,8 @@ class UserSyncer(object):
         if not do_not_revoke_from_db_and_storage:
             self._validate_and_update_user_admin(sess, user_info_lowercase)
 
+        sess.commit()
+
         if config["GOOGLE_BULK_UPDATES"]:
             self.logger.info("Doing bulk Google update...")
             bulk_update_google_groups(google_bulk_mapping)
