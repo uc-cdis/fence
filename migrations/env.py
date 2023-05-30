@@ -14,7 +14,6 @@ from logging.config import fileConfig
 import os
 from sqlalchemy import engine_from_config, pool
 
-from cdislogging import get_logger
 from userdatamodel import Base
 
 from fence.config import config as fence_config

@@ -143,6 +143,14 @@ The resource tree contains, among other resources, the programs and projects cre
 ```
 Policies would refer to this resource as `/programs/program1/projects/P1`.
 
+There are several ways to attach a policy to a user:
+- In the `users` section, under the appropriate username, in the list of `policies`;
+- In the `groups` section, add the username to the group's `users` and the policy to the group's `policies`;
+- In the `anonymous_policies` group, add policies that anyone should have (there is no need to set specific usernames in this case);
+- In the `all_users_policies` group, add policies that all logged in users should have (there is no need to set specific usernames in this case).
+
+Policies can also be attached to Fence OIDC clients in the `clients` section. Use the client's `name` (not `client_id`) to grant access to a client.
+
 ### Programs and projects CRUD access
 
 ```
