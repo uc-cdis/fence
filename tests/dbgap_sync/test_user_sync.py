@@ -82,12 +82,14 @@ def test_sync_incorrect_user_yaml_file(syncer, monkeypatch, db_session):
 @pytest.mark.parametrize("allow_non_dbgap_whitelist", [False, True])
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
 @pytest.mark.parametrize("parse_consent_code_config", [False, True])
+@pytest.mark.parametrize("parent_to_child_studies_mapping", [False, True])
 def test_sync(
     syncer,
     db_session,
     allow_non_dbgap_whitelist,
     storage_client,
     parse_consent_code_config,
+    parent_to_child_studies_mapping,
     monkeypatch,
 ):
     # patch the sync to use the parameterized config value
@@ -98,13 +100,23 @@ def test_sync(
     monkeypatch.setitem(
         syncer.dbGaP[2], "allow_non_dbGaP_whitelist", allow_non_dbgap_whitelist
     )
+    if parent_to_child_studies_mapping:
+        mapping = {
+            "phs001179": ["phs000179", "phs000178"],
+        }
+        monkeypatch.setitem(
+            syncer.dbGaP[0],
+            "parent_to_child_studies_mapping",
+            mapping,
+        )
+        monkeypatch.setattr(syncer, "parent_to_child_studies_mapping", mapping)
 
     syncer.sync()
 
     users = db_session.query(models.User).all()
 
-    # 5 from user.yaml, 4 from fake dbgap SFTP
-    assert len(users) == 9
+    # 5 from user.yaml, 6 from fake dbgap SFTP
+    assert len(users) == 11
 
     if parse_consent_code_config:
         if allow_non_dbgap_whitelist:
@@ -167,6 +179,33 @@ def test_sync(
                     "phs000178.c1": ["read", "read-storage"],
                 },
             )
+            if parent_to_child_studies_mapping:
+                user = models.query_for_user(
+                    session=db_session, username="TESTPARENTAUTHZ"
+                )
+                assert equal_project_access(
+                    user.project_access,
+                    {
+                        "phs000178.c1": ["read", "read-storage"],
+                        "phs000179.c1": ["read", "read-storage"],
+                        "phs001179.c1": ["read", "read-storage"],
+                    },
+                )
+                user = models.query_for_user(
+                    session=db_session, username="TESTPARENTAUTHZ999"
+                )
+                assert equal_project_access(
+                    user.project_access,
+                    {
+                        "phs000178.c1": ["read", "read-storage"],
+                        "phs000178.c2": ["read", "read-storage"],
+                        "phs000178.c999": ["read", "read-storage"],
+                        "phs000179.c1": ["read", "read-storage"],
+                        "phs000179.c999": ["read", "read-storage"],
+                        "phs001179.c999": ["read", "read-storage"],
+                        "phs001179.c1": ["read", "read-storage"],
+                    },
+                )
     else:
         if allow_non_dbgap_whitelist:
             user = models.query_for_user(session=db_session, username="TESTUSERD")
@@ -230,6 +269,29 @@ def test_sync(
                     "phs000179": ["read", "read-storage"],
                 },
             )
+            if parent_to_child_studies_mapping:
+                user = models.query_for_user(
+                    session=db_session, username="TESTPARENTAUTHZ"
+                )
+                assert equal_project_access(
+                    user.project_access,
+                    {
+                        "phs000178": ["read", "read-storage"],
+                        "phs000179": ["read", "read-storage"],
+                        "phs001179": ["read", "read-storage"],
+                    },
+                )
+                user = models.query_for_user(
+                    session=db_session, username="TESTPARENTAUTHZ999"
+                )
+                assert equal_project_access(
+                    user.project_access,
+                    {
+                        "phs000178": ["read", "read-storage"],
+                        "phs000179": ["read", "read-storage"],
+                        "phs001179": ["read", "read-storage"],
+                    },
+                )
 
     user = models.query_for_user(session=db_session, username="TESTUSERD")
     assert user.display_name == "USER D"
@@ -908,8 +970,8 @@ def test_user_sync_with_visa_sync_job(
 
     users_after = db_session.query(models.User).all()
 
-    # 5 from user.yaml, 4 from fake dbgap SFTP
-    assert len(users_after) == 9
+    # 5 from user.yaml, 6 from fake dbgap SFTP
+    assert len(users_after) == 11
 
     for user in users_after:
         if user.username in setup_info["usernames_to_ras_subjects"]:
