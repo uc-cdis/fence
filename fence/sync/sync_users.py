@@ -148,6 +148,7 @@ class UserYAML(object):
         project_to_resource=None,
         logger=None,
         user_abac=None,
+        parent_to_child_studies_mapping=None,
     ):
         self.projects = projects or {}
         self.user_info = user_info or {}
@@ -159,7 +160,14 @@ class UserYAML(object):
         self.logger = logger
 
     @classmethod
-    def from_file(cls, filepath, encrypted=True, key=None, logger=None):
+    def from_file(
+        cls,
+        filepath,
+        encrypted=True,
+        key=None,
+        logger=None,
+        parent_to_child_studies_mapping={},
+    ):
         """
         Add access by "auth_id" to "self.projects" to update the Fence DB.
         Add access by "resource" to "self.user_abac" to update Arborist.
@@ -177,6 +185,7 @@ class UserYAML(object):
         projects = dict()
         user_info = dict()
         policies = dict()
+        access_number_matcher = re.compile(config["DBGAP_ACCESSION_WITH_CONSENT_REGEX"])
 
         # resources should be the resource tree to construct in arborist
         user_abac = dict()
@@ -211,6 +220,11 @@ class UserYAML(object):
             for project in details.get("projects", {}):
                 try:
                     privileges[project["auth_id"]] = set(project["privilege"])
+                    if project["auth_id"] in parent_to_child_studies_mapping:
+                        for child in self.parent_to_child_studies_mapping[
+                            project["auth_id"]
+                        ]:
+                            privileges[child] = set(project["privilege"])
                 except KeyError as e:
                     if logger:
                         logger.error("project {} missing field: {}".format(project, e))
@@ -357,6 +371,16 @@ class UserSyncer(object):
                 storage_credentials, logger=self.logger
             )
         self.id_patterns = []
+
+        self.parent_to_child_studies_mapping = defaultdict(list)
+
+        # Combine parent_to_child_studies_mapping across dbgap configs.
+        # If two study IDs conflict, their children are merged.
+        for dbgap_config in dbGaP:
+            for parent, children in dbgap_config.get(
+                "parent_to_child_studies_mapping", {}
+            ):
+                self.parent_to_child_studies_mapping[parent].extend(children)
 
     @staticmethod
     def _match_pattern(filepath, id_patterns, encrypted=True):
@@ -621,6 +645,15 @@ class UserSyncer(object):
 
                         dbgap_project += "." + consent_code
 
+                    self._add_children_for_dbgap_project(
+                        dbgap_project,
+                        privileges,
+                        username,
+                        sess,
+                        user_projects,
+                        dbgap_config,
+                    )
+
                     display_name = row.get("user name") or ""
                     tags = {"dbgap_role": row.get("role") or ""}
 
@@ -649,6 +682,39 @@ class UserSyncer(object):
                     )
 
         return user_projects, user_info
+
+    def _has_children(self, dbgap_project):
+        parent_phsid = dbgap_project.split(".")[0]
+        return parent_phsid in self.parent_to_child_studies_mapping
+
+    def _add_children_for_dbgap_project(
+        self, dbgap_project, privileges, username, sess, user_projects, dbgap_config
+    ):
+        parent_phsid = dbgap_project
+        child_suffix = ""
+        if self.parse_consent_code:
+            phsid_parts = dbgap_project.split(".")
+            parent_phsid = phsid_parts[0]
+            child_suffix = "." + phsid_parts[1]  # include parent consent code
+
+        if parent_phsid not in self.parent_to_child_studies_mapping:
+            return
+
+        self.logger.info(
+            f"found parent study {parent_phsid} and Fence "
+            "is configured to provide additional access to child studies. Giving user "
+            f"{username} {privileges} privileges in projects: "
+            f"{{k + child_suffix: v + child_suffix for k, v in self.parent_to_child_studies_mapping.items()}}."
+        )
+        for child_study in self.parent_to_child_studies_mapping[parent_phsid]:
+            self._add_dbgap_project_for_user(
+                child_study + child_suffix,
+                privileges,
+                username,
+                sess,
+                user_projects,
+                dbgap_config,
+            )
 
     def _add_dbgap_project_for_user(
         self, dbgap_project, privileges, username, sess, user_projects, dbgap_config
@@ -1625,6 +1691,16 @@ class UserSyncer(object):
                 consent_mapping.setdefault(accession_number["phsid"], set()).add(
                     ".".join([accession_number["phsid"], accession_number["consent"]])
                 )
+                if self._has_children(accession_number["phsid"]):
+                    child_phs_list = self.parent_to_child_studies_mapping[
+                        accession_number["phsid"]
+                    ]
+                    for child_phs in child_phs_list:
+                        consent_mapping.setdefault(child_phs, set()).add(
+                            ".".join(
+                                [child_phs, accession_number["consent"]]
+                            )  # Assign parent consent to child study
+                        )
 
         self.logger.debug(f"consent mapping: {consent_mapping}")
 

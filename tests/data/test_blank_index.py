@@ -147,8 +147,8 @@ def test_blank_index_upload_bucket(
     auth_client,
     encoded_creds_jwt,
     user_client,
-    bucket,
     expected_status_code,
+    bucket,
 ):
     """
     Same test as above, except request a specific bucket to upload the file to

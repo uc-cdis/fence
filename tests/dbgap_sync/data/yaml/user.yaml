@@ -81,3 +81,9 @@ users:
       resource: /programs/test_program
       privilege: ['create', 'read', 'update', 'delete', 'upload']
     display_name: Test User 4 (program access)
+  test_user_cascade@gmail.com:
+    admin: False
+    projects:
+    - auth_id: phs001179
+      privilege: ['read', 'read-storage']
+    display_name: Test User 4 (program access)
