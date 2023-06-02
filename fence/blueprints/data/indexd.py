@@ -1578,9 +1578,6 @@ def _get_auth_info_for_id_or_from_request(
             f"could not determine client auth info from request. setting anonymous client information. Details:\n{exc}"
         )
 
-    if final_username == ANONYMOUS_USERNAME and client_id != "":
-        raise Forbidden("This endpoint does not support client credentials tokens")
-
     return {
         "user_id": final_user_id,
         "username": final_username,
