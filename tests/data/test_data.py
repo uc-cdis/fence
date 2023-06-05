@@ -1838,8 +1838,8 @@ def test_download_s3_file_with_client_token(
 ):
     """
     Test that an access token that does not include a `sub` or `context.user.
-    name` (such as a token issued from the `client_credentials` flow) cannot be
-    used to download data from S3.
+    name` (such as a token issued from the `client_credentials` flow) can be
+    used to download data from S3 if the indexd_record has an `authz` field.
     """
     indexd_record = {
         **INDEXD_RECORD_WITH_PUBLIC_AUTHZ_POPULATED,
