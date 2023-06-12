@@ -1839,7 +1839,8 @@ def test_download_s3_file_with_client_token(
     """
     Test that an access token that does not include a `sub` or `context.user.
     name` (such as a token issued from the `client_credentials` flow) can be
-    used to download data from S3 if the indexd_record has an `authz` field.
+    used to download data from S3 if the indexd_record has an `authz` field,
+    and that the `client_id` is used to sign.
     """
     indexd_record = {
         **INDEXD_RECORD_WITH_PUBLIC_AUTHZ_POPULATED,
@@ -1863,7 +1864,6 @@ def test_download_s3_file_with_client_token(
     response = client.get("/data/download/1", headers=headers)
     assert response.status_code == 200
 
-    # Enable the block below if we start allowing downloads with client tokens
     signed_url = response.json.get("url")
     assert signed_url
     # check signing query parameters
