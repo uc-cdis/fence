@@ -45,6 +45,7 @@ class FenceConfig(Config):
             "dbGaP",
             "CIRRUS_CFG",
             "WHITE_LISTED_GOOGLE_PARENT_ORGS",
+            "CLIENT_CREDENTIALS_ON_DOWNLOAD_ENABLED",
         ]
         for default in defaults:
             self.force_default_if_none(default, default_cfg=default_config)

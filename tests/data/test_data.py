@@ -1835,6 +1835,7 @@ def test_download_s3_file_with_client_token(
     kid,
     rsa_private_key,
     mock_arborist_requests,
+    monkeypatch,
 ):
     """
     Test that an access token that does not include a `sub` or `context.user.
@@ -1861,6 +1862,18 @@ def test_download_s3_file_with_client_token(
         )
     }
 
+    # the config for the client credentials should have already been set
+    assert isinstance(config.get("CLIENT_CREDENTIALS_ON_DOWNLOAD_ENABLED"), bool)
+
+    # download should fail when client is disabled
+    monkeypatch.setitem(config, "CLIENT_CREDENTIALS_ON_DOWNLOAD_ENABLED", False)
+    assert config["CLIENT_CREDENTIALS_ON_DOWNLOAD_ENABLED"] == False
+    response = client.get("/data/download/1", headers=headers)
+    assert response.status_code == 403
+
+    # download should succeed when client is enabled
+    monkeypatch.setitem(config, "CLIENT_CREDENTIALS_ON_DOWNLOAD_ENABLED", True)
+    assert config["CLIENT_CREDENTIALS_ON_DOWNLOAD_ENABLED"] == True
     response = client.get("/data/download/1", headers=headers)
     assert response.status_code == 200
 
