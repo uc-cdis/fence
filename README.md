@@ -273,11 +273,9 @@ create a second test database with a different name:
 # This one is for automated tests, which clear the database after running;
 # `tests/test_settings.py` should have `fence_test_tmp` in the `DB` variable.
 psql -U test postgres -c 'create database fence_test_tmp'
-userdatamodel-init --db fence_test_tmp
 # This one is for manual testing/general local usage; Your config
 # should have `fence_test` in the `DB` variable.
 psql -U test postgres -c 'create database fence_test'
-userdatamodel-init --db fence_test --username test --password test
 ```
 
 #### Keypair Configuration
