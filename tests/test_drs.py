@@ -1709,3 +1709,58 @@ def test_passport_cache_expired(
         data=json.dumps(data),
     )
     assert res.status_code != 200
+
+
+@pytest.mark.parametrize("indexd_client", ["s3", "gs"], indirect=True)
+def test_get_presigned_url_with_client_token(
+    client,
+    indexd_client,
+    indexd_client_accepting_record,
+    kid,
+    rsa_private_key,
+    mock_arborist_requests,
+    monkeypatch,
+):
+    """
+    Test that a client credentials token (without using passports)
+    can be used to get a pre-signed url.
+    """
+    test_guid = "1"
+    access_id = indexd_client["indexed_file_location"]
+    indexd_record = {
+        "did": test_guid,
+        "authz": ["/test/resource/path"],
+        "urls": ["s3://bucket1/key", "gs://bucket1/key"],
+    }
+    indexd_client_accepting_record(indexd_record)
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
+    client_credentials_token = utils.client_authorized_download_context_claims()
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            client_credentials_token,
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        )
+    }
+
+    # the config for the client credentials should have already been set
+    assert isinstance(config.get("CLIENT_CREDENTIALS_ON_DOWNLOAD_ENABLED"), bool)
+
+    # download should fail when client is disabled
+    monkeypatch.setitem(config, "CLIENT_CREDENTIALS_ON_DOWNLOAD_ENABLED", False)
+    assert config["CLIENT_CREDENTIALS_ON_DOWNLOAD_ENABLED"] == False
+    response = client.get("/data/download/" + test_guid, headers=headers)
+    assert response.status_code == 403
+
+    # download should succeed when client is enabled
+    monkeypatch.setitem(config, "CLIENT_CREDENTIALS_ON_DOWNLOAD_ENABLED", True)
+    assert config["CLIENT_CREDENTIALS_ON_DOWNLOAD_ENABLED"] == True
+    response = client.get(
+        "/ga4gh/drs/v1/objects/" + test_guid + "/access/" + access_id, headers=headers
+    )
+    assert response.status_code == 200
+
+    signed_url = response.json.get("url")
+    assert signed_url

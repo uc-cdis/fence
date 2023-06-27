@@ -975,5 +975,6 @@ RAS_USERINFO_ENDPOINT: '/openid/connect/v1.1/userinfo'
 # //////////////////////////////////////////////////////////////////////////////////////
 # CLIENT CREDENTIALS
 # //////////////////////////////////////////////////////////////////////////////////////
-# set to true to enable client credentials on download/{guid}
+# set to true to enable client credentials on download/{guid} and
+# /ga4gh/drs/v1/objects/{guid}/access/{access_id}
 CLIENT_CREDENTIALS_ON_DOWNLOAD_ENABLED: false
