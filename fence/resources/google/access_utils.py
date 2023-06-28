@@ -38,6 +38,10 @@ from fence.utils import get_valid_expiration_from_request, DEFAULT_BACKOFF_SETTI
 logger = get_logger(__name__)
 
 
+class GoogleUpdateException(Exception):
+    pass
+
+
 def bulk_update_google_groups(google_bulk_mapping):
     """
     Update Google Groups based on mapping provided from Group -> Users.
@@ -116,7 +120,7 @@ def bulk_update_google_groups(google_bulk_mapping):
                     google_update_failures = True
 
             if google_update_failures:
-                raise Exception(
+                raise GoogleUpdateException(
                     f"FAILED TO UPDATE GOOGLE GROUPS (see previous errors)."
                 )
 

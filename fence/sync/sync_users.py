@@ -39,6 +39,7 @@ from fence.models import (
 )
 from fence.resources.storage import StorageManager
 from fence.resources.google.access_utils import bulk_update_google_groups
+from fence.resources.google.access_utils import GoogleUpdateException
 from fence.sync import utils
 from fence.sync.passport_sync.ras_sync import RASVisa
 from fence.utils import get_SQLAlchemyDriver
@@ -1552,13 +1553,21 @@ class UserSyncer(object):
                 user_projects, user_yaml.project_to_resource
             )
 
-        # update the Fence DB
-        if user_projects:
-            self.logger.info("Sync to db and storage backend")
-            self.sync_to_db_and_storage_backend(user_projects, user_info, sess)
-            self.logger.info("Finish syncing to db and storage backend")
-        else:
-            self.logger.info("No users for syncing")
+        google_update_ex = None
+
+        try:
+            # update the Fence DB
+            if user_projects:
+                self.logger.info("Sync to db and storage backend")
+                self.sync_to_db_and_storage_backend(user_projects, user_info, sess)
+                self.logger.info("Finish syncing to db and storage backend")
+            else:
+                self.logger.info("No users for syncing")
+        except GoogleUpdateException as ex:
+            # save this to reraise later after all non-Google syncing has finished
+            # this way, any issues with Google only affect Google data access and don't
+            # cascade problems into non-Google AWS or Azure access
+            google_update_ex = ex
 
         # update the Arborist DB (resources, roles, policies, groups)
         if user_yaml.authz:
@@ -1601,6 +1610,8 @@ class UserSyncer(object):
             f"Persisting authz mapping to database: {user_yaml.project_to_resource}"
         )
         user_yaml.persist_project_to_resource(db_session=sess)
+        if google_update_ex is not None:
+            raise google_update_ex
 
     def _grant_all_consents_to_c999_users(
         self, user_projects, user_yaml_project_to_resources

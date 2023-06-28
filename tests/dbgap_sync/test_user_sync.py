@@ -5,10 +5,15 @@ import collections
 
 import asyncio
 import flask
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 import mock
 
 from fence import models
+from fence.resources.google import access_utils
+from fence.resources.google.access_utils import (
+    GoogleUpdateException,
+    bulk_update_google_groups,
+)
 from fence.sync.sync_users import _format_policy_id
 from fence.config import config
 from fence.job.visa_update_cronjob import Visa_Token_Update
@@ -416,6 +421,25 @@ def test_dbgap_consent_codes(
 
         assert "phs000179" in resource_to_parent_paths
         assert resource_to_parent_paths["phs000179"] == ["/orgA/programs/"]
+
+
+@pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
+def test_sync_with_google_errors(syncer, monkeypatch):
+    """
+    Verifies that errors from the bulk_update_google_groups method, specifically ones relating to Google APIs, do not
+    prevent arborist updates from occuring.
+    """
+    monkeypatch.setitem(config, "GOOGLE_BULK_UPDATES", True)
+    syncer._update_arborist = MagicMock()
+    syncer._update_authz_in_arborist = MagicMock()
+
+    with patch("fence.sync.sync_users.bulk_update_google_groups") as mock_bulk_update:
+        mock_bulk_update.side_effect = GoogleUpdateException("Something's Wrong!")
+        with pytest.raises(GoogleUpdateException):
+            syncer.sync()
+
+    syncer._update_arborist.assert_called()
+    syncer._update_authz_in_arborist.assert_called()
 
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
