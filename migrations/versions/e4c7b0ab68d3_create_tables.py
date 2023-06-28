@@ -14,10 +14,9 @@ import logging
 import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
-from userdatamodel.driver import SQLAlchemyDriver
-
 from bin.old_migration_script import migrate
 from fence.config import config
+from fence.utils import get_SQLAlchemyDriver
 
 # revision identifiers, used by Alembic.
 revision = "e4c7b0ab68d3"
@@ -37,13 +36,16 @@ def upgrade():
     # The state of the DB after the old migration script runs is the same as
     # after this initial Alembic migration.
     conn = op.get_bind()
-    inspector = sa.engine.reflection.Inspector.from_engine(conn)
+
+    # the below was previously: `sa.engine.reflection.Inspector.from_engine(conn)`
+    # but that is deprecated and will be removed soon.
+    inspector = sa.inspect(conn)
     tables = inspector.get_table_names()
     if len(tables) > 0 and tables != ["alembic_version"]:
         logger.info(
             "Found existing tables: this is not a new instance of Fence. Running the old migration script... Note that future migrations will be run using Alembic."
         )
-        driver = SQLAlchemyDriver(context.config.get_main_option("sqlalchemy.url"))
+        driver = get_SQLAlchemyDriver(context.config.get_main_option("sqlalchemy.url"))
         migrate(driver)
         return
     else:

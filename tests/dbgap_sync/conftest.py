@@ -12,7 +12,6 @@ from cdisutilstest.code.storage_client_mock import get_client, StorageClientMock
 import pytest
 from userdatamodel import Base
 from userdatamodel.models import *
-from userdatamodel.driver import SQLAlchemyDriver
 from gen3authz.client.arborist.client import ArboristClient
 
 from fence.config import config

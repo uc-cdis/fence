@@ -1,6 +1,6 @@
 from authlib.client import OAuth2Session
 from cached_property import cached_property
-from flask_sqlalchemy_session import current_session
+from flask import current_app
 from jose import jwt
 import requests
 import time
@@ -220,12 +220,11 @@ class Oauth2ClientBase(object):
 
         return token_response
 
-    def store_refresh_token(
-        self, user, refresh_token, expires, db_session=current_session
-    ):
+    def store_refresh_token(self, user, refresh_token, expires, db_session=None):
         """
         Store refresh token in db.
         """
+        db_session = db_session or current_app.scoped_session()
         user.upstream_refresh_tokens = []
         upstream_refresh_token = UpstreamRefreshToken(
             user=user,
