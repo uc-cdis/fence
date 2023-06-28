@@ -14,7 +14,6 @@ import sys
 
 from cdislogging import get_logger
 import flask
-from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.datastructures import ImmutableMultiDict
 
 from fence.models import Client, User, query_for_user
@@ -76,7 +75,7 @@ def create_client(
     client_id, client_secret, hashed_secret = generate_client_credentials(confidential)
     if arborist is not None:
         arborist.create_client(client_id, policies)
-    driver = SQLAlchemyDriver(DB)
+    driver = get_SQLAlchemyDriver(DB)
     auth_method = "client_secret_basic" if confidential else "none"
 
     allowed_scopes = allowed_scopes or config["CLIENT_ALLOWED_SCOPES"]
@@ -501,10 +500,20 @@ def get_from_cache(item_id, memory_cache, db_cache_table, db_cache_table_id_fiel
                 return rv
 
 
+def get_SQLAlchemyDriver(db_conn_url):
+    from userdatamodel.driver import SQLAlchemyDriver
+
+    # override userdatamodel's `setup_db` function which creates tables
+    # and runs database migrations, because Alembic handles that now.
+    # TODO move userdatamodel code to Fence and remove dependencies to it
+    SQLAlchemyDriver.setup_db = lambda _: None
+    return SQLAlchemyDriver(db_conn_url)
+
+
 # Default settings to control usage of backoff library.
 DEFAULT_BACKOFF_SETTINGS = {
     "on_backoff": log_backoff_retry,
     "on_giveup": log_backoff_giveup,
-    "max_tries": 3,
+    "max_tries": config["DEFAULT_BACKOFF_SETTINGS_MAX_TRIES"],
     "giveup": exception_do_not_retry,
 }

@@ -4,13 +4,14 @@ import tempfile
 from urllib.parse import urljoin
 import flask
 from flask_cors import CORS
-from flask_sqlalchemy_session import flask_scoped_session, current_session
+from sqlalchemy.orm import scoped_session
+from flask import _app_ctx_stack, current_app
+from werkzeug.local import LocalProxy
 
 from authutils.oauth2.client import OAuthClient
 from cdislogging import get_logger
 from gen3authz.client.arborist.client import ArboristClient
 from flask_wtf.csrf import validate_csrf
-from userdatamodel.driver import SQLAlchemyDriver
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
@@ -50,7 +51,7 @@ from fence.resources.openid.ras_oauth2 import RASOauth2Client
 from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
 from fence.error_handler import get_error_response
-from fence.utils import random_str
+from fence.utils import get_SQLAlchemyDriver
 import fence.blueprints.admin
 import fence.blueprints.data
 import fence.blueprints.login
@@ -107,14 +108,26 @@ def app_init(
 
 def app_sessions(app):
     app.url_map.strict_slashes = False
+    app.db = get_SQLAlchemyDriver(config["DB"])
 
-    # override userdatamodel's `setup_db` function which creates tables
-    # and runs database migrations, because Alembic handles that now.
-    # TODO move userdatamodel code to Fence and remove dependencies to it
-    SQLAlchemyDriver.setup_db = lambda _: None
-    app.db = SQLAlchemyDriver(config["DB"])
+    # app.db.Session is from SQLAlchemyDriver and uses
+    # SQLAlchemy's sessionmaker. Using scoped_session here ensures
+    # a thread-local db session is created. Effectively the below is expanded to:
+    #   app.scoped_session = scoped_session(
+    #       sessionmaker(
+    #            bind=sqlalchemy.create_engine(config["DB"]),
+    #            expire_on_commit=False,
+    #       )
+    #   )
+    #
+    # From the sqlalchemy docs: "The scoped_session object by default uses
+    # [Python's threading.local() construct] as
+    # storage, so that a single Session is maintained for all who call upon the
+    # scoped_session registry, but only within the scope of a single thread.
+    # Callers who call upon the registry in a different thread get a Session
+    # instance that is local to that other thread."
+    app.scoped_session = scoped_session(app.db.Session)
 
-    session = flask_scoped_session(app.db.Session, app)  # noqa
     app.session_interface = UserSessionInterface()
 
 
@@ -529,26 +542,13 @@ def _setup_prometheus(app):
         multiprocess,
         make_wsgi_app,
     )
-    from prometheus_flask_exporter import Counter
-    from prometheus_flask_exporter.multiprocess import (
-        UWsgiPrometheusMetrics,
-    )
 
     app.prometheus_registry = CollectorRegistry()
     multiprocess.MultiProcessCollector(app.prometheus_registry)
 
-    UWsgiPrometheusMetrics(app)
-
     # Add prometheus wsgi middleware to route /metrics requests
     app.wsgi_app = DispatcherMiddleware(
         app.wsgi_app, {"/metrics": make_wsgi_app(registry=app.prometheus_registry)}
-    )
-
-    # set up counters
-    app.prometheus_counters["pre_signed_url_req"] = Counter(
-        "pre_signed_url_req",
-        "tracking presigned url requests",
-        ["requested_protocol"],
     )
 
 
@@ -589,3 +589,12 @@ def check_csrf():
             logger.debug("HTTP REFERER " + str(referer))
         except Exception as e:
             raise UserError("CSRF verification failed: {}. Request aborted".format(e))
+
+
+@app.teardown_appcontext
+def remove_scoped_session(*args, **kwargs):
+    if hasattr(app, "scoped_session"):
+        try:
+            app.scoped_session.remove()
+        except Exception as exc:
+            logger.warning(f"could not remove app.scoped_session. Error: {exc}")

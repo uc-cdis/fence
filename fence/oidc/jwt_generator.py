@@ -1,5 +1,5 @@
 import flask
-from flask_sqlalchemy_session import current_session
+from flask import current_app
 
 from fence.jwt.token import (
     AuthFlowTypes,
@@ -78,8 +78,8 @@ def generate_implicit_response(
             }
     """
     # prevent those bothersome "not bound to session" errors
-    if user not in current_session:
-        user = current_session.query(User).filter_by(id=user.id).first()
+    if user not in current_app.scoped_session():
+        user = current_app.scoped_session().query(User).filter_by(id=user.id).first()
 
     if not user:
         raise OIDCError("user not authenticated")
@@ -169,8 +169,8 @@ def generate_token_response(
             }
     """
     # prevent those bothersome "not bound to session" errors
-    if user not in current_session:
-        user = current_session.query(User).filter_by(id=user.id).first()
+    if user not in current_app.scoped_session():
+        user = current_app.scoped_session().query(User).filter_by(id=user.id).first()
 
     if not user:
         # Find the ``User`` model.
@@ -183,7 +183,8 @@ def generate_token_response(
             else:
                 code = flask.request.form.get("code")
             user = (
-                current_session.query(AuthorizationCode)
+                current_app.scoped_session()
+                .query(AuthorizationCode)
                 .filter_by(code=code)
                 .first()
                 .user
@@ -191,7 +192,8 @@ def generate_token_response(
         if grant_type == "refresh_token":
             # For refresh token, the user ID is the ``sub`` field in the token.
             user = (
-                current_session.query(User)
+                current_app.scoped_session()
+                .query(User)
                 .filter_by(id=int(refresh_token_claims["sub"]))
                 .first()
             )

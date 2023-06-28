@@ -22,7 +22,9 @@ def patch_driver(db, monkeypatch):
     Change the database driver in ``fence.scripting.fence_create`` to use the
     one from the test fixtures.
     """
-    monkeypatch.setattr("fence.scripting.fence_create.SQLAlchemyDriver", lambda _: db)
+    monkeypatch.setattr(
+        "fence.scripting.fence_create.get_SQLAlchemyDriver", lambda _: db
+    )
 
 
 @pytest.fixture(scope="function")

@@ -1,5 +1,5 @@
 import flask
-from flask_sqlalchemy_session import current_session
+from flask import current_app
 
 from fence.auth import login_required, current_token
 from fence.errors import Unauthorized, UserError, NotFound
@@ -47,7 +47,7 @@ def update_user_info():
         additional_info["role"] = role
 
     #TODO make sure institution is present at all times at least for now
-    return flask.jsonify(update_user(current_session, additional_info))
+    return flask.jsonify(update_user(current_app.scoped_session(), additional_info))
 
 
 @blueprint.route("/anyaccess", methods=["GET"])
@@ -64,7 +64,7 @@ def any_access():
     project = flask.request.args.get("project")
     projects = None
     if flask.g.token is None:
-        flask.g.user = current_session.merge(flask.g.user)
+        flask.g.user = current_app.scoped_session().merge(flask.g.user)
         projects = flask.g.user.project_access
     else:
         projects = flask.g.token["context"]["user"]["projects"]
@@ -88,7 +88,7 @@ def any_access():
 @blueprint.route("/cert", methods=["GET"])
 @login_required({"user"})
 def missing_certificate():
-    flask.g.user = current_session.merge(flask.g.user)
+    flask.g.user = current_app.scoped_session().merge(flask.g.user)
     if not flask.g.user.application:
         return flask.jsonify(REQUIRED_CERTIFICATES)
     certificates = [c.name for c in flask.g.user.application.certificates_uploaded]
@@ -110,9 +110,10 @@ def upload_certificate(certificate):
 
     if not flask.g.user.application:
         flask.g.user.application = Application()
-        current_session.merge(flask.g.user)
+        current_app.scoped_session().merge(flask.g.user)
     cert = (
-        current_session.query(Certificate)
+        current_app.scoped_session()
+        .query(Certificate)
         .filter(Certificate.name == certificate)
         .filter(Certificate.application_id == flask.g.user.application.id)
         .first()
@@ -122,7 +123,7 @@ def upload_certificate(certificate):
     cert.application_id = flask.g.user.application.id
     cert.extension = extension
     cert.data = flask.request.data
-    current_session.merge(cert)
+    current_app.scoped_session().merge(cert)
 
     certificates = flask.g.user.application.certificates_uploaded
     if set(REQUIRED_CERTIFICATES.keys()).issubset(set(c.name for c in certificates)):
@@ -149,9 +150,10 @@ def upload_certificate(certificate):
 def download_certificate(certificate):
     if not flask.g.user.application:
         flask.g.user.application = Application()
-        current_session.merge(flask.g.user)
+        current_app.scoped_session().merge(flask.g.user)
     cert = (
-        current_session.query(Certificate)
+        current_app.scoped_session()
+        .query(Certificate)
         .filter(Certificate.name == certificate)
         .filter(Certificate.application_id == flask.g.user.application.id)
         .first()
@@ -180,8 +182,8 @@ def review_document():
     project_schema = DocumentSchema(many=True)
 
     ret = {}
-    ret["reviewed"] = project_schema.dump(user_review_document(current_session, documents))
-    ret["missing"] = project_schema.dump(get_doc_to_be_reviewed(current_session))
+    ret["reviewed"] = project_schema.dump(user_review_document(current_app.scoped_session(), documents))
+    ret["missing"] = project_schema.dump(get_doc_to_be_reviewed(current_app.scoped_session()))
 
     return flask.jsonify(ret)
 
@@ -192,13 +194,13 @@ def get_document():
     # Returns a list of documents that need to be reviewed and accepted
 
     project_schema = DocumentSchema(many=True)
-    return flask.jsonify(project_schema.dump(get_doc_to_be_reviewed(current_session)))
+    return flask.jsonify(project_schema.dump(get_doc_to_be_reviewed(current_app.scoped_session())))
 
 @blueprint.route("/documents/latest", methods=["GET"])
 def get_latest_document():
     # Returns the latest version for each document
 
     project_schema = DocumentSchema(many=True)
-    return flask.jsonify(project_schema.dump(get_up_to_date_doc(current_session)))
+    return flask.jsonify(project_schema.dump(get_up_to_date_doc(current_app.scoped_session())))
 
 
