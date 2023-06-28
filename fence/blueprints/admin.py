@@ -7,7 +7,6 @@ will maintain coherence between both systems.
 import functools
 
 from flask import request, jsonify, Blueprint, current_app
-from flask import current_app
 
 from gen3authz.client.arborist.client import ArboristClient
 from cdislogging import get_logger
@@ -94,9 +93,9 @@ def get_users():
         raise UserError("Wrong params, only one among `ids` and `usernames` should be set.")
 
     if usernames:
-        users = admin.get_users(current_session, usernames)
+        users = admin.get_users(current_app.scoped_session(), usernames)
     elif ids:
-        users = admin.get_users_by_id(current_session, ids)
+        users = admin.get_users_by_id(current_app.scoped_session(), ids)
     else:
         raise UserError("Wrong params, at least one among `ids` and `usernames` should be set.")
         
@@ -257,7 +256,7 @@ def toggle_admin():
     if user_id is None:
         raise UserError("There are some missing parameters in the payload.")
 
-    res = admin.toggle_admin(current_session, user_id)
+    res = admin.toggle_admin(current_app.scoped_session(), user_id)
     if res is None or len(res) < 1:
         raise InternalError(
             "Resource {} has not been created.".format(
@@ -300,7 +299,7 @@ def update_user_authz():
     # username = request.get_json().get("name", None)
     # role = request.get_json().get("role", None)
     # email = request.get_json().get("email", None)
-    # return jsonify(admin.create_user(current_session, username, role, email))
+    # return jsonify(admin.create_user(current_app.scoped_session(), username, role, email))
     return jsonify("test")
 
 
@@ -474,7 +473,7 @@ def add_policy_to_user():
         raise UserError("There are some missing parameters in the payload.")
 
     # Check if username is present in the DB and is a registered user
-    users = admin.get_users(current_session, [username])
+    users = admin.get_users(current_app.scoped_session(), [username])
     users = users["users"]
     if len(users) == 0:
         raise NotFound("User {} not found!".format(username))
@@ -549,7 +548,7 @@ def add_authz_all():
 
 
     # Check if username is present in the DB and is a registered user
-    users = admin.get_users(current_session, [username])
+    users = admin.get_users(current_app.scoped_session(), [username])
     if len(users) == 0:
         raise NotFound("User {} not found!".format(username))
     elif len(users) > 1:
@@ -640,7 +639,7 @@ def add_document():
     # TODO check input is in correct format
 
     document_schema = DocumentSchema()
-    return jsonify(document_schema.dump(admin.add_document(current_session, document_json)))
+    return jsonify(document_schema.dump(admin.add_document(current_app.scoped_session(), document_json)))
 
 
 @blueprint.route("/revoke_permission", methods=["POST"])

@@ -47,7 +47,7 @@ def update_user_info():
         additional_info["role"] = role
 
     #TODO make sure institution is present at all times at least for now
-    return flask.jsonify(update_user(current_session, additional_info))
+    return flask.jsonify(update_user(current_app.scoped_session(), additional_info))
 
 
 @blueprint.route("/anyaccess", methods=["GET"])
@@ -182,8 +182,8 @@ def review_document():
     project_schema = DocumentSchema(many=True)
 
     ret = {}
-    ret["reviewed"] = project_schema.dump(user_review_document(current_session, documents))
-    ret["missing"] = project_schema.dump(get_doc_to_be_reviewed(current_session))
+    ret["reviewed"] = project_schema.dump(user_review_document(current_app.scoped_session(), documents))
+    ret["missing"] = project_schema.dump(get_doc_to_be_reviewed(current_app.scoped_session()))
 
     return flask.jsonify(ret)
 
@@ -194,13 +194,13 @@ def get_document():
     # Returns a list of documents that need to be reviewed and accepted
 
     project_schema = DocumentSchema(many=True)
-    return flask.jsonify(project_schema.dump(get_doc_to_be_reviewed(current_session)))
+    return flask.jsonify(project_schema.dump(get_doc_to_be_reviewed(current_app.scoped_session())))
 
 @blueprint.route("/documents/latest", methods=["GET"])
 def get_latest_document():
     # Returns the latest version for each document
 
     project_schema = DocumentSchema(many=True)
-    return flask.jsonify(project_schema.dump(get_up_to_date_doc(current_session)))
+    return flask.jsonify(project_schema.dump(get_up_to_date_doc(current_app.scoped_session())))
 
 
