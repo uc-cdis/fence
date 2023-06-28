@@ -39,7 +39,7 @@ from fence.resources.google.utils import (
 )
 from fence.models import UserServiceAccount
 from fence.utils import get_valid_expiration_from_request
-from flask_sqlalchemy_session import current_session
+from flask import current_app
 
 
 class ValidationErrors(str, Enum):
@@ -218,7 +218,10 @@ class GoogleServiceAccountRoot(Resource):
             return error_response, 400
 
         sa_exists = (
-            current_session.query(UserServiceAccount).filter_by(email=sa.email).all()
+            current_app.scoped_session()
+            .query(UserServiceAccount)
+            .filter_by(email=sa.email)
+            .all()
         )
 
         if sa_exists:
@@ -261,17 +264,22 @@ class GoogleServiceAccountRoot(Resource):
             google_project_id=sa.google_project_id,
         )
 
-        current_session.add(db_service_account)
-        current_session.commit()
+        current_app.scoped_session().add(db_service_account)
+        current_app.scoped_session().commit()
 
         project_ids = get_project_ids_from_project_auth_ids(
-            current_session, sa.project_access
+            current_app.scoped_session(), sa.project_access
         )
 
-        add_user_service_account_to_db(current_session, project_ids, db_service_account)
+        add_user_service_account_to_db(
+            current_app.scoped_session(), project_ids, db_service_account
+        )
 
         add_user_service_account_to_google(
-            current_session, project_ids, sa.google_project_id, db_service_account
+            current_app.scoped_session(),
+            project_ids,
+            sa.google_project_id,
+            db_service_account,
         )
 
         return {
@@ -408,7 +416,10 @@ class GoogleServiceAccount(Resource):
         error_response = _get_service_account_error_status(sa)
 
         sa_exists = (
-            current_session.query(UserServiceAccount).filter_by(email=sa.email).all()
+            current_app.scoped_session()
+            .query(UserServiceAccount)
+            .filter_by(email=sa.email)
+            .all()
         )
 
         if sa_exists:

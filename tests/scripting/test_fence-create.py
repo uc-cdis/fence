@@ -8,12 +8,11 @@ import pytest
 import cirrus
 from cirrus.google_cloud.errors import GoogleAuthError
 from userdatamodel.models import Group
-from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.config import config
 from fence.errors import UserError
 from fence.jwt.validate import validate_jwt
-from fence.utils import create_client
+from fence.utils import create_client, get_SQLAlchemyDriver
 from fence.models import (
     AccessPrivilege,
     Project,
@@ -64,7 +63,7 @@ def mock_arborist(mock_arborist_requests):
 
 
 def delete_client_if_exists(db, client_name, username=None):
-    driver = SQLAlchemyDriver(db)
+    driver = get_SQLAlchemyDriver(db)
     with driver.session as session:
         clients = session.query(Client).filter_by(name=client_name).all()
         if clients:

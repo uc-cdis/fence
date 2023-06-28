@@ -2,8 +2,10 @@ import urllib.error
 import urllib.parse
 import urllib.request
 import json
-import flask 
 from configparser import RawConfigParser
+import flask
+from flask import current_app
+from datetime import datetime
 from functools import wraps
 from datetime import datetime
 
@@ -98,7 +100,7 @@ def login_user(
         flask.g.scopes = ["_all"]
         flask.g.token = None
 
-    user = query_for_user(session=current_session, username=username)
+    user = query_for_user(session=current_app.scoped_session(), username=username)
     if user:
         _update_users_email(user, email)
         _update_users_id_from_idp(user, id_from_idp)
@@ -123,7 +125,8 @@ def login_user(
 
     # setup idp connection for new user (or existing user w/o it setup)
     idp = (
-        current_session.query(IdentityProvider)
+        current_app.scoped_session()
+        .query(IdentityProvider)
         .filter(IdentityProvider.name == provider)
         .first()
     )
@@ -131,8 +134,8 @@ def login_user(
         idp = IdentityProvider(name=provider)
 
     user.identity_provider = idp
-    current_session.add(user)
-    current_session.commit()
+    current_app.scoped_session().add(user)
+    current_app.scoped_session().commit()
 
     set_flask_session_values(user)
 
@@ -248,7 +251,9 @@ def has_oauth(scope=None):
         raise Unauthorized("failed to validate token: {}".format(e))
     if "sub" in access_token_claims:
         user_id = access_token_claims["sub"]
-        user = current_session.query(User).filter_by(id=int(user_id)).first()
+        user = (
+            current_app.scoped_session().query(User).filter_by(id=int(user_id)).first()
+        )
         if not user:
             raise Unauthorized("no user found with id: {}".format(user_id))
         # set some application context for current user
@@ -260,7 +265,12 @@ def has_oauth(scope=None):
 
 
 def get_user_from_claims(claims):
-    return current_session.query(User).filter(User.id == claims["sub"]).first()
+    return (
+        current_app.scoped_session()
+        .query(User)
+        .filter(User.id == claims["sub"])
+        .first()
+    )
 
 
 def admin_required(f):
@@ -304,8 +314,8 @@ def _update_users_email(user, email):
         )
         user.email = email
 
-        current_session.add(user)
-        current_session.commit()
+        current_app.scoped_session().add(user)
+        current_app.scoped_session().commit()
 
 
 def _update_users_id_from_idp(user, id_from_idp):
@@ -318,8 +328,8 @@ def _update_users_id_from_idp(user, id_from_idp):
         )
         user.id_from_idp = id_from_idp
 
-        current_session.add(user)
-        current_session.commit()
+        current_app.scoped_session().add(user)
+        current_app.scoped_session().commit()
 
 
 def _update_users_last_auth(user):
@@ -331,5 +341,5 @@ def _update_users_last_auth(user):
     )
     user._last_auth = datetime.now()
 
-    current_session.add(user)
-    current_session.commit()
+    current_app.scoped_session().add(user)
+    current_app.scoped_session().commit()

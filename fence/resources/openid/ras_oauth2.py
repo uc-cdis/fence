@@ -8,7 +8,7 @@ import fence.resources.ga4gh.passports
 import fence.scripting.fence_create
 import fence.resources.ga4gh.passports
 
-from flask_sqlalchemy_session import current_session
+from flask import current_app
 from jose import jwt as jose_jwt
 
 from authutils.errors import JWTError
@@ -118,7 +118,6 @@ class RASOauth2Client(Oauth2ClientBase):
         )
 
     def get_user_id(self, code):
-
         err_msg = "Unable to parse UserID from RAS userinfo response"
 
         try:
@@ -216,7 +215,7 @@ class RASOauth2Client(Oauth2ClientBase):
                  username that was passed in in all cases except for the
                  exception noted above
         """
-        db_session = db_session or current_session
+        db_session = db_session or current_app.scoped_session()
         iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get(
             (issuer, subject_id)
         )
@@ -290,11 +289,12 @@ class RASOauth2Client(Oauth2ClientBase):
         return iss_sub_pair_to_user.user.username
 
     @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
-    def update_user_authorization(self, user, pkey_cache, db_session=current_session):
+    def update_user_authorization(self, user, pkey_cache, db_session=None):
         """
         Updates user's RAS refresh token and uses the new access token to retrieve new visas from
         RAS's /userinfo endpoint and update access
         """
+        db_session = db_session or current_app.scoped_session()
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
 

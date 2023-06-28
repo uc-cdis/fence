@@ -10,7 +10,7 @@ from fence.models import ClientAuthType
 from fence.config import config
 
 
-blueprint = flask.Blueprint(".well-known", __name__)
+blueprint = flask.Blueprint("well-known", __name__)
 
 
 @blueprint.route("/jwks", methods=["GET"])

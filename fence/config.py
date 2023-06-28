@@ -60,6 +60,17 @@ class FenceConfig(Config):
                 "Environment variable 'DB' empty or not set: using 'DB' field from config file"
             )
 
+        # allow setting INDEXD_PASSWORD via env var
+        if os.environ.get("INDEXD_PASSWORD"):
+            logger.info(
+                "Found environment variable 'INDEXD_PASSWORD': overriding 'INDEXD_PASSWORD' field from config file"
+            )
+            self["INDEXD_PASSWORD"] = os.environ["INDEXD_PASSWORD"]
+        else:
+            logger.debug(
+                "Environment variable 'INDEXD_PASSWORD' empty or not set: using 'INDEXD_PASSWORD' field from config file"
+            )
+
         if "ROOT_URL" not in self._configs and "BASE_URL" in self._configs:
             url = urllib.parse.urlparse(self._configs["BASE_URL"])
             self._configs["ROOT_URL"] = "{}://{}".format(url.scheme, url.netloc)

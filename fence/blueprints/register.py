@@ -5,7 +5,7 @@ in order to gain some predefined permissions.
 """
 
 import flask
-from flask_sqlalchemy_session import current_session
+from flask import current_app
 from flask_wtf import FlaskForm
 from wtforms import StringField
 from wtforms.validators import DataRequired, Email, StopValidation, ValidationError
@@ -109,8 +109,8 @@ def register_user():
     }
     combined_info.update(registration_info)
     flask.g.user.additional_info = combined_info
-    current_session.add(flask.g.user)
-    current_session.commit()
+    current_app.scoped_session().add(flask.g.user)
+    current_app.scoped_session().commit()
 
     with flask.current_app.arborist.context():
         # make sure the user exists in Arborist
