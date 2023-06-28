@@ -11,7 +11,7 @@ blueprint = flask.Blueprint("ga4gh", __name__)
 
 
 @blueprint.route(
-    "/drs/v1/objects/<path:object_id>/access",
+    "/drs/v1/objects/<path:object_id>/access/",
     defaults={"access_id": None},
     methods=["GET"],
 )
@@ -20,7 +20,6 @@ blueprint = flask.Blueprint("ga4gh", __name__)
     methods=["GET", "POST"],
 )
 def get_ga4gh_signed_url(object_id, access_id):
-
     if not access_id:
         raise UserError("Access ID/Protocol is required.")
 

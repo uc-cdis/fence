@@ -25,7 +25,6 @@ from gen3users.validation import validate_user_yaml
 from paramiko.proxy import ProxyCommand
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
-from userdatamodel.driver import SQLAlchemyDriver
 
 from fence.config import config
 from fence.models import (
@@ -43,6 +42,7 @@ from fence.resources.storage import StorageManager
 from fence.resources.google.access_utils import bulk_update_google_groups
 from fence.sync import utils
 from fence.sync.passport_sync.ras_sync import RASVisa
+from fence.utils import get_SQLAlchemyDriver
 
 
 def _format_policy_id(path, privilege):
@@ -338,7 +338,7 @@ class UserSyncer(object):
         self.dbGaP = dbGaP
         self.parse_consent_code = dbGaP[0].get("parse_consent_code", True)
         self.session = db_session
-        self.driver = SQLAlchemyDriver(DB)
+        self.driver = get_SQLAlchemyDriver(DB)
         self.project_mapping = project_mapping or {}
         self._projects = dict()
         self._created_roles = set()
@@ -400,15 +400,15 @@ class UserSyncer(object):
         Returns:
             bool: whether the pattern matches
         """
-        id_patterns.append("authentication_file_phs(\d{6}).(csv|txt)")
+        id_patterns.append(r"authentication_file_phs(\d{6}).(csv|txt)")
         for pattern in id_patterns:
-            pattern = r"{}".format(pattern)
             if encrypted:
-                pattern += ".enc"
-            pattern += "$"
-            pattern = pattern.encode().decode(
-                "unicode_escape"
-            )  # when converting the YAML from fence-config, python reads it as Python string literal. So "\" turns into "\\" which messes with the regex match
+                pattern += r".enc"
+            pattern += r"$"
+            # when converting the YAML from fence-config,
+            # python reads it as Python string literal. So "\" turns into "\\"
+            # which messes with the regex match
+            pattern.replace("\\\\", "\\")
             if re.match(pattern, os.path.basename(filepath)):
                 return True
         return False
@@ -529,7 +529,10 @@ class UserSyncer(object):
         dbgap_key = dbgap_config.get("decrypt_key", None)
 
         self.id_patterns += (
-            dbgap_config.get("allowed_whitelist_patterns", [])
+            [
+                item.replace("\\\\", "\\")
+                for item in dbgap_config.get("allowed_whitelist_patterns", [])
+            ]
             if dbgap_config.get("allow_non_dbGaP_whitelist", False)
             else []
         )
@@ -550,8 +553,7 @@ class UserSyncer(object):
         if "additional_allowed_project_id_patterns" in dbgap_config:
             patterns = dbgap_config.get("additional_allowed_project_id_patterns")
             patterns = [
-                r"{}".format(pattern.encode().decode("unicode_escape"))
-                for pattern in patterns
+                pattern.replace("\\\\", "\\") for pattern in patterns
             ]  # when converting the YAML from fence-config, python reads it as Python string literal. So "\" turns into "\\" which messes with the regex match
             project_id_patterns += patterns
 
@@ -1011,7 +1013,7 @@ class UserSyncer(object):
         Return:
             None
         """
-        for (username, project_auth_id) in to_delete:
+        for username, project_auth_id in to_delete:
             q = (
                 sess.query(AccessPrivilege)
                 .filter(AccessPrivilege.project.has(auth_id=project_auth_id))
@@ -1067,7 +1069,7 @@ class UserSyncer(object):
             None
         """
 
-        for (username, project_auth_id) in to_update:
+        for username, project_auth_id in to_update:
             q = (
                 sess.query(AccessPrivilege)
                 .filter(AccessPrivilege.project.has(auth_id=project_auth_id))
@@ -1094,7 +1096,7 @@ class UserSyncer(object):
         Return:
             None
         """
-        for (username, project_auth_id) in to_add:
+        for username, project_auth_id in to_add:
             u = query_for_user(session=sess, username=username)
 
             auth_provider = auth_provider_list[0]
@@ -1185,7 +1187,7 @@ class UserSyncer(object):
         Return:
             None
         """
-        for (username, project_auth_id) in to_delete:
+        for username, project_auth_id in to_delete:
             project = (
                 sess.query(Project).filter(Project.auth_id == project_auth_id).first()
             )
@@ -1229,7 +1231,7 @@ class UserSyncer(object):
         Return:
             None
         """
-        for (username, project_auth_id) in to_add:
+        for username, project_auth_id in to_add:
             project = self._projects[project_auth_id]
             for sa in project.storage_access:
                 access = list(user_project[username][project_auth_id])
@@ -1459,7 +1461,6 @@ class UserSyncer(object):
         dbgap_config,
         sess,
     ):
-
         for username in user_projects.keys():
             for project in user_projects[username].keys():
                 phsid = project.split(".")
@@ -2070,25 +2071,33 @@ class UserSyncer(object):
         if user_yaml:
             for client_name, client_details in user_yaml.clients.items():
                 client_policies = client_details.get("policies", [])
-                client = session.query(Client).filter_by(name=client_name).first()
+                clients = session.query(Client).filter_by(name=client_name).all()
                 # update existing clients, do not create new ones
-                if not client:
+                if not clients:
                     self.logger.warning(
                         "client to update (`{}`) does not exist in fence: skipping".format(
                             client_name
                         )
                     )
                     continue
-                try:
-                    self.arborist_client.update_client(
-                        client.client_id, client_policies
+                self.logger.debug(
+                    "updating client `{}` (found {} client IDs)".format(
+                        client_name, len(clients)
                     )
-                except ArboristError as e:
-                    self.logger.info(
-                        "not granting policies {} to client `{}`; {}".format(
-                            client_policies, client_name, str(e)
+                )
+                # there may be more than 1 client with this name if credentials are being rotated,
+                # so we grant access to each client ID
+                for client in clients:
+                    try:
+                        self.arborist_client.update_client(
+                            client.client_id, client_policies
                         )
-                    )
+                    except ArboristError as e:
+                        self.logger.info(
+                            "not granting policies {} to client `{}` (`{}`); {}".format(
+                                client_policies, client_name, client.client_id, str(e)
+                            )
+                        )
 
         return True
 

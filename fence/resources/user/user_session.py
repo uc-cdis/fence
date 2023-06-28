@@ -166,7 +166,7 @@ class UserSessionInterface(SessionInterface):
         super(UserSessionInterface, self).__init__()
 
     def open_session(self, app, request):
-        jwt = request.cookies.get(app.session_cookie_name)
+        jwt = request.cookies.get(app.config["SESSION_COOKIE_NAME"])
         session = UserSession(jwt)
 
         # NOTE: If we did the expiration check in save_session
@@ -190,7 +190,7 @@ class UserSessionInterface(SessionInterface):
         token = session.get_updated_token(app)
         if token:
             response.set_cookie(
-                app.session_cookie_name,
+                app.config["SESSION_COOKIE_NAME"],
                 token,
                 expires=self.get_expiration_time(app, session),
                 httponly=True,
@@ -250,7 +250,7 @@ class UserSessionInterface(SessionInterface):
             #       expiration it just won't be stored in the cookie
             #       anymore
             response.set_cookie(
-                app.session_cookie_name,
+                app.config["SESSION_COOKIE_NAME"],
                 expires=0,
                 httponly=True,
                 domain=domain,

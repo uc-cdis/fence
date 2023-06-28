@@ -489,6 +489,10 @@ INITIAL_DOCUMENTS: {}
 # In the absence of this OVERRIDE prefixed config, the legacy NGINX_RATE_LIMIT from the k8s deployment yaml is applied
 OVERRIDE_NGINX_RATE_LIMIT: 18
 
+# This is the maximum numbers of retries when exponentially backing off against an
+# error from an external API.
+DEFAULT_BACKOFF_SETTINGS_MAX_TRIES: 3
+
 # //////////////////////////////////////////////////////////////////////////////////////
 # SUPPORT INFO
 # //////////////////////////////////////////////////////////////////////////////////////
@@ -653,6 +657,14 @@ S3_BUCKETS: {}
 #     cred: 'CRED1'
 #     region: 'us-east-1'
 #     role-arn: 'arn:aws:iam::role1'
+GS_BUCKETS: {}
+# NOTE: Remove the {} and supply buckets if needed. Example in comments below
+#   bucket1:
+#     region: 'us-east-1'
+#   bucket2:
+#     region: 'us-east-1'
+#   bucket3:
+#     region: 'us-east-1'
 
 # Names of the S3 buckets to which data files can be uploaded. They should be
 # configured in `S3_BUCKETS`.
@@ -684,6 +696,7 @@ INDEXD: null
 # this is the username which fence uses to make authenticated requests to indexd
 INDEXD_USERNAME: 'fence'
 # this is the password which fence uses to make authenticated requests to indexd
+# can also be set via env var INDEXD_PASSWORD
 INDEXD_PASSWORD: ''
 
 # //////////////////////////////////////////////////////////////////////////////////////

@@ -12,7 +12,7 @@ from cdislogging import get_logger
 from cdispyutils.config import get_value
 from cdispyutils.hmac4 import generate_aws_presigned_url
 import flask
-from flask_sqlalchemy_session import current_session
+from flask import current_app
 import requests
 from azure.storage.blob import (
     BlobServiceClient,
@@ -77,7 +77,7 @@ def get_signed_url_for_file(
 ):
     requested_protocol = requested_protocol or flask.request.args.get("protocol", None)
     r_pays_project = flask.request.args.get("userProject", None)
-    db_session = db_session or current_session
+    db_session = db_session or current_app.scoped_session()
 
     # default to signing the url
     force_signed_url = True
@@ -155,11 +155,6 @@ def get_signed_url_for_file(
             "username": authorized_user_from_passport.username,
             "sub": authorized_user_from_passport.id,
         }
-
-    # increment counter for gen3-metrics
-    counter = flask.current_app.prometheus_counters.get("pre_signed_url_req")
-    if counter:
-        counter.labels(requested_protocol).inc()
 
     return {"url": signed_url}
 
@@ -425,6 +420,13 @@ class IndexedFile(object):
                         "indexd: {}".format(url + self.file_id)
                     )
                     raise InternalError("URLs and metadata not found")
+
+                # indexd can resolve GUIDs without prefix, but cannot perform other operations
+                # (such as delete) without the prefix, so make sure `file_id` is the whole GUID
+                real_guid = json_response.get("did")
+                if real_guid and real_guid != self.file_id:
+                    self.file_id = real_guid
+
                 return res.json()
             except Exception as e:
                 logger.error(
@@ -714,6 +716,7 @@ class IndexedFile(object):
         # it's possible that for some reason (something else modified the record in the
         # meantime) that the revision doesn't match, which would lead to error here
         if response.status_code != 200:
+            logger.error(f"Unable to delete indexd record '{self.file_id}': {response}")
             return (flask.jsonify(response.json()), 500)
         return ("", 204)
 
@@ -964,7 +967,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
         authorized_user=None,
         **kwargs,
     ):
-
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
@@ -1535,7 +1537,7 @@ def _get_auth_info_for_id_or_from_request(
              IT WILL ALWAYS GIVE YOU BACK ANONYMOUS USER INFO. Only use this
              after you've authorized the access to the data via other means.
     """
-    db_session = db_session or current_session
+    db_session = db_session or current_app.scoped_session()
 
     # set default "anonymous" user_id and username
     # this is fine b/c it might be public data or a client token that is not
