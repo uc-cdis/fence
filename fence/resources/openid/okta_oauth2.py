@@ -27,7 +27,7 @@ class OktaOauth2Client(Oauth2ClientBase):
 
         return uri
 
-    def get_user_id(self, code):
+    def get_auth_info(self, code):
         try:
             token_endpoint = self.get_value_from_discovery_doc(
                 "token_endpoint",
@@ -40,7 +40,11 @@ class OktaOauth2Client(Oauth2ClientBase):
             claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
 
             if claims.get("email"):
-                return {"email": claims["email"], "sub": claims.get("sub")}
+                return {
+                    "email": claims["email"],
+                    "sub": claims.get("sub"),
+                    "mfa": self.has_mfa_claim(claims),
+                }
             else:
                 return {"error": "Can't get user's email!"}
         except Exception as e:

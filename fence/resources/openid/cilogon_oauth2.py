@@ -31,7 +31,7 @@ class CilogonOauth2Client(Oauth2ClientBase):
 
         return uri
 
-    def get_user_id(self, code):
+    def get_auth_info(self, code):
         try:
             token_endpoint = self.get_value_from_discovery_doc(
                 "token_endpoint", "https://cilogon.org/oauth2/token"
@@ -42,7 +42,7 @@ class CilogonOauth2Client(Oauth2ClientBase):
             claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
 
             if claims.get("sub"):
-                return {"sub": claims["sub"]}
+                return {"sub": claims["sub"], "mfa": self.has_mfa_claim(claims)}
             else:
                 return {"error": "Can't get user's CILogon sub"}
         except Exception as e:

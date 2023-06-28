@@ -37,7 +37,7 @@ class CognitoOauth2Client(Oauth2ClientBase):
 
         return uri
 
-    def get_user_id(self, code):
+    def get_auth_info(self, code):
         """
         Exchange code for tokens, get email from id token claims.
         Return dict with "email" field on success OR "error" field on error.
@@ -53,7 +53,11 @@ class CognitoOauth2Client(Oauth2ClientBase):
                 claims.get("email_verified")
                 or self.settings.get("assume_emails_verified")
             ):
-                return {"email": claims["email"], "sub": claims.get("sub")}
+                return {
+                    "email": claims["email"],
+                    "sub": claims.get("sub"),
+                    "mfa": self.has_mfa_claim(claims),
+                }
             elif claims.get("email"):
                 return {"error": "Email is not verified"}
             else:

@@ -1868,6 +1868,35 @@ class UserSyncer(object):
 
         return True
 
+    def _revoke_all_policies_preserve_mfa(self, user):
+        """
+        If MFA is enabled for the user's idp, check if they have the /multifactor_auth resource and restore the
+        mfa_policy after revoking all policies.
+        """
+        has_revoked_policies = False
+        try:
+            username = user.username
+            idp = user.identity_provider.name if user.identity_provider else None
+
+            is_mfa_enabled = "multifactor_auth_claim_info" in config[
+                "OPENID_CONNECT"
+            ].get(idp, {})
+            if not is_mfa_enabled:
+                self.arborist_client.revoke_all_policies_for_user(username)
+                return
+
+            resources = self.arborist_client.list_resources_for_user(username)
+            # TODO This should be a diff, not a revocation of all policies.
+            self.arborist_client.revoke_all_policies_for_user(username)
+            has_revoked_policies = True
+            if "/multifactor_auth" in resources:
+                self.arborist_client.grant_user_policy(username, "mfa_policy")
+        except Exception as e:
+            self.logger.error(f"Error attempting to preserve MFA policy. {e}")
+            if not has_revoked_policies:
+                self.logger.error(f"Revoking all policies for user {user.username}")
+                self.arborist_client.revoke_all_policies_for_user(username)
+
     def _update_authz_in_arborist(
         self,
         session,

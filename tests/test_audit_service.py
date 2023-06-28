@@ -400,27 +400,27 @@ def test_login_log_login_endpoint(
     callback_endpoint = "login"
     idp_name = idp
     headers = {}
-    get_user_id_value = {}
+    get_auth_info_value = {}
     jwt_string = jwt.encode(
         {"iat": int(time.time())}, key=rsa_private_key, algorithm="RS256"
     )
 
     if idp == "synapse":
-        get_user_id_value = {
+        get_auth_info_value = {
             "fence_username": username,
             "sub": username,
             "given_name": username,
             "family_name": username,
         }
     elif idp == "orcid":
-        get_user_id_value = {"orcid": username}
+        get_auth_info_value = {"orcid": username}
     elif idp == "cilogon":
-        get_user_id_value = {"sub": username}
+        get_auth_info_value = {"sub": username}
     elif idp == "shib":
         headers["persistent_id"] = username
         idp_name = "itrust"
     elif idp == "okta":
-        get_user_id_value = {"okta": username}
+        get_auth_info_value = {"okta": username}
     elif idp == "fence":
         mocked_fetch_access_token = MagicMock(return_value={"id_token": jwt_string})
         patch(
@@ -434,7 +434,7 @@ def test_login_log_login_endpoint(
             f"fence.blueprints.login.fence_login.validate_jwt", mocked_validate_jwt
         ).start()
     elif idp == "ras":
-        get_user_id_value = {"username": username}
+        get_auth_info_value = {"username": username}
         callback_endpoint = "callback"
         # these should be populated by a /login/<idp> call that we're skipping:
         flask.g.userinfo = {"sub": "testSub123"}
@@ -444,20 +444,20 @@ def test_login_log_login_endpoint(
         }
         flask.g.encoded_visas = ""
     elif idp == "generic1":
-        get_user_id_value = {"generic1_username": username}
+        get_auth_info_value = {"generic1_username": username}
     elif idp == "generic2":
-        get_user_id_value = {"sub": username}
+        get_auth_info_value = {"sub": username}
 
     if idp in ["google", "microsoft", "okta", "synapse", "cognito"]:
-        get_user_id_value["email"] = username
+        get_auth_info_value["email"] = username
 
-    get_user_id_patch = None
-    if get_user_id_value:
-        mocked_get_user_id = MagicMock(return_value=get_user_id_value)
-        get_user_id_patch = patch(
-            f"flask.current_app.{idp}_client.get_user_id", mocked_get_user_id
+    get_auth_info_patch = None
+    if get_auth_info_value:
+        mocked_get_auth_info = MagicMock(return_value=get_auth_info_value)
+        get_auth_info_patch = patch(
+            f"flask.current_app.{idp}_client.get_auth_info", mocked_get_auth_info
         )
-        get_user_id_patch.start()
+        get_auth_info_patch.start()
 
     with audit_service_mocker as audit_service_requests:
         audit_service_requests.post.return_value = MockResponse(
@@ -481,8 +481,8 @@ def test_login_log_login_endpoint(
             },
         )
 
-    if get_user_id_patch:
-        get_user_id_patch.stop()
+    if get_auth_info_patch:
+        get_auth_info_patch.stop()
 
 
 ##########################
@@ -599,11 +599,11 @@ def test_login_log_push_to_sqs(
     mocked_sqs = mock_audit_service_sqs(app)
 
     username = "test@test"
-    mocked_get_user_id = MagicMock(return_value={"email": username})
-    get_user_id_patch = patch(
-        "flask.current_app.google_client.get_user_id", mocked_get_user_id
+    mocked_get_auth_info = MagicMock(return_value={"email": username})
+    get_auth_info_patch = patch(
+        "flask.current_app.google_client.get_auth_info", mocked_get_auth_info
     )
-    get_user_id_patch.start()
+    get_auth_info_patch.start()
 
     path = "/login/google/login"
     response = client.get(path)
@@ -611,4 +611,4 @@ def test_login_log_push_to_sqs(
     # not checking the parameters here because we can't json.dumps "sub: ANY"
     mocked_sqs.send_message.assert_called_once()
 
-    get_user_id_patch.stop()
+    get_auth_info_patch.stop()

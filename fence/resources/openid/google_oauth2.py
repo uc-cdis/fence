@@ -34,7 +34,7 @@ class GoogleOauth2Client(Oauth2ClientBase):
 
         return uri
 
-    def get_user_id(self, code):
+    def get_auth_info(self, code):
         """
         Get user id
         """
@@ -50,7 +50,11 @@ class GoogleOauth2Client(Oauth2ClientBase):
             claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
 
             if claims.get("email") and claims.get("email_verified"):
-                return {"email": claims["email"], "sub": claims.get("sub")}
+                return {
+                    "email": claims["email"],
+                    "sub": claims.get("sub"),
+                    "mfa": self.has_mfa_claim(claims),
+                }
             elif claims.get("email"):
                 return {"error": "Email is not verified"}
             else:
