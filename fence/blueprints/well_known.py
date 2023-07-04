@@ -86,7 +86,7 @@ def openid_configuration():
             "registration_endpoint": registration_endpoint,
             "jwks_uri": jwks_uri,
             "scopes_supported": scopes_supported,
-            "response_types_supported": ["openid", "code", "token"],
+            "response_types_supported": ["openid", "code", "token", "id_token token"],
             "response_modes_supported": [],
             "grant_types_supported": ["authorization_code", "implicit"],
             "subject_types_supported": subject_types_supported,
