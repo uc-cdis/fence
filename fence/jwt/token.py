@@ -186,6 +186,7 @@ def generate_signed_session_token(kid, private_key, expires_in, context=None):
         "jti": str(uuid.uuid4()),
         "context": context,
     }
+    claims.update(context.get("user", {}))
     logger.debug(f"issuing JWT session token: {claims}")
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     token = to_unicode(token, "UTF-8")
