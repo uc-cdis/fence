@@ -93,13 +93,14 @@ def test_sync(
     monkeypatch,
 ):
     # patch the sync to use the parameterized config value
-    monkeypatch.setitem(
-        syncer.dbGaP[0], "parse_consent_code", parse_consent_code_config
-    )
-    monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
+    for dbgap_config in syncer.dbGaP:
+        monkeypatch.setitem(
+            dbgap_config, "parse_consent_code", parse_consent_code_config
+        )
     monkeypatch.setitem(
         syncer.dbGaP[2], "allow_non_dbGaP_whitelist", allow_non_dbgap_whitelist
     )
+
     if parent_to_child_studies_mapping:
         mapping = {
             "phs001179": ["phs000179", "phs000178"],
@@ -334,10 +335,10 @@ def test_dbgap_consent_codes(
         "enable_common_exchange_area_access",
         enable_common_exchange_area,
     )
-    monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
-    monkeypatch.setitem(
-        syncer.dbGaP[0], "parse_consent_code", parse_consent_code_config
-    )
+    for dbgap_config in syncer.dbGaP:
+        monkeypatch.setitem(
+            dbgap_config, "parse_consent_code", parse_consent_code_config
+        )
 
     monkeypatch.setattr(syncer, "project_mapping", {})
 
