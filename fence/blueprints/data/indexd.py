@@ -304,7 +304,7 @@ class BlankIndex(object):
         return url
 
     @staticmethod
-    def init_multipart_upload(key, expires_in=None):
+    def init_multipart_upload(key, expires_in=None, bucket=None):
         """
         Initilize multipart upload given key
 
@@ -314,12 +314,13 @@ class BlankIndex(object):
         Returns:
             uploadId(str)
         """
-        try:
-            bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
-        except KeyError:
-            raise InternalError(
-                "fence not configured with data upload bucket; can't create signed URL"
-            )
+        if bucket is None:
+            try:
+                bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
+            except KeyError:
+                raise InternalError(
+                    "fence not configured with data upload bucket; can't create signed URL"
+                )
         s3_url = "s3://{}/{}".format(bucket, key)
         return S3IndexedFileLocation(s3_url).init_multipart_upload(expires_in)
 
@@ -362,6 +363,7 @@ class BlankIndex(object):
             presigned_url(str)
         """
         try:
+            # TODO change here to add custom bucket
             bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
         except KeyError:
             raise InternalError(
@@ -1033,12 +1035,15 @@ class S3IndexedFileLocation(IndexedFileLocation):
         Returns:
             UploadId(str)
         """
+        # TODO pass bucket info here
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
         credentials = S3IndexedFileLocation.get_credential_to_access_bucket(
             self.bucket_name(), aws_creds, expires_in
         )
+
+        # TODO from bucket param or self.parsed_url here
 
         return multipart_upload.initilize_multipart_upload(
             self.parsed_url.netloc, self.parsed_url.path.strip("/"), credentials
