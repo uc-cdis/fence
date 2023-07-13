@@ -1,7 +1,7 @@
 # To run: docker run --rm -d -v /path/to/fence-config.yaml:/var/www/fence/fence-config.yaml --name=fence -p 80:80 fence
 # To check running container do: docker exec -it fence /bin/bash
 
-FROM quay.io/cdis/python:python3.9-buster-2.0.0
+FROM quay.io/cdis/python:python3.9-buster-feat_headers-size
 
 ENV appname=fence
 
