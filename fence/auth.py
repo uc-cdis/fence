@@ -16,7 +16,6 @@ from authutils.token.validate import (
     set_current_token, 
     validate_request
 )
-from flask_sqlalchemy_session import current_session
 from fence.config import config
 from fence.errors import InternalError, Unauthorized
 from fence.jwt.validate import validate_jwt
