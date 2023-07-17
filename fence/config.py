@@ -147,9 +147,13 @@ class FenceConfig(Config):
 
     @staticmethod
     def _validate_parent_child_studies(dbgap_configs):
+        if isinstance(dbgap_configs, list):
+            configs = dbgap_configs
+        else:
+            configs = [dbgap_configs]
+
         all_parent_studies = set()
-        logger.info(dbgap_configs)
-        for dbgap_config in dbgap_configs:
+        for dbgap_config in configs:
             parent_studies = dbgap_config.get(
                 "parent_to_child_studies_mapping", {}
             ).keys()
