@@ -350,7 +350,9 @@ class BlankIndex(object):
         )
 
     @staticmethod
-    def generate_aws_presigned_url_for_part(key, uploadId, partNumber, expires_in):
+    def generate_aws_presigned_url_for_part(
+        key, uploadId, partNumber, expires_in, bucket=None
+    ):
         """
         Generate presigned url for each part
 
@@ -364,7 +366,7 @@ class BlankIndex(object):
         """
         try:
             # TODO change here to add custom bucket
-            bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
+            bucket = bucket or flask.current_app.config["DATA_UPLOAD_BUCKET"]
         except KeyError:
             raise InternalError(
                 "fence not configured with data upload bucket; can't create signed URL"

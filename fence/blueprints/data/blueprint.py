@@ -270,6 +270,17 @@ def generate_multipart_upload_presigned_url():
         default=default_expires_in,
     )
 
+    bucket = params.get("bucket", None)
+    if bucket:
+        s3_buckets = get_value(
+            flask.current_app.config,
+            "ALLOWED_DATA_UPLOAD_BUCKETS",
+            InternalError("ALLOWED_DATA_UPLOAD_BUCKETS not configured"),
+        )
+        if bucket not in s3_buckets:
+            logger.debug(f"Bucket '{bucket}' not in ALLOWED_DATA_UPLOAD_BUCKETS config")
+            raise Forbidden(f"Uploading to bucket '{bucket}' is not allowed")
+
     # TODO add bucket param here
     response = {
         "presigned_url": BlankIndex.generate_aws_presigned_url_for_part(
@@ -277,6 +288,7 @@ def generate_multipart_upload_presigned_url():
             params["uploadId"],
             params["partNumber"],
             expires_in=expires_in,
+            bucket=bucket,
         )
     }
     return flask.jsonify(response), 200
