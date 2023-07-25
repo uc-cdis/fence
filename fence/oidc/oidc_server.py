@@ -1,5 +1,5 @@
 from authlib.common.urls import urlparse, url_decode
-from authlib.flask.oauth2 import AuthorizationServer
+from authlib.integrations.flask_oauth2 import AuthorizationServer
 from authlib.oauth2.rfc6749.authenticate_client import (
     ClientAuthentication as AuthlibClientAuthentication,
 )

@@ -9,7 +9,10 @@ database migrations.
 
 from enum import Enum
 
-from authlib.flask.oauth2.sqla import OAuth2AuthorizationCodeMixin, OAuth2ClientMixin
+from authlib.integrations.sqla_oauth2 import (
+    OAuth2AuthorizationCodeMixin,
+    OAuth2ClientMixin,
+)
 import bcrypt
 from datetime import datetime, timedelta
 import flask
@@ -185,7 +188,6 @@ class GrantType(Enum):
 
 
 class Client(Base, OAuth2ClientMixin):
-
     __tablename__ = "client"
 
     client_id = Column(String(40), primary_key=True)
@@ -351,7 +353,6 @@ class Client(Base, OAuth2ClientMixin):
 
 
 class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):
-
     __tablename__ = "authorization_code"
 
     id = Column(Integer, primary_key=True)
@@ -683,7 +684,6 @@ class GA4GHPassportCache(Base):
 
 
 class GA4GHVisaV1(Base):
-
     __tablename__ = "ga4gh_visa_v1"
 
     # As Fence will consume visas from many visa issuers, will not use jti as pkey

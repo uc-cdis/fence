@@ -1,5 +1,5 @@
 from authlib.common.security import generate_token
-from authlib.oidc.core import grants
+from authlib.oauth2.rfc6749 import grants
 from authlib.oidc.core.errors import (
     AccountSelectionRequiredError,
     ConsentRequiredError,
@@ -12,8 +12,7 @@ from fence.config import config
 from fence.models import AuthorizationCode, ClientAuthType, User
 
 
-class OpenIDCodeGrant(grants.OpenIDCodeGrant):
-
+class OpenIDCodeGrant(grants.BaseGrant):
     TOKEN_ENDPOINT_AUTH_METHODS = [auth_type.value for auth_type in ClientAuthType]
 
     def __init__(self, *args, **kwargs):
