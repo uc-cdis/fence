@@ -532,6 +532,25 @@ dbGaP:
     #
     # NOTE: when this is "false" the above would become "phs000123"
     parse_consent_code: true
+    # When a dbGaP study authorizes access to child studies through a parent study ID,
+    # you can use this mapping. When a user gets access to the first ID, they automatically
+    # get access to the list of projects to the right.
+    #
+    # There's usually a note in the "Authorized Access" section of the dbGaP study page
+    # (https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/study.cgi?study_id=phs001843.v1.p2)
+    # along the lines of:
+    # Note: The data for this study is collected as a substudy of
+    #       phs001194.v3.p2. dbGaP Authorized Access requests for
+    #       this data should be made for study phs001194.v3.p2 and
+    #       not phs001843.v1.p2
+    #
+    # There are also other dbGaP APIs that expose this parent/child mapping.
+    # Example: https://dbgap.ncbi.nlm.nih.gov/ss/dbgapssws.cgi?request=Study&phs=000571&v=6
+    #
+    # If `parse_consent_code` is true, then a user will be given access to the exact
+    # same consent codes in the child studies
+    parent_to_child_studies_mapping:
+      # 'phs001194': ['phs000571', 'phs001843']
     # A consent of "c999" can indicate access to that study's "exchange area data"
     # and when a user has access to one study's exchange area data, they
     # have access to the parent study's "common exchange area data" that is not study
