@@ -1,5 +1,5 @@
 from authlib.common.urls import urlparse, url_decode
-from authlib.flask.oauth2 import AuthorizationServer
+from authlib.integrations.flask_oauth2 import AuthorizationServer
 from authlib.oauth2.rfc6749.authenticate_client import (
     ClientAuthentication as AuthlibClientAuthentication,
 )
@@ -53,6 +53,6 @@ class OIDCServer(AuthorizationServer):
             self.save_token = save_token
         self.app = app
         self.generate_token = generate_token
-        self.init_jwt_config(app)
+        # self.init_jwt_config(app)
         if getattr(self, "query_client"):
             self.authenticate_client = ClientAuthentication(query_client)

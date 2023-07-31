@@ -120,6 +120,7 @@ OPENID_CONNECT:
     client_secret: ''
     redirect_url: ''
   fence:
+    name: 'fence IDP'
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/fence/login'

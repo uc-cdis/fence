@@ -9,7 +9,11 @@ database migrations.
 
 from enum import Enum
 
-from authlib.flask.oauth2.sqla import OAuth2AuthorizationCodeMixin, OAuth2ClientMixin
+from authlib.integrations.sqla_oauth2 import (
+    OAuth2AuthorizationCodeMixin,
+    OAuth2ClientMixin,
+)
+
 import bcrypt
 from datetime import datetime, timedelta
 import flask
@@ -213,7 +217,7 @@ class Client(Base, OAuth2ClientMixin):
 
     # NOTE: DEPRECATED
     # Client now uses `redirect_uri` column, from authlib client model
-    _redirect_uris = Column(Text)
+    redirect_uris = Column(Text)
 
     _allowed_scopes = Column(Text, nullable=False, default="")
 
@@ -221,6 +225,8 @@ class Client(Base, OAuth2ClientMixin):
     _scopes = ["compute", "storage", "user"]
 
     expires_at = Column(Integer, nullable=False, default=0)
+
+    grant_types = Column(Text)
 
     # note that authlib adds a response_type column which is not used here
 
@@ -238,19 +244,19 @@ class Client(Base, OAuth2ClientMixin):
         if "redirect_uris" in kwargs:
             redirect_uris = kwargs.pop("redirect_uris")
             if isinstance(redirect_uris, list):
-                kwargs["redirect_uri"] = "\n".join(redirect_uris)
+                kwargs["redirect_uris"] = "\n".join(redirect_uris)
             else:
-                kwargs["redirect_uri"] = redirect_uris
+                kwargs["redirect_uris"] = redirect_uris
         # default grant types to allow for auth code flow and resfreshing
         grant_types = kwargs.pop("grant_types", None) or [
             GrantType.code.value,
             GrantType.refresh.value,
         ]
         if isinstance(grant_types, list):
-            kwargs["grant_type"] = "\n".join(grant_types)
+            kwargs["grant_types"] = "\n".join(grant_types)
         else:
             # assume it's already in correct format
-            kwargs["grant_type"] = grant_types
+            kwargs["grant_types"] = grant_types
 
         supported_grant_types = [
             "authorization_code",
@@ -260,19 +266,19 @@ class Client(Base, OAuth2ClientMixin):
         ]
         assert all(
             grant_type in supported_grant_types
-            for grant_type in kwargs["grant_type"].split("\n")
+            for grant_type in kwargs["grant_types"].split("\n")
         ), f"Grant types '{kwargs['grant_type']}' are not in supported types {supported_grant_types}"
 
-        if "authorization_code" in kwargs["grant_type"].split("\n"):
+        if "authorization_code" in kwargs["grant_types"].split("\n"):
             assert kwargs.get("user") or kwargs.get(
                 "user_id"
             ), "A username is required for the 'authorization_code' grant"
             assert kwargs.get(
-                "redirect_uri"
+                "redirect_uris"
             ), "Redirect URL(s) are required for the 'authorization_code' grant"
 
         expires_at = get_client_expires_at(
-            expires_in=expires_in, grant_types=kwargs["grant_type"]
+            expires_in=expires_in, grant_types=kwargs["grant_types"]
         )
         if expires_at:
             kwargs["expires_at"] = expires_at

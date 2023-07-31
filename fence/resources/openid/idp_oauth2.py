@@ -1,4 +1,4 @@
-from authlib.client import OAuth2Session
+from authlib.integrations.requests_client import OAuth2Session
 from cached_property import cached_property
 from flask import current_app
 from jose import jwt

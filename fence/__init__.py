@@ -481,7 +481,10 @@ def _setup_oidc_clients(app):
                 logger=logger,
             )
         elif idp == "fence":
-            app.fence_client = OAuthClient(**settings)
+            # https://docs.authlib.org/en/latest/client/flask.html#flask-client
+            app.fence_client = OAuthClient(app)
+            # https://docs.authlib.org/en/latest/client/frameworks.html
+            app.fence_client.register(**settings)
         else:  # generic OIDC implementation
             client = Oauth2ClientBase(
                 settings=settings,

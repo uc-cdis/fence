@@ -135,6 +135,9 @@ OPENID_CONNECT:
   # If this fence instance is a client of another fence, fill this cfg out.
   # REMOVE if not needed
   fence:
+    # Custom name to display for consent screens. If not provided, will use `fence`.
+    # If the other fence is using NIH Login, you should make name: `NIH Login`
+    name: ''
     # this api_base_url should be the root url for the OTHER fence
     # something like: https://example.com
     api_base_url: ''
@@ -152,9 +155,6 @@ OPENID_CONNECT:
     authorize_url: '{{api_base_url}}/oauth2/authorize'
     access_token_url: '{{api_base_url}}/oauth2/token'
     refresh_token_url: '{{api_base_url}}/oauth2/token'
-    # Custom name to display for consent screens. If not provided, will use `fence`.
-    # If the other fence is using NIH Login, you should make name: `NIH Login`
-    name: ''
     # if mock is true, will fake a successful login response for login
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
