@@ -2002,8 +2002,7 @@ class UserSyncer(object):
 
             self.arborist_client.create_user_if_not_exist(username)
             if not single_user_sync:
-                # TODO make this smarter - it should do a diff, not revoke all and add
-                self.arborist_client.revoke_all_policies_for_user(username)
+                self._revoke_all_policies_preserve_mfa(user)
 
             # as of 2/11/2022, for single_user_sync, as RAS visa parsing has
             # previously mapped each project to the same set of privileges
