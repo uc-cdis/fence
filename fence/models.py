@@ -14,6 +14,8 @@ from authlib.integrations.sqla_oauth2 import (
     OAuth2ClientMixin,
 )
 
+import time
+import json
 import bcrypt
 from datetime import datetime, timedelta
 import flask
@@ -217,7 +219,7 @@ class Client(Base, OAuth2ClientMixin):
 
     # NOTE: DEPRECATED
     # Client now uses `redirect_uri` column, from authlib client model
-    redirect_uris = Column(Text)
+    _redirect_uris = Column(Text)
 
     _allowed_scopes = Column(Text, nullable=False, default="")
 
@@ -226,8 +228,6 @@ class Client(Base, OAuth2ClientMixin):
 
     expires_at = Column(Integer, nullable=False, default=0)
 
-    grant_types = Column(Text)
-
     # note that authlib adds a response_type column which is not used here
 
     def __init__(self, client_id, expires_in=0, **kwargs):
@@ -235,28 +235,37 @@ class Client(Base, OAuth2ClientMixin):
         NOTE that for authlib, the client must have an attribute ``redirect_uri`` which
         is a newline-delimited list of valid redirect URIs.
         """
+        # New Json object for Authlib Oauth client
+        client_metadata = {}
+
         if "allowed_scopes" in kwargs:
             allowed_scopes = kwargs.pop("allowed_scopes")
             if isinstance(allowed_scopes, list):
                 kwargs["_allowed_scopes"] = " ".join(allowed_scopes)
             else:
                 kwargs["_allowed_scopes"] = allowed_scopes
+            client_metadata["scope"] = kwargs["_allowed_scopes"]
+
+        # redirect uri is now part of authlibs client_metadata
         if "redirect_uris" in kwargs:
             redirect_uris = kwargs.pop("redirect_uris")
             if isinstance(redirect_uris, list):
-                kwargs["redirect_uris"] = "\n".join(redirect_uris)
+                # redirect_uris is now part of the json object
+                client_metadata["redirect_uris"] = "\n".join(redirect_uris)
             else:
-                kwargs["redirect_uris"] = redirect_uris
+                client_metadata["redirect_uris"] = redirect_uris
+
         # default grant types to allow for auth code flow and resfreshing
         grant_types = kwargs.pop("grant_types", None) or [
             GrantType.code.value,
             GrantType.refresh.value,
         ]
+        # grant types is now part of authlibs client_metadata
         if isinstance(grant_types, list):
-            kwargs["grant_types"] = "\n".join(grant_types)
+            client_metadata["grant_types"] = "\n".join(grant_types)
         else:
             # assume it's already in correct format
-            kwargs["grant_types"] = grant_types
+            client_metadata["grant_types"] = grant_types
 
         supported_grant_types = [
             "authorization_code",
@@ -266,28 +275,49 @@ class Client(Base, OAuth2ClientMixin):
         ]
         assert all(
             grant_type in supported_grant_types
-            for grant_type in kwargs["grant_types"].split("\n")
-        ), f"Grant types '{kwargs['grant_type']}' are not in supported types {supported_grant_types}"
+            for grant_type in client_metadata["grant_types"].split("\n")
+        ), f"Grant types '{client_metadata['grant_types']}' are not in supported types {supported_grant_types}"
 
-        if "authorization_code" in kwargs["grant_types"].split("\n"):
+        if "authorization_code" in client_metadata["grant_types"].split("\n"):
             assert kwargs.get("user") or kwargs.get(
                 "user_id"
             ), "A username is required for the 'authorization_code' grant"
-            assert kwargs.get(
+            assert client_metadata.get(
                 "redirect_uris"
             ), "Redirect URL(s) are required for the 'authorization_code' grant"
 
+        # response_types is now part of authlib's client_metadata
+        response_types = kwargs.pop("response_types", None)
+        if isinstance(response_types, list):
+            client_metadata["response_types"] = "\n".join(response_types)
+        else:
+            # assume it's already in correct format
+            client_metadata["response_types"] = response_types
+
+        # scope is now part of authlib's client_metadata
+        scope = kwargs.pop("scope", None)
+        if isinstance(response_types, list):
+            client_metadata["scope"] = "\n".join(scope)
+        else:
+            # assume it's already in correct format
+            client_metadata["scope"] = scope
+
         expires_at = get_client_expires_at(
-            expires_in=expires_in, grant_types=kwargs["grant_types"]
+            expires_in=expires_in, grant_types=client_metadata["grant_types"]
         )
         if expires_at:
             kwargs["expires_at"] = expires_at
+
+        if "client_id_issued_at" not in kwargs or kwargs["client_id_issued_at"] is None:
+            kwargs["client_id_issued_at"] = int(time.time())
+
+        kwargs["_client_metadata"] = json.dumps(client_metadata)
 
         super(Client, self).__init__(client_id=client_id, **kwargs)
 
     @property
     def allowed_scopes(self):
-        return self._allowed_scopes.split(" ")
+        return self.scope.split(" ")
 
     @property
     def client_type(self):
@@ -344,7 +374,7 @@ class Client(Base, OAuth2ClientMixin):
 
     def validate_scopes(self, scopes):
         scopes = scopes[0].split(",")
-        return all(scope in self._scopes for scope in scopes)
+        return all(scope in self.scope for scope in scopes)
 
     def check_response_type(self, response_type):
         allowed_response_types = []
