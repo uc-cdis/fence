@@ -1,0 +1,3 @@
+user name, login, authority, role, email, phone, status, phsid, permission set, created, updated, expires, downloader for
+USER KYLE,TESTPARENTAUTHZ,eRA,PI,kyle@com,"123-456-789",active,phs001179.v9.p8.c1,"General Research Use",2013-03-19 12:32:12.600,2015-05-14 16:01:16.923,2016-05-14 00:00:00.000,
+USER KYLE2,TESTPARENTAUTHZ999,eRA,PI,kyle@com,"123-456-789",active,phs001179.v9.p8.c999,"General Research Use",2013-03-19 12:32:12.600,2015-05-14 16:01:16.923,2016-05-14 00:00:00.000,
