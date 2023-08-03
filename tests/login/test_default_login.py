@@ -4,6 +4,8 @@ from fence.config import config
 
 
 def test_default_login(app, client):
+    # TODO this is returning 500
+    # See fence/blueprints/login/__init__.py L397
     response_json = client.get("/login").json
     assert "default_provider" in response_json
     response_default = response_json["default_provider"]

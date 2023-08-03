@@ -379,6 +379,8 @@ def upgrade():
         sa.PrimaryKeyConstraint("id"),
         sa.UniqueConstraint("code"),
     )
+    # TODO revert the changes made here, informational only, need actual alembic migration,
+    # this change also breaks migration unit test
     op.create_table(
         "client",
         sa.Column("client_id_issued_at", sa.Integer(), nullable=False),

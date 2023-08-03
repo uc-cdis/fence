@@ -88,6 +88,9 @@ class FenceCallback(DefaultOAuth2Callback):
                 " login page for the original application to continue."
             )
         # Get the token response and log in the user.
+        # TODO: fence_client <authlib.integrations.flask_client.OAuth> no longer has _get_session(), need to get redirect_uri from elsewhere
+        # This has to do with how authutils implement OAuth Client
+        # Look at https://github.com/uc-cdis/authutils/tree/feat/authlib
         redirect_uri = flask.current_app.fence_client._get_session().redirect_uri
         tokens = flask.current_app.fence_client.fetch_access_token(
             redirect_uri, **flask.request.args.to_dict()

@@ -12,6 +12,13 @@ def test_google_id_token_not_linked(oauth_test_client):
     Test google email and link expiration are in id_token for a linked account
     """
     data = {"confirm": "yes"}
+    # TODO this line is current failing with 500 status code
+    # See fence/oidc/oidc_server.py, it inherits from authlib.integrations.flask_oauth2.authorization_server.py
+    # which no longer has the validate_consent_request function, need to get grant object elsewhere or rework the flow
+    # official doc: https://docs.authlib.org/en/latest/client/flask.html
+    # This function's parameter signature looks similar but return type is wrong.
+    # https://github.com/lepture/authlib/blob/90ac7dd9876b5163eac407f4f51b9491be0759b6/authlib/oauth2/rfc6749/authorization_server.py#L241
+
     oauth_test_client.authorize(data=data)
     tokens = oauth_test_client.token()
     id_token = jwt.decode(
