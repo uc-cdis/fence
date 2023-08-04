@@ -244,7 +244,7 @@ class Oauth2ClientBase(object):
                 f"config yaml."
             )
             return False
-        mfa_claims = decoded_id_token.get(claim_name).split(" ")
+        mfa_claims = decoded_id_token.get(claim_name, "").split(" ")
         self.logger.info(
             f"Comparing token's {claim_name} claims: {mfa_claims} to mfa values {mfa_values}"
         )
