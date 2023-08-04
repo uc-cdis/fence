@@ -14,14 +14,14 @@ files = [
 
 [[package]]
 name = "alembic"
-version = "1.11.1"
+version = "1.11.2"
 description = "A database migration tool for SQLAlchemy."
 category = "main"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "alembic-1.11.1-py3-none-any.whl", hash = "sha256:dc871798a601fab38332e38d6ddb38d5e734f60034baeb8e2db5b642fccd8ab8"},
-    {file = "alembic-1.11.1.tar.gz", hash = "sha256:6a810a6b012c88b33458fceb869aef09ac75d6ace5291915ba7fae44de372c01"},
+    {file = "alembic-1.11.2-py3-none-any.whl", hash = "sha256:7981ab0c4fad4fe1be0cf183aae17689fe394ff874fd2464adb774396faf0796"},
+    {file = "alembic-1.11.2.tar.gz", hash = "sha256:678f662130dc540dac12de0ea73de9f89caea9dbea138f60ef6263149bf84657"},
 ]
 
 [package.dependencies]
@@ -116,8 +116,8 @@ requests = "*"
 [package.source]
 type = "git"
 url = "https://github.com/uc-cdis/authlib"
-reference = "v0.11_fix/CVE-2022-39175_v1"
-resolved_reference = "e51048ad01fadd5b19578209f7ff23083360ebaa"
+reference = "v0.11_CVE_patch_v1"
+resolved_reference = "80345f2877ec2a1a29468aa465c07623347c3ef6"
 
 [[package]]
 name = "authutils"
@@ -2403,7 +2403,7 @@ sqlcipher = ["sqlcipher3-binary"]
 [[package]]
 name = "storageclient"
 version = "0.1.0"
-description = "Python client to interact with ceph/cleversafe backend"
+description = ""
 category = "main"
 optional = false
 python-versions = "*"
@@ -2665,4 +2665,4 @@ testing = ["big-O", "jaraco.functools", "jaraco.itertools", "more-itertools", "p
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<4.0.0"
-content-hash = "26fc3f667debab22067efc09ffede10f05e3996aab24f2d5aee4f73e79e1fcae"
+content-hash = "51de5ee8af009da748bd7304d5266648018eb755a9644cad295c053b7b250344"

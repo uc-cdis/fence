@@ -19,7 +19,7 @@ alembic = "^1.7.7"
 # version.
 #
 # This is temporary while we work on the upgrade to the latest version
-authlib = {git = "https://github.com/uc-cdis/authlib", rev = "v0.11_fix/CVE-2022-39175_v1"}
+authlib = {git = "https://github.com/uc-cdis/authlib", rev = "v0.11_CVE_patch_v1"}
 # authlib = "*" # let authutils decide which version we're using
 
 authutils = "^6.2.2"
