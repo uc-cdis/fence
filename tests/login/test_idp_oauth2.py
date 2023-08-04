@@ -34,6 +34,9 @@ def test_does_not_has_mfa_claim(oauth_client):
     has_mfa = oauth_client.has_mfa_claim({"acr": "pwd"})
     assert not has_mfa
 
+    has_mfa = oauth_client.has_mfa_claim({"something": "mfa"})
+    assert not has_mfa
+
 
 def test_does_not_has_mfa_claim_multiple(oauth_client):
     has_mfa = oauth_client.has_mfa_claim({"acr": "pwd trustme"})
