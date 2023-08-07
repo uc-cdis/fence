@@ -69,6 +69,9 @@ class RASCallback(DefaultOAuth2Callback):
                         userinfo
                     )
                 )
+
+                print("This is the passport from logging in: ", passport)
+
             except Exception as e:
                 err_msg = "Could not retrieve passport or visas"
                 logger.error("{}: {}".format(e, err_msg))
