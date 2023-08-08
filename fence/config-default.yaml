@@ -186,7 +186,7 @@ OPENID_CONNECT:
     scope: 'openid email profile ga4gh_passport_v1'
 #    multifactor_auth_claim_info:
 #      claim: 'acr'
-#      values: [ "https://sts.nih.gov/assurance/aal/2", "urn:gov:gsa:ac:classes:sp:PasswordProtectedTransport:duo" ]
+#      values: [ 'https://stsstg.nih.gov/assurance/aal/2', 'https://stsstg.nih.gov/assurance/ial/1' ]
     # if mock is true, will fake a successful login response for login
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
