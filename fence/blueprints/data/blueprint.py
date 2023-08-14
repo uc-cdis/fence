@@ -319,7 +319,11 @@ def complete_multipart_upload():
 
     try:
         BlankIndex.complete_multipart_upload(
-            params["key"], params["uploadId"], params["parts"], expires_in=expires_in
+            params["key"],
+            params["uploadId"],
+            params["parts"],
+            params["bucket"],
+            expires_in=expires_in,
         ),
     except InternalError as e:
         return flask.jsonify({"message": e.message}), e.code
