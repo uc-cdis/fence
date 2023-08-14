@@ -325,7 +325,7 @@ class BlankIndex(object):
         return S3IndexedFileLocation(s3_url).init_multipart_upload(expires_in)
 
     @staticmethod
-    def complete_multipart_upload(key, uploadId, parts, expires_in=None):
+    def complete_multipart_upload(key, uploadId, parts, bucket=None, expires_in=None):
         """
         Complete multipart upload
 
@@ -338,12 +338,24 @@ class BlankIndex(object):
         Returns:
             None if success otherwise an exception
         """
-        try:
-            bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
-        except KeyError:
-            raise InternalError(
-                "fence not configured with data upload bucket; can't create signed URL"
+        if bucket:
+            s3_buckets = get_value(
+                flask.current_app.config,
+                "ALLOWED_DATA_UPLOAD_BUCKETS",
+                InternalError("ALLOWED_DATA_UPLOAD_BUCKETS not configured"),
             )
+            if bucket not in s3_buckets:
+                logger.debug(
+                    f"Bucket '{bucket}' not in ALLOWED_DATA_UPLOAD_BUCKETS config"
+                )
+                raise Forbidden(f"Uploading to bucket '{bucket}' is not allowed")
+        else:
+            try:
+                bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
+            except KeyError:
+                raise InternalError(
+                    "fence not configured with data upload bucket; can't create signed URL"
+                )
         s3_url = "s3://{}/{}".format(bucket, key)
         S3IndexedFileLocation(s3_url).complete_multipart_upload(
             uploadId, parts, expires_in
