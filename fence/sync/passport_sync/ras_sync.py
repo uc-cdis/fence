@@ -59,9 +59,9 @@ class RASVisa(DefaultVisa):
                             f"from: {permission.get('expiration')}. Ignoring this permission."
                         )
 
-                    if permission_expiration and expires <= permission_expiration:
-                        project[full_phsid] = privileges
-                        info["tags"] = {"dbgap_role": permission.get("role", "")}
+                    # if permission_expiration and expires <= permission_expiration:
+                    #     project[full_phsid] = privileges
+                    #     info["tags"] = {"dbgap_role": permission.get("role", "")}
         else:
             # Remove visas if its invalid or expired
             user.ga4gh_visas_v1 = []
