@@ -5,10 +5,15 @@ import collections
 
 import asyncio
 import flask
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 import mock
 
 from fence import models
+from fence.resources.google import access_utils
+from fence.resources.google.access_utils import (
+    GoogleUpdateException,
+    bulk_update_google_groups,
+)
 from fence.sync.sync_users import _format_policy_id
 from fence.config import config
 from fence.job.visa_update_cronjob import Visa_Token_Update
@@ -77,29 +82,42 @@ def test_sync_incorrect_user_yaml_file(syncer, monkeypatch, db_session):
 @pytest.mark.parametrize("allow_non_dbgap_whitelist", [False, True])
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
 @pytest.mark.parametrize("parse_consent_code_config", [False, True])
+@pytest.mark.parametrize("parent_to_child_studies_mapping", [False, True])
 def test_sync(
     syncer,
     db_session,
     allow_non_dbgap_whitelist,
     storage_client,
     parse_consent_code_config,
+    parent_to_child_studies_mapping,
     monkeypatch,
 ):
     # patch the sync to use the parameterized config value
-    monkeypatch.setitem(
-        syncer.dbGaP[0], "parse_consent_code", parse_consent_code_config
-    )
-    monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
+    for dbgap_config in syncer.dbGaP:
+        monkeypatch.setitem(
+            dbgap_config, "parse_consent_code", parse_consent_code_config
+        )
     monkeypatch.setitem(
         syncer.dbGaP[2], "allow_non_dbGaP_whitelist", allow_non_dbgap_whitelist
     )
+
+    if parent_to_child_studies_mapping:
+        mapping = {
+            "phs001179": ["phs000179", "phs000178"],
+        }
+        monkeypatch.setitem(
+            syncer.dbGaP[0],
+            "parent_to_child_studies_mapping",
+            mapping,
+        )
+        monkeypatch.setattr(syncer, "parent_to_child_studies_mapping", mapping)
 
     syncer.sync()
 
     users = db_session.query(models.User).all()
 
-    # 5 from user.yaml, 4 from fake dbgap SFTP
-    assert len(users) == 9
+    # 5 from user.yaml, 6 from fake dbgap SFTP
+    assert len(users) == 11
 
     if parse_consent_code_config:
         if allow_non_dbgap_whitelist:
@@ -162,6 +180,33 @@ def test_sync(
                     "phs000178.c1": ["read", "read-storage"],
                 },
             )
+            if parent_to_child_studies_mapping:
+                user = models.query_for_user(
+                    session=db_session, username="TESTPARENTAUTHZ"
+                )
+                assert equal_project_access(
+                    user.project_access,
+                    {
+                        "phs000178.c1": ["read", "read-storage"],
+                        "phs000179.c1": ["read", "read-storage"],
+                        "phs001179.c1": ["read", "read-storage"],
+                    },
+                )
+                user = models.query_for_user(
+                    session=db_session, username="TESTPARENTAUTHZ999"
+                )
+                assert equal_project_access(
+                    user.project_access,
+                    {
+                        "phs000178.c1": ["read", "read-storage"],
+                        "phs000178.c2": ["read", "read-storage"],
+                        "phs000178.c999": ["read", "read-storage"],
+                        "phs000179.c1": ["read", "read-storage"],
+                        "phs000179.c999": ["read", "read-storage"],
+                        "phs001179.c999": ["read", "read-storage"],
+                        "phs001179.c1": ["read", "read-storage"],
+                    },
+                )
     else:
         if allow_non_dbgap_whitelist:
             user = models.query_for_user(session=db_session, username="TESTUSERD")
@@ -225,6 +270,29 @@ def test_sync(
                     "phs000179": ["read", "read-storage"],
                 },
             )
+            if parent_to_child_studies_mapping:
+                user = models.query_for_user(
+                    session=db_session, username="TESTPARENTAUTHZ"
+                )
+                assert equal_project_access(
+                    user.project_access,
+                    {
+                        "phs000178": ["read", "read-storage"],
+                        "phs000179": ["read", "read-storage"],
+                        "phs001179": ["read", "read-storage"],
+                    },
+                )
+                user = models.query_for_user(
+                    session=db_session, username="TESTPARENTAUTHZ999"
+                )
+                assert equal_project_access(
+                    user.project_access,
+                    {
+                        "phs000178": ["read", "read-storage"],
+                        "phs000179": ["read", "read-storage"],
+                        "phs001179": ["read", "read-storage"],
+                    },
+                )
 
     user = models.query_for_user(session=db_session, username="TESTUSERD")
     assert user.display_name == "USER D"
@@ -267,10 +335,10 @@ def test_dbgap_consent_codes(
         "enable_common_exchange_area_access",
         enable_common_exchange_area,
     )
-    monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
-    monkeypatch.setitem(
-        syncer.dbGaP[0], "parse_consent_code", parse_consent_code_config
-    )
+    for dbgap_config in syncer.dbGaP:
+        monkeypatch.setitem(
+            dbgap_config, "parse_consent_code", parse_consent_code_config
+        )
 
     monkeypatch.setattr(syncer, "project_mapping", {})
 
@@ -416,6 +484,25 @@ def test_dbgap_consent_codes(
 
         assert "phs000179" in resource_to_parent_paths
         assert resource_to_parent_paths["phs000179"] == ["/orgA/programs/"]
+
+
+@pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
+def test_sync_with_google_errors(syncer, monkeypatch):
+    """
+    Verifies that errors from the bulk_update_google_groups method, specifically ones relating to Google APIs, do not
+    prevent arborist updates from occuring.
+    """
+    monkeypatch.setitem(config, "GOOGLE_BULK_UPDATES", True)
+    syncer._update_arborist = MagicMock()
+    syncer._update_authz_in_arborist = MagicMock()
+
+    with patch("fence.sync.sync_users.bulk_update_google_groups") as mock_bulk_update:
+        mock_bulk_update.side_effect = GoogleUpdateException("Something's Wrong!")
+        with pytest.raises(GoogleUpdateException):
+            syncer.sync()
+
+    syncer._update_arborist.assert_called()
+    syncer._update_authz_in_arborist.assert_called()
 
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
@@ -884,8 +971,8 @@ def test_user_sync_with_visa_sync_job(
 
     users_after = db_session.query(models.User).all()
 
-    # 5 from user.yaml, 4 from fake dbgap SFTP
-    assert len(users_after) == 9
+    # 5 from user.yaml, 6 from fake dbgap SFTP
+    assert len(users_after) == 11
 
     for user in users_after:
         if user.username in setup_info["usernames_to_ras_subjects"]:
