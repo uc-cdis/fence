@@ -9,6 +9,7 @@ from fence.blueprints.data.indexd import (
     BlankIndex,
     IndexedFile,
     get_signed_url_for_file,
+    _is_allowed_data_upload_bucket_configured,
 )
 from fence.config import config
 from fence.errors import Forbidden, InternalError, UserError, Unauthorized
@@ -176,17 +177,9 @@ def upload_data_file():
     )
 
     protocol = params["protocol"] if "protocol" in params else None
-    bucket = params.get("bucket")
+    bucket = params.get("bucket", None)
     if bucket:
-        s3_buckets = get_value(
-            flask.current_app.config,
-            "ALLOWED_DATA_UPLOAD_BUCKETS",
-            InternalError("ALLOWED_DATA_UPLOAD_BUCKETS not configured"),
-        )
-        if bucket not in s3_buckets:
-            logger.debug(f"Bucket '{bucket}' not in ALLOWED_DATA_UPLOAD_BUCKETS config")
-            raise Forbidden(f"Uploading to bucket '{bucket}' is not allowed")
-
+        _is_allowed_data_upload_bucket_configured(bucket)
     response = {
         "guid": blank_index.guid,
         "url": blank_index.make_signed_url(
@@ -227,14 +220,7 @@ def init_multipart_upload():
 
     bucket = params.get("bucket")
     if bucket:
-        s3_buckets = get_value(
-            flask.current_app.config,
-            "ALLOWED_DATA_UPLOAD_BUCKETS",
-            InternalError("ALLOWED_DATA_UPLOAD_BUCKETS not configured"),
-        )
-        if bucket not in s3_buckets:
-            logger.debug(f"Bucket '{bucket}' not in ALLOWED_DATA_UPLOAD_BUCKETS config")
-            raise Forbidden(f"Uploading to bucket '{bucket}' is not allowed")
+        _is_allowed_data_upload_bucket_configured(bucket)
 
     response = {
         "guid": blank_index.guid,
@@ -272,14 +258,7 @@ def generate_multipart_upload_presigned_url():
 
     bucket = params.get("bucket", None)
     if bucket:
-        s3_buckets = get_value(
-            flask.current_app.config,
-            "ALLOWED_DATA_UPLOAD_BUCKETS",
-            InternalError("ALLOWED_DATA_UPLOAD_BUCKETS not configured"),
-        )
-        if bucket not in s3_buckets:
-            logger.debug(f"Bucket '{bucket}' not in ALLOWED_DATA_UPLOAD_BUCKETS config")
-            raise Forbidden(f"Uploading to bucket '{bucket}' is not allowed")
+        _is_allowed_data_upload_bucket_configured(bucket)
 
     # TODO add bucket param here
     response = {
@@ -311,6 +290,7 @@ def complete_multipart_upload():
         raise UserError("missing required arguments: {}".format(list(missing)))
 
     default_expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    bucket = params.get("bucket", None)
     expires_in = get_valid_expiration(
         params.get("expires_in"),
         max_limit=default_expires_in,
@@ -322,7 +302,7 @@ def complete_multipart_upload():
             params["key"],
             params["uploadId"],
             params["parts"],
-            params["bucket"],
+            bucket=bucket,
             expires_in=expires_in,
         ),
     except InternalError as e:
@@ -342,14 +322,7 @@ def upload_file(file_id):
 
     bucket = flask.request.args.get("bucket")
     if bucket:
-        s3_buckets = get_value(
-            flask.current_app.config,
-            "ALLOWED_DATA_UPLOAD_BUCKETS",
-            InternalError("ALLOWED_DATA_UPLOAD_BUCKETS not configured"),
-        )
-        if bucket not in s3_buckets:
-            logger.debug(f"Bucket '{bucket}' not in ALLOWED_DATA_UPLOAD_BUCKETS config")
-            raise Forbidden(f"Uploading to bucket '{bucket}' is not allowed")
+        _is_allowed_data_upload_bucket_configured(bucket)
 
     result = get_signed_url_for_file(
         "upload", file_id, file_name=file_name, bucket=bucket

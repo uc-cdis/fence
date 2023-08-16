@@ -376,13 +376,15 @@ class BlankIndex(object):
         Returns:
             presigned_url(str)
         """
-        try:
-            # TODO change here to add custom bucket
-            bucket = bucket or flask.current_app.config["DATA_UPLOAD_BUCKET"]
-        except KeyError:
-            raise InternalError(
-                "fence not configured with data upload bucket; can't create signed URL"
-            )
+        if bucket:
+            _is_allowed_data_upload_bucket_configured(bucket)
+        else:
+            try:
+                bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
+            except KeyError:
+                raise InternalError(
+                    "fence not configured with data upload bucket; can't create signed URL"
+                )
         s3_url = "s3://{}/{}".format(bucket, key)
         return S3IndexedFileLocation(s3_url).generate_presigned_url_for_part_upload(
             uploadId, partNumber, expires_in
@@ -1049,15 +1051,12 @@ class S3IndexedFileLocation(IndexedFileLocation):
         Returns:
             UploadId(str)
         """
-        # TODO pass bucket info here
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
         credentials = S3IndexedFileLocation.get_credential_to_access_bucket(
             self.bucket_name(), aws_creds, expires_in
         )
-
-        # TODO from bucket param or self.parsed_url here
 
         return multipart_upload.initilize_multipart_upload(
             self.parsed_url.netloc, self.parsed_url.path.strip("/"), credentials
@@ -1630,3 +1629,14 @@ def filter_auth_ids(action, list_auth_ids):
         if checked_permission in values:
             authorized_dbgaps.append(key)
     return authorized_dbgaps
+
+
+def _is_allowed_data_upload_bucket_configured(bucket):
+    s3_buckets = get_value(
+        flask.current_app.config,
+        "ALLOWED_DATA_UPLOAD_BUCKETS",
+        InternalError("ALLOWED_DATA_UPLOAD_BUCKETS not configured"),
+    )
+    if bucket not in s3_buckets:
+        logger.debug(f"Bucket '{bucket}' not in ALLOWED_DATA_UPLOAD_BUCKETS config")
+        raise Forbidden(f"Uploading to bucket '{bucket}' is not allowed")
