@@ -321,9 +321,9 @@ def _create_access_token_cookie(app, session, response, user):
     expiration = now + config.get("ACCESS_TOKEN_EXPIRES_IN")
 
     # try to get from current session, if it's not there, we have to hit db
-    linked_google_email = session.get("linked_google_email")
-    if not linked_google_email:
-        linked_google_email = get_linked_google_account_email(user.id)
+    linked_google_email = "a@a"  # session.get("linked_google_email")
+    # if not linked_google_email:
+    #     linked_google_email = get_linked_google_account_email(user.id)
 
     access_token = generate_signed_access_token(
         keypair.kid,

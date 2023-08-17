@@ -219,15 +219,6 @@ See [Fence and Google](docs/google_architecture.md) for more details on data acc
 
 ## Setup
 
-#### Install Requirements and Fence
-
-Install [Poetry](https://python-poetry.org/docs/#installation).
-
-```bash
-# Install Fence and dependencies
-poetry install
-```
-
 #### Create Configuration File
 
 Fence requires a configuration file to run. We have a command line
@@ -242,7 +233,7 @@ To create a new configuration file from the default configuration:
 python cfg_help.py create
 ```
 
-This file will be placed in one of the default search directories for Fence.
+This file will be placed in one of the default search directories for Fence (e.g. `~/.gen3/fence/fence-config.yaml`).
 
 To get the exact path where the new configuration file was created, use:
 
@@ -252,6 +243,54 @@ python cfg_help.py get
 
 The file should have detailed information about each of the configuration
 variables. **Remember to fill out the new configuration file!**
+
+#### Using Docker
+
+Build image using:
+
+```bash
+docker build . -t fence
+```
+
+:information_source: before running the command below,
+make sure you have the desired configuration in the .yaml and
+the necessary .pem files (see section **"Keypair Configuration"**) .
+
+Run with:
+
+```bash
+docker run --rm \
+-v /path/to/fence-config.yaml:/var/www/fence/fence-config.yaml:ro \
+-v /path/to/keys-folder-with-pem-files/:/fence/keys/folder/:ro \
+--name=fence \
+-p 80:80 \
+fence
+```
+
+Setup `fence_test` DB with:
+
+```bash
+ ./init_dev_db.sh
+```
+
+#### Using Poetry
+
+Install [Poetry](https://python-poetry.org/docs/#installation).
+
+Build with:
+
+```bash
+# Enter virtual environment
+poetry shell
+# Install Fence and dependencies
+poetry install
+```
+
+Run with:
+
+```bash
+And `run.py`
+```
 
 ##### Other Configuration Notes
 

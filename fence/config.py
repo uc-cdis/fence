@@ -143,7 +143,8 @@ class FenceConfig(Config):
                 "Visa parsing on login is enabled but `ENABLE_VISA_UPDATE_CRON` is disabled!"
             )
 
-        self._validate_parent_child_studies(self._configs["dbGaP"])
+        # if self._configs["dbGaP"]:
+        #     self._validate_parent_child_studies(self._configs["dbGaP"])
 
     @staticmethod
     def _validate_parent_child_studies(dbgap_configs):

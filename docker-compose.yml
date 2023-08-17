@@ -1,0 +1,19 @@
+version: '3.9'
+
+
+services:
+  # MEANT FOR LOCAL DEV ONLY
+  fence:
+    image: fence
+    container_name: fence
+    ports:
+      - "80:80"
+    volumes:
+      - $PWD/fence-config.yaml:/var/www/fence/fence-config.yaml:ro
+      - $PWD/keys/:/fence/keys:ro
+
+  fence_db:
+    image: postgres:12.10-bullseye
+    container_name: fence_db
+    environment:
+      POSTGRES_PASSWORD: mysecretpassword  # pragma: allowlist secret
