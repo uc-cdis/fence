@@ -1717,10 +1717,15 @@ components:
             type: string
           description: requested authorization resources to be set on the
             resulting indexed record. You must have proper authorization to set this
+        bucket:
+          type: string
+          required: false
+          description: bucket to upload
       example:
         file_name: "my_file.bam"
         expires_in: 1200
         authz: ["/programs/A"]
+        bucket: "bucket-1"
     RequestMultipartUpload:
       type: object
       required:
@@ -1738,6 +1743,10 @@ components:
         expires_in:
           type: integer
           description: optional integer specifying the presigned URL lifetime
+        bucket:
+          type: string
+          required: false
+          description: bucket to upload
     CompleteMultipartUpload:
       type: object
       required:
@@ -1767,6 +1776,10 @@ components:
         expires_in:
           type: integer
           description: optional integer specifying the presigned URL lifetime
+        bucket:
+          type: string
+          required: false
+          description: bucket to upload
     CredentialsSource:
       type: object
       required:

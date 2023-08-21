@@ -1870,6 +1870,59 @@ def test_multipart_upload_presigned_url_with_bucket_param(
         assert "presigned_url" in response.json
 
 
+def test_multipart_complete_upload_with_bucket_param(
+    app, client, auth_client, encoded_creds_jwt, user_client
+):
+    class MockResponse(object):
+        def __init__(self, data, status_code=200):
+            self.data = data
+            self.status_code = status_code
+
+        def json(self):
+            return self.data
+
+    data_requests_mocker = mock.patch(
+        "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
+    )
+    arborist_requests_mocker = mock.patch(
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
+    )
+
+    fence.blueprints.data.indexd.BlankIndex.complete_multipart_upload = MagicMock()
+    with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
+        data_requests.post.return_value = MockResponse(
+            {
+                "did": str(uuid.uuid4()),
+                "rev": str(uuid.uuid4())[:8],
+                "baseid": str(uuid.uuid4()),
+            }
+        )
+        data_requests.post.return_value.status_code = 200
+        arborist_requests.return_value = MockResponse({"auth": True})
+        arborist_requests.return_value.status_code = 200
+        fence.blueprints.data.indexd.BlankIndex.generate_aws_presigned_url_for_part.return_value = (
+            "test_presigned"
+        )
+        headers = {
+            "Authorization": "Bearer " + encoded_creds_jwt.jwt,
+            "Content-Type": "application/json",
+        }
+        key = "guid/asdf"
+        uploadid = "uploadid"
+
+        data = json.dumps(
+            {
+                "key": key,
+                "uploadId": uploadid,
+                "bucket": "bucket3",
+                "parts": [{"partNumber": 1, "Etag": "test_tag"}],
+            }
+        )
+        response = client.post("/data/multipart/complete", headers=headers, data=data)
+
+        assert response.status_code == 200, response
+
+
 def test_delete_files(app, client, auth_client, encoded_creds_jwt, user_client):
     fence.auth.config["MOCK_AUTH"] = True
     did = str(uuid.uuid4())
