@@ -112,7 +112,7 @@ OPENID_CONNECT:
     email_field: ''  # optional (default "email"); claims field to get the user email from
     scope: ''  # optional (default "openid")
     multifactor_auth_claim_info: # optional, include if you're using arborist to enforce mfa on a per-file level
-      claim: '' # claims field that indicates mfa, usually the acr or acm claim.
+      claim: '' # claims field that indicates mfa, either the acr or acm claim.
       values: [ "" ] # possible values that indicate mfa was used. At least one value configured here is required to be in the token
   # These Google values must be obtained from Google's Cloud Console
   # Follow: https://developers.google.com/identity/protocols/OpenIDConnect
