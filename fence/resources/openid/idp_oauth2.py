@@ -244,7 +244,17 @@ class Oauth2ClientBase(object):
                 f"config yaml."
             )
             return False
-        mfa_claims = decoded_id_token.get(claim_name, "").split(" ")
+        mfa_claims = []
+        if claim_name == "amr":
+            mfa_claims = decoded_id_token.get(claim_name, [])
+        elif claim_name == "acr":
+            mfa_claims = decoded_id_token.get(claim_name, "").split(" ")
+        else:
+            self.logger.error(
+                f"{claim_name} is neither AMR or ACR - cannot determine if MFA was used"
+            )
+            return False
+
         self.logger.info(
             f"Comparing token's {claim_name} claims: {mfa_claims} to mfa values {mfa_values}"
         )

@@ -1882,17 +1882,20 @@ class UserSyncer(object):
         if not is_mfa_enabled:
             self.arborist_client.revoke_all_policies_for_user(username)
             return
+
+        resources = []
         try:
             resources = self.arborist_client.list_resources_for_user(username)
+        except Exception as e:
+            self.logger.error(
+                f"Could not retrieve user's resources, revoking all policies anyway. {e}"
+            )
         finally:
             # TODO This should be a diff, not a revocation of all policies.
             self.arborist_client.revoke_all_policies_for_user(username)
 
         if "/multifactor_auth" in resources:
-            try:
-                self.arborist_client.grant_user_policy(username, "mfa_policy")
-            except Exception as e:
-                self.logger.error(f"Error attempting to preserve MFA policy. {e}")
+            status_code = self.arborist_client.grant_user_policy(username, "mfa_policy")
 
     def _update_authz_in_arborist(
         self,

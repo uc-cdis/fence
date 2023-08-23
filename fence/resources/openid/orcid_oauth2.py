@@ -44,11 +44,7 @@ class OrcidOauth2Client(Oauth2ClientBase):
             claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
 
             if claims.get("sub"):
-                return {
-                    "orcid": claims["sub"],
-                    "sub": claims["sub"],
-                    "mfa": self.has_mfa_claim(claims),
-                }
+                return {"orcid": claims["sub"], "sub": claims["sub"]}
             else:
                 return {"error": "Can't get user's orcid"}
         except Exception as e:

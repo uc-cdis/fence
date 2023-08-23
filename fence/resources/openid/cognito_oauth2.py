@@ -53,11 +53,7 @@ class CognitoOauth2Client(Oauth2ClientBase):
                 claims.get("email_verified")
                 or self.settings.get("assume_emails_verified")
             ):
-                return {
-                    "email": claims["email"],
-                    "sub": claims.get("sub"),
-                    "mfa": self.has_mfa_claim(claims),
-                }
+                return {"email": claims["email"], "sub": claims.get("sub")}
             elif claims.get("email"):
                 return {"error": "Email is not verified"}
             else:

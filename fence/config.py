@@ -143,6 +143,13 @@ class FenceConfig(Config):
                 "Visa parsing on login is enabled but `ENABLE_VISA_UPDATE_CRON` is disabled!"
             )
 
+        for idp in self._configs.get("OPENID_CONNECT", {}).values():
+            mfa_info = idp.get("multifactor_auth_claim_info")
+            if mfa_info and mfa_info["claim"] not in ["amr", "acr"]:
+                logger.warning(
+                    f"multifactor_auth_claim_info is using {mfa_info['claim']}, which is neither AMR or ACR. Unable to determine if a user used MFA. Fence will continue and assume they have not used MFA."
+                )
+
         self._validate_parent_child_studies(self._configs["dbGaP"])
 
     @staticmethod
