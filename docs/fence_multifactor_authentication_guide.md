@@ -3,7 +3,7 @@
 Fence is capable of using token claims from IdPs to identify when multifactor authentication (MFA) was used during the authentication process.
 
 ## File Level Enforcement
-To restrict access to files to user who've authenticated with MFA, the following resource *MUST* be present for indexd record:
+To restrict access to files to user who've authenticated with MFA, the following resource *MUST* be present in the indexd record's `authz`:
 `/multifactor_auth`
 
 And the following configs must be updated:
