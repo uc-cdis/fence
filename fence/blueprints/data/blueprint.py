@@ -9,7 +9,7 @@ from fence.blueprints.data.indexd import (
     BlankIndex,
     IndexedFile,
     get_signed_url_for_file,
-    _is_allowed_data_upload_bucket_configured,
+    verify_data_upload_bucket_configuration,
 )
 from fence.config import config
 from fence.errors import Forbidden, InternalError, UserError, Unauthorized
@@ -177,9 +177,9 @@ def upload_data_file():
     )
 
     protocol = params["protocol"] if "protocol" in params else None
-    bucket = params.get("bucket", None)
+    bucket = params.get("bucket")
     if bucket:
-        _is_allowed_data_upload_bucket_configured(bucket)
+        verify_data_upload_bucket_configuration(bucket)
     response = {
         "guid": blank_index.guid,
         "url": blank_index.make_signed_url(
@@ -220,7 +220,7 @@ def init_multipart_upload():
 
     bucket = params.get("bucket")
     if bucket:
-        _is_allowed_data_upload_bucket_configured(bucket)
+        verify_data_upload_bucket_configuration(bucket)
 
     response = {
         "guid": blank_index.guid,
@@ -256,11 +256,10 @@ def generate_multipart_upload_presigned_url():
         default=default_expires_in,
     )
 
-    bucket = params.get("bucket", None)
+    bucket = params.get("bucket")
     if bucket:
-        _is_allowed_data_upload_bucket_configured(bucket)
+        verify_data_upload_bucket_configuration(bucket)
 
-    # TODO add bucket param here
     response = {
         "presigned_url": BlankIndex.generate_aws_presigned_url_for_part(
             params["key"],
@@ -290,7 +289,7 @@ def complete_multipart_upload():
         raise UserError("missing required arguments: {}".format(list(missing)))
 
     default_expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
-    bucket = params.get("bucket", None)
+    bucket = params.get("bucket")
     expires_in = get_valid_expiration(
         params.get("expires_in"),
         max_limit=default_expires_in,
@@ -302,8 +301,8 @@ def complete_multipart_upload():
             params["key"],
             params["uploadId"],
             params["parts"],
-            bucket=bucket,
             expires_in=expires_in,
+            bucket=bucket,
         ),
     except InternalError as e:
         return flask.jsonify({"message": e.message}), e.code
@@ -322,7 +321,7 @@ def upload_file(file_id):
 
     bucket = flask.request.args.get("bucket")
     if bucket:
-        _is_allowed_data_upload_bucket_configured(bucket)
+        verify_data_upload_bucket_configuration(bucket)
 
     result = get_signed_url_for_file(
         "upload", file_id, file_name=file_name, bucket=bucket

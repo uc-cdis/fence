@@ -1720,7 +1720,7 @@ components:
         bucket:
           type: string
           required: false
-          description: bucket to upload
+          description: bucket to upload to
       example:
         file_name: "my_file.bam"
         expires_in: 1200
@@ -1746,7 +1746,7 @@ components:
         bucket:
           type: string
           required: false
-          description: bucket to upload
+          description: bucket to upload\ to
     CompleteMultipartUpload:
       type: object
       required:
@@ -1779,7 +1779,7 @@ components:
         bucket:
           type: string
           required: false
-          description: bucket to upload
+          description: bucket to upload to
     CredentialsSource:
       type: object
       required:

@@ -1768,6 +1768,10 @@ def test_multipart_complete_upload(
 def test_initialize_multipart_upload_with_bucket_param(
     app, client, auth_client, encoded_creds_jwt, user_client
 ):
+    """
+    Test /data/multipart/init containing bucket parameter
+    """
+
     class MockResponse(object):
         def __init__(self, data, status_code=200):
             self.data = data
@@ -1822,6 +1826,10 @@ def test_initialize_multipart_upload_with_bucket_param(
 def test_multipart_upload_presigned_url_with_bucket_param(
     app, client, auth_client, encoded_creds_jwt, user_client
 ):
+    """
+    Test /data/multipart/upload containing bucket parameter
+    """
+
     class MockResponse(object):
         def __init__(self, data, status_code=200):
             self.data = data
@@ -1873,6 +1881,10 @@ def test_multipart_upload_presigned_url_with_bucket_param(
 def test_multipart_complete_upload_with_bucket_param(
     app, client, auth_client, encoded_creds_jwt, user_client
 ):
+    """
+    Test /data/multipart/complete containing bucket parameter
+    """
+
     class MockResponse(object):
         def __init__(self, data, status_code=200):
             self.data = data
