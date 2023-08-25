@@ -10,6 +10,11 @@ cache: pip
 services:
     - postgresql
 
+addons:
+  postgresql: "13"
+  apt:
+      packages:
+        - postgresql-13
 install:
   - pip install --upgrade pip
   - pip install poetry
