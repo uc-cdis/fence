@@ -13,8 +13,12 @@ services:
 addons:
   postgresql: "13"
   apt:
-      packages:
-        - postgresql-13
+    sources:
+      - sourceline: deb http://apt.postgresql.org/pub/repos/apt/ jammy-pgdg main
+          13
+        key_url: https://www.postgresql.org/media/keys/ACCC4CF8.asc
+    packages:
+      - postgresql-13
 install:
   - pip install --upgrade pip
   - pip install poetry
