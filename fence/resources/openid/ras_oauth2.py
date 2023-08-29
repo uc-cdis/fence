@@ -146,13 +146,24 @@ class RASOauth2Client(Oauth2ClientBase):
                 "Received RAS access token with txn: {}".format(at_claims.get("txn"))
             )
 
-            username = None
-            if userinfo.get("UserID"):
-                username = userinfo["UserID"]
-                field_name = "UserID"
-            elif userinfo.get("userid"):
-                username = userinfo["userid"]
-                field_name = "userid"
+            ras_idp_id = userinfo.get("preferred_username").split("@")[1]
+            field_name = None
+            for idp_config in (
+                config["OPENID_CONNECT"]["ras"].get("idp_config", {}).values()
+            ):
+                if idp_config.get("ras_idp_id") == ras_idp_id:
+                    field_name = idp_config.get("user_id_field")
+                    self.logger.info(
+                        f"{ras_idp_id} is configured to use {field_name} as the username."
+                    )
+
+            if not field_name:
+                if userinfo.get("UserID"):
+                    field_name = "UserID"
+                elif userinfo.get("userid"):
+                    field_name = "userid"
+
+            username = userinfo.get(field_name)
             if not username:
                 self.logger.error(
                     "{}, received claims: {} and userinfo: {}".format(
