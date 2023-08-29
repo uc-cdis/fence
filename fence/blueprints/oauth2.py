@@ -269,7 +269,7 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
             idp_names.append(idp_name)
 
         resource_description = [
-            SCOPE_DESCRIPTION[s].format(idp_names=" and ".join(idp_names))
+            SCOPE_DESCRIPTION[s].format(idp_names=", ".join(idp_names))
             for s in shown_scopes
         ]
 

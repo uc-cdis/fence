@@ -1578,7 +1578,11 @@ def _get_auth_info_for_id_or_from_request(
             f"could not determine client auth info from request. setting anonymous client information. Details:\n{exc}"
         )
 
-    if final_username == ANONYMOUS_USERNAME and client_id != "":
+    if (
+        not config.get("CLIENT_CREDENTIALS_ON_DOWNLOAD_ENABLED")
+        and final_username == ANONYMOUS_USERNAME
+        and client_id != ""
+    ):
         raise Forbidden("This endpoint does not support client credentials tokens")
 
     return {
