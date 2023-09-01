@@ -12,19 +12,35 @@ from fence.config import config
 from fence.models import AuthorizationCode, ClientAuthType, User
 
 
-class OpenIDCodeGrant(grants.BaseGrant):
+class OpenIDCodeGrant(grants.AuthorizationCodeGrant):
 
     TOKEN_ENDPOINT_AUTH_METHODS = [auth_type.value for auth_type in ClientAuthType]
 
     def __init__(self, *args, **kwargs):
         super(OpenIDCodeGrant, self).__init__(*args, **kwargs)
         # Override authlib validate_request_prompt with our own, to fix login prompt behavior
-        self._hooks["after_validate_consent_request"].discard(
+        """self._hooks["after_validate_consent_request"].discard(
             grants.util.validate_request_prompt
-        )
+        )"""
         self.register_hook(
             "after_validate_consent_request", self.validate_request_prompt
         )
+
+    """
+    def get_jwt_config(self, grant):
+        return {
+            'key': flask.current_app.config["OAUTH2_JWT_KEY"],
+            'alg': flask.current_app.config["OAUTH2_JWT_ALG"],
+            'iss': flask.current_app.config["OAUTH2_JWT_ISS"],
+            'exp': flask.current_app.config["OAUTH2_TOKEN_EXPIRES_IN"]["authorization_code"]
+        }
+
+    def generate_user_info(self, user, scope):
+            user_info = UserInfo(sub=user.id, name=user.name)
+            if 'email' in scope:
+                user_info['email'] = user.email
+            return user_info
+    """
 
     @staticmethod
     def create_authorization_code(client, grant_user, request):
@@ -60,12 +76,37 @@ class OpenIDCodeGrant(grants.BaseGrant):
 
         return code.code
 
+    # In Case we need to use AuthorizationCodeGrant
+    def save_authorization_code(self, code, request):
+        # requested lifetime (in seconds) for the refresh token
+        refresh_token_expires_in = get_valid_expiration_from_request(
+            expiry_param="refresh_token_expires_in",
+            max_limit=config["REFRESH_TOKEN_EXPIRES_IN"],
+            default=config["REFRESH_TOKEN_EXPIRES_IN"],
+        )
+
+        client = request.client
+        code = AuthorizationCode(
+            code=code,
+            client_id=client.client_id,
+            redirect_uri=request.redirect_uri,
+            scope=request.scope,
+            user_id=request.user.id,
+            nonce=request.data.get("nonce"),
+            refresh_token_expires_in=refresh_token_expires_in,
+        )
+
+        with flask.current_app.db.session as session:
+            session.add(code)
+            session.commit()
+        return code.code
+
     def generate_token(self, *args, **kwargs):
         return self.server.generate_token(*args, **kwargs)
 
     def create_token_response(self):
         client = self.request.client
-        authorization_code = self.request.credential
+        authorization_code = self.request.authorization_code
 
         user = self.authenticate_user(authorization_code)
         if not user:
@@ -80,7 +121,7 @@ class OpenIDCodeGrant(grants.BaseGrant):
             self.GRANT_TYPE,
             user=user,
             scope=scope,
-            include_refresh_token=client.has_client_secret(),
+            include_refresh_token=bool(client.client_secret),
             nonce=nonce,
             refresh_token_expires_in=refresh_token_expires_in,
         )
@@ -92,7 +133,7 @@ class OpenIDCodeGrant(grants.BaseGrant):
         return 200, token, self.TOKEN_RESPONSE_HEADER
 
     @staticmethod
-    def parse_authorization_code(code, client):
+    def query_authorization_code(code, client):
         """
         Search for an ``AuthorizationCode`` matching the given code string and
         client.
@@ -142,7 +183,7 @@ class OpenIDCodeGrant(grants.BaseGrant):
                 return True
             return False
 
-    def validate_request_prompt(self, end_user):
+    def validate_request_prompt(self, end_user, redirect_uri):
         """
         Override method in authlib to fix behavior with login prompt.
         """

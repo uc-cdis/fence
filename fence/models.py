@@ -60,6 +60,7 @@ from userdatamodel.models import (
 from fence import logger
 from fence.config import config
 from fence.errors import UserError
+import jwt
 
 
 def query_for_user(session, username):
@@ -156,7 +157,7 @@ def get_client_expires_at(expires_in, grant_types):
             # `timestamp()` already converts to UTC
             expires_at = (datetime.now() + timedelta(days=expires_in)).timestamp()
 
-    if "client_credentials" in grant_types.split("\n"):
+    if "client_credentials" in grant_types:
         if not expires_in or expires_in <= 0 or expires_in > 366:
             logger.warning(
                 "Credentials with the 'client_credentials' grant which will be used externally are required to expire within 12 months. Use the `--expires-in` parameter to add an expiration."
@@ -194,9 +195,9 @@ class Client(Base, OAuth2ClientMixin):
 
     __tablename__ = "client"
 
-    client_id = Column(String(40), primary_key=True)
+    client_id = Column(String(48), primary_key=True, index=True)
     # this is hashed secret
-    client_secret = Column(String(60), unique=True, index=True, nullable=True)
+    client_secret = Column(String(120), unique=True, index=True, nullable=True)
 
     # human readable name
     name = Column(String(40), nullable=False)
@@ -217,18 +218,11 @@ class Client(Base, OAuth2ClientMixin):
     # public or confidential
     is_confidential = Column(Boolean, default=True)
 
-    # NOTE: DEPRECATED
-    # Client now uses `redirect_uri` column, from authlib client model
-    _redirect_uris = Column(Text)
-
-    _allowed_scopes = Column(Text, nullable=False, default="")
-
-    _default_scopes = Column(Text)
-    _scopes = ["compute", "storage", "user"]
-
     expires_at = Column(Integer, nullable=False, default=0)
 
-    # note that authlib adds a response_type column which is not used here
+    # Deprecated, keeping these around in case it is needed later
+    _default_scopes = Column(Text)
+    _scopes = ["compute", "storage", "user"]
 
     def __init__(self, client_id, expires_in=0, **kwargs):
         """
@@ -241,19 +235,18 @@ class Client(Base, OAuth2ClientMixin):
         if "allowed_scopes" in kwargs:
             allowed_scopes = kwargs.pop("allowed_scopes")
             if isinstance(allowed_scopes, list):
-                kwargs["_allowed_scopes"] = " ".join(allowed_scopes)
+                client_metadata["scope"] = " ".join(allowed_scopes)
             else:
-                kwargs["_allowed_scopes"] = allowed_scopes
-            client_metadata["scope"] = kwargs["_allowed_scopes"]
+                client_metadata["scope"] = allowed_scopes
 
         # redirect uri is now part of authlibs client_metadata
         if "redirect_uris" in kwargs:
             redirect_uris = kwargs.pop("redirect_uris")
             if isinstance(redirect_uris, list):
-                # redirect_uris is now part of the json object
-                client_metadata["redirect_uris"] = "\n".join(redirect_uris)
-            else:
+                # redirect_uris is now part of the metadata json object
                 client_metadata["redirect_uris"] = redirect_uris
+            else:
+                client_metadata["redirect_uris"] = [redirect_uris]
 
         # default grant types to allow for auth code flow and resfreshing
         grant_types = kwargs.pop("grant_types", None) or [
@@ -262,10 +255,10 @@ class Client(Base, OAuth2ClientMixin):
         ]
         # grant types is now part of authlibs client_metadata
         if isinstance(grant_types, list):
-            client_metadata["grant_types"] = "\n".join(grant_types)
-        else:
-            # assume it's already in correct format
             client_metadata["grant_types"] = grant_types
+        else:
+            # assume it's already in correct format and make it a list
+            client_metadata["grant_types"] = [grant_types]
 
         supported_grant_types = [
             "authorization_code",
@@ -275,10 +268,10 @@ class Client(Base, OAuth2ClientMixin):
         ]
         assert all(
             grant_type in supported_grant_types
-            for grant_type in client_metadata["grant_types"].split("\n")
+            for grant_type in client_metadata["grant_types"]
         ), f"Grant types '{client_metadata['grant_types']}' are not in supported types {supported_grant_types}"
 
-        if "authorization_code" in client_metadata["grant_types"].split("\n"):
+        if "authorization_code" in client_metadata["grant_types"]:
             assert kwargs.get("user") or kwargs.get(
                 "user_id"
             ), "A username is required for the 'authorization_code' grant"
@@ -294,13 +287,10 @@ class Client(Base, OAuth2ClientMixin):
             # assume it's already in correct format
             client_metadata["response_types"] = response_types
 
-        # scope is now part of authlib's client_metadata
-        scope = kwargs.pop("scope", None)
-        if isinstance(response_types, list):
-            client_metadata["scope"] = "\n".join(scope)
-        else:
-            # assume it's already in correct format
-            client_metadata["scope"] = scope
+        if "token_endpoint_auth_method" in kwargs:
+            client_metadata["token_endpoint_auth_method"] = kwargs.pop(
+                "token_endpoint_auth_method"
+            )
 
         expires_at = get_client_expires_at(
             expires_in=expires_in, grant_types=client_metadata["grant_types"]
@@ -331,10 +321,7 @@ class Client(Base, OAuth2ClientMixin):
             return "public"
         return "confidential"
 
-    @property
-    def default_redirect_uri(self):
-        return self.redirect_uris[0]
-
+    ##Deprecated, Not called anywhere currently
     @property
     def default_scopes(self):
         if self._default_scopes:
@@ -363,14 +350,18 @@ class Client(Base, OAuth2ClientMixin):
             return False
         return set(self.allowed_scopes).issuperset(scopes)
 
-    def check_token_endpoint_auth_method(self, method):
+    # Replaces Authlib method
+    def check_endpoint_auth_method(self, method, endpoint):
         """
         Only basic auth is supported. If anything else gets added, change this
         """
-        protected_types = [ClientAuthType.basic.value, ClientAuthType.post.value]
-        return (self.is_confidential and method in protected_types) or (
-            not self.is_confidential and method == ClientAuthType.none.value
-        )
+        if endpoint == "token":
+            protected_types = [ClientAuthType.basic.value, ClientAuthType.post.value]
+            return (self.is_confidential and method in protected_types) or (
+                not self.is_confidential and method == ClientAuthType.none.value
+            )
+
+        return True
 
     def validate_scopes(self, scopes):
         scopes = scopes[0].split(",")
@@ -838,3 +829,14 @@ def populate_iss_sub_pair_to_user_table(target, connection, **kw):
         else:
             transaction.commit()
             logger.info("Population was successful")
+
+
+class JWTToken(object):
+    def __init__(self, token):
+        self.encoded_string = token
+        self.client_id = jwt.decode(
+            token, algorithms=["RS256"], options={"verify_signature": False}
+        ).get("azp")
+
+    def check_client(self, client):
+        return self.client_id == client.client_id

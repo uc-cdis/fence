@@ -2,6 +2,7 @@ from authlib.oauth2.rfc6749.errors import InvalidClientError, OAuth2Error
 import authlib.oauth2.rfc7009
 import bcrypt
 import flask
+from fence.models import JWTToken
 
 from cdislogging import get_logger
 
@@ -18,20 +19,20 @@ class RevocationEndpoint(authlib.oauth2.rfc7009.RevocationEndpoint):
     server should handle requests for token revocation.
     """
 
-    def query_token(self, token, token_type_hint, client):
+    def query_token(self, token, token_type_hint):
         """
         Look up a token.
 
         Since all tokens are JWT, just return the token.
         """
-        return token
+        return JWTToken(token)
 
-    def revoke_token(self, token):
+    def revoke_token(self, token, request):
         """
         Revoke a token.
         """
         try:
-            fence.jwt.blacklist.blacklist_encoded_token(token)
+            fence.jwt.blacklist.blacklist_encoded_token(token.encoded_string)
         except BlacklistingError as err:
             logger.info(
                 "Token provided for revocation is not valid. "

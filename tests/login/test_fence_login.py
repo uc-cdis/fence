@@ -44,6 +44,7 @@ def config_idp_in_client(
             ],
             "OPENID_CONNECT": {
                 "fence": {
+                    "name": "other_fence_client",
                     "client_id": "other_fence_client_id",
                     "client_secret": "other_fence_client_secret",
                     "api_base_url": "http://other-fence",
@@ -52,7 +53,10 @@ def config_idp_in_client(
             },
         }
     )
-    app.fence_client = OAuthClient(**config["OPENID_CONNECT"]["fence"])
+    client = OAuthClient(app)
+    client.register(**config["OPENID_CONNECT"]["fence"])
+    app.fence_client = client
+    app.config["OPENID_CONNECT"]["fence"] = config["OPENID_CONNECT"]["fence"]
 
     yield Dict(
         client_id=config["OPENID_CONNECT"]["fence"]["client_id"],
@@ -96,6 +100,9 @@ def test_redirect_login_fence(app, client, config_idp_in_client):
     """
     Test that the ``/login/fence`` endpoint on the client fence redirects to the
     ``/oauth2/authorize`` endpoint on the IDP fence, in the multi-tenant setup case.
+    """
+    """
+    Returning 500, need to figure out how to get the correct client now that client class can have multiple registered
     """
     path = "/login/fence"
     r = client.get(path)

@@ -424,7 +424,7 @@ def test_login_log_login_endpoint(
     elif idp == "fence":
         mocked_fetch_access_token = MagicMock(return_value={"id_token": jwt_string})
         patch(
-            f"flask.current_app.fence_client.fetch_token",
+            f"authlib.integrations.flask_client.apps.FlaskOAuth2App.fetch_access_token",
             mocked_fetch_access_token,
         ).start()
         mocked_validate_jwt = MagicMock(

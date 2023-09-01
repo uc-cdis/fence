@@ -18,7 +18,8 @@ from werkzeug.datastructures import ImmutableMultiDict
 from fence.models import Client, User, query_for_user
 from fence.errors import NotFound, UserError
 from fence.config import config
-
+from authlib.oauth2.rfc6749.util import scope_to_list
+from authlib.oauth2.rfc6749.errors import InvalidScopeError
 
 rng = SystemRandom()
 alphanumeric = string.ascii_uppercase + string.ascii_lowercase + string.digits
@@ -107,7 +108,7 @@ def create_client(
             client_secret=hashed_secret,
             user=user,
             redirect_uris=urls,
-            _allowed_scopes=" ".join(allowed_scopes),
+            allowed_scopes=" ".join(allowed_scopes),
             description=description,
             name=name,
             auto_approve=auto_approve,
@@ -433,3 +434,15 @@ DEFAULT_BACKOFF_SETTINGS = {
     "max_tries": config["DEFAULT_BACKOFF_SETTINGS_MAX_TRIES"],
     "giveup": exception_do_not_retry,
 }
+
+
+def validate_scopes(request_scopes, client):
+    if not client:
+        raise Exception("Client object is None")
+
+    if request_scopes:
+        request_scopes = scope_to_list(request_scopes)
+        if not client.check_requested_scopes(set(request_scopes)):
+            raise InvalidScopeError("Failed to Authorize due to unsupported scope")
+
+    return True

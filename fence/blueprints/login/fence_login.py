@@ -30,19 +30,22 @@ class FenceLogin(DefaultOAuth2Login):
 
     def get(self):
         """Handle ``GET /login/fence``."""
-        oauth2_redirect_uri = flask.current_app.fence_client.client_kwargs.get(
-            "redirect_uri"
-        )
+
+        # OAuth class can have mutliple clients
+        client = flask.current_app.fence_client._clients[
+            flask.current_app.config["OPENID_CONNECT"]["fence"]["name"]
+        ]
+
+        oauth2_redirect_uri = client.client_kwargs.get("redirect_uri")
+
         redirect_url = flask.request.args.get("redirect")
         if redirect_url:
             validate_redirect(redirect_url)
             flask.session["redirect"] = redirect_url
-        (
-            authorization_url,
-            state,
-        ) = flask.current_app.fence_client.generate_authorize_redirect(
-            oauth2_redirect_uri, prompt="login"
-        )
+
+        rv = client.create_authorization_url(oauth2_redirect_uri, prompt="login")
+
+        authorization_url = rv["url"]
 
         # add idp parameter to the authorization URL
         if "idp" in flask.request.args:
@@ -57,7 +60,7 @@ class FenceLogin(DefaultOAuth2Login):
                 flask.session["shib_idp"] = shib_idp
             authorization_url = add_params_to_uri(authorization_url, params)
 
-        flask.session["state"] = state
+        flask.session["state"] = rv["state"]
         return flask.redirect(authorization_url)
 
 
@@ -91,16 +94,21 @@ class FenceCallback(DefaultOAuth2Callback):
         # TODO: fence_client <authlib.integrations.flask_client.OAuth> no longer has _get_session(), need to get redirect_uri from elsewhere
         # This has to do with how authutils implement OAuth Client
         # Look at https://github.com/uc-cdis/authutils/tree/feat/authlib
-        redirect_uri = flask.current_app.fence_client._get_session().redirect_uri
-        tokens = flask.current_app.fence_client.fetch_access_token(
-            redirect_uri, **flask.request.args.to_dict()
+
+        # redirect_uri = flask.current_app.fence_client._get_session().redirect_uri
+        client_name = config["OPENID_CONNECT"]["fence"].get("name", "fence")
+        client = flask.current_app.fence_client._clients[client_name]
+        oauth2_redirect_uri = client.client_kwargs.get("redirect_uri")
+
+        tokens = client.fetch_access_token(
+            oauth2_redirect_uri, **flask.request.args.to_dict()
         )
 
         try:
             # For multi-Fence setup with two Fences >=5.0.0
             id_token_claims = validate_jwt(
                 tokens["id_token"],
-                aud=self.client.client_id,
+                aud=client.client_id,
                 scope={"openid"},
                 purpose="id",
                 attempt_refresh=True,

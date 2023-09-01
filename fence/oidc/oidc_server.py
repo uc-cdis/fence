@@ -4,11 +4,15 @@ from authlib.oauth2.rfc6749.authenticate_client import (
     ClientAuthentication as AuthlibClientAuthentication,
 )
 
-from authlib.oauth2.rfc6749.errors import InvalidClientError as AuthlibClientError
+from authlib.oauth2.rfc6749.errors import (
+    InvalidClientError as AuthlibClientError,
+)
 import flask
 
 from fence.oidc.errors import InvalidClientError
 from fence.oidc.jwt_generator import generate_token
+
+from fence import logger
 
 
 class ClientAuthentication(AuthlibClientAuthentication):
@@ -17,18 +21,22 @@ class ClientAuthentication(AuthlibClientAuthentication):
     in order to authenticate OAuth clients.
     """
 
-    def authenticate(self, request, methods):
+    def authenticate(self, request, methods, endpoint):
         """
         Override method from authlib
         """
-        client = super(ClientAuthentication, self).authenticate(request, methods)
+        client = super(ClientAuthentication, self).authenticate(
+            request, methods, endpoint
+        )
         # don't allow confidential clients to not use auth
         if client.is_confidential:
             m = list(methods)
             if "none" in m:
                 m.remove("none")
             try:
-                client = super(ClientAuthentication, self).authenticate(request, m)
+                client = super(ClientAuthentication, self).authenticate(
+                    request, m, endpoint
+                )
             except AuthlibClientError:
                 raise InvalidClientError(
                     "OAuth client failed to authenticate; client ID or secret is"
@@ -53,6 +61,5 @@ class OIDCServer(AuthorizationServer):
             self.save_token = save_token
         self.app = app
         self.generate_token = generate_token
-        # self.init_jwt_config(app)
         if getattr(self, "query_client"):
             self.authenticate_client = ClientAuthentication(query_client)

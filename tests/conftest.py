@@ -86,6 +86,7 @@ def mock_get_bucket_location(self, bucket, config):
 def claims_refresh():
     new_claims = tests.utils.default_claims()
     new_claims["pur"] = "refresh"
+    new_claims["azp"] = "test-client"
     return new_claims
 
 
@@ -1355,7 +1356,7 @@ def oauth_client_B(app, request, db_session):
 
 
 @pytest.fixture(scope="function")
-def oauth_client_public(app, db_session, oauth_user):
+def oauth_client_public(app, db_session, oauth_user, get_all_shib_idps_patcher):
     """
     Create a public OAuth2 client.
     """
@@ -1425,7 +1426,7 @@ def oauth_test_client_B(client, oauth_client_B):
 
 
 @pytest.fixture(scope="function")
-def oauth_test_client_public(client, oauth_client_public):
+def oauth_test_client_public(client, oauth_client_public, get_all_shib_idps_patcher):
     return OAuth2TestClient(client, oauth_client_public, confidential=False)
 
 

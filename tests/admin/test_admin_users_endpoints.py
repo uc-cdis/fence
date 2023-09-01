@@ -114,9 +114,8 @@ def load_non_google_user_data(db_session, test_user_d):
         client_secret_expires_at=42020,
         redirect_uris="dclient.com",
         response_types="dresponse",
-        scope="dscope",
         name="dclientname",
-        _allowed_scopes="dallscopes",
+        allowed_scopes="dallscopes",
     )
     grp = Group(id=userd_dict["group_id"])
     usr_grp = UserToGroup(
