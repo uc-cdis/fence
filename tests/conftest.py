@@ -378,7 +378,7 @@ def no_app_context_no_public_keys():
 @pytest.fixture(scope="function")
 def mock_arborist_requests(request):
     """
-    This fixture returns a function which you call to mock out arborist endopints.
+    This fixture returns a function which you call to mock out arborist endpoints.
     Give it an argument in this format:
         {
             "arborist/health": {

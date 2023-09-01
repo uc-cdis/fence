@@ -117,7 +117,7 @@ class RASOauth2Client(Oauth2ClientBase):
             )
         )
 
-    def get_user_id(self, code):
+    def get_auth_info(self, code):
         err_msg = "Unable to parse UserID from RAS userinfo response"
 
         try:
@@ -189,6 +189,7 @@ class RASOauth2Client(Oauth2ClientBase):
             "username": username,
             "email": userinfo.get("email"),
             "sub": userinfo.get("sub"),
+            "mfa": self.has_mfa_claim(claims),
         }
 
     def map_iss_sub_pair_to_user(

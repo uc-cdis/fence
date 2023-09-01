@@ -34,7 +34,7 @@ class GoogleOauth2Client(Oauth2ClientBase):
 
         return uri
 
-    def get_user_id(self, code):
+    def get_auth_info(self, code):
         """
         Get user id
         """

@@ -130,18 +130,47 @@ class FenceConfig(Config):
                     "BILLING_PROJECT_FOR_SA_CREDS or BILLING_PROJECT_FOR_SIGNED_URLS is set to a non-None value. "
                     "SESSION_ALLOWED_SCOPES includes `google_credentials`. Removing "
                     "`google_credentials` from USER_ALLOWED_SCOPES as this could allow "
-                    "end-users to indescriminently bill our default project. Clients are inheritently "
+                    "end-users to indiscriminately bill our default project. Clients are inherently "
                     "trusted, so we do not restrict this scope for clients."
                 )
                 self._configs["SESSION_ALLOWED_SCOPES"].remove("google_credentials")
 
         if (
             not self._configs["ENABLE_VISA_UPDATE_CRON"]
-            and self._configs["GLOBAL_PARSE_VISAS_ON_LOGIN"] != False
+            and self._configs["GLOBAL_PARSE_VISAS_ON_LOGIN"] is not False
         ):
             raise Exception(
                 "Visa parsing on login is enabled but `ENABLE_VISA_UPDATE_CRON` is disabled!"
             )
+
+        for idp_id, idp in self._configs.get("OPENID_CONNECT", {}).items():
+            mfa_info = idp.get("multifactor_auth_claim_info")
+            if mfa_info and mfa_info["claim"] not in ["amr", "acr"]:
+                logger.warning(
+                    f"IdP '{idp_id}' is using multifactor_auth_claim_info '{mfa_info['claim']}', which is neither AMR or ACR. Unable to determine if a user used MFA. Fence will continue and assume they have not used MFA."
+                )
+
+        self._validate_parent_child_studies(self._configs["dbGaP"])
+
+    @staticmethod
+    def _validate_parent_child_studies(dbgap_configs):
+        if isinstance(dbgap_configs, list):
+            configs = dbgap_configs
+        else:
+            configs = [dbgap_configs]
+
+        all_parent_studies = set()
+        for dbgap_config in configs:
+            parent_studies = dbgap_config.get(
+                "parent_to_child_studies_mapping", {}
+            ).keys()
+            conflicts = parent_studies & all_parent_studies
+            if len(conflicts) > 0:
+                raise Exception(
+                    f"{conflicts} are duplicate parent study ids found in parent_to_child_studies_mapping for "
+                    f"multiple dbGaP configurations."
+                )
+            all_parent_studies.update(parent_studies)
 
 
 config = FenceConfig(DEFAULT_CFG_PATH)
