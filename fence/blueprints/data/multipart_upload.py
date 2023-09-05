@@ -113,7 +113,12 @@ def generate_presigned_url_for_uploading_part(
         presigned_url(str)
     """
 
-    url = "https://{}.s3.amazonaws.com/{}".format(bucket, key)
+    if bucket.get("endpoint_url"):
+        url = bucket["endpoint_url"].strip("/") + "/{}/{}".format(
+            bucket, key.strip("/")
+        )
+    else:
+        url = "https://{}.s3.amazonaws.com/{}".format(bucket, key)
     additional_signed_qs = {"partNumber": str(partNumber), "uploadId": uploadId}
 
     try:
