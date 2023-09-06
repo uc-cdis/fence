@@ -472,7 +472,6 @@ def app(kid, rsa_private_key, rsa_public_key):
 
     yield fence.app
 
-    alembic_main(["--raiseerr", "downgrade", "base"])
     mocker.unmock_functions()
 
 
