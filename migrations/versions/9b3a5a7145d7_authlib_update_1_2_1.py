@@ -8,11 +8,12 @@ Create Date: 2023-09-01 10:27:16.686456
 from alembic import op
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
-from fence.models import Client
+
 import json
-from sqlalchemy import Column, String, Boolean, Text, Integer
 from authlib.common.encoding import json_loads, json_dumps
-import time
+
+from migrations.models.migration_client import MigrationClient
+
 
 # revision identifiers, used by Alembic.
 revision = "9b3a5a7145d7"  # pragma: allowlist secret
@@ -134,6 +135,11 @@ def downgrade():
 def set_metadata_values(op):
     conn = op.get_bind()
     session = Session(bind=conn)
+    # Drop temp table if somehow exists, copy client table with all metadata then copy all data
+    session.execute("DROP TABLE IF EXISTS migration_client;")
+    session.execute("CREATE TABLE migration_client (LIKE client INCLUDING ALL);")
+    session.execute("INSERT INTO migration_client SELECT * FROM client;")
+
     for client in session.query(MigrationClient).all():
         if client.i18n_metadata:
             metadata = json.loads(client.i18n_metadata)
@@ -170,12 +176,28 @@ def set_metadata_values(op):
             metadata["software_version"] = client.software_version
 
         client._client_metadata = json_dumps(metadata)
+
+    # Drop and recreate client Table, copy data and recreate Foreign Key, drop temp table
+    op.drop_table("client")
+    session.execute("CREATE TABLE client (LIKE migration_client INCLUDING ALL);")
+    session.execute("INSERT INTO client SELECT * FROM migration_client;")
+    op.create_foreign_key(
+        "client_user_id_fk", "client", "User", ["user_id"], ["id"], ondelete="CASCADE"
+    )
+    op.drop_table("migration_client")
     session.commit()
 
 
 def set_old_column_values():
     conn = op.get_bind()
     session = Session(bind=conn)
+
+    # Drop temp table if somehow exists, copy client table with all metadata then copy all data
+    session.execute("DROP TABLE IF EXISTS migration_client;")
+    session.execute("CREATE TABLE migration_client (LIKE client INCLUDING ALL);")
+    session.execute("INSERT INTO migration_client SELECT * FROM client;")
+
+    # Data Transformation on temp table
     for client in session.query(MigrationClient).all():
         if client._client_metadata:
             metadata = json_loads(client._client_metadata)
@@ -213,26 +235,12 @@ def set_old_column_values():
             if "software_version" in metadata:
                 client.software_version = metadata["software_version"]
 
+    # Drop and recreate client Table, copy data and recreate Foreign Key, drop temp table
+    op.drop_table("client")
+    session.execute("CREATE TABLE client (LIKE migration_client INCLUDING ALL);")
+    session.execute("INSERT INTO client SELECT * FROM migration_client;")
+    op.create_foreign_key(
+        "client_user_id_fk", "client", "User", ["user_id"], ["id"], ondelete="CASCADE"
+    )
+    op.drop_table("migration_client")
     session.commit()
-
-
-class MigrationClient(Client):
-
-    redirect_uri = Column(Text)
-    token_endpoint_auth_method = Column(String(48), default="client_secret_basic")
-    grant_type = Column(Text, nullable=False, default="")
-    response_type = Column(Text, nullable=False, default="")
-    scope = Column(Text, nullable=False, default="")
-
-    client_name = Column(String(100))
-    client_uri = Column(Text)
-    logo_uri = Column(Text)
-    contact = Column(Text)
-    tos_uri = Column(Text)
-    policy_uri = Column(Text)
-    jwks_uri = Column(Text)
-    jwks_text = Column(Text)
-    i18n_metadata = Column(Text)
-
-    software_id = Column(String(36))
-    software_version = Column(String(48))

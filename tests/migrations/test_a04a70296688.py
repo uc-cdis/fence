@@ -23,6 +23,9 @@ def post_test_clean_up(app):
 
 
 def test_upgrade(app):
+    # This is the last version our current codebase will work with
+    alembic_main(["--raiseerr", "upgrade", "9b3a5a7145d7"])  # pragma: allowlist secret
+
     client_name = "non_unique_client_name"
 
     # It should be possible to add 2 clients of the same name

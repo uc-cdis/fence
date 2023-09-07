@@ -24,6 +24,8 @@ def post_test_clean_up(app):
 
 
 def test_upgrade(app):
+    alembic_main(["--raiseerr", "upgrade", "9b3a5a7145d7"])  # pragma: allowlist secret
+
     client_name = "client_name"
     url = "https://oauth-client.net"
     client_id = "test-client"

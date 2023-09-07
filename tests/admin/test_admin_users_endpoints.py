@@ -674,6 +674,7 @@ def assert_google_proxy_group_data_deleted(db_session):
 
 
 def test_delete_user_username(
+    app,
     client,
     admin_user,
     encoded_admin_jwt,
