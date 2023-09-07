@@ -10,13 +10,15 @@ import sqlalchemy as sa
 from sqlalchemy.orm import Session
 from fence.models import Client
 import json
+from sqlalchemy import Column, String, Boolean, Text, Integer
+from authlib.common.encoding import json_loads, json_dumps
+import time
 
 # revision identifiers, used by Alembic.
 revision = "9b3a5a7145d7"  # pragma: allowlist secret
 down_revision = "a04a70296688"  # pragma: allowlist secret
 branch_labels = None
 depends_on = None
-from authlib.common.encoding import json_loads, json_dumps
 
 
 def upgrade():
@@ -34,6 +36,9 @@ def upgrade():
     op.alter_column("client", "client_id", nullable=False, type_=sa.String(48))
     op.alter_column("client", "client_secret", nullable=True, type_=sa.String(120))
 
+    # Set value of metadata field
+    # Important: do this before deleting old columns to avoid issues
+    # Also do this after adding columns
     set_metadata_values(op)
 
     # Delete Columns for client Table
@@ -67,11 +72,6 @@ def upgrade():
 
 
 def downgrade():
-
-    # Modify Columns for client Table
-    op.alter_column("client", "client_id_issued_at", new_column_name="issued_at")
-    op.alter_column("client", "client_id", nullable=False, type_=sa.String(40))
-    op.alter_column("client", "client_secret", nullable=True, type_=sa.String(60))
 
     # Add Old Columns Back
     op.add_column("client", sa.Column("redirect_uri", sa.Text(), nullable=True))
@@ -112,7 +112,15 @@ def downgrade():
     )
     op.add_column("client", sa.Column("_redirect_uris", sa.Text(), nullable=True))
 
+    # Set value of old columns
+    # Important: do this before deleting old columns to avoid issues
+    # Also do this after adding columns
     set_old_column_values()
+
+    # Modify Columns for client Table
+    op.alter_column("client", "client_id_issued_at", new_column_name="issued_at")
+    op.alter_column("client", "client_id", nullable=False, type_=sa.String(40))
+    op.alter_column("client", "client_secret", nullable=True, type_=sa.String(60))
 
     # Drop New Columns for client Table
     op.drop_column("client", "client_metadata")
@@ -126,7 +134,7 @@ def downgrade():
 def set_metadata_values(op):
     conn = op.get_bind()
     session = Session(bind=conn)
-    for client in session.query(Client).all():
+    for client in session.query(MigrationClient).all():
         if client.i18n_metadata:
             metadata = json.loads(client.i18n_metadata)
         else:
@@ -168,38 +176,63 @@ def set_metadata_values(op):
 def set_old_column_values():
     conn = op.get_bind()
     session = Session(bind=conn)
-    for client in session.query(Client).all():
+    for client in session.query(MigrationClient).all():
         if client._client_metadata:
             metadata = json_loads(client._client_metadata)
             client.i18n_metadata = metadata
 
-        if client.redirect_uri:
-            client.redirect_uri = metadata["redirect_uris"]
-        if client.token_endpoint_auth_method:
-            client.token_endpoint_auth_method = metadata["token_endpoint_auth_method"]
-        if client._allowed_scopes:
-            client._allowed_scopes = " ".join(metadata["scope"])
-        if client.grant_type:
-            client.grant_type = "\n".joinmetadata["grant_type"]
-        if client.response_type:
-            client.response_type = "\n".join(metadata["response_type"])
-        if client.client_uri:
-            client.client_uri = metadata["client_uri"]
-        if client.logo_uri:
-            client.logo_uri = metadata["logo_uri"]
-        if client.contact:
-            client.contact = metadata["contact"]
-        if client.contact:
-            client.tos_uri = metadata["tos_uri"]
-        if client.contact:
-            client.policy_uri = metadata["policy_uri"]
-        if client.contact:
-            client.jwks_uri = metadata["jwks_uri"]
-        if client.contact:
-            client.jwks_text = metadata["jwks_text"]
-        if client.contact:
-            client.software_id = metadata["software_id"]
-        if client.contact:
-            client.software_version = metadata["software_version"]
+        if metadata:
+            if "redirect_uris" in metadata:
+                client.redirect_uri = metadata["redirect_uris"]
+            if "token_endpoint_auth_method" in metadata:
+                client.token_endpoint_auth_method = metadata[
+                    "token_endpoint_auth_method"
+                ]
+            if "_allowed_scopes" in metadata:
+                client._allowed_scopes = " ".join(metadata["scope"])
+            if "grant_type" in metadata:
+                client.grant_type = "\n".joinmetadata["grant_type"]
+            if "response_type" in metadata:
+                client.response_type = "\n".join(metadata["response_type"])
+            if "client_uri" in metadata:
+                client.client_uri = metadata["client_uri"]
+            if "logo_uri" in metadata:
+                client.logo_uri = metadata["logo_uri"]
+            if "contact" in metadata:
+                client.contact = metadata["contact"]
+            if "tos_uri" in metadata:
+                client.tos_uri = metadata["tos_uri"]
+            if "policy_uri" in metadata:
+                client.policy_uri = metadata["policy_uri"]
+            if "jwks_uri" in metadata:
+                client.jwks_uri = metadata["jwks_uri"]
+            if "jwks_text" in metadata:
+                client.jwks_text = metadata["jwks_text"]
+            if "software_id" in metadata:
+                client.software_id = metadata["software_id"]
+            if "software_version" in metadata:
+                client.software_version = metadata["software_version"]
 
     session.commit()
+
+
+class MigrationClient(Client):
+
+    redirect_uri = Column(Text)
+    token_endpoint_auth_method = Column(String(48), default="client_secret_basic")
+    grant_type = Column(Text, nullable=False, default="")
+    response_type = Column(Text, nullable=False, default="")
+    scope = Column(Text, nullable=False, default="")
+
+    client_name = Column(String(100))
+    client_uri = Column(Text)
+    logo_uri = Column(Text)
+    contact = Column(Text)
+    tos_uri = Column(Text)
+    policy_uri = Column(Text)
+    jwks_uri = Column(Text)
+    jwks_text = Column(Text)
+    i18n_metadata = Column(Text)
+
+    software_id = Column(String(36))
+    software_version = Column(String(48))

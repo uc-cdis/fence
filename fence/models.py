@@ -225,10 +225,7 @@ class Client(Base, OAuth2ClientMixin):
     _scopes = ["compute", "storage", "user"]
 
     def __init__(self, client_id, expires_in=0, **kwargs):
-        """
-        NOTE that for authlib, the client must have an attribute ``redirect_uri`` which
-        is a newline-delimited list of valid redirect URIs.
-        """
+
         # New Json object for Authlib Oauth client
         client_metadata = {}
 
