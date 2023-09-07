@@ -4,6 +4,7 @@ from sqlalchemy.orm import Session, backref, relationship
 from sqlalchemy.schema import ForeignKey
 from userdatamodel import Base
 from userdatamodel.models import User
+import time
 
 # This needs to be in a different file
 # Otherwise SqlAlchemy would import this multiple times and then complain about metadata conflict
@@ -38,9 +39,14 @@ class MigrationClient(Base, OAuth2ClientMixin):
 
     expires_at = Column(Integer, nullable=False, default=0)
 
+    _redirect_uris = Column(Text)
+
+    _allowed_scopes = Column(Text, nullable=False, default="")
+
     # Deprecated, keeping these around in case it is needed later
     _default_scopes = Column(Text)
     _scopes = ["compute", "storage", "user"]
+
     redirect_uri = Column(Text)
     token_endpoint_auth_method = Column(String(48), default="client_secret_basic")
     grant_type = Column(Text, nullable=False, default="")
