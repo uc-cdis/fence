@@ -184,8 +184,8 @@ def set_metadata_values(op):
     op.create_foreign_key(
         "client_user_id_fk", "client", "User", ["user_id"], ["id"], ondelete="CASCADE"
     )
-    op.drop_table("migration_client")
     session.commit()
+    op.drop_table("migration_client")
 
 
 def set_old_column_values():
@@ -242,5 +242,5 @@ def set_old_column_values():
     op.create_foreign_key(
         "client_user_id_fk", "client", "User", ["user_id"], ["id"], ondelete="CASCADE"
     )
-    op.drop_table("migration_client")
     session.commit()
+    op.drop_table("migration_client")
