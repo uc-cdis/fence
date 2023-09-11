@@ -114,4 +114,4 @@ class RASCallback(DefaultOAuth2Callback):
             user=user, refresh_token=refresh_token, expires=expires + issued_time
         )
 
-        super(RASCallback, self).post_login(id_from_idp=id_from_idp)
+        super(RASCallback, self).post_login(token_result=token_result)

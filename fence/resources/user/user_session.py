@@ -204,7 +204,7 @@ class UserSessionInterface(SessionInterface):
             except Unauthorized:
                 user = None
 
-            user_sess_id = _get_user_id_from_session(session)
+            user_sess_id = _get_auth_info_from_session(session)
 
             # user_id == '' in session means no login has occured, which is
             # okay if user is hitting with just an access_token
@@ -288,8 +288,8 @@ def _get_valid_access_token(app, session, request):
         return None
 
     # check that the current user is the one from the session and access_token
-    user_sess_id = _get_user_id_from_session(session)
-    token_user_id = _get_user_id_from_access_token(valid_access_token)
+    user_sess_id = _get_auth_info_from_session(session)
+    token_user_id = _get_auth_info_from_access_token(valid_access_token)
 
     if user.id != user_sess_id and user.username != user_sess_id:
         return None
@@ -349,7 +349,7 @@ def _create_access_token_cookie(app, session, response, user):
     return response
 
 
-def _get_user_id_from_session(session):
+def _get_auth_info_from_session(session):
     """
     Get user's identifier from the session. It could be their id or username
     since both are unique.
@@ -365,7 +365,7 @@ def _get_user_id_from_session(session):
     return user_sess_id
 
 
-def _get_user_id_from_access_token(access_token):
+def _get_auth_info_from_access_token(access_token):
     """
     Get user's identifier from the access token claims
     """
