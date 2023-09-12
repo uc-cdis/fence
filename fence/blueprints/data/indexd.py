@@ -314,7 +314,7 @@ class BlankIndex(object):
         Returns:
             uploadId(str)
         """
-        if bucket:
+        if not bucket:
             try:
                 bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
             except KeyError:
