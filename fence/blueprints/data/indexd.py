@@ -291,7 +291,7 @@ class BlankIndex(object):
                         "fence not configured with data upload bucket; can't create signed URL"
                     )
 
-            self.logger.debug("Attemping to upload to bucket '{}'".format(bucket))
+            self.logger.debug("Attempting to upload to bucket '{}'".format(bucket))
             s3_url = "s3://{}/{}/{}".format(bucket, self.guid, file_name)
             url = S3IndexedFileLocation(s3_url).get_signed_url("upload", expires_in)
 
