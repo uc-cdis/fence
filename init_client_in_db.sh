@@ -40,7 +40,7 @@ psql -U postgres -d fence_test -c "insert into \"User\" (id, username, email) va
 
 sleep 6
 
-# add Atlas as client:
+# add Atlas as client:  (REMEMBER TO ADJUST URL to match your WEBAPI installation!)
 docker exec -i \
 $FENCE_CONTAINER_NAME \
 fence-create client-create --client ATLAS --urls http://127.0.0.1/WebAPI/user/oauth/callback?client_name=OidcClient --username ATLAS
