@@ -364,7 +364,6 @@ def app_config(
     _setup_audit_service_client(app)
     _setup_data_endpoint_and_boto(app)
     _load_keys(app, root_dir)
-    _set_authlib_cfgs(app)
 
     app.prometheus_counters = {}
     if config["ENABLE_PROMETHEUS_METRICS"]:
@@ -404,24 +403,6 @@ def _load_keys(app, root_dir):
             [(str(keypair.kid), str(keypair.public_key)) for keypair in app.keypairs]
         )
     }
-
-
-def _set_authlib_cfgs(app):
-    # authlib OIDC settings
-    # key will need to be added
-    settings = {"OAUTH2_JWT_KEY": keys.default_private_key(app)}
-    app.config.update(settings)
-    config.update(settings)
-
-    # only add the following if not already provided
-    config.setdefault("OAUTH2_JWT_ENABLED", True)
-    config.setdefault("OAUTH2_JWT_ALG", "RS256")
-    config.setdefault("OAUTH2_JWT_ISS", app.config["BASE_URL"])
-    config.setdefault("OAUTH2_PROVIDER_ERROR_URI", "/api/oauth2/errors")
-    app.config.setdefault("OAUTH2_JWT_ENABLED", True)
-    app.config.setdefault("OAUTH2_JWT_ALG", "RS256")
-    app.config.setdefault("OAUTH2_JWT_ISS", app.config["BASE_URL"])
-    app.config.setdefault("OAUTH2_PROVIDER_ERROR_URI", "/api/oauth2/errors")
 
 
 def _setup_oidc_clients(app):

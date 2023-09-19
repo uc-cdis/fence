@@ -386,16 +386,9 @@ ENABLED_IDENTITY_PROVIDERS: {}
 
 
 # //////////////////////////////////////////////////////////////////////////////////////
-# LIBRARY CONFIGURATION (authlib & flask)
+# LIBRARY CONFIGURATION (flask)
 #   - Already contains reasonable defaults
 # //////////////////////////////////////////////////////////////////////////////////////
-# authlib-specific configs for OIDC flow and JWTs
-# NOTE: the OAUTH2_JWT_KEY cfg gets set automatically by fence if keys are setup
-#       correctly
-OAUTH2_JWT_ALG: 'RS256'
-OAUTH2_JWT_ENABLED: true
-OAUTH2_JWT_ISS: '{{BASE_URL}}'
-OAUTH2_PROVIDER_ERROR_URI: '/api/oauth2/errors'
 
 # used for flask, "path mounted under by the application / web server"
 # since we deploy as microservices, fence is typically under {{base}}/user

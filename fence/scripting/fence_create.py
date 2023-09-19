@@ -216,7 +216,7 @@ def delete_expired_clients_action(DB, slack_webhook=None, warning_days=None):
         # to delete
         pass
 
-    def split_uris(uris):
+    def format_uris(uris):
         if not uris:
             return uris
         return " ".join(uris)
@@ -235,7 +235,7 @@ def delete_expired_clients_action(DB, slack_webhook=None, warning_days=None):
 
         for client in clients:
             expired_messages.append(
-                f"Client '{client.name}' (ID '{client.client_id}') expired at {datetime.fromtimestamp(client.expires_at)} UTC. Redirect URIs: {split_uris(client.redirect_uris)})"
+                f"Client '{client.name}' (ID '{client.client_id}') expired at {datetime.fromtimestamp(client.expires_at)} UTC. Redirect URIs: {format_uris(client.redirect_uris)})"
             )
             _remove_client_service_accounts(current_session, client)
             current_session.delete(client)
@@ -257,7 +257,7 @@ def delete_expired_clients_action(DB, slack_webhook=None, warning_days=None):
     expiring_messages = ["Some OIDC clients are expiring soon!"]
     expiring_messages.extend(
         [
-            f"Client '{client.name}' (ID '{client.client_id}') expires at {datetime.fromtimestamp(client.expires_at)} UTC. Redirect URIs: {split_uris(client.redirect_uris)}"
+            f"Client '{client.name}' (ID '{client.client_id}') expires at {datetime.fromtimestamp(client.expires_at)} UTC. Redirect URIs: {format_uris(client.redirect_uris)}"
             for client in expiring_clients
         ]
     )

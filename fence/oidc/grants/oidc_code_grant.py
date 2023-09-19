@@ -12,35 +12,16 @@ from fence.config import config
 from fence.models import AuthorizationCode, ClientAuthType, User
 
 
-class OpenIDCodeGrant(grants.AuthorizationCodeGrant):
+class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
 
     TOKEN_ENDPOINT_AUTH_METHODS = [auth_type.value for auth_type in ClientAuthType]
 
     def __init__(self, *args, **kwargs):
-        super(OpenIDCodeGrant, self).__init__(*args, **kwargs)
+        super(AuthorizationCodeGrant, self).__init__(*args, **kwargs)
         # Override authlib validate_request_prompt with our own, to fix login prompt behavior
-        """self._hooks["after_validate_consent_request"].discard(
-            grants.util.validate_request_prompt
-        )"""
         self.register_hook(
             "after_validate_consent_request", self.validate_request_prompt
         )
-
-    """
-    def get_jwt_config(self, grant):
-        return {
-            'key': flask.current_app.config["OAUTH2_JWT_KEY"],
-            'alg': flask.current_app.config["OAUTH2_JWT_ALG"],
-            'iss': flask.current_app.config["OAUTH2_JWT_ISS"],
-            'exp': flask.current_app.config["OAUTH2_TOKEN_EXPIRES_IN"]["authorization_code"]
-        }
-
-    def generate_user_info(self, user, scope):
-            user_info = UserInfo(sub=user.id, name=user.name)
-            if 'email' in scope:
-                user_info['email'] = user.email
-            return user_info
-    """
 
     @staticmethod
     def create_authorization_code(client, grant_user, request):
@@ -76,7 +57,6 @@ class OpenIDCodeGrant(grants.AuthorizationCodeGrant):
 
         return code.code
 
-    # In Case we need to use AuthorizationCodeGrant
     def save_authorization_code(self, code, request):
         # requested lifetime (in seconds) for the refresh token
         refresh_token_expires_in = get_valid_expiration_from_request(

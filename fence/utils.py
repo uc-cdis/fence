@@ -441,8 +441,15 @@ def validate_scopes(request_scopes, client):
         raise Exception("Client object is None")
 
     if request_scopes:
-        request_scopes = scope_to_list(request_scopes)
-        if not client.check_requested_scopes(set(request_scopes)):
+        scopes = scope_to_list(request_scopes)
+        # can we get some debug logs here that log the client, what scopes they have, and what scopes were requested
+        if not client.check_requested_scopes(set(scopes)):
+            logger.debug(
+                "Request Scope are "
+                + " ".join(scopes)
+                + "but client supported scopes are "
+                + client.scope
+            )
             raise InvalidScopeError("Failed to Authorize due to unsupported scope")
 
     return True

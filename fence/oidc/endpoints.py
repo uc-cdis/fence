@@ -2,13 +2,12 @@ from authlib.oauth2.rfc6749.errors import InvalidClientError, OAuth2Error
 import authlib.oauth2.rfc7009
 import bcrypt
 import flask
-from fence.models import JWTToken
 
 from cdislogging import get_logger
 
 from fence.errors import BlacklistingError
 import fence.jwt.blacklist
-
+import jwt
 
 logger = get_logger(__name__)
 
@@ -110,3 +109,14 @@ class RevocationEndpoint(authlib.oauth2.rfc7009.RevocationEndpoint):
         finally:
             body = {"error": message} if message != "" else {}
         return (status, body, headers)
+
+
+class JWTToken(object):
+    def __init__(self, token):
+        self.encoded_string = token
+        self.client_id = jwt.decode(
+            token, algorithms=["RS256"], options={"verify_signature": False}
+        ).get("azp")
+
+    def check_client(self, client):
+        return self.client_id == client.client_id

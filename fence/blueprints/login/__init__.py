@@ -368,8 +368,6 @@ def get_all_shib_idps():
     Returns:
         list: list of {"idp": "", "name": ""} dictionaries
     """
-    # TODO Config is only returning {'client_id': '', 'client_secret': '', 'redirect_url': 'http://localhost/user/login/fence/login'}
-    # Why does it only have 3 attributes left when there are so many in the config, including shibboleth_discovery_url
     url = config["OPENID_CONNECT"].get("fence", {}).get("shibboleth_discovery_url")
     if not url:
         raise InternalError(

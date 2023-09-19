@@ -101,9 +101,6 @@ def test_redirect_login_fence(app, client, config_idp_in_client):
     Test that the ``/login/fence`` endpoint on the client fence redirects to the
     ``/oauth2/authorize`` endpoint on the IDP fence, in the multi-tenant setup case.
     """
-    """
-    Returning 500, need to figure out how to get the correct client now that client class can have multiple registered
-    """
     path = "/login/fence"
     r = client.get(path)
     assert r.status_code == 302

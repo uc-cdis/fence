@@ -60,7 +60,6 @@ from userdatamodel.models import (
 from fence import logger
 from fence.config import config
 from fence.errors import UserError
-import jwt
 
 
 def query_for_user(session, username):
@@ -227,7 +226,10 @@ class Client(Base, OAuth2ClientMixin):
     def __init__(self, client_id, expires_in=0, **kwargs):
 
         # New Json object for Authlib Oauth client
-        client_metadata = {}
+        if "_client_metadata" in kwargs:
+            client_metadata = json.loads(kwargs.pop("_client_metadata"))
+        else:
+            client_metadata = {}
 
         if "allowed_scopes" in kwargs:
             allowed_scopes = kwargs.pop("allowed_scopes")
@@ -289,11 +291,13 @@ class Client(Base, OAuth2ClientMixin):
                 "token_endpoint_auth_method"
             )
 
-        expires_at = get_client_expires_at(
-            expires_in=expires_in, grant_types=client_metadata["grant_types"]
-        )
-        if expires_at:
-            kwargs["expires_at"] = expires_at
+        # Do this if expires_in is specified or expires_at is not supplied
+        if expires_in != 0 or ("expires_at" not in kwargs):
+            expires_at = get_client_expires_at(
+                expires_in=expires_in, grant_types=client_metadata["grant_types"]
+            )
+            if expires_at:
+                kwargs["expires_at"] = expires_at
 
         if "client_id_issued_at" not in kwargs or kwargs["client_id_issued_at"] is None:
             kwargs["client_id_issued_at"] = int(time.time())
@@ -347,7 +351,7 @@ class Client(Base, OAuth2ClientMixin):
             return False
         return set(self.allowed_scopes).issuperset(scopes)
 
-    # Replaces Authlib method
+    # Replaces Authlib method. Our logic does not actually look at token_auth_endpoint value
     def check_endpoint_auth_method(self, method, endpoint):
         """
         Only basic auth is supported. If anything else gets added, change this
@@ -359,10 +363,6 @@ class Client(Base, OAuth2ClientMixin):
             )
 
         return True
-
-    def validate_scopes(self, scopes):
-        scopes = scopes[0].split(",")
-        return all(scope in self.scope for scope in scopes)
 
     def check_response_type(self, response_type):
         allowed_response_types = []
@@ -826,14 +826,3 @@ def populate_iss_sub_pair_to_user_table(target, connection, **kw):
         else:
             transaction.commit()
             logger.info("Population was successful")
-
-
-class JWTToken(object):
-    def __init__(self, token):
-        self.encoded_string = token
-        self.client_id = jwt.decode(
-            token, algorithms=["RS256"], options={"verify_signature": False}
-        ).get("azp")
-
-    def check_client(self, client):
-        return self.client_id == client.client_id

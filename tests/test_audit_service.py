@@ -464,9 +464,7 @@ def test_login_log_login_endpoint(
             data={},
             status_code=201,
         )
-        path = f"/login/{idp}/{callback_endpoint}"
-        # TODO returning 500 from /login/fence/login
-        # SEE fence/blueprints/login/fence_login.py L91
+        path = f"/login/{idp}/{callback_endpoint}"  # SEE fence/blueprints/login/fence_login.py L91
         response = client.get(path, headers=headers)
         assert response.status_code == 200, response
         audit_service_requests.post.assert_called_once_with(

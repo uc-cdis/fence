@@ -8,7 +8,7 @@ import time
 
 # This needs to be in a different file
 # Otherwise SqlAlchemy would import this multiple times and then complain about metadata conflict
-class MigrationClient(Base, OAuth2ClientMixin):
+class MigrationClient(Base):
 
     __tablename__ = "migration_client"
 
@@ -23,19 +23,15 @@ class MigrationClient(Base, OAuth2ClientMixin):
     description = Column(String(400))
 
     # required if you need to support client credential
-    user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"))
-    user = relationship(
-        "User",
-        backref=backref(
-            "migration_clients", cascade="all, delete-orphan", passive_deletes=True
-        ),
-    )
+    user_id = Column(Integer)
 
     # this is for internal microservices to skip user grant
     auto_approve = Column(Boolean, default=False)
 
     # public or confidential
     is_confidential = Column(Boolean, default=True)
+
+    issued_at = Column(Integer, nullable=False, default=lambda: int(time.time()))
 
     expires_at = Column(Integer, nullable=False, default=0)
 
