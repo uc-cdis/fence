@@ -228,3 +228,5 @@ if os.path.exists(fence_creds):
             data.get("GOOGLE_MANAGED_SERVICE_ACCOUNT_DOMAINS", [])
         )
         GUN_MAIL = data.get("GUN_MAIL")
+
+CLIENT_CREDENTIALS_ON_DOWNLOAD_ENABLED: False
