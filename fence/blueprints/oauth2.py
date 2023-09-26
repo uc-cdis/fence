@@ -36,8 +36,10 @@ from authlib.oauth2.rfc6749.errors import (
     InvalidScopeError,
 )
 from fence.utils import validate_scopes
+from cdislogging import get_logger
 
 blueprint = flask.Blueprint("oauth2", __name__)
+logger = get_logger(__name__)
 
 
 @blueprint.route("/authorize", methods=["GET", "POST"])
@@ -322,6 +324,16 @@ def get_token(*args, **kwargs):
     tests for examples of some operation and correct behavior.
     """
     try:
+        # Delete after testing temporary logs
+        request = server.create_oauth2_request(None)
+        for (grant_cls, extensions) in server._token_grants:
+            logger.error("request.grant_type:" + request.grant_type)
+            logger.error("grant_cls.GRANT_TYPE:" + grant_cls.GRANT_TYPE)
+            logger.error("request.method:" + request.method)
+            logger.error(
+                "grant_cls.TOKEN_ENDPOINT_HTTP_METHODS:"
+                + " ".join(grant_cls.TOKEN_ENDPOINT_HTTP_METHODS)
+            )
         response = server.create_token_response()
     except (JWTError, JWTExpiredError) as e:
         # - in Authlib 0.11, create_token_response does not raise OAuth2Error
