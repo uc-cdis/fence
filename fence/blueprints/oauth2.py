@@ -327,10 +327,14 @@ def get_token(*args, **kwargs):
         # Delete after testing temporary logs
         request = server.create_oauth2_request(None)
         for (grant_cls, extensions) in server._token_grants:
-            logger.error("request.grant_type:" + request.grant_type)
-            logger.error("grant_cls.GRANT_TYPE:" + grant_cls.GRANT_TYPE)
-            logger.error("request.method:" + request.method)
-            logger.error(
+            logger.debug("grant_cls.GRANT_TYPE:" + grant_cls.GRANT_TYPE)
+            if request.grant_type:
+                logger.debug("request.grant_type:" + request.grant_type)
+            else:
+                logger.debug("request.grant_type is None")
+
+            logger.debug("request.method:" + request.method)
+            logger.debug(
                 "grant_cls.TOKEN_ENDPOINT_HTTP_METHODS:"
                 + " ".join(grant_cls.TOKEN_ENDPOINT_HTTP_METHODS)
             )
