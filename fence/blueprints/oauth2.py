@@ -323,9 +323,9 @@ def get_token(*args, **kwargs):
     See the OpenAPI documentation for detailed specification, and the OAuth2
     tests for examples of some operation and correct behavior.
     """
-    logger.debug(flask.request.__dict__)
-    logger.debug(flask.request.form["grant_type"])
-    logger.debug(flask.request.__dict__)
+    for key in flask.request.values.keys():
+        logger.debug(key + " : " + flask.request.values[key])
+
     try:
         # Delete after testing temporary logs
         request = server.create_oauth2_request(None)
