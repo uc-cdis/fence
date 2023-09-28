@@ -1,3 +1,8 @@
+import flask
+
+from fence.oidc.errors import InvalidClientError
+from fence.oidc.jwt_generator import generate_token
+
 from authlib.common.urls import urlparse, url_decode
 from authlib.integrations.flask_oauth2 import AuthorizationServer
 from authlib.oauth2.rfc6749.authenticate_client import (
@@ -6,13 +11,15 @@ from authlib.oauth2.rfc6749.authenticate_client import (
 
 from authlib.oauth2.rfc6749.errors import (
     InvalidClientError as AuthlibClientError,
+    OAuth2Error,
+    UnsupportedGrantTypeError,
 )
-import flask
-
-from fence.oidc.errors import InvalidClientError
-from fence.oidc.jwt_generator import generate_token
+from authlib.integrations.flask_oauth2.requests import FlaskOAuth2Request
 
 from fence import logger
+from cdislogging import get_logger
+
+logger = get_logger(__name__)
 
 
 class ClientAuthentication(AuthlibClientAuthentication):
@@ -63,3 +70,40 @@ class OIDCServer(AuthorizationServer):
         self.generate_token = generate_token
         if getattr(self, "query_client"):
             self.authenticate_client = ClientAuthentication(query_client)
+
+    def create_token_response(self, request=None):
+        """Validate token request and create token response.
+
+        :param request: HTTP request instance
+        """
+        request = self.create_oauth2_request(request)
+
+        for (grant_cls, extensions) in self._token_grants:
+            logger.debug("grant_cls.GRANT_TYPE:" + grant_cls.GRANT_TYPE)
+            if request.grant_type:
+                logger.debug("request.grant_type:" + request.grant_type)
+            else:
+                logger.debug("request.grant_type is None")
+
+            logger.debug("request.method:" + request.method)
+            logger.debug(
+                "grant_cls.TOKEN_ENDPOINT_HTTP_METHODS:"
+                + " ".join(grant_cls.TOKEN_ENDPOINT_HTTP_METHODS)
+            )
+        try:
+            grant = self.get_token_grant(request)
+        except UnsupportedGrantTypeError as error:
+            return self.handle_error_response(request, error)
+
+        try:
+            grant.validate_token_request()
+            args = grant.create_token_response()
+            return self.handle_response(*args)
+        except OAuth2Error as error:
+            return self.handle_error_response(request, error)
+
+    def create_oauth2_request(self, request):
+        for key in flask.request.values.keys():
+            logger.debug(key + " : " + flask.request.values[key])
+        oauth_request = FlaskOAuth2Request(flask.request)
+        return oauth_request

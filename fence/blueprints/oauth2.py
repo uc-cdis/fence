@@ -327,21 +327,7 @@ def get_token(*args, **kwargs):
         logger.debug(key + " : " + flask.request.values[key])
 
     try:
-        # Delete after testing temporary logs
-        request = server.create_oauth2_request(None)
-        for (grant_cls, extensions) in server._token_grants:
-            logger.debug("grant_cls.GRANT_TYPE:" + grant_cls.GRANT_TYPE)
-            if request.grant_type:
-                logger.debug("request.grant_type:" + request.grant_type)
-            else:
-                logger.debug("request.grant_type is None")
-
-            logger.debug("request.method:" + request.method)
-            logger.debug(
-                "grant_cls.TOKEN_ENDPOINT_HTTP_METHODS:"
-                + " ".join(grant_cls.TOKEN_ENDPOINT_HTTP_METHODS)
-            )
-        response = server.create_token_response()
+        response = server.create_token_response(flask.request)
     except (JWTError, JWTExpiredError) as e:
         # - in Authlib 0.11, create_token_response does not raise OAuth2Error
         # - fence.jwt.errors.JWTError: blacklisted refresh token
