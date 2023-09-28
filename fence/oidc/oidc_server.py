@@ -98,10 +98,10 @@ class OIDCServer(AuthorizationServer):
         oauth_request = FlaskOAuth2Request(flask.request)
 
         logger.debug("Logging Created Oauth2 Request variables")
-        if request.grant_type:
-            logger.debug("request.grant_type:" + request.grant_type)
+        if oauth_request.grant_type:
+            logger.debug("request.grant_type:" + oauth_request.grant_type)
         else:
             logger.debug("request.grant_type is None")
 
-        logger.debug("request.method:" + request.method)
+        logger.debug("request.method:" + oauth_request.method)
         return oauth_request
