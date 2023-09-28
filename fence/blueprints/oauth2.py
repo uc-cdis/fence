@@ -323,6 +323,7 @@ def get_token(*args, **kwargs):
     See the OpenAPI documentation for detailed specification, and the OAuth2
     tests for examples of some operation and correct behavior.
     """
+    logger.debug("logging request coming in..")
     for key in flask.request.values.keys():
         logger.debug(key + " : " + flask.request.values[key])
 

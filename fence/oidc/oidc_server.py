@@ -78,18 +78,6 @@ class OIDCServer(AuthorizationServer):
         """
         request = self.create_oauth2_request(request)
 
-        for (grant_cls, extensions) in self._token_grants:
-            logger.debug("grant_cls.GRANT_TYPE:" + grant_cls.GRANT_TYPE)
-            if request.grant_type:
-                logger.debug("request.grant_type:" + request.grant_type)
-            else:
-                logger.debug("request.grant_type is None")
-
-            logger.debug("request.method:" + request.method)
-            logger.debug(
-                "grant_cls.TOKEN_ENDPOINT_HTTP_METHODS:"
-                + " ".join(grant_cls.TOKEN_ENDPOINT_HTTP_METHODS)
-            )
         try:
             grant = self.get_token_grant(request)
         except UnsupportedGrantTypeError as error:
@@ -103,7 +91,17 @@ class OIDCServer(AuthorizationServer):
             return self.handle_error_response(request, error)
 
     def create_oauth2_request(self, request):
+        logger.debug("Creating Oauth2 Request. Logging flask request vars")
         for key in flask.request.values.keys():
             logger.debug(key + " : " + flask.request.values[key])
+
         oauth_request = FlaskOAuth2Request(flask.request)
+
+        logger.debug("Logging Created Oauth2 Request variables")
+        if request.grant_type:
+            logger.debug("request.grant_type:" + request.grant_type)
+        else:
+            logger.debug("request.grant_type is None")
+
+        logger.debug("request.method:" + request.method)
         return oauth_request
