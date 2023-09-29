@@ -14,12 +14,11 @@ from authlib.oauth2.rfc6749.errors import (
     OAuth2Error,
     UnsupportedGrantTypeError,
 )
-from authlib.integrations.flask_oauth2.requests import FlaskOAuth2Request
 
 from fence import logger
 from cdislogging import get_logger
 from flask.wrappers import Request
-from authlib.oauth2.rfc6749 import OAuth2Request, JsonRequest
+from authlib.oauth2.rfc6749 import OAuth2Request
 
 logger = get_logger(__name__)
 
@@ -97,7 +96,7 @@ class OIDCServer(AuthorizationServer):
         for key in flask.request.values.keys():
             logger.debug(key + " : " + flask.request.values[key])
 
-        oauth_request = FenceOauth2Request(flask.request)
+        oauth_request = FenceOAuth2Request(flask.request)
 
         logger.debug("Logging Created Oauth2 Request variables")
         if oauth_request.grant_type:
@@ -109,7 +108,7 @@ class OIDCServer(AuthorizationServer):
         return oauth_request
 
 
-class FenceOauth2Request(FlaskOAuth2Request):
+class FenceOAuth2Request(OAuth2Request):
     def __init__(self, request: Request):
         logger.debug("logging pre constructor")
         for key in request.values.keys():
@@ -119,7 +118,7 @@ class FenceOauth2Request(FlaskOAuth2Request):
         self._request = request
 
         logger.debug("logging post constructor")
-        for key in self.values.keys():
+        for key in self.data.keys():
             logger.debug(key + " : " + self.data[key])
 
         if self.grant_type:
