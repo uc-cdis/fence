@@ -97,7 +97,7 @@ class OIDCServer(AuthorizationServer):
         for key in flask.request.values.keys():
             logger.debug(key + " : " + flask.request.values[key])
 
-        oauth_request = FlaskOAuth2Request(flask.request)
+        oauth_request = FenceOauth2Request(flask.request)
 
         logger.debug("Logging Created Oauth2 Request variables")
         if oauth_request.grant_type:
