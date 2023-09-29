@@ -323,12 +323,8 @@ def get_token(*args, **kwargs):
     See the OpenAPI documentation for detailed specification, and the OAuth2
     tests for examples of some operation and correct behavior.
     """
-    logger.debug("logging request coming in..")
-    for key in flask.request.values.keys():
-        logger.debug(key + " : " + flask.request.values[key])
-
     try:
-        response = server.create_token_response(flask.request)
+        response = server.create_token_response()
     except (JWTError, JWTExpiredError) as e:
         # - in Authlib 0.11, create_token_response does not raise OAuth2Error
         # - fence.jwt.errors.JWTError: blacklisted refresh token

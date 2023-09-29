@@ -72,6 +72,11 @@ class OIDCServer(AuthorizationServer):
         if getattr(self, "query_client"):
             self.authenticate_client = ClientAuthentication(query_client)
 
+    # 2023-09-29
+    # Below code replaces authlib functions. It does the same thing as authlib 1.2.1 except it returns grant_scope from
+    # either args or forms. Authlib 1.2.1 forces grant_type to be part of post request body which isn't our use case.
+    # https://github.com/lepture/authlib/blob/a6e89f8e6cf6f6bebd63dcdc2665b7d22cf0fde3/authlib/oauth2/rfc6749/requests.py#L59C10-L59C10
+    # It does not seem to be a OAuth2 spec problem since other variables can be part of the query string.
     def create_token_response(self, request=None):
         """Validate token request and create token response.
 
@@ -92,20 +97,7 @@ class OIDCServer(AuthorizationServer):
             return self.handle_error_response(request, error)
 
     def create_oauth2_request(self, request):
-        logger.debug("Creating Oauth2 Request. Logging flask request vars")
-        for key in flask.request.values.keys():
-            logger.debug(key + " : " + flask.request.values[key])
-
-        oauth_request = FenceOAuth2Request(flask.request)
-
-        logger.debug("Logging Created Oauth2 Request variables")
-        if oauth_request.grant_type:
-            logger.debug("request.grant_type:" + oauth_request.grant_type)
-        else:
-            logger.debug("request.grant_type is None")
-
-        logger.debug("request.method:" + oauth_request.method)
-        return oauth_request
+        return FenceOAuth2Request(flask.request)
 
 
 class FenceOAuth2Request(OAuth2Request):
@@ -126,6 +118,11 @@ class FenceOAuth2Request(OAuth2Request):
         else:
             logger.debug("request.grant_type is None")
 
+        if self.scope:
+            logger.debug("request.scope:" + self.scope)
+        else:
+            logger.debug("request.scopeis None")
+
     @property
     def args(self):
         return self._request.args
@@ -137,3 +134,8 @@ class FenceOAuth2Request(OAuth2Request):
     @property
     def data(self):
         return self._request.values
+
+    # Get grant_type from either url or body
+    @property
+    def grant_type(self) -> str:
+        return self.data.get("grant_type")
