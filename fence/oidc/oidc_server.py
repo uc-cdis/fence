@@ -18,6 +18,8 @@ from authlib.integrations.flask_oauth2.requests import FlaskOAuth2Request
 
 from fence import logger
 from cdislogging import get_logger
+from flask.wrappers import Request
+from authlib.oauth2.rfc6749 import OAuth2Request, JsonRequest
 
 logger = get_logger(__name__)
 
@@ -105,3 +107,34 @@ class OIDCServer(AuthorizationServer):
 
         logger.debug("request.method:" + oauth_request.method)
         return oauth_request
+
+
+class FenceOauth2Request(FlaskOAuth2Request):
+    def __init__(self, request: Request):
+        logger.debug("logging pre constructor")
+        for key in request.values.keys():
+            logger.debug(key + " : " + request.values[key])
+
+        super().__init__(request.method, request.url, None, request.headers)
+        self._request = request
+
+        logger.debug("logging post constructor")
+        for key in self.values.keys():
+            logger.debug(key + " : " + self.data[key])
+
+        if self.grant_type:
+            logger.debug("request.grant_type:" + self.grant_type)
+        else:
+            logger.debug("request.grant_type is None")
+
+    @property
+    def args(self):
+        return self._request.args
+
+    @property
+    def form(self):
+        return self._request.form
+
+    @property
+    def data(self):
+        return self._request.values
