@@ -217,8 +217,12 @@ def delete_expired_clients_action(DB, slack_webhook=None, warning_days=None):
         pass
 
     def format_uris(uris):
+
         if not uris or len(uris) == 0:
             return uris
+
+        if uris:
+            logger.debug(f"uri is {uris}")
         return " ".join(uris)
 
     now = datetime.now().timestamp()
