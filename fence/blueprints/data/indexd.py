@@ -20,8 +20,8 @@ from azure.storage.blob import (
     AccountSasPermissions,
     generate_blob_sas,
 )
-from fence import auth
 
+from fence import auth
 from fence.auth import (
     get_jwt,
     current_token,
@@ -47,7 +47,9 @@ from fence.resources.google.utils import (
     give_service_account_billing_access_if_necessary,
 )
 from fence.resources.ga4gh.passports import sync_gen3_users_authz_from_ga4gh_passports
+from fence.resources.audit.utils import enable_audit_logging
 from fence.utils import get_valid_expiration_from_request
+
 from . import multipart_upload
 from ...models import AssumeRoleCacheAWS, query_for_user, query_for_user_by_id
 from ...models import AssumeRoleCacheGCP
@@ -66,6 +68,7 @@ ANONYMOUS_USER_ID = "-1"
 ANONYMOUS_USERNAME = "anonymous"
 
 
+@enable_audit_logging
 def get_signed_url_for_file(
     action,
     file_id,
