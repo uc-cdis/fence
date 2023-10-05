@@ -218,7 +218,7 @@ def delete_expired_clients_action(DB, slack_webhook=None, warning_days=None):
 
     def format_uris(uris):
 
-        if not uris or len(uris) == 0:
+        if not uris or uris == [None]:
             return uris
 
         if uris:
