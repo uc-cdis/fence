@@ -43,7 +43,7 @@ def create_audit_log_for_request(response):
     TODO The audit service has the ability to record presigned URL "upload" logs but we are not
     currently sending those logs. We would need to:
     - add the `@enable_audit_logging` decorator to `init_multipart_upload` (single upload requests
-    are handled by `get_signed_url_for_file` which already is already decorated).
+    are handled by `get_signed_url_for_file` which is already decorated).
     - update this function to send the appropriate data when those endpoints are called.
     - add upload unit tests to `test_audit_service.py`.
     """
