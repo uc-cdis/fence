@@ -10,6 +10,9 @@ import flask
 from fence.utils import get_valid_expiration_from_request
 from fence.config import config
 from fence.models import AuthorizationCode, ClientAuthType, User
+from cdislogging import get_logger
+
+logger = get_logger(__name__)
 
 
 class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
@@ -196,3 +199,20 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
             self.prompt = prompt
 
         return self
+
+    def validate_token_request(self):
+        code = self.request.form.get("code")
+
+        logger.debug("===logging args")
+        for key in self.request.args.keys():
+            logger.debug(key + " : " + self.request.args[key])
+
+        logger.debug("===logging form")
+        for key in self.request.form.keys():
+            logger.debug(key + " : " + self.request.form[key])
+
+        logger.debug("===logging data")
+        for key in self.request.data.keys():
+            logger.debug(key + " : " + self.request.data[key])
+
+        return super().validate_token_request()

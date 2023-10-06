@@ -93,7 +93,9 @@ class OIDCServer(AuthorizationServer):
 
         try:
             grant.validate_token_request()
+            logger.debug("===Token Request validated succesfully===")
             args = grant.create_token_response()
+            logger.debug("===Token created succesfully===")
             return self.handle_response(*args)
         except OAuth2Error as error:
             return self.handle_error_response(request, error)
@@ -104,26 +106,16 @@ class OIDCServer(AuthorizationServer):
 
 class FenceOAuth2Request(OAuth2Request):
     def __init__(self, request: Request):
-        logger.debug("logging pre constructor")
-        for key in request.values.keys():
-            logger.debug(key + " : " + request.values[key])
-
         super().__init__(request.method, request.url, None, request.headers)
         self._request = request
 
-        logger.debug("logging post constructor")
-        for key in self.data.keys():
-            logger.debug(key + " : " + self.data[key])
+    @property
+    def args(self):
+        return self._request.args
 
-        if self.grant_type:
-            logger.debug("request.grant_type:" + self.grant_type)
-        else:
-            logger.debug("request.grant_type is None")
-
-        if self.scope:
-            logger.debug("request.scope:" + self.scope)
-        else:
-            logger.debug("request.scopeis None")
+    @property
+    def form(self):
+        return self._request.values
 
     # Get grant_type from either url or body
     @property
