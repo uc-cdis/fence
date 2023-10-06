@@ -115,7 +115,7 @@ class FenceOAuth2Request(OAuth2Request):
 
     @property
     def form(self):
-        return self._request.values
+        return self._request.form
 
     # Get grant_type from either url or body
     @property
