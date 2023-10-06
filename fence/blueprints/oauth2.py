@@ -323,6 +323,19 @@ def get_token(*args, **kwargs):
     See the OpenAPI documentation for detailed specification, and the OAuth2
     tests for examples of some operation and correct behavior.
     """
+    logger.debug("===logging flask request at the beginning")
+    logger.debug("===logging args")
+    for key in flask.request.args.keys():
+        logger.debug(key + " : " + flask.request.args[key])
+
+    logger.debug("===logging form")
+    for key in flask.request.form.keys():
+        logger.debug(key + " : " + flask.request.form[key])
+
+    logger.debug("===logging values")
+    for key in flask.request.values.keys():
+        logger.debug(key + " : " + flask.request.values[key])
+
     try:
         response = server.create_token_response()
     except (JWTError, JWTExpiredError) as e:
