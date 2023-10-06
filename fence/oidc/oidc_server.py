@@ -89,6 +89,8 @@ class OIDCServer(AuthorizationServer):
         except UnsupportedGrantTypeError as error:
             return self.handle_error_response(request, error)
 
+        logger.debug("===Got grant succesfully===")
+
         try:
             grant.validate_token_request()
             args = grant.create_token_response()
@@ -122,18 +124,6 @@ class FenceOAuth2Request(OAuth2Request):
             logger.debug("request.scope:" + self.scope)
         else:
             logger.debug("request.scopeis None")
-
-    @property
-    def args(self):
-        return self._request.args
-
-    @property
-    def form(self):
-        return self._request.form
-
-    @property
-    def data(self):
-        return self._request.values
 
     # Get grant_type from either url or body
     @property
