@@ -5,7 +5,11 @@ from authlib.oidc.core.errors import (
     ConsentRequiredError,
     LoginRequiredError,
 )
-from authlib.oauth2.rfc6749 import InvalidRequestError
+from authlib.oauth2.rfc6749 import (
+    InvalidRequestError,
+    UnauthorizedClientError,
+    InvalidGrantError,
+)
 import flask
 from fence.utils import get_valid_expiration_from_request
 from fence.config import config
@@ -201,18 +205,34 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
         return self
 
     def validate_token_request(self):
-        code = self.request.form.get("code")
+        # authenticate the client if client authentication is included
+        client = self.authenticate_token_endpoint_client()
 
-        logger.debug("===logging args")
-        for key in self.request.args.keys():
-            logger.debug(key + " : " + self.request.args[key])
+        logger.debug("Validate token request of %r", client)
+        if not client.check_grant_type(self.GRANT_TYPE):
+            raise UnauthorizedClientError(
+                f'The client is not authorized to use "grant_type={self.GRANT_TYPE}"'
+            )
 
-        logger.debug("===logging form")
-        for key in self.request.form.keys():
-            logger.debug(key + " : " + self.request.form[key])
+        code = self.request.data.get("code")
+        if code is None:
+            raise InvalidRequestError('Missing "code" in request.')
 
-        logger.debug("===logging data")
-        for key in self.request.data.keys():
-            logger.debug(key + " : " + self.request.data[key])
+        # ensure that the authorization code was issued to the authenticated
+        # confidential client, or if the client is public, ensure that the
+        # code was issued to "client_id" in the request
+        authorization_code = self.query_authorization_code(code, client)
+        if not authorization_code:
+            raise InvalidGrantError('Invalid "code" in request.')
 
-        return super().validate_token_request()
+        # validate redirect_uri parameter
+        logger.debug("Validate token redirect_uri of %r", client)
+        redirect_uri = self.request.redirect_uri
+        original_redirect_uri = authorization_code.get_redirect_uri()
+        if original_redirect_uri and redirect_uri != original_redirect_uri:
+            raise InvalidGrantError('Invalid "redirect_uri" in request.')
+
+        # save for create_token_response
+        self.request.client = client
+        self.request.authorization_code = authorization_code
+        self.execute_hook("after_validate_token_request")
