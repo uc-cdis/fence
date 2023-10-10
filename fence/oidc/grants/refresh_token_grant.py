@@ -158,9 +158,6 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         if self.GRANT_TYPE == "refresh_token":
             token["refresh_token"] = self.request.data.get("refresh_token", "")
 
-        # TODO
-        logger.info("")
-
         self.request.user = user
         self.server.save_token(token, self.request)
         self.execute_hook("process_token", token=token)

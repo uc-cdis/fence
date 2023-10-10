@@ -3,7 +3,6 @@ import flask
 from fence.oidc.errors import InvalidClientError
 from fence.oidc.jwt_generator import generate_token
 
-from authlib.common.urls import urlparse, url_decode
 from authlib.integrations.flask_oauth2 import AuthorizationServer
 from authlib.oauth2.rfc6749.authenticate_client import (
     ClientAuthentication as AuthlibClientAuthentication,
@@ -74,9 +73,8 @@ class OIDCServer(AuthorizationServer):
 
     # 2023-09-29
     # Below code replaces authlib functions. It does the same thing as authlib 1.2.1 except it returns grant_scope from
-    # either args or forms. Authlib 1.2.1 forces grant_type to be part of post request body which isn't our use case.
+    # either args or forms. Authlib 1.2.1 forces grant_type to be part of post request body which isn't the current use case.
     # https://github.com/lepture/authlib/blob/a6e89f8e6cf6f6bebd63dcdc2665b7d22cf0fde3/authlib/oauth2/rfc6749/requests.py#L59C10-L59C10
-    # It does not seem to be a OAuth2 spec problem since other variables can be part of the query string.
     def create_token_response(self, request=None):
         """Validate token request and create token response.
 
@@ -89,13 +87,13 @@ class OIDCServer(AuthorizationServer):
         except UnsupportedGrantTypeError as error:
             return self.handle_error_response(request, error)
 
-        logger.debug("===Got grant succesfully===")
+        logger.debug("Got grant succesfully")
 
         try:
             grant.validate_token_request()
-            logger.debug("===Token Request validated succesfully===")
+            logger.debug("Token Request validated succesfully")
             args = grant.create_token_response()
-            logger.debug("===Token created succesfully===")
+            logger.debug("Token created succesfully")
             return self.handle_response(*args)
         except OAuth2Error as error:
             return self.handle_error_response(request, error)
