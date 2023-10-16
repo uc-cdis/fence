@@ -13,7 +13,7 @@ def test_get_auth_url(microsoft_oauth2_client):
     assert url  # nosec
 
 
-def test_get_user_id(microsoft_oauth2_client):
+def test_get_auth_info(microsoft_oauth2_client):
     """
     Test getting a user id and check for email claim
     """
@@ -23,12 +23,12 @@ def test_get_user_id(microsoft_oauth2_client):
         "fence.resources.openid.idp_oauth2.Oauth2ClientBase.get_jwt_claims_identity",
         return_value=return_value,
     ):
-        user_id = microsoft_oauth2_client.get_user_id(code="123")
+        user_id = microsoft_oauth2_client.get_auth_info(code="123")
         for key, value in expected_value.items():
             assert return_value[key] == value
 
 
-def test_get_user_id_missing_claim(microsoft_oauth2_client):
+def test_get_auth_info_missing_claim(microsoft_oauth2_client):
     """
     Test getting a user id but missing the email claim
     """
@@ -38,15 +38,15 @@ def test_get_user_id_missing_claim(microsoft_oauth2_client):
         "fence.resources.openid.idp_oauth2.Oauth2ClientBase.get_jwt_claims_identity",
         return_value=return_value,
     ):
-        user_id = microsoft_oauth2_client.get_user_id(code="123")
+        user_id = microsoft_oauth2_client.get_auth_info(code="123")
         assert user_id == expected_value  # nosec
 
 
-def test_get_user_id_invalid_code(microsoft_oauth2_client):
+def test_get_auth_info_invalid_code(microsoft_oauth2_client):
     """
     Test getting a user id but with an invalid code
     """
     expected_value = "Can't get your Microsoft email:"
 
-    user_id = microsoft_oauth2_client.get_user_id(code="123")
+    user_id = microsoft_oauth2_client.get_auth_info(code="123")
     assert expected_value in user_id["error"]  # nosec

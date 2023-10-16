@@ -27,7 +27,7 @@ class OktaOauth2Client(Oauth2ClientBase):
 
         return uri
 
-    def get_user_id(self, code):
+    def get_auth_info(self, code):
         try:
             token_endpoint = self.get_value_from_discovery_doc(
                 "token_endpoint",
