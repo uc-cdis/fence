@@ -3,7 +3,9 @@ from botocore.exceptions import ClientError
 from retry.api import retry_call
 
 from cdispyutils.hmac4 import generate_aws_presigned_url
+from cdispyutils.config import get_value
 from cdislogging import get_logger
+from fence.config import config
 from fence.errors import InternalError
 
 MAX_TRIES = 5
