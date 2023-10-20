@@ -1,0 +1,22 @@
+name: Markdown validation
+
+on:
+  pull_request:
+    types: [opened, reopened, synchronize]
+# TODO run only on md file changes
+
+jobs:
+  lint-changelog:
+    name: Markdown validation
+    runs-on: ubuntu-latest
+    steps:
+    - name: Check out code
+      uses: actions/checkout@v2
+
+    - name: Lint files
+      uses: avto-dev/markdown-lint@v1.5.0
+      with:
+      #   rules: '/lint/rules/changelog.js'
+      #   config: '/lint/config/changelog.yml'
+        args: '**.md'
+      #   ignore: './one_file.md ./another_file.md' # multiple files must be separated with single space
