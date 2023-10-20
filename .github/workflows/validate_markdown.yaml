@@ -2,25 +2,15 @@ name: Markdown validation
 
 on:
   pull_request:
-    types: [opened, reopened, synchronize]
-# TODO run only on md file changes or changes to this file
+    types:
+    - opened
+    - reopened
+    - synchronize
+    paths:
+    - .github/workflows/validate_markdown.yaml
+    - "**.md"
 
 jobs:
   markdown_validation:
     name: Markdown validation
-    runs-on: ubuntu-latest
-    steps:
-    - name: Check out code
-      uses: actions/checkout@v2
-
-    - name: Check syntax
-      uses: avto-dev/markdown-lint@v1.5.0
-      with:
-        config: '.github/workflows/validate_markdown_lint.jsonc'
-        args: '**.md'
-      #   ignore: './one_file.md ./another_file.md' # multiple files must be separated with single space
-
-    - name: Check dead links
-      uses: gaurav-nelson/github-action-markdown-link-check@1.0.15
-      with:
-        config-file: '.github/workflows/validate_markdown_links.json'
+    uses: uc-cdis/.github/.github/workflows/validate_markdown.yaml@feat/lint-md
