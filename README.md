@@ -2,13 +2,14 @@
 
 [![Build Status](https://travis-ci.org/uc-cdis/fence.svg?branch=master)](https://travis-ci.org/uc-cdis/fence)
 
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/41ff9d807efa4da8a733793b3539ba3e)](https://www.codacy.com/app/uc-cdis/fence?utm_source=github.com&amp;utm_medium=referral&amp;utm_content=uc-cdis/fence&amp;utm_campaign=Badge_Grade)
-[![Coverage Status](https://coveralls.io/repos/github/uc-cdis/fence/badge.svg?branch=master)](https://coveralls.io/github/uc-cdis/fence?branch=master)
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/41ff9d807efa4da8a733793b3539ba3e)](https://deadlink2)
+[![Coverage Status](https://deadlink2)](https://coveralls.io/github/uc-cdis/fence?branch=master)
 
 A `fence` separates protected resources from the outside world and allows
 only trusted entities to enter.
 
 Fence is a core service of the Gen3 stack that has multiple capabilities:
+
 1. Act as an [auth broker](#auth-broker) to integrate with one or more [IdPs](#IdP) and provide downstream authentication and authorization for Gen3 services.
 2. [Manage tokens](#token-management).
 3. Act as an [OIDC provider](#oidc--oauth2) to support external applications to use Gen3 services.
@@ -37,23 +38,23 @@ the root directory); see the README in that folder for more details.
 
 ## Terminologies
 
-#### AuthN
+### AuthN
 
 Authentication - establishes "who you are" with the application through communication with an [Identity Provider](#IdP).
 
-#### AuthZ
+### AuthZ
 
 Authorization - establishes "what you can do" and "which resources you have access to" within the application.
 
-#### IdP
+### IdP
 
 Identity Provider - the service that lets a user login and provides the identity of the user to downstream services. Examples: Google login, University login, NIH Login.
 
-#### Auth broker
+### Auth broker
 
 An interface which enables a user to authenticate using any of multiple IdPs.
 
-#### OAuth2
+### OAuth2
 
 A widely used AuthZ protocol for delegating access to an application to use resources on behalf of a user.
 
@@ -61,29 +62,29 @@ https://tools.ietf.org/html/rfc6749
 
 https://oauth.net/2/
 
-##### Client
+#### Client
 
 OAuth 2.0 Client - An application which makes requests for protected resources (on a resource server) on behalf of a resource owner (end-user) and with the resource owner's authorization.
 
-##### Auth Server
+#### Auth Server
 
 OAuth 2.0 Authorization Server - A server which issues access tokens to the client after successfully authenticating the resource owner and obtaining authorization.
 
-##### Access Token
+#### Access Token
 
 A string, issued by the auth server to the client, representing authorization credentials used to access protected resources (on a resource server).
 
-#### OIDC
+### OIDC
 
 OpenID Connect - an extension of OAuth2 which provides an AuthN layer on top of the OAuth 2.0 AuthZ layer. It introduced a new type of token, the id token, that is specifically designed to be consumed by clients to get the identity information of the user.
 
 http://openid.net/specs/openid-connect-core-1_0.html
 
-##### OP
+#### OP
 
 OpenID Provider - an OAuth 2.0 Authentication Server which also implements OpenID Connect.
 
-##### RP
+#### RP
 
 Relying Party - an OAuth 2.0 Client which uses (requests) OpenID Connect.
 
@@ -93,6 +94,7 @@ Relying Party - an OAuth 2.0 Client which uses (requests) OpenID Connect.
 
 Fence can be configured to support different Identity Providers (IdPs) for AuthN.
 At the moment, supported IDPs include:
+
 - Google
 - [Shibboleth](docs/fence_shibboleth.md)
   - NIH iTrust
@@ -219,7 +221,7 @@ See [Fence and Google](docs/google_architecture.md) for more details on data acc
 
 ## Setup
 
-#### Install Requirements and Fence
+### Install Requirements and Fence
 
 Install [Poetry](https://python-poetry.org/docs/#installation).
 
@@ -228,7 +230,7 @@ Install [Poetry](https://python-poetry.org/docs/#installation).
 poetry install
 ```
 
-#### Create Configuration File
+### Create Configuration File
 
 Fence requires a configuration file to run. We have a command line
 utility to help you create one based on a default configuration.
@@ -253,14 +255,14 @@ python cfg_help.py get
 The file should have detailed information about each of the configuration
 variables. **Remember to fill out the new configuration file!**
 
-##### Other Configuration Notes
+#### Other Configuration Notes
 
 * Fence will look for configuration files from a list of search directories (
 which are currently defined in `fence/settings.py`.)
 * For more configuration options (such as having multiple different config
 files for development), see the `cfg_help.py` file.
 
-#### Set Up Databases
+### Set Up Databases
 
 The tests clear out the database every time they are run. If you want
 to keep a persistent database for manual testing and general local usage,
@@ -280,7 +282,7 @@ psql -U test postgres -c 'create database fence_test'
 userdatamodel-init --db fence_test --username test --password test
 ```
 
-#### Keypair Configuration
+### Keypair Configuration
 
 Fence uses RSA keypairs to sign and allow verification of JWTs that it issues.
 When the application is initialized, Fence loads in keypair files from the
@@ -328,7 +330,7 @@ Fence will use the first keypair in the list to sign the tokens it issues
 through OAuth.
 
 
-#### Create User Access File
+### Create User Access File
 
 You can setup user access via admin fence script providing a user yaml file
 Example user yaml:
@@ -353,7 +355,7 @@ Example sync command:
 fence-create sync --yaml user.yaml
 ```
 
-#### Register OAuth Client
+### Register OAuth Client
 
 When you want to build an application that uses Gen3 resources on behalf of a user, you should register an OAuth client for this app.
 Fence right now exposes client registration via admin CLI, because the Oauth2 client for a Gen3 commons needs approval from the sponsor of the commons. If you are an external developer, you should submit a support ticket.
@@ -366,7 +368,7 @@ This command should output a tuple of `(client_id, client_secret)` which must be
 saved by the OAuth client to use with
 `fence`.
 
-### Quickstart with Helm
+## Quickstart with Helm
 
 You can now deploy individual services via Helm!
 Please refer to the Helm quickstart guide HERE (https://github.com/uc-cdis/fence/blob/master/docs/quickstart_helm.md)
@@ -491,7 +493,7 @@ fence-create is a command line utility that is bundled with fence and allows you
 WARNING: fence-create directly modifies the database in some cases and may circumvent security checks (most of these utilities are used for testing). BE CAREFUL when you're running these commands and make sure you know what they're doing.
 
 
-#### Register Internal Oauth Client
+### Register Internal Oauth Client
 
 As a Gen3 commons administrator, if you want to create an oauth client that skips user consent step, use the following command:
 
@@ -501,7 +503,7 @@ fence-create client-create --client CLIENT_NAME --urls OAUTH_REDIRECT_URL --user
 
 The optional `--expires-in` parameter allows specifying the number of days until this client expires.
 
-#### Register an Implicit Oauth Client
+### Register an Implicit Oauth Client
 
 As a Gen3 commons administrator, if you want to create an implicit oauth client for a webapp:
 
@@ -521,7 +523,7 @@ To specify allowed scopes, use the `allowed-scopes` argument:
 fence-create client-create ...  --allowed-scopes openid user data
 ```
 
-#### Register an Oauth Client for a Client Credentials flow
+### Register an Oauth Client for a Client Credentials flow
 
 The OAuth2 Client Credentials flow is used for machine-to-machine communication and scenarios in which typical authentication schemes like username + password do not make sense. The system authenticates and authorizes the app rather than a user. See the [OAuth2 specification](https://www.rfc-editor.org/rfc/rfc6749#section-4.4) for more details.
 
@@ -543,7 +545,7 @@ NOTE: In Gen3, you can grant specific access to a client the same way you would 
 
 NOTE: Client credentials tokens are not linked to a user (the claims contain no `sub` or `context.user.name` like other tokens). Some Gen3 endpoints that assume the token is linked to a user, or whose logic require there being a user, do not support them. For an example of how to adapt an endpoint to support client credentials tokens, see [here](https://github.com/uc-cdis/requestor/commit/a5078fae27fa258ac78045cf2bb89cb2104f53cf). For an example of how to explicitly reject client credentials tokens, see [here](https://github.com/uc-cdis/requestor/commit/0f4974c25343d2185c7cdb48dcdeb58f97800672).
 
-#### Modify OAuth Client
+### Modify OAuth Client
 
 ```bash
 fence-create client-modify --client CLIENT_NAME --urls http://localhost/api/v0/oauth2/authorize
@@ -557,7 +559,7 @@ Add `--append` argument to add new callback urls or allowed scopes to existing c
 fence-create client-modify --client CLIENT_NAME --urls http://localhost/api/v0/new/oauth2/authorize --append (--expires-in 30)
 ```
 
-#### Rotate client credentials
+### Rotate client credentials
 
 Use the `client-rotate` command to receive a new set of credentials (client ID and secret) for a client. The old credentials are NOT deactivated and must be deleted or expired separately (see [Delete Expired OAuth Clients](#delete-expired-oauth-clients) section). This allows for a rotation without downtime.
 
@@ -567,14 +569,14 @@ fence-create client-rotate --client CLIENT_NAME (--expires-in 30)
 
 Note that the `usersync` job must be run after rotating the credentials so that the new client ID is granted the same access as the old one.
 
-#### Delete OAuth Client
+### Delete OAuth Client
 
 ```bash
 fence-create client-delete --client CLIENT_NAME
 ```
 That command should output the result of the deletion attempt.
 
-#### Delete Expired OAuth Clients
+### Delete Expired OAuth Clients
 
 ```bash
 fence-create client-delete-expired
@@ -587,14 +589,14 @@ fence-create client-delete-expired --slack-webhook <url> --warning-days <default
 ```
 
 
-#### List OAuth Clients
+### List OAuth Clients
 
 ```bash
 fence-create client-list
 ```
 That command should output the full records for any registered OAuth clients.
 
-#### Set up for External Buckets on Google
+### Set up for External Buckets on Google
 
 ```bash
 fence-create link-external-bucket --bucket-name demo-bucket
@@ -603,7 +605,7 @@ fence-create link-bucket-to-project --bucket_id demo-bucket --bucket_provider go
 
 The link-external-bucket returns an email for a Google group which needs to be added to access to the bucket `demo-bucket`.
 
-#### Notify users who are blocking service account registration
+### Notify users who are blocking service account registration
 
 ```bash
 fence-create notify-problem-users --emails ex1@gmail.com ex2@gmail.com --auth_ids test --google_project_id test-google
