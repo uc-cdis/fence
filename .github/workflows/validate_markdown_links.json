@@ -1,0 +1,9 @@
+{
+    "ignorePatterns": [
+        {
+            "description": "Ignore anchor links that currently cannot be resolved. See https://github.com/tcort/markdown-link-check/issues/225",
+            "pattern": "^#"
+        }
+    ],
+    "aliveStatusCodes": [200, 203, 206]
+}

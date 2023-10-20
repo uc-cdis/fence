@@ -16,9 +16,11 @@ jobs:
     - name: Check syntax
       uses: avto-dev/markdown-lint@v1.5.0
       with:
-        config: '.github/workflows/markdown-lint-config.jsonc'
+        config: '.github/workflows/validate_markdown_lint.jsonc'
         args: '**.md'
       #   ignore: './one_file.md ./another_file.md' # multiple files must be separated with single space
 
     - name: Check dead links
-      uses: gaurav-nelson/github-action-markdown-link-check@v1
+      uses: gaurav-nelson/github-action-markdown-link-check@1.0.15
+      with:
+        config-file: '.github/workflows/validate_markdown_links.json'

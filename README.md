@@ -2,8 +2,7 @@
 
 [![Build Status](https://travis-ci.org/uc-cdis/fence.svg?branch=master)](https://travis-ci.org/uc-cdis/fence)
 
-[![Codacy Badge](https://api.codacy.com/project/badge/Grade/41ff9d807efa4da8a733793b3539ba3e)](https://deadlink2)
-[![Coverage Status](https://deadlink2)](https://coveralls.io/github/uc-cdis/fence?branch=master)
+[![Coverage Status](https://coveralls.io/repos/github/uc-cdis/fence/badge.svg?branch=master)](https://coveralls.io/github/uc-cdis/fence?branch=master)
 
 A `fence` separates protected resources from the outside world and allows
 only trusted entities to enter.
