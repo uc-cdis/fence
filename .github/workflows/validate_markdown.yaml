@@ -13,4 +13,4 @@ on:
 jobs:
   markdown_validation:
     name: Markdown validation
-    uses: uc-cdis/.github/.github/workflows/validate_markdown.yaml@feat/lint-md
+    uses: uc-cdis/.github/.github/workflows/validate_markdown.yaml@master
