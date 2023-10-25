@@ -47,4 +47,4 @@ that right now you have main-Fence set up, but not other-Fence.
 1. Run your main Fence and run your other Fence!
    For other-Fence your command will look something like this:
    `[poetry run] python run_other_way.py --config_path other-fence-config.yaml`
-1. Try: hit http://mainfence[/user]/login/fence
+1. Try: hit `http://mainfence[/user]/login/fence`
