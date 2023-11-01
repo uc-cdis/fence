@@ -107,8 +107,10 @@ class MockResponse(object):
 
 
 @pytest.mark.parametrize("indexd_client_with_arborist", ["s3_and_gs"], indirect=True)
+@pytest.mark.parametrize("endpoint", ["download", "ga4gh-drs"])
 @pytest.mark.parametrize("protocol", ["gs", None])
 def test_presigned_url_log(
+    endpoint,
     protocol,
     client,
     user_client,
@@ -133,9 +135,12 @@ def test_presigned_url_log(
     monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"presigned_url": True})
 
     guid = "dg.hello/abc"
-    path = f"/data/download/{guid}"
-    if protocol:
-        path += f"?protocol={protocol}"
+    if endpoint == "download":
+        path = f"/data/download/{guid}"
+        if protocol:
+            path += f"?protocol={protocol}"
+    else:
+        path = f"/ga4gh/drs/v1/objects/{guid}/access/{protocol or 's3'}"
     resource_paths = ["/my/resource/path1", "/path2"]
     indexd_client_with_arborist(resource_paths)
     headers = {
@@ -182,7 +187,9 @@ def test_presigned_url_log(
 @pytest.mark.parametrize(
     "indexd_client_with_arborist", ["s3_and_gs_acl_no_authz"], indirect=True
 )
+@pytest.mark.parametrize("endpoint", ["download", "ga4gh-drs"])
 def test_presigned_url_log_acl(
+    endpoint,
     client,
     user_client,
     mock_arborist_requests,
@@ -206,7 +213,10 @@ def test_presigned_url_log_acl(
 
     protocol = "gs"
     guid = "dg.hello/abc"
-    path = f"/data/download/{guid}?protocol={protocol}"
+    if endpoint == "download":
+        path = f"/data/download/{guid}?protocol={protocol}"
+    else:
+        path = f"/ga4gh/drs/v1/objects/{guid}/access/{protocol}"
     indexd_client_with_arborist(None)
     headers = {
         "Authorization": "Bearer "
@@ -244,7 +254,8 @@ def test_presigned_url_log_acl(
 
 
 @pytest.mark.parametrize("public_indexd_client", ["s3_and_gs"], indirect=True)
-def test_presigned_url_log_public(client, public_indexd_client, monkeypatch):
+@pytest.mark.parametrize("endpoint", ["download", "ga4gh-drs"])
+def test_presigned_url_log_public(endpoint, client, public_indexd_client, monkeypatch):
     """
     Same as `test_presigned_url_log`, but with an anonymous user downloading
     public data.
@@ -254,8 +265,12 @@ def test_presigned_url_log_public(client, public_indexd_client, monkeypatch):
     )
     monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"presigned_url": True})
 
+    protocol = "s3"
     guid = "dg.hello/abc"
-    path = f"/data/download/{guid}"
+    if endpoint == "download":
+        path = f"/data/download/{guid}?protocol={protocol}"
+    else:
+        path = f"/ga4gh/drs/v1/objects/{guid}/access/{protocol}"
 
     with audit_service_mocker as audit_service_requests:
         audit_service_requests.post.return_value = MockResponse(
@@ -275,13 +290,15 @@ def test_presigned_url_log_public(client, public_indexd_client, monkeypatch):
                 "guid": guid,
                 "resource_paths": [],
                 "action": "download",
-                "protocol": "s3",
+                "protocol": protocol,
             },
         )
 
 
 @pytest.mark.parametrize("indexd_client_with_arborist", ["s3_and_gs"], indirect=True)
+@pytest.mark.parametrize("endpoint", ["download", "ga4gh-drs"])
 def test_presigned_url_log_disabled(
+    endpoint,
     client,
     user_client,
     mock_arborist_requests,
@@ -307,7 +324,10 @@ def test_presigned_url_log_disabled(
 
     protocol = "gs"
     guid = "dg.hello/abc"
-    path = f"/data/download/{guid}"
+    if endpoint == "download":
+        path = f"/data/download/{guid}"
+    else:
+        path = f"/ga4gh/drs/v1/objects/{guid}/access/{protocol}"
     if protocol:
         path += f"?protocol={protocol}"
     resource_paths = ["/my/resource/path1", "/path2"]
@@ -324,9 +344,6 @@ def test_presigned_url_log_disabled(
         )
     }
 
-    # protocol=None should fall back to s3 (first indexed location):
-    expected_protocol = protocol or "s3"
-
     with audit_service_mocker as audit_service_requests:
         audit_service_requests.post.return_value = MockResponse(
             data={},
@@ -339,17 +356,26 @@ def test_presigned_url_log_disabled(
 
 
 @pytest.mark.parametrize("indexd_client", ["s3_and_gs"], indirect=True)
-def test_presigned_url_log_unauthorized(client, indexd_client, db_session, monkeypatch):
+@pytest.mark.parametrize("endpoint", ["download", "ga4gh-drs"])
+def test_presigned_url_log_unauthorized(
+    endpoint, client, indexd_client, db_session, monkeypatch
+):
     """
-    If Fence does not return a presigned URL, no audit log should be created.
+    If Fence does not return a presigned URL, an audit log with the appropriate status
+    code should be created.
     """
     audit_service_mocker = mock.patch(
         "fence.resources.audit.client.requests", new_callable=mock.Mock
     )
     monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"presigned_url": True})
 
+    protocol = "s3"
     guid = "dg.hello/abc"
-    path = f"/data/download/{guid}"
+    path = f"/data/download/{guid}?protocol={protocol}"
+    if endpoint == "download":
+        path = f"/data/download/{guid}?protocol={protocol}"
+    else:
+        path = f"/ga4gh/drs/v1/objects/{guid}/access/{protocol}"
     with audit_service_mocker as audit_service_requests:
         audit_service_requests.post.return_value = MockResponse(
             data={},
@@ -367,7 +393,7 @@ def test_presigned_url_log_unauthorized(client, indexd_client, db_session, monke
                 "guid": guid,
                 "resource_paths": [],
                 "action": "download",
-                "protocol": "s3",
+                "protocol": protocol,
             },
         )
 
