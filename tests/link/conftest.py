@@ -21,7 +21,7 @@ def add_new_g_acnt_mock(db_session):
 @pytest.fixture(scope="function")
 def google_auth_get_user_info_mock():
     mock = MagicMock()
-    patcher = patch("flask.current_app.google_client.get_user_id", mock)
+    patcher = patch("flask.current_app.google_client.get_auth_info", mock)
     patcher.start()
 
     yield mock

@@ -117,6 +117,9 @@ OPENID_CONNECT:
     user_id_field: ''  # optional (default "sub"); claims field to get the user_id from
     email_field: ''  # optional (default "email"); claims field to get the user email from
     scope: ''  # optional (default "openid")
+    multifactor_auth_claim_info: # optional, include if you're using arborist to enforce mfa on a per-file level
+      claim: '' # claims field that indicates mfa, either the acr or acm claim.
+      values: [ "" ] # possible values that indicate mfa was used. At least one value configured here is required to be in the token
   # These Google values must be obtained from Google's Cloud Console
   # Follow: https://developers.google.com/identity/protocols/OpenIDConnect
   #
@@ -187,6 +190,9 @@ OPENID_CONNECT:
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/ras/callback'
     scope: 'openid email profile ga4gh_passport_v1'
+#    multifactor_auth_claim_info:
+#      claim: 'acr'
+#      values: [ 'https://stsstg.nih.gov/assurance/aal/2' ]
     # if mock is true, will fake a successful login response for login
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
@@ -213,6 +219,9 @@ OPENID_CONNECT:
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
     mock_default_user: 'test@example.com'
+    #    multifactor_auth_claim_info:
+    #      claim: 'amr'
+    #      values: [ "mfa", "otp", "rsa", "ngcmfa", "wiaormfa" ]
   # For information on configuring an Okta tenant as an OIDC IdP refer to Okta documentation at:
   # https://developer.okta.com/docs/reference/api/oidc/#2-okta-as-the-identity-platform-for-your-app-or-api
   okta:
@@ -221,6 +230,9 @@ OPENID_CONNECT:
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/okta/login/'
     scope: 'openid email'
+    #    multifactor_auth_claim_info:
+    #      claim: 'amr'
+    #      values: [ "mfa", "otp", "sms" ]
   cognito:
     # You must create a user pool in order to have a discovery url
     discovery_url: 'https://cognito-idp.{REGION}.amazonaws.com/{USER-POOL-ID}/.well-known/openid-configuration'
@@ -247,6 +259,9 @@ OPENID_CONNECT:
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
     mock_default_user: 'http://cilogon.org/serverT/users/64703'
+    #    multifactor_auth_claim_info:
+    #      claim: 'acr'
+    #      values: [ "https://refeds.org/profile/mfa" ]
   synapse:
     discovery_url: ''
     client_id: ''
