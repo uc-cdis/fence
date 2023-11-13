@@ -1,56 +1,39 @@
-# To run: docker run --rm -d -v /path/to/fence-config.yaml:/var/www/fence/fence-config.yaml --name=fence -p 80:80 fence
-# To check running container do: docker exec -it fence /bin/bash
+ARG AZLINUX_BASE_VERSION=master
 
-FROM quay.io/cdis/python:python3.9-buster-2.0.0
+FROM 707767160287.dkr.ecr.us-east-1.amazonaws.com/gen3/python-build-base:${AZLINUX_BASE_VERSION} as base
+# FROM quay.io/cdis/python-build-base:${AZLINUX_BASE_VERSION} as base
 
 ENV appname=fence
+ENV POETRY_NO_INTERACTION=1 \
+    POETRY_VIRTUALENVS_IN_PROJECT=1 \
+    POETRY_VIRTUALENVS_CREATE=1
 
-RUN pip install --upgrade pip
-RUN pip install --upgrade poetry
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl bash git \
-    && apt-get -y install vim \
-    libmcrypt4 mcrypt \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/
+FROM base as builder
 
-RUN mkdir -p /var/www/$appname \
-    && mkdir -p /var/www/.cache/Python-Eggs/ \
-    && mkdir /run/nginx/ \
-    && ln -sf /dev/stdout /var/log/nginx/access.log \
-    && ln -sf /dev/stderr /var/log/nginx/error.log \
-    && chown nginx -R /var/www/.cache/Python-Eggs/ \
-    && chown nginx /var/www/$appname
-
-# aws cli v2 - needed for storing files in s3 during usersync k8s job
-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
-    && unzip awscliv2.zip \
-    && ./aws/install \
-    && /bin/rm -rf awscliv2.zip ./aws
+RUN source /venv/bin/activate
 
 WORKDIR /$appname
 
-# copy ONLY poetry artifact, install the dependencies but not fence
-# this will make sure than the dependencies is cached
 COPY poetry.lock pyproject.toml /$appname/
-RUN poetry config virtualenvs.create false \
-    && poetry install -vv --no-root --no-dev --no-interaction \
-    && poetry show -v
+RUN pip install --upgrade poetry \
+    && poetry install --without dev --no-interaction
 
-# copy source code ONLY after installing dependencies
 COPY . /$appname
-COPY ./deployment/uwsgi/uwsgi.ini /etc/uwsgi/uwsgi.ini
-COPY ./deployment/uwsgi/wsgi.py /$appname/wsgi.py
-COPY clear_prometheus_multiproc /$appname/clear_prometheus_multiproc
-
-# install fence
-RUN poetry config virtualenvs.create false \
-    && poetry install -vv --no-dev --no-interaction \
-    && poetry show -v
+COPY ./deployment/wsgi/wsgi.py /$appname/wsgi.py
+RUN poetry install --without dev --no-interaction
 
 RUN COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >$appname/version_data.py \
     && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>$appname/version_data.py
 
-WORKDIR /var/www/$appname
+FROM base
 
-CMD ["sh","-c","bash /fence/dockerrun.bash && /dockerrun.sh"]
+RUN source /venv/bin/activate
+
+COPY --from=builder /venv /venv
+COPY --from=builder /$appname /$appname
+
+WORKDIR /$appname
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONIOENCODING=UTF-8
+CMD ["gunicorn", "-c", "deployment/wsgi/gunicorn.conf.py"]
