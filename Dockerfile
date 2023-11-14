@@ -27,10 +27,11 @@ RUN COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >$appname/version
 
 FROM base
 
-RUN source /venv/bin/activate
 
 COPY --from=builder /venv /venv
 COPY --from=builder /$appname /$appname
+
+RUN source /venv/bin/activate
 
 WORKDIR /$appname
 
