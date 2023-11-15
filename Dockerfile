@@ -1,7 +1,6 @@
 ARG AZLINUX_BASE_VERSION=master
 
 FROM 707767160287.dkr.ecr.us-east-1.amazonaws.com/gen3/python-build-base:${AZLINUX_BASE_VERSION} as base
-# FROM quay.io/cdis/python-build-base:${AZLINUX_BASE_VERSION} as base
 
 ENV appname=fence
 ENV POETRY_NO_INTERACTION=1 \
@@ -34,6 +33,8 @@ COPY --from=builder /$appname /$appname
 RUN source /venv/bin/activate
 
 WORKDIR /$appname
+
+RUN useradd -ms /bin/bash appuser
 
 USER appuser
 
