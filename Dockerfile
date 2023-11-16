@@ -22,6 +22,8 @@ WORKDIR /${appname}
 # Builder stage
 FROM base as builder
 
+RUN python -m venv /venv
+
 COPY poetry.lock pyproject.toml /${appname}/
 RUN pip install poetry && \
     poetry install --no-dev
@@ -38,7 +40,9 @@ FROM base
 
 RUN pip install gunicorn
 
+COPY --from=builder /venv /venv
 COPY --from=builder /$appname /$appname
+
 
 # create gen3 user
 # Create a group 'gen3' with GID 1000 and a user 'gen3' with UID 1000
@@ -47,8 +51,9 @@ RUN groupadd -g 1000 gen3 && \
     chown -R gen3:gen3 /$appname
 
 # Switch to non-root user 'gen3' for the serving process
-# USER gen3
+USER gen3
 
+RUN . /venv/bin/activate
 # update PATH to include poetry
 ENV PATH="$POETRY_HOME/bin:$PATH"
 
