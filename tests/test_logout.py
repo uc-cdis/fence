@@ -1,9 +1,16 @@
 import mock
 import urllib.request, urllib.parse, urllib.error
 
+import pytest
+
 from fence.auth import build_redirect_url
 from fence.config import config
 from fence.resources.storage.cdis_jwt import create_session_token
+
+
+@pytest.fixture(autouse=True)
+def mock_arborist(mock_arborist_requests):
+    mock_arborist_requests()
 
 
 def test_redirect_url():
