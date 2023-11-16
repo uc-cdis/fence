@@ -38,8 +38,6 @@ RUN git config --global --add safe.directory /${appname} && COMMIT=`git rev-pars
 # Final stage
 FROM base
 
-RUN pip install gunicorn
-
 COPY --from=builder /venv /venv
 COPY --from=builder /$appname /$appname
 
