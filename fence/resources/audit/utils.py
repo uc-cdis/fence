@@ -39,6 +39,13 @@ def create_audit_log_for_request(response):
     in `enable_audit_logging` decorator), record an audit log. The data we
     need to record the logs are stored in `flask.g.audit_data` before reaching
     this code.
+
+    TODO The audit service has the ability to record presigned URL "upload" logs but we are not
+    currently sending those logs. We would need to:
+    - add the `@enable_audit_logging` decorator to `init_multipart_upload` (single upload requests
+    are handled by `get_signed_url_for_file` which is already decorated).
+    - update this function to send the appropriate data when those endpoints are called.
+    - add upload unit tests to `test_audit_service.py`.
     """
     try:
         method = flask.request.method
@@ -49,11 +56,19 @@ def create_audit_log_for_request(response):
             # could use `flask.request.url` but we don't want the root URL
             request_url += f"?{flask.request.query_string.decode('utf-8')}"
 
-        if method == "GET" and endpoint.startswith("/data/download/"):
+        if method == "GET" and (
+            endpoint.startswith("/data/download/")
+            or endpoint.startswith("/ga4gh/drs/v1/objects/")
+        ):
+            if endpoint.startswith("/data/download/"):
+                guid = endpoint[len("/data/download/") :]
+            else:
+                guid = endpoint[len("/ga4gh/drs/v1/objects/") :]
+                guid = guid.split("/access/")[0]
             flask.current_app.audit_service_client.create_presigned_url_log(
                 status_code=response.status_code,
                 request_url=request_url,
-                guid=endpoint[len("/data/download/") :],
+                guid=guid,
                 action="download",
                 **audit_data,
             )
