@@ -4,7 +4,7 @@
 # Update certificate authority index -
 # environment may have mounted more authorities
 #
-update-ca-certificates
+# update-ca-certificates
 #
 # Kubernetes may mount jwt-keys as a tar ball
 #
@@ -18,3 +18,5 @@ if [ -f /fence/jwt-keys.tar ]; then
     fi
   )
 fi
+
+gunicorn -c deployment/wsgi/gunicorn.conf.py
