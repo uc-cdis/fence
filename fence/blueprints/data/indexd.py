@@ -1122,7 +1122,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     _assume_role_cache_gs is used for in mem caching of GCP role credentials
     """
 
-    # expected structore { proxy_group_id: (private_key, expires_at) }
+    # expected structure { proxy_group_id: (private_key, expires_at) }
     _assume_role_cache_gs = {}
 
     def get_resource_path(self):
