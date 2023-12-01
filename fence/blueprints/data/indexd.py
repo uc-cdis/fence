@@ -160,34 +160,37 @@ def get_signed_url_for_file(
         }
 
     _log_signed_url_data_info(
-        index_document=indexed_file.index_document,
-        user_sub=flask.g.audit_data.get("sub", "")
+        indexed_file=indexed_file,
+        user_sub=flask.g.audit_data.get("sub", ""),
+        requested_protocol=requested_protocol
     )
 
     return {"url": signed_url}
 
 
-def _log_signed_url_data_info(index_document, user_sub):
-    size_in_kibibytes = index_document.get("size", 0) / 1024
-    acl = index_document.get("acl")
-    authz = index_document.get("authz")
-    buckets = set()
+def _log_signed_url_data_info(indexed_file, user_sub, requested_protocol):
+    size_in_kibibytes = indexed_file.index_document.get("size", 0) / 1024
+    acl = indexed_file.index_document.get("acl")
+    authz = indexed_file.index_document.get("authz")
 
-    for url in index_document.get("urls", []):
+    # the behavior later on is to pick the 1st location as the signed URL if a protocol is not requested
+    protocol = requested_protocol or indexed_file.indexed_file_locations[0].protocol
+
+    # figure out which bucket was used based on the protocol
+    bucket = ""
+    for url in indexed_file.index_document.get("urls", []):
         bucket_name = None
         if "://" in url:
             # Extract the protocol and the rest of the URL
-            protocol, rest_of_url = url.split("://", 1)
+            bucket_protocol, rest_of_url = url.split("://", 1)
 
-            # Extract bucket name
-            bucket_name = rest_of_url.split("/")[0]
-
-        buckets.add(bucket_name)
-
-    buckets_formatted = ",".join(buckets)
+            if bucket_protocol == protocol:
+                # Extract bucket name
+                bucket = rest_of_url.split("/")[0]
+                break
 
     logger.info(
-        f"Signed URL Generated. size_in_kibibytes={size_in_kibibytes} acl={acl} authz={authz} buckets={buckets_formatted} user_sub={user_sub}"
+        f"Signed URL Generated. size_in_kibibytes={size_in_kibibytes} acl={acl} authz={authz} bucket={bucket} user_sub={user_sub}"
     )
 
 
