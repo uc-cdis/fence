@@ -168,7 +168,7 @@ def get_signed_url_for_file(
 
 
 def _log_signed_url_data_info(index_document, user_sub):
-    size = index_document.get("size")
+    size_in_kibibytes = index_document.get("size", 0) / 1024
     acl = index_document.get("acl")
     authz = index_document.get("authz")
     buckets = set()
@@ -187,7 +187,7 @@ def _log_signed_url_data_info(index_document, user_sub):
     buckets_formatted = ",".join(buckets)
 
     logger.info(
-        f"Signed URL Generated. size={size} acl={acl} authz={authz} buckets={buckets_formatted} user_sub={user_sub}"
+        f"Signed URL Generated. size_in_kibibytes={size_in_kibibytes} acl={acl} authz={authz} buckets={buckets_formatted} user_sub={user_sub}"
     )
 
 
