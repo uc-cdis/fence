@@ -159,12 +159,15 @@ def get_signed_url_for_file(
             "sub": authorized_user_from_passport.id,
         }
 
-    _log_signed_url_data_info(indexed_file.index_document)
+    _log_signed_url_data_info(
+        index_document=indexed_file.index_document,
+        user_sub=flask.g.audit_data.get("sub", "")
+    )
 
     return {"url": signed_url}
 
 
-def _log_signed_url_data_info(index_document):
+def _log_signed_url_data_info(index_document, user_sub):
     size = index_document.get("size")
     acl = index_document.get("acl")
     authz = index_document.get("authz")
@@ -184,7 +187,7 @@ def _log_signed_url_data_info(index_document):
     buckets_formatted = ",".join(buckets)
 
     logger.info(
-        f"Signed URL Generated. size={size} acl={acl} authz={authz} buckets={buckets_formatted}"
+        f"Signed URL Generated. size={size} acl={acl} authz={authz} buckets={buckets_formatted} user_sub={user_sub}"
     )
 
 
