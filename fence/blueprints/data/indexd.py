@@ -186,7 +186,7 @@ def _log_signed_url_data_info(indexed_file, user_sub, requested_protocol):
 
             if bucket_protocol == protocol:
                 # Extract bucket name
-                bucket = rest_of_url.split("/")[0]
+                bucket = f"{bucket_protocol}://{rest_of_url.split('/')[0]}"
                 break
 
     logger.info(
