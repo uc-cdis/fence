@@ -159,7 +159,33 @@ def get_signed_url_for_file(
             "sub": authorized_user_from_passport.id,
         }
 
+    _log_signed_url_data_info(indexed_file.index_document)
+
     return {"url": signed_url}
+
+
+def _log_signed_url_data_info(index_document):
+    size = index_document.get("size")
+    acl = index_document.get("acl")
+    authz = index_document.get("authz")
+    buckets = set()
+
+    for url in index_document.get("urls", []):
+        bucket_name = None
+        if "://" in url:
+            # Extract the protocol and the rest of the URL
+            protocol, rest_of_url = url.split("://", 1)
+
+            # Extract bucket name
+            bucket_name = rest_of_url.split("/")[0]
+
+        buckets.add(bucket_name)
+
+    buckets_formatted = ",".join(buckets)
+
+    logger.info(
+        f"Signed URL Generated. size={size} acl={acl} authz={authz} buckets={buckets_formatted}"
+    )
 
 
 def prepare_presigned_url_audit_log(protocol, indexed_file):
