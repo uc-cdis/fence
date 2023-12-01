@@ -288,7 +288,11 @@ def complete_multipart_upload():
         raise UserError("missing required arguments: {}".format(list(missing)))
 
     default_expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+
     bucket = params.get("bucket")
+    if bucket:
+        verify_data_upload_bucket_configuration(bucket)
+
     expires_in = get_valid_expiration(
         params.get("expires_in"),
         max_limit=default_expires_in,

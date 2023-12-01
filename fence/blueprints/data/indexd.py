@@ -317,13 +317,12 @@ class BlankIndex(object):
         Returns:
             uploadId(str)
         """
+        bucket = bucket or flask.current_app.config["DATA_UPLOAD_BUCKET"]
         if not bucket:
-            try:
-                bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
-            except KeyError:
-                raise InternalError(
-                    "fence not configured with data upload bucket; can't create signed URL"
-                )
+            raise InternalError(
+                "fence not configured with data upload bucket; can't create signed URL"
+            )
+
         s3_url = "s3://{}/{}".format(bucket, key)
         return S3IndexedFileLocation(s3_url).init_multipart_upload(expires_in)
 
@@ -342,11 +341,6 @@ class BlankIndex(object):
             None if success otherwise an exception
         """
         if bucket:
-            s3_buckets = get_value(
-                flask.current_app.config,
-                "ALLOWED_DATA_UPLOAD_BUCKETS",
-                InternalError("ALLOWED_DATA_UPLOAD_BUCKETS not configured"),
-            )
             verify_data_upload_bucket_configuration(bucket)
         else:
             try:
@@ -1057,7 +1051,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             self.bucket_name(), aws_creds, expires_in
         )
 
-        return multipart_upload.initilize_multipart_upload(
+        return multipart_upload.initialize_multipart_upload(
             self.parsed_url.netloc, self.parsed_url.path.strip("/"), credentials
         )
 
@@ -1631,6 +1625,17 @@ def filter_auth_ids(action, list_auth_ids):
 
 
 def verify_data_upload_bucket_configuration(bucket):
+    """
+    Verify that the bucket is configured in Fence as an uploadable bucket
+
+    Args:
+        bucket(str): bucket name
+    """
+    s3_buckets = flask.current_app.config["ALLOWED_DATA_UPLOAD_BUCKETS"]
+
+    if not s3_buckets:
+        raise InternalError("ALLOWED_DATA_UPLOAD_BUCKETS not configured")
+
     s3_buckets = get_value(
         flask.current_app.config,
         "ALLOWED_DATA_UPLOAD_BUCKETS",
