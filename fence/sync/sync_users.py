@@ -1873,9 +1873,6 @@ class UserSyncer(object):
         If MFA is enabled for the user's idp, check if they have the /multifactor_auth resource and restore the
         mfa_policy after revoking all policies.
         """
-        # username = user.username
-        # idp = user.identity_provider.name if user.identity_provider else None
-
         is_mfa_enabled = "multifactor_auth_claim_info" in config["OPENID_CONNECT"].get(
             idp, {}
         )
