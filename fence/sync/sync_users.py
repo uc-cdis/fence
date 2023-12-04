@@ -1873,6 +1873,13 @@ class UserSyncer(object):
         If MFA is enabled for the user's idp, check if they have the /multifactor_auth resource and restore the
         mfa_policy after revoking all policies.
         """
+        user_data_from_arborist = None
+        try:
+            user_data_from_arborist = self.arborist_client.get_user(username)
+        except ArboristError:
+            # user doesn't exist in Arborist, nothing to revoke
+            return
+
         is_mfa_enabled = "multifactor_auth_claim_info" in config["OPENID_CONNECT"].get(
             idp, {}
         )
@@ -1883,7 +1890,7 @@ class UserSyncer(object):
 
         policies = []
         try:
-            policies = self.arborist_client.get_user()["policies"]
+            policies = user_data_from_arborist["policies"]
         except Exception as e:
             self.logger.error(
                 f"Could not retrieve user's policies, revoking all policies anyway. {e}"
