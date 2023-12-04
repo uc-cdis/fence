@@ -1868,13 +1868,13 @@ class UserSyncer(object):
 
         return True
 
-    def _revoke_all_policies_preserve_mfa(self, user):
+    def _revoke_all_policies_preserve_mfa(self, username, idp=None):
         """
         If MFA is enabled for the user's idp, check if they have the /multifactor_auth resource and restore the
         mfa_policy after revoking all policies.
         """
-        username = user.username
-        idp = user.identity_provider.name if user.identity_provider else None
+        # username = user.username
+        # idp = user.identity_provider.name if user.identity_provider else None
 
         is_mfa_enabled = "multifactor_auth_claim_info" in config["OPENID_CONNECT"].get(
             idp, {}
@@ -2000,10 +2000,11 @@ class UserSyncer(object):
             user = query_for_user(session=session, username=username)
             if user:
                 username = user.username
+                idp = user.identity_provider.name if user.identity_provider else None
 
             self.arborist_client.create_user_if_not_exist(username)
             if not single_user_sync:
-                self._revoke_all_policies_preserve_mfa(user)
+                self._revoke_all_policies_preserve_mfa(username, idp)
 
             # as of 2/11/2022, for single_user_sync, as RAS visa parsing has
             # previously mapped each project to the same set of privileges
