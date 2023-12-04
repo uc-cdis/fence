@@ -1995,6 +1995,7 @@ class UserSyncer(object):
         for username, user_project_info in user_projects.items():
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
+            idp = None
             if user:
                 username = user.username
                 idp = user.identity_provider.name if user.identity_provider else None
