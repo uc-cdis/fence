@@ -1034,6 +1034,20 @@ def test_user_sync_with_visa_sync_job(
 
 
 @pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)
+def test_revoke_all_policies_no_user(db_session, syncer):
+    """
+    Test that function returns even when there's no user
+    """
+    # no arborist user with that username
+    user_that_doesnt_exist = "foobar"
+    syncer.arborist_client.get_user.return_value = None
+
+    syncer._revoke_all_policies_preserve_mfa(user_that_doesnt_exist, "mock_idp")
+
+    # we only care that this doesn't error
+    assert True
+
+@pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)
 def test_revoke_all_policies_preserve_mfa(monkeypatch, db_session, syncer):
     """
     Test that the mfa_policy is re-granted to the user after revoking all their policies.
