@@ -1051,7 +1051,7 @@ def test_revoke_all_policies_preserve_mfa(monkeypatch, db_session, syncer):
         username="mockuser", identity_provider=IdentityProvider(name="mock_idp")
     )
     syncer.arborist_client.get_user.return_value = {"policies": ["mfa_policy"]}
-    syncer._revoke_all_policies_preserve_mfa(user)
+    syncer._revoke_all_policies_preserve_mfa(user.username, user.identity_provider.name)
     syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
         user.username
     )
@@ -1080,7 +1080,7 @@ def test_revoke_all_policies_preserve_mfa_no_mfa(monkeypatch, db_session, syncer
     syncer.arborist_client.list_resources_for_user.return_value = [
         "/programs/phs0001111"
     ]
-    syncer._revoke_all_policies_preserve_mfa(user)
+    syncer._revoke_all_policies_preserve_mfa(user.username, user.identity_provider.name)
     syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
         user.username
     )
@@ -1102,7 +1102,7 @@ def test_revoke_all_policies_preserve_mfa_no_idp(monkeypatch, db_session, syncer
         },
     )
     user = User(username="mockuser")
-    syncer._revoke_all_policies_preserve_mfa(user)
+    syncer._revoke_all_policies_preserve_mfa(user.username)
     syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
         user.username
     )
@@ -1132,7 +1132,7 @@ def test_revoke_all_policies_preserve_mfa_ensure_revoke_on_error(
     syncer.arborist_client.list_resources_for_user.side_effect = Exception(
         "Unknown error"
     )
-    syncer._revoke_all_policies_preserve_mfa(user)
+    syncer._revoke_all_policies_preserve_mfa(user.username, user.identity_provider.name)
     syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
         user.username
     )
