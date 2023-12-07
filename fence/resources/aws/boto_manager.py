@@ -19,7 +19,7 @@ class BotoManager(object):
 
     def __init__(self, config, logger):
         self.sts_client = client("sts", **config)
-        self.s3_client = client("s3", **config)
+        self.s3_client = client("s3", endpoint_url='TODO', **config)
         self.logger = logger
         self.ec2 = None
         self.iam = None
