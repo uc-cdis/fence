@@ -173,7 +173,7 @@ def _log_signed_url_data_info(indexed_file, user_sub, requested_protocol):
     acl = indexed_file.index_document.get("acl")
     authz = indexed_file.index_document.get("authz")
 
-    # the behavior later on is to pick the 1st location as the signed URL if a protocol is not requested
+    # the behavior later on is to pick the 1st location as the signed URL if a protocol is not requested, if available
     protocol = requested_protocol
     if not protocol and indexed_file.indexed_file_locations:
         protocol = indexed_file.indexed_file_locations[0].protocol
