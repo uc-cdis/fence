@@ -169,7 +169,7 @@ def get_signed_url_for_file(
 
 
 def _log_signed_url_data_info(indexed_file, user_sub, requested_protocol):
-    size_in_kibibytes = indexed_file.index_document.get("size", 0) / 1024
+    size_in_kibibytes = (indexed_file.index_document.get("size") or 0) / 1024
     acl = indexed_file.index_document.get("acl")
     authz = indexed_file.index_document.get("authz")
 
