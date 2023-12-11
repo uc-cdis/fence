@@ -17,12 +17,30 @@ class BotoManager(object):
         900  # minimum time for aws assume role is 900 seconds as per boto docs
     )
 
-    def __init__(self, config, logger):
+    def __init__(self, config, buckets, logger):
         self.sts_client = client("sts", **config)
-        self.s3_client = client("s3", endpoint_url='TODO', **config)
+        self.s3_client = client("s3", **config)
+        self.s3_clients = self.create_s3_clients(config, buckets)
         self.logger = logger
         self.ec2 = None
         self.iam = None
+
+    def create_s3_clients(self, config, buckets):
+        s3_clients = {
+            'default': client('s3', **config)
+        }
+        for bucket in buckets:
+            print(f"DEBUG bucket: {bucket}")
+            if buckets[bucket]['endpoint_url'] is not None:
+                print(f"DEBUG endpoint_url: {endpoint_url}")
+                endpoint_url = buckets[bucket]['endpoint_url']
+                s3_clients[bucket] = client('s3', **config, endpoint_url=endpoint_url)
+        return s3_clients
+
+    def get_s3_client(self, bucket):
+        if self.s3_clients.get(bucket) is None:
+            return self.s3_clients['default']
+        return self.s3_clients[bucket]
 
     def delete_data_file(self, bucket, prefix):
         """
@@ -33,7 +51,8 @@ class BotoManager(object):
             https://docs.aws.amazon.com/AmazonS3/latest/dev/DeletingObjectsfromVersioningSuspendedBuckets.html
         """
         try:
-            s3_objects = self.s3_client.list_objects_v2(
+            s3_client = self.get_s3_client(bucket)
+            s3_objects = s3_client.list_objects_v2(
                 Bucket=bucket, Prefix=prefix, Delimiter="/"
             )
 
@@ -52,7 +71,7 @@ class BotoManager(object):
                 self.logger.error("multiple files found with prefix {}".format(prefix))
                 return ("Multiple files found matching this prefix. Backing off.", 400)
             key = s3_objects["Contents"][0]["Key"]
-            self.s3_client.delete_object(Bucket=bucket, Key=key)
+            s3_client.delete_object(Bucket=bucket, Key=key)
             self.logger.info(
                 "deleted file for prefix {} in bucket {}".format(prefix, bucket)
             )

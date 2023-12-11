@@ -1150,6 +1150,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
     def delete(self, bucket, file_id):
         try:
+            print(f"DEBUG boto: {flask.current_app.boto}")
             return flask.current_app.boto.delete_data_file(bucket, file_id)
         except Exception as e:
             logger.error(e)
