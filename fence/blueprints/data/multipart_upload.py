@@ -39,6 +39,7 @@ def initialize_multipart_upload(bucket_name, key, credentials):
         aws_secret_access_key=credentials["aws_secret_access_key"],
         aws_session_token=credentials.get("aws_session_token"),
     )
+
     s3client = None
     if url:
         s3client = session.client("s3", endpoint_url=url)
@@ -93,6 +94,7 @@ def complete_multipart_upload(bucket_name, key, credentials, uploadId, parts):
         aws_secret_access_key=credentials["aws_secret_access_key"],
         aws_session_token=credentials.get("aws_session_token"),
     )
+
     s3client = None
     if url:
         s3client = session.client("s3", endpoint_url=url)
@@ -145,12 +147,7 @@ def generate_presigned_url_for_uploading_part(
     )
     bucket = s3_buckets.get(bucket_name)
 
-    s3_buckets = get_value(
-        config, "S3_BUCKETS", InternalError("S3_BUCKETS not configured")
-    )
-    bucket = s3_buckets.get(bucket_name)
-
-    if bucket.get("endpoint_url"):
+    if s3_buckets.get("endpoint_url"):
         url = bucket["endpoint_url"].strip("/") + "/{}/{}".format(
             bucket_name, key.strip("/")
         )
