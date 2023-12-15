@@ -162,13 +162,14 @@ def get_signed_url_for_file(
     _log_signed_url_data_info(
         indexed_file=indexed_file,
         user_sub=flask.g.audit_data.get("sub", ""),
+        client_id=_get_client_id(),
         requested_protocol=requested_protocol
     )
 
     return {"url": signed_url}
 
 
-def _log_signed_url_data_info(indexed_file, user_sub, requested_protocol):
+def _log_signed_url_data_info(indexed_file, user_sub, client_id, requested_protocol):
     size_in_kibibytes = (indexed_file.index_document.get("size") or 0) / 1024
     acl = indexed_file.index_document.get("acl")
     authz = indexed_file.index_document.get("authz")
@@ -192,9 +193,20 @@ def _log_signed_url_data_info(indexed_file, user_sub, requested_protocol):
                 break
 
     logger.info(
-        f"Signed URL Generated. size_in_kibibytes={size_in_kibibytes} acl={acl} authz={authz} bucket={bucket} user_sub={user_sub}"
+        f"Signed URL Generated. size_in_kibibytes={size_in_kibibytes} "
+        f"acl={acl} authz={authz} bucket={bucket} user_sub={user_sub} client_id={client_id}"
     )
 
+
+def _get_client_id():
+    client_id = ""
+
+    try:
+        client_id = current_token.get("azp") or ""
+    except Exception as exc:
+        pass
+
+    return client_id
 
 def prepare_presigned_url_audit_log(protocol, indexed_file):
     """
