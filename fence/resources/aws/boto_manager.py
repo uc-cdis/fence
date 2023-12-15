@@ -30,9 +30,8 @@ class BotoManager(object):
             'default': client('s3', **config)
         }
         for bucket in buckets:
-            print(f"DEBUG bucket: {bucket}")
-            if buckets[bucket]['endpoint_url'] is not None:
-                print(f"DEBUG endpoint_url: {endpoint_url}")
+            if 'endpoint_url' in buckets[bucket]:
+                endpoint_url = buckets[bucket]['endpoint_url']
                 endpoint_url = buckets[bucket]['endpoint_url']
                 s3_clients[bucket] = client('s3', **config, endpoint_url=endpoint_url)
         return s3_clients

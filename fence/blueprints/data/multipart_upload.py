@@ -159,10 +159,9 @@ def generate_presigned_url_for_uploading_part(
     additional_signed_qs = {"partNumber": str(partNumber), "uploadId": uploadId}
 
     try:
-        presigned_url = generate_aws_presigned_url(
+        return generate_aws_presigned_url(
             url, "PUT", credentials, "s3", region, expires, additional_signed_qs
         )
-        return presigned_url
     except Exception as e:
         raise InternalError(
             "Can not generate presigned url for part number {} of key {}. Detail {}".format(
