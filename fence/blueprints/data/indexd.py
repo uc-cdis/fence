@@ -199,10 +199,10 @@ def _log_signed_url_data_info(indexed_file, user_sub, client_id, requested_proto
 
 
 def _get_client_id():
-    client_id = ""
+    client_id = "Unknown Client"
 
     try:
-        client_id = current_token.get("azp") or ""
+        client_id = current_token.get("azp") or "Unknown Client"
     except Exception as exc:
         pass
 
