@@ -37,6 +37,25 @@ class CognitoOauth2Client(Oauth2ClientBase):
 
         return uri
 
+    def get_group_claims(self, userinfo, claims):
+        """
+        Return group claims from userinfo response
+        Args:
+            userinfo (dict): userinfo response
+        Return:
+            str: list of groups
+        """
+        result = None
+
+        attributes = userinfo.get("Attributes")
+        if attributes and len(attributes) > 0:
+            for a in attributes:
+                if a["Name"] == "custom:groups":
+                    result = a["Value"]
+                    break
+
+        return result
+
     def get_auth_info(self, code):
         """
         Exchange code for tokens, get email from id token claims.

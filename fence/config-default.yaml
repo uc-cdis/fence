@@ -238,6 +238,8 @@ OPENID_CONNECT:
     # and that IdP is a SAML IdP with no 'email_verified' outgoing claim, but it is safe
     # to assume all emails from this SAML IdP are in fact verified, we may set this to True
     assume_emails_verified: False
+    assign_groups_as_policies: True
+    assign_groups_claim_name: ''
   # CILogon subscribers can create and manage OIDC clients using COmanage Registry.
   # Free tier users may request OIDC clients at https://cilogon.org/oauth2/register
   cilogon:
