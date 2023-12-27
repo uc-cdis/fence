@@ -388,9 +388,9 @@ def app_config(
 
 def _setup_data_endpoint_and_boto(app):
     if "AWS_CREDENTIALS" in config and len(config["AWS_CREDENTIALS"]) > 0:
-        value = list(config["AWS_CREDENTIALS"].values())[0]
+        creds = config["AWS_CREDENTIALS"]
         buckets = config.get("S3_BUCKETS", {})
-        app.boto = BotoManager(value, buckets, logger=logger)
+        app.boto = BotoManager(creds, buckets, logger=logger)
         app.register_blueprint(fence.blueprints.data.blueprint, url_prefix="/data")
 
 
