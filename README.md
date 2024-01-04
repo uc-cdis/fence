@@ -87,8 +87,6 @@ OpenID Provider - an OAuth 2.0 Authentication Server which also implements OpenI
 
 Relying Party - an OAuth 2.0 Client which uses (requests) OpenID Connect.
 
-
-
 ## Identity Providers
 
 Fence can be configured to support different Identity Providers (IdPs) for AuthN.
