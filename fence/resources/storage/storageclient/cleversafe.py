@@ -12,6 +12,8 @@ import json
 from .base import StorageClient, User, Bucket, handle_request
 from .errors import RequestError, NotFoundError
 
+from fence.config import config
+
 
 class CleversafeClient(StorageClient):
     """
@@ -182,7 +184,11 @@ class CleversafeClient(StorageClient):
         )
         url = base_url + "?" + urlencode(dict(**kwargs))
         return requests.request(
-            method, url, auth=self._auth, data=payload, verify=False
+            method,
+            url,
+            auth=self._auth,
+            data=payload,
+            verify=config["VERIFY_CLEVERSAFE_CERT"],
         )  # self-signed certificate
 
     @property
