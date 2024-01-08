@@ -62,6 +62,7 @@ werkzeug = ">=2.2.3,<3.0.0"
 cachelib = "^0.2.0"
 azure-storage-blob = "^12.6.0"
 Flask-WTF = "^1.0.0"
+boto = "*"
 
 
 [tool.poetry.dev-dependencies]
