@@ -435,7 +435,7 @@ class IndexedFile(object):
         also be cleaner).
 
     Args:
-        file_id (str): GUID for the file.
+        file_id (str): GUID for the file
     """
 
     def __init__(self, file_id):
