@@ -691,6 +691,10 @@ GS_BUCKETS: {}
 #   bucket3:
 #     region: 'us-east-1'
 
+# When using the Cleversafe storageclient, whether or not to send verify=true 
+# for requests
+VERIFY_CLEVERSAFE_CERT: true
+
 # Names of the S3 buckets to which data files can be uploaded. They should be
 # configured in `S3_BUCKETS`.
 ALLOWED_DATA_UPLOAD_BUCKETS: []

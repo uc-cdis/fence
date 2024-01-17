@@ -7,8 +7,11 @@ from unittest.mock import MagicMock, patch
 from yaml import safe_load as yaml_load
 
 from cdislogging import get_logger
-from cirrus import GoogleCloudManager
-from cdisutilstest.code.storage_client_mock import get_client, StorageClientMocker
+from gen3cirrus import GoogleCloudManager
+from tests.storageclient.storage_client_mock import (
+    get_client,
+    StorageClientMocker,
+)
 import pytest
 from userdatamodel import Base
 from userdatamodel.models import *
