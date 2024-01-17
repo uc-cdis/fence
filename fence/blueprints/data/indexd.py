@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.sql.functions import user
 from cached_property import cached_property
-import cirrus
-from cirrus import GoogleCloudManager
+import gen3cirrus
+from gen3cirrus import GoogleCloudManager
 from cdislogging import get_logger
 from cdispyutils.config import get_value
 from cdispyutils.hmac4 import generate_aws_presigned_url
@@ -163,7 +163,7 @@ def get_signed_url_for_file(
         indexed_file=indexed_file,
         user_sub=flask.g.audit_data.get("sub", ""),
         client_id=_get_client_id(),
-        requested_protocol=requested_protocol
+        requested_protocol=requested_protocol,
     )
 
     return {"url": signed_url}
@@ -1209,7 +1209,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     ):
         # we will use the main fence SA service account to sign anonymous requests
         private_key = get_google_app_creds()
-        final_url = cirrus.google_cloud.utils.get_signed_url(
+        final_url = gen3cirrus.google_cloud.utils.get_signed_url(
             resource_path,
             http_verb,
             expires_in,
@@ -1350,7 +1350,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         if config["BILLING_PROJECT_FOR_SIGNED_URLS"] and not r_pays_project:
             r_pays_project = config["BILLING_PROJECT_FOR_SIGNED_URLS"]
 
-        final_url = cirrus.google_cloud.utils.get_signed_url(
+        final_url = gen3cirrus.google_cloud.utils.get_signed_url(
             resource_path,
             http_verb,
             expires_in,
