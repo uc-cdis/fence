@@ -18,30 +18,28 @@ class BotoManager(object):
     )
 
     def __init__(self, config, buckets, logger):
-        self.sts_client = client("sts", **config)
-        self.s3_client = client("s3", **config)
+        default = list(config.values())[0]
+        self.sts_client = client("sts", **default)
+        self.s3_client = client("s3", **default)
         self.s3_clients = self.create_s3_clients(config, buckets)
         self.logger = logger
         self.ec2 = None
         self.iam = None
 
     def create_s3_clients(self, config, buckets):
-        s3_clients = {}
-        for creds in config:
-            if config[creds]['aws'] == 'true':
-                s3_clients = {'default': self.s3_client}
+        s3_clients = {'default': self.s3_client}
 
         for bucket in buckets:
             cred_name = buckets[bucket]['cred']
-            keys = config[cred_name]
-            if 'aws' in keys:
-                keys.pop('aws')
+            creds = {}
+            if cred_name != '*':
+                creds = config[cred_name]
 
             if 'endpoint_url' in buckets[bucket]:
                 endpoint_url = buckets[bucket]['endpoint_url']
-                s3_clients[bucket] = client('s3', **keys, endpoint_url=endpoint_url)
+                s3_clients[bucket] = client('s3', **creds, endpoint_url=endpoint_url)
             else:
-                s3_clients[bucket] = client('s3', **keys)
+                s3_clients[bucket] = client('s3', **creds)
         return s3_clients
 
     def get_s3_client(self, bucket):

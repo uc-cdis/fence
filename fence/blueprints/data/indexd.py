@@ -349,8 +349,9 @@ class BlankIndex(object):
         Returns:
             uploadId(str)
         """
-        bucket = bucket or flask.current_app.config["DATA_UPLOAD_BUCKET"]
-        if not bucket:
+        try:
+            bucket = bucket or flask.current_app.config["DATA_UPLOAD_BUCKET"]
+        except KeyError:
             raise InternalError(
                 "fence not configured with data upload bucket; can't create signed URL"
             )
