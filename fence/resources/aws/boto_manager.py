@@ -76,7 +76,7 @@ class BotoManager(object):
                 self.logger.error("multiple files found with prefix {}".format(prefix))
                 return ("Multiple files found matching this prefix. Backing off.", 400)
             key = s3_objects["Contents"][0]["Key"]
-            self.s3_client.delete_object(Bucket=bucket, Key=key)
+            s3_client.delete_object(Bucket=bucket, Key=key)
             self.logger.info(
                 "deleted file for prefix {} in bucket {}".format(prefix, bucket)
             )
