@@ -30,7 +30,7 @@ With the Azure Blob Storage Account setup, you can further upload files into you
 
 Assuming that you have preexisting files in an Azure Blob Storage Account, you can work through the following steps to index the files:
 
-1. Get the Azure Blob Storage URL (e.g. https://storageaccountname.blob.core.windows.net/container/blob/file.txt) for the file that's been uploaded, along with other file metadata (e.g. MD5 hash, file size, file name).
+1. Get the Azure Blob Storage URL (e.g. `https://storageaccountname.blob.core.windows.net/container/blob/file.txt`) for the file that's been uploaded, along with other file metadata (e.g. MD5 hash, file size, file name).
 2. Submit a request to [indexd](https://github.com/uc-cdis/indexd) to create a new record using [gen3sdk-python](https://github.com/uc-cdis/gen3sdk-python/blob/master/gen3/index.py#L354) including the Azure Blob Storage URL.  You should update the URL to indicate using `az` as the protocol for Azure Blob Storage, for example `https://storageaccountname.blob.core.windows.net/container/blob/file.txt` will become `az://storageaccountname.blob.core.windows.net/container/blob/file.txt`. You can also set the `acl` to `'*'` and **not set** `authz` in the `indexd` record if you want to create a public `indexd` record.
 3. `Indexd` should be able to create a record and track the new [indexd record](https://github.com/uc-cdis/indexd#indexd-records) in its database, and return a `documentid` along with other metadata
 
@@ -40,7 +40,7 @@ Assuming the user can send a request to `fence` with an indexed `documentid` and
 
 If the user is authorized by `arborist`, `fence` can use the [Azure Blob Storage Python SDK](https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/storage/azure-storage-blob) to interact with Azure Blob Storage. The Azure Blob Storage client needs a [connection string](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage?toc=%2Fazure%2Fstorage%2Fblobs%2Ftoc.json&tabs=azure-portal#view-account-access-keys) in order to connect to Azure Blob Storage.
 
-You can use the Azure Blob Storage client to connect to Azure Blob Storage, and given a converted indexed [URL](https://docs.microsoft.com/en-us/rest/api/storageservices/naming-and-referencing-containers--blobs--and-metadata#resource-uri-syntax), you can create a [SAS Token](https://docs.microsoft.com/en-us/azure/storage/common/storage-sas-overview) to include with the signed URL (e.g. https://storageaccountname.blob.core.windows.net/container/blob/file.txt?SASToken) for the user to access the Azure Blob Storage based file in the Data Commons.
+You can use the Azure Blob Storage client to connect to Azure Blob Storage, and given a converted indexed [URL](https://docs.microsoft.com/en-us/rest/api/storageservices/naming-and-referencing-containers--blobs--and-metadata#resource-uri-syntax), you can create a [SAS Token](https://docs.microsoft.com/en-us/azure/storage/common/storage-sas-overview) to include with the signed URL (e.g. `https://storageaccountname.blob.core.windows.net/container/blob/file.txt?SASToken`) for the user to access the Azure Blob Storage based file in the Data Commons.
 
 #### Configuration Details
 
@@ -48,8 +48,8 @@ You can update the [Fence config.yaml](../fence/config-default.yaml) to include 
 
 Name | Value | Description
 ------ | ------|----------
-`AZ_BLOB_CREDENTIALS` | DefaultEndpointsProtocol=https;AccountName=somestorageaccount;AccountKey=storageaccountkey;BlobEndpoint=https://somestorageaccount.blob.core.windows.net/; | This is the [Azure Blob Storage Connection String](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage?toc=%2Fazure%2Fstorage%2Fblobs%2Ftoc.json&tabs=azure-portal#view-account-access-keys). You can also set this to `'*'` if you are indexing URLs for [public read access Azure Blob Storage containers](https://docs.microsoft.com/en-us/azure/storage/blobs/anonymous-read-access-configure?tabs=portal). Note that if you're using the URL for a public read access Azure Blob Storage container, then operations such as `delete` and `upload` will not work.  
-`AZ_BLOB_CONTAINER_URL` | https://storageaccountname.blob.core.windows.net/storage-container | This is the destination container for uploading with a given SAS token. You can set this value to designate a pre-existing storage container to upload indexed files, for example the new files could sit in https://storageaccountname.blob.core.windows.net/storage-container/someguid/some/blob/file.txt. If the storage account doesn't align with the indexed URL (e.g. you're using a public url or the storage account doesn't match), the upload will not work. If `AZ_BLOB_CREDENTIALS` is `'*'` then uploads from an indexed file using a public URL will not work. This value should be associated with the same Azure Blob Storage account used with the [Azure Blob Storage Connection String](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage?toc=%2Fazure%2Fstorage%2Fblobs%2Ftoc.json&tabs=azure-portal#view-account-access-keys) for `AZ_BLOB_CREDENTIALS`.
+`AZ_BLOB_CREDENTIALS` | DefaultEndpointsProtocol=https;AccountName=somestorageaccount;AccountKey=storageaccountkey;BlobEndpoint=`https://somestorageaccount.blob.core.windows.net/`; | This is the [Azure Blob Storage Connection String](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage?toc=%2Fazure%2Fstorage%2Fblobs%2Ftoc.json&tabs=azure-portal#view-account-access-keys). You can also set this to `'*'` if you are indexing URLs for [public read access Azure Blob Storage containers](https://docs.microsoft.com/en-us/azure/storage/blobs/anonymous-read-access-configure?tabs=portal). Note that if you're using the URL for a public read access Azure Blob Storage container, then operations such as `delete` and `upload` will not work.
+`AZ_BLOB_CONTAINER_URL` | `https://storageaccountname.blob.core.windows.net/storage-container` | This is the destination container for uploading with a given SAS token. You can set this value to designate a pre-existing storage container to upload indexed files, for example the new files could sit in `https://storageaccountname.blob.core.windows.net/storage-container/someguid/some/blob/file.txt`. If the storage account doesn't align with the indexed URL (e.g. you're using a public url or the storage account doesn't match), the upload will not work. If `AZ_BLOB_CREDENTIALS` is `'*'` then uploads from an indexed file using a public URL will not work. This value should be associated with the same Azure Blob Storage account used with the [Azure Blob Storage Connection String](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage?toc=%2Fazure%2Fstorage%2Fblobs%2Ftoc.json&tabs=azure-portal#view-account-access-keys) for `AZ_BLOB_CREDENTIALS`.
 
 Using pre-signed urls for download is implemented; it's currently using a [SAS Token](https://docs.microsoft.com/en-us/azure/storage/common/storage-sas-overview).
 
@@ -60,9 +60,9 @@ https://<storageaccount>.blob.core.windows.net/<containername>/some/path/to/file
 ```
 
 For example, when you index the file (e.g. using the [gen3sdk](https://github.com/uc-cdis/gen3sdk-python/blob/master/gen3/index.py#L354)), you can supply the url associated with the blob that's already been uploaded in the Azure Blob Storage Container.
-> `fence` will take an indexed version of the URL with `az` protocol instead of `https`, such as `https://storageaccountname.blob.core.windows.net/container/blob/file.txt` vs. `az://storageaccountname.blob.core.windows.net/container/blob/file.txt`)
+> `fence` will take an indexed version of the URL with `az` protocol instead of `https`, such as `https://storageaccountname.blob.core.windows.net/container/blob/file.txt` vs. `az://storageaccountname.blob.core.windows.net/container/blob/file.txt`
 
-So if you navigate to https://mydatacommons/files/guid (assuming that the metadata is already setup), you can click on the file to download which will make the call to get the appropriate signed URL.
+So if you navigate to `https://mydatacommons/files/guid` (assuming that the metadata is already setup), you can click on the file to download which will make the call to get the appropriate signed URL.
 
 ![Presigned URL](./images/m_fence_presigned_url.png)
 
@@ -87,7 +87,7 @@ You can use [user delegation SAS tokens](https://docs.microsoft.com/en-us/rest/a
 
 The diagram shows 3 separate workflows in order for `fence` to interact with Azure AD:
 
-1. Creating an [Azure AD Web App Registration](#Azure-AD-Registration) 
+1. Creating an [Azure AD Web App Registration](#Azure-AD-Registration)
 2. Adding users through the [User Yaml](#User-Yaml-Setup) job.
 3. Logging in with Microsoft credentials through [Azure AD](#Login-with-AAD) with Fence
 
@@ -110,12 +110,12 @@ Also note that there's alternatives that could be considered for [future develop
 4. Retrieve the `client id` of the AAD application
 ![Retrieve client ID](./images/m_fence_azure_AD_app_registration_3.png)
 5. Update [fence-config.yaml](../fence/config-default.yaml)
-    * Set the `microsoft_client_id` to be the `client_id` in step 4. 
-    * Set the `microsoft_client_secret` to be the secret value in step 3. 
+    * Set the `microsoft_client_id` to be the `client_id` in step 4.
+    * Set the `microsoft_client_secret` to be the secret value in step 3.
     * Make sure the `BASE_URL` in [fence-config.yaml](../fence/config-default.yaml) is correct.
     * Make sure the `redirect_url` in [fence-config.yaml](../fence/config-default.yaml) is `{{BASE_URL}}/login/microsoft/login/` is matches the redirect URL (`(commons fdqn)/user/login/microsoft/login`) in step 2
 6. Restart `fence` service with the updated secrets
-  
+
 #### User Yaml Setup
 
 `Fence` uses [Arborist](https://github.com/uc-cdis/arborist) as an underlying ABAC policy engine.
@@ -159,11 +159,11 @@ The more complete example may look like the following in the `user.yaml`:
       anonymous_policies:
       - open_data_reader
       - data_upload
-    
+
       # policies automatically given to authenticated users (in addition to their other policies)
       all_users_policies:
       - data_upload
-    
+
       groups:
       # can CRUD programs and projects and upload data files
       - name: data_submitters
@@ -174,7 +174,7 @@ The more complete example may look like the following in the `user.yaml`:
         users:
 +        - new.user@contoso.com
 +        - another.user@contoso.com
-    
+
       # can create/update/delete indexd records
       - name: indexd_admins
         policies:
@@ -182,7 +182,7 @@ The more complete example may look like the following in the `user.yaml`:
         users:
 +        - new.user@contoso.com
 +        - another.user@contoso.com
-    
+
       resources:
       - name: workspace
       - name: data_file
@@ -212,7 +212,7 @@ The more complete example may look like the following in the `user.yaml`:
 +        subresources:
 +        - name: project1
 +        - name: project2
-    
+
       policies:
       - id: workspace
         description: be able to use workspace
@@ -262,7 +262,7 @@ The more complete example may look like the following in the `user.yaml`:
         - admin
         resource_paths:
         - /programs
-    
+
       roles:
       - id: file_uploader
         permissions:
@@ -332,7 +332,7 @@ The more complete example may look like the following in the `user.yaml`:
             action:
               service: '*'
               method: read-storage
-    
+
     clients:
       wts:
         policies:
@@ -355,7 +355,7 @@ The more complete example may look like the following in the `user.yaml`:
 +          - services.sheepdog-admin
 +          - all_programs_reader
 +          - open_data_reader
-    
+
     cloud_providers: {}
     groups:
     - data_submitters

@@ -98,7 +98,7 @@ class SynapseOauth2Client(Oauth2ClientBase):
 
         return None, None
 
-    def get_user_id(self, code):
+    def get_auth_info(self, code):
         try:
             token_endpoint = self.get_value_from_discovery_doc(
                 "token_endpoint", config["SYNAPSE_URI"] + "/oauth2/token"

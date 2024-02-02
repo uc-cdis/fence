@@ -1,1 +1,1 @@
-#  Tech debt
+# Tech debt

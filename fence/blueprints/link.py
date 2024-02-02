@@ -274,7 +274,7 @@ class GoogleCallback(Resource):
         code = flask.request.args.get("code")
 
         if not config.get("MOCK_GOOGLE_AUTH", False):
-            google_response = flask.current_app.google_client.get_user_id(code)
+            google_response = flask.current_app.google_client.get_auth_info(code)
             email = google_response.get("email")
         else:
             # if we're mocking google auth, mock response to include the email
