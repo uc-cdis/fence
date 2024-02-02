@@ -2,12 +2,13 @@
 import json
 
 import pytest
+from gen3authz.client.arborist.errors import ArboristError
 
 from fence.models import UserGoogleAccount
 
 
 @pytest.fixture(autouse=True)
-def mock_arborist(mock_arborist_requests):
+def mock_arborist(mock_arborist_requests, encoded_creds_jwt):
     mock_arborist_requests()
 
 
@@ -56,3 +57,29 @@ def test_userinfo_extra_claims_get(
     assert resp.json["name"]
     assert resp.json["linked_google_account"]
     assert resp.status_code == 200
+
+
+def test_userinfo_arborist_authz(
+    client, encoded_creds_jwt, mock_arborist_requests, app
+):
+    """
+    Tests that the userinfo endpoint populates authz and resource based on the /auth/mapping from Arborist
+    """
+    expected_authz = {"/open": [{"service": "peregrine", "method": "read"}]}
+    expected_resources = list(expected_authz.keys())
+    mock_arborist_requests(
+        {
+            f"arborist/auth/mapping": {"POST": (expected_authz, 200)},
+        }
+    )
+
+    resp = client.post(
+        "/user",
+        headers={"Authorization": "Bearer " + encoded_creds_jwt["jwt"]},
+    ).json
+
+    actual_authz = resp.get("authz", {})
+    actual_resources = resp.get("resources", [])
+
+    assert actual_authz == expected_authz
+    assert actual_resources == expected_resources

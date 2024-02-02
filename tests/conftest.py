@@ -377,7 +377,7 @@ def no_app_context_no_public_keys():
 @pytest.fixture(scope="function")
 def mock_arborist_requests(request):
     """
-    This fixture returns a function which you call to mock out arborist endopints.
+    This fixture returns a function which you call to mock out arborist endpoints.
     Give it an argument in this format:
         {
             "arborist/health": {
@@ -391,7 +391,10 @@ def mock_arborist_requests(request):
 
     def do_patch(urls_to_responses=None):
         urls_to_responses = urls_to_responses or {}
-        defaults = {"arborist/health": {"GET": ("", 200)}}
+        defaults = {
+            "arborist/health": {"GET": ("", 200)},
+            "arborist/auth/mapping": {"POST": ({}, "200")},
+        }
         defaults.update(urls_to_responses)
         urls_to_responses = defaults
 
