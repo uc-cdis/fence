@@ -1,6 +1,6 @@
 #!groovy
 
-@Library('cdis-jenkins-lib@master') _
+@Library('cdis-jenkins-lib@haraprasadj-patch-5') _
 
 testPipeline {
 }
