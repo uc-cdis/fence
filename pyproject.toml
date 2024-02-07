@@ -24,7 +24,7 @@ authlib = {git = "https://github.com/uc-cdis/authlib", rev = "v0.11_CVE_patch_v1
 
 authutils = "^6.2.2"
 bcrypt = "^3.1.4"
-boto3 = "^1.9.91"
+boto3 = "*"
 botocore = "*"
 cached_property = "^1.5.1"
 cdiserrors = "<2.0.0"
