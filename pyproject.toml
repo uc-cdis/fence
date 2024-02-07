@@ -30,7 +30,7 @@ cached_property = "^1.5.1"
 cdiserrors = "<2.0.0"
 cdislogging = "^1.0.0"
 cdispyutils = "^2.0.1"
-cryptography = ">=41.0.6"
+cryptography = ">=42.0.2"
 
 # this will be updated when authlib is updated
 flask = "==2.3.2"
