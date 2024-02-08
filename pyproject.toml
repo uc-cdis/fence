@@ -64,6 +64,8 @@ azure-storage-blob = "^12.6.0"
 Flask-WTF = "^1.0.0"
 boto = "*"
 
+# pin setuptools to fix errors in travis builds
+setuptools = "==68.0.0"
 
 [tool.poetry.dev-dependencies]
 addict = "^2.2.1"
