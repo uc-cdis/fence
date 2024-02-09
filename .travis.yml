@@ -29,7 +29,7 @@ before_install:
   - sudo pg_ctlcluster 13 main restart
 
 install:
-  - pip install --upgrade pip
+  - pip install --upgrade pip setuptools
   - pip install poetry
   - poetry install --all-extras -vv --no-interaction
   - poetry show -vv
