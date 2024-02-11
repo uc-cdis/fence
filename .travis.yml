@@ -29,8 +29,10 @@ before_install:
   - sudo pg_ctlcluster 13 main restart
 
 install:
-  - pip install --upgrade pip setuptools
-  - pip install poetry
+  - pip install --upgrade pip
+  - curl -sSL https://install.python-poetry.org | python -
+  - which poetry
+  - poetry --version
   - poetry install --all-extras -vv --no-interaction
   - poetry show -vv
   - psql -c 'SELECT version();' -U postgres
