@@ -17,7 +17,7 @@ from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
 from urllib.parse import urlparse
 
-# Can't read config yet. Just set to debug for now, else no handlers.
+# Can't read config yet. Just set to debug for now, else no handlers
 # Later, in app_config(), will actually set level based on config
 logger = get_logger(__name__, log_level="debug")
 
