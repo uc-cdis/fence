@@ -161,6 +161,8 @@ class FenceConfig(Config):
 
         all_parent_studies = set()
         for dbgap_config in configs:
+            casc_auth_config = dbgap_config.get("parent_to_child_studies_mapping", {})
+            logger.info(casc_auth_config)
             parent_studies = dbgap_config.get(
                 "parent_to_child_studies_mapping", {}
             ).keys()
