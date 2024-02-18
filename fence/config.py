@@ -164,6 +164,7 @@ class FenceConfig(Config):
             casc_auth_config = dbgap_config.get("parent_to_child_studies_mapping", {})
             logger.info(casc_auth_config)
             logger.info(casc_auth_config or "ITS ACTUALLY NONE")
+            logger.info(dbgap_configs)
             parent_studies = dbgap_config.get(
                 "parent_to_child_studies_mapping", {}
             ).keys()
