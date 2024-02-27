@@ -659,6 +659,47 @@ def revoke_permission():
     return jsonify(remove_permission())
 
 
+#### CLIENT ####
+@blueprint.route("/add_policies_to_client", methods=["POST"])
+@admin_login_required
+@debug_log
+def add_policies_to_client():
+    """
+    Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/add_policy_to_user`
+
+    payload:
+    `{
+       "policy_names" = ["services.amanuensis-admin", "data_admin"],
+       "client_id" = "akjsdhoadoadshaouhasod1!"
+    }`
+    """
+    body = request.get_json()
+
+    policy_names = body.get('policy_names', None)
+    client_id = body.get('client_id', None)
+    # TODO check that policy_names is in list format
+    if client_id is None or policy_names is None or len(policy_names) < 1:
+        raise UserError("There are some missing parameters in the payload.")
+
+    # The arborist update_client endpoint is already checking if the client_id exists, if not it creates one. And it checks for the policies already as well
+    try:
+        current_app.arborist.update_client(
+            client_id, policy_names
+        )
+    except ArboristError as e:
+        self.logger.info(
+            "not granting policies {} to client with id `{}`; {}".format(
+                policy_names, client_id, str(e)
+            )
+        )
+        raise ArboristError(
+            "Error assigning policies to client {}".format(
+                client_id
+            )
+        )
+
+    return jsonify("Success")
+
 
 
 #### PROJECTS ####

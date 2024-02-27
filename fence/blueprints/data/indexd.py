@@ -159,7 +159,41 @@ def get_signed_url_for_file(
             "sub": authorized_user_from_passport.id,
         }
 
+    _log_signed_url_data_info(
+        indexed_file=indexed_file,
+        user_sub=flask.g.audit_data.get("sub", ""),
+        requested_protocol=requested_protocol
+    )
+
     return {"url": signed_url}
+
+
+def _log_signed_url_data_info(indexed_file, user_sub, requested_protocol):
+    size_in_kibibytes = (indexed_file.index_document.get("size") or 0) / 1024
+    acl = indexed_file.index_document.get("acl")
+    authz = indexed_file.index_document.get("authz")
+
+    # the behavior later on is to pick the 1st location as the signed URL if a protocol is not requested, if available
+    protocol = requested_protocol
+    if not protocol and indexed_file.indexed_file_locations:
+        protocol = indexed_file.indexed_file_locations[0].protocol
+
+    # figure out which bucket was used based on the protocol
+    bucket = ""
+    for url in indexed_file.index_document.get("urls", []):
+        bucket_name = None
+        if "://" in url:
+            # Extract the protocol and the rest of the URL
+            bucket_protocol, rest_of_url = url.split("://", 1)
+
+            if bucket_protocol == protocol:
+                # Extract bucket name
+                bucket = f"{bucket_protocol}://{rest_of_url.split('/')[0]}"
+                break
+
+    logger.info(
+        f"Signed URL Generated. size_in_kibibytes={size_in_kibibytes} acl={acl} authz={authz} bucket={bucket} user_sub={user_sub}"
+    )
 
 
 def prepare_presigned_url_audit_log(protocol, indexed_file):

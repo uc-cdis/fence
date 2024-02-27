@@ -1034,6 +1034,20 @@ def test_user_sync_with_visa_sync_job(
 
 
 @pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)
+def test_revoke_all_policies_no_user(db_session, syncer):
+    """
+    Test that function returns even when there's no user
+    """
+    # no arborist user with that username
+    user_that_doesnt_exist = "foobar"
+    syncer.arborist_client.get_user.return_value = None
+
+    syncer._revoke_all_policies_preserve_mfa(user_that_doesnt_exist, "mock_idp")
+
+    # we only care that this doesn't error
+    assert True
+
+@pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)
 def test_revoke_all_policies_preserve_mfa(monkeypatch, db_session, syncer):
     """
     Test that the mfa_policy is re-granted to the user after revoking all their policies.
@@ -1051,7 +1065,7 @@ def test_revoke_all_policies_preserve_mfa(monkeypatch, db_session, syncer):
         username="mockuser", identity_provider=IdentityProvider(name="mock_idp")
     )
     syncer.arborist_client.get_user.return_value = {"policies": ["mfa_policy"]}
-    syncer._revoke_all_policies_preserve_mfa(user)
+    syncer._revoke_all_policies_preserve_mfa(user.username, user.identity_provider.name)
     syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
         user.username
     )
@@ -1080,7 +1094,7 @@ def test_revoke_all_policies_preserve_mfa_no_mfa(monkeypatch, db_session, syncer
     syncer.arborist_client.list_resources_for_user.return_value = [
         "/programs/phs0001111"
     ]
-    syncer._revoke_all_policies_preserve_mfa(user)
+    syncer._revoke_all_policies_preserve_mfa(user.username, user.identity_provider.name)
     syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
         user.username
     )
@@ -1102,7 +1116,7 @@ def test_revoke_all_policies_preserve_mfa_no_idp(monkeypatch, db_session, syncer
         },
     )
     user = User(username="mockuser")
-    syncer._revoke_all_policies_preserve_mfa(user)
+    syncer._revoke_all_policies_preserve_mfa(user.username)
     syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
         user.username
     )
@@ -1132,7 +1146,7 @@ def test_revoke_all_policies_preserve_mfa_ensure_revoke_on_error(
     syncer.arborist_client.list_resources_for_user.side_effect = Exception(
         "Unknown error"
     )
-    syncer._revoke_all_policies_preserve_mfa(user)
+    syncer._revoke_all_policies_preserve_mfa(user.username, user.identity_provider.name)
     syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
         user.username
     )
