@@ -23,7 +23,7 @@ args = parser.parse_args()
 
 if config.get("MOCK_STORAGE"):
     from mock import patch
-    from cdisutilstest.code.storage_client_mock import get_client
+    from tests.storageclient.storage_client_mock import get_client
 
     patcher = patch("fence.resources.storage.get_client", get_client)
     patcher.start()

@@ -7,9 +7,9 @@ import time
 import flask
 from flask_restful import Resource
 
-from cirrus import GoogleCloudManager
-from cirrus.errors import CirrusNotFound
-from cirrus.google_cloud.errors import GoogleAPIError
+from gen3cirrus import GoogleCloudManager
+from gen3cirrus.errors import CirrusNotFound
+from gen3cirrus.google_cloud.errors import GoogleAPIError
 
 from fence.auth import current_token, require_auth_header
 from fence.restful import RestfulApi
