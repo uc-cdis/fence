@@ -1,6 +1,6 @@
 from cdislogging import get_logger
-from cirrus import GoogleCloudManager
-from cirrus.google_cloud.utils import get_proxy_group_name_for_user
+from gen3cirrus import GoogleCloudManager
+from gen3cirrus.google_cloud.utils import get_proxy_group_name_for_user
 from fence.config import config
 from fence.errors import NotFound, UserError, UnavailableError
 from fence.models import (
@@ -408,7 +408,7 @@ def delete_user(current_session, username):
             # and check if it exists in cirrus, in case Fence db just
             # didn't know about it.
             logger.debug(
-                "Could not find Google proxy group for this user in Fence db. Checking cirrus..."
+                "Could not find Google proxy group for this user in Fence db. Checking gen3cirrus..."
             )
             pgname = get_proxy_group_name_for_user(
                 user.id, user.username, prefix=config["GOOGLE_GROUP_PREFIX"]
@@ -422,7 +422,7 @@ def delete_user(current_session, username):
 
         if not gpg_email:
             logger.info(
-                "Could not find Google proxy group for user in Fence db or in cirrus. "
+                "Could not find Google proxy group for user in Fence db or in gen3cirrus. "
                 "Assuming Google not in use as IdP. Proceeding with Fence deletes."
             )
         else:

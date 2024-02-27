@@ -17,7 +17,7 @@ We'll talk about each one of those in-depth here (and even delve into the intern
 
 ### Fence -> cirrus -> Google: A library wrapping Google's API
 
-We have a library that wraps Google's public API called [cirrus](https://github.com/uc-cdis/cirrus). Our design is such that fence does not hit Google's API directly, but goes through cirrus. For all of cirrus's features to work, a very specific setup is required, which is detailed in cirrus's README.
+We have a library that wraps Google's public API called [cirrus](https://github.com/uc-cdis/cirrus). Our design is such that fence does not hit Google's API directly, but goes through gen3cirrus. For all of cirrus's features to work, a very specific setup is required, which is detailed in cirrus's README.
 
 Essentially, cirrus requires a Google Cloud Identity account (for group management) and
 Google Cloud Platform project(s). In order to automate group management in Google Cloud Identity with cirrus, you must go through a manual process of allowing API access and delegating a specific service account from a Google Cloud Platform project to have group management authority. Details can be found in cirrus's README.

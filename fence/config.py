@@ -2,7 +2,7 @@ import os
 from yaml import safe_load as yaml_load
 import urllib.parse
 
-import cirrus
+import gen3cirrus
 from gen3config import Config
 
 from cdislogging import get_logger
@@ -92,7 +92,7 @@ class FenceConfig(Config):
         if self._configs.get("MOCK_STORAGE", False):
             self._configs["STORAGE_CREDENTIALS"] = {}
 
-        cirrus.config.config.update(**self._configs.get("CIRRUS_CFG", {}))
+        gen3cirrus.config.config.update(**self._configs.get("CIRRUS_CFG", {}))
 
         # if we have a default google project for billing requester pays, we should
         # NOT allow end-users to have permission to create Temporary Google Service
