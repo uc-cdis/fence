@@ -322,13 +322,6 @@ class Client(Base, OAuth2ClientMixin):
             return "public"
         return "confidential"
 
-    ##Deprecated, Not called anywhere currently
-    @property
-    def default_scopes(self):
-        if self._default_scopes:
-            return self._default_scopes.split()
-        return []
-
     @staticmethod
     def get_by_client_id(client_id):
         with flask.current_app.db.session as session:

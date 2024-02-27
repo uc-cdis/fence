@@ -5,7 +5,7 @@ from urllib.parse import urljoin
 import flask
 from flask_cors import CORS
 from sqlalchemy.orm import scoped_session
-from flask import _app_ctx_stack, current_app
+from flask import current_app
 from werkzeug.local import LocalProxy
 
 from authutils.oauth2.client import OAuthClient

@@ -25,8 +25,9 @@ depends_on = None
 
 def upgrade():
 
+    temp_table_name = "migration_client"
     # Make a copy of client table
-    copy_client_to_temp_and_clear_data(op)
+    copy_client_to_temp_table_and_clear_data(op, temp_table_name)
 
     # Add new columns for client table
     op.add_column("client", sa.Column("client_metadata", sa.Text(), nullable=True))
@@ -65,7 +66,7 @@ def upgrade():
     transform_client_data(op)
 
     # Drop temp table
-    op.drop_table("migration_client")
+    op.drop_table(temp_table_name)
 
     # Add New Columns for authorization_code Table
     op.add_column(
@@ -79,8 +80,9 @@ def upgrade():
 
 def downgrade():
 
+    temp_table_name = "migration_client"
     # Make a copy of client table
-    copy_client_to_temp_and_clear_data(op)
+    copy_client_to_temp_table_and_clear_data(op, temp_table_name)
 
     # Add Old Columns Back
     op.add_column("client", sa.Column("redirect_uri", sa.Text(), nullable=True))
@@ -132,21 +134,23 @@ def downgrade():
 
     # Set value of old columns
     set_old_column_values()
-    op.drop_table("migration_client")
+    op.drop_table(temp_table_name)
 
     # Remove New Columns for authorization_code Table
     op.drop_column("authorization_code", "code_challenge")
     op.drop_column("authorization_code", "code_challenge_method")
 
 
-def copy_client_to_temp_and_clear_data(op):
+def copy_client_to_temp_table_and_clear_data(op, temp_table_name: str):
+    """Copy client table schema and data into temp table"""
     conn = op.get_bind()
     session = Session(bind=conn)
-    # Drop temp table if somehow exists, copy client table with all metadata then copy all data
-    session.execute("DROP TABLE IF EXISTS migration_client;")
-    session.execute("CREATE TABLE migration_client (LIKE client INCLUDING ALL);")
-    session.execute("INSERT INTO migration_client SELECT * FROM client;")
-    session.execute("Truncate client")
+    # Drop temp table if it already exists
+    # copy client table with all table metadata then copy all row data
+    session.execute("DROP TABLE IF EXISTS " + temp_table_name + ";")
+    session.execute("CREATE TABLE " + temp_table_name + " (LIKE client INCLUDING ALL);")
+    session.execute("INSERT INTO " + temp_table_name + " SELECT * FROM client;")
+    session.execute("Truncate client;")
     session.commit()
 
 
@@ -238,75 +242,21 @@ def set_old_column_values():
             metadata = {}
             data["i18n_metadata"] = None
 
-        if "redirect_uris" in metadata:
-            data["redirect_uri"] = metadata["redirect_uris"]
-        else:
-            data["redirect_uri"] = None
+        data["redirect_uri"] = metadata.get("redirect_uris")
+        data["token_endpoint_auth_method"] = metadata.get("token_endpoint_auth_method")
+        data["_allowed_scopes"] = metadata.get("scope")
+        data["grant_type"] = "\n".join(metadata.get("grant_types", "")) or ""
+        data["response_type"] = "\n".join(metadata.get("response_types", "")) or ""
 
-        if "token_endpoint_auth_method" in metadata:
-            data["token_endpoint_auth_method"] = metadata["token_endpoint_auth_method"]
-        else:
-            data["token_endpoint_auth_method"] = None
-
-        if "scope" in metadata:
-            data["_allowed_scopes"] = metadata["scope"]
-        else:
-            data["_allowed_scopes"] = None
-
-        if "grant_types" in metadata and metadata["grant_types"]:
-            data["grant_type"] = "\n".join(metadata["grant_types"])
-        else:
-            data["grant_type"] = ""
-
-        if "response_types" in metadata and metadata["response_types"]:
-            data["response_type"] = "\n".join(metadata["response_types"])
-        else:
-            data["response_type"] = ""
-
-        if "client_uri" in metadata:
-            data.client_uri = metadata["client_uri"]
-        else:
-            data["client_uri"] = None
-
-        if "logo_uri" in metadata:
-            data["logo_uri"] = metadata["logo_uri"]
-        else:
-            data["logo_uri"] = None
-
-        if "contact" in metadata:
-            data["contact"] = metadata["contact"]
-        else:
-            data["contact"] = None
-
-        if "tos_uri" in metadata:
-            data["tos_uri"] = metadata["tos_uri"]
-        else:
-            data["tos_uri"] = None
-
-        if "policy_uri" in metadata:
-            data["policy_uri"] = metadata["policy_uri"]
-        else:
-            data["policy_uri"] = None
-
-        if "jwks_uri" in metadata:
-            data["jwks_uri"] = metadata["jwks_uri"]
-        else:
-            data["jwks_uri"] = None
-
-        if "jwks_text" in metadata:
-            data["jwks_text"] = metadata["jwks_text"]
-        else:
-            data["jwks_text"] = None
-
-        if "software_id" in metadata:
-            data["software_id"] = metadata["software_id"]
-        else:
-            data["software_id"] = None
-
-        if "software_version" in metadata:
-            data["software_version"] = metadata["software_version"]
-        else:
-            data["software_version"] = None
+        data["client_uri"] = metadata.get("client_uri")
+        data["logo_uri"] = metadata.get("logo_uri")
+        data["contact"] = metadata.get("contact")
+        data["tos_uri"] = metadata.get("tos_uri")
+        data["policy_uri"] = metadata.get("policy_uri")
+        data["jwks_uri"] = metadata.get("jwks_uri")
+        data["jwks_text"] = metadata.get("jwks_text")
+        data["software_id"] = metadata.get("software_id")
+        data["software_version"] = metadata.get("software_version")
 
         clientDatas.append(data)
 

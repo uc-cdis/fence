@@ -418,9 +418,9 @@ def test_patch_google_link_account_doesnt_exist(
 
     # manually set cookie for initial session
     client.set_cookie(
-        "localhost",
         config["SESSION_COOKIE_NAME"],
         test_session_jwt,
+        "localhost",
         httponly=True,
         samesite="Lax",
     )
@@ -487,9 +487,9 @@ def test_google_link_g_account_exists(
 
     # manually set cookie for initial session
     client.set_cookie(
-        "localhost",
-        config["SESSION_COOKIE_NAME"],
-        test_session_jwt,
+        key=config["SESSION_COOKIE_NAME"],
+        value=test_session_jwt,
+        domain="localhost",
         httponly=True,
         samesite="Lax",
     )

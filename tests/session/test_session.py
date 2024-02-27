@@ -24,8 +24,7 @@ def test_session_cookie_creation(app):
     with app.test_client() as client:
         with client.session_transaction():
             pass
-
-        client_cookies = [cookie.key for cookie in client.cookie_jar]
+        client_cookies = client.get_cookie(config["SESSION_COOKIE_NAME"])
         assert not client_cookies
 
 
@@ -36,15 +35,9 @@ def test_session_cookie_creation_session_modified(app):
         with client.session_transaction() as session:
             session["username"] = "Captain Janeway"
 
-        client_cookies = [cookie.key for cookie in client.cookie_jar]
-        assert config["SESSION_COOKIE_NAME"] in client_cookies
-        session_cookie = [
-            cookie
-            for cookie in client.cookie_jar
-            if cookie.key == config["SESSION_COOKIE_NAME"]
-        ]
-        assert len(session_cookie) == 1
-        assert session_cookie[0].value  # Make sure it's not empty
+        session_cookie = client.get_cookie(config["SESSION_COOKIE_NAME"])
+        assert session_cookie
+        assert session_cookie.value  # Make sure it's not empty
 
 
 def test_valid_session(app):

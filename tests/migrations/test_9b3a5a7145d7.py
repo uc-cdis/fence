@@ -24,6 +24,7 @@ def post_test_clean_up(app):
 
 
 def test_upgrade(app):
+    """Test Adding Client after performing Alembic Upgrade to this revision"""
     alembic_main(["--raiseerr", "upgrade", "9b3a5a7145d7"])  # pragma: allowlist secret
 
     client_name = "client_name"
