@@ -42,7 +42,7 @@ def test_create_s3_client_single(mock_client):
     s3_clients = boto_manager.create_s3_clients(config, buckets)
 
     # Assert that the correct call was made to the client function
-    mock_client.assert_any_call('s3', access_key='key1', secret_key='key1', endpoint_url='https://example.com')
+    mock_client.assert_any_call('s3', access_key='key1', secret_key='secret1', endpoint_url='https://example.com')
 
     # Assert that the returned dictionary contains the correct client
     assert len(s3_clients) == 1
