@@ -329,6 +329,9 @@ def parse_arguments():
         help='scopes to include in the token (e.g. "user" or "data")',
     )
     token_create.add_argument("--exp", help="time in seconds until token expiration")
+    token_create.add_argument(
+        "--client_id", help="Client Id, required to generate refresh token"
+    )
 
     force_link_google = subparsers.add_parser("force-link-google")
     force_link_google.add_argument(
@@ -581,6 +584,7 @@ def main():
             username=args.username,
             scopes=args.scopes,
             expires_in=args.exp,
+            client_id=args.client_id,
         )
         token_type = str(args.type).strip().lower()
         if token_type == "access_token" or token_type == "access":

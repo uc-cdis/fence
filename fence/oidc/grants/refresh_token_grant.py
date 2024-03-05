@@ -4,6 +4,7 @@ from authlib.oauth2.rfc6749.errors import (
     InvalidRequestError,
     InvalidScopeError,
     UnauthorizedClientError,
+    InvalidGrantError,
 )
 from authlib.oauth2.rfc6749.grants import RefreshTokenGrant as AuthlibRefreshTokenGrant
 from authlib.oauth2.rfc6749.util import scope_to_list
@@ -74,7 +75,7 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
             raise UnauthorizedClientError("invalid grant type")
         self.request.client = client
         self.authenticate_token_endpoint_client()
-        token = self._validate_request_token()
+        token = self._validate_request_token(client)
         self._validate_token_scope(token)
         self.request.credential = token
 
@@ -141,7 +142,10 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
             ##### end refresh token patch block #####
         expires_in = credential["exp"]
         token = self.generate_token(
-            client, self.GRANT_TYPE, user=user, expires_in=expires_in, scope=scope
+            user=user,
+            scope=scope,
+            grant_type=self.GRANT_TYPE,
+            expires_in=expires_in,
         )
 
         # replace the newly generated refresh token with the one provided
@@ -154,13 +158,28 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         if self.GRANT_TYPE == "refresh_token":
             token["refresh_token"] = self.request.data.get("refresh_token", "")
 
-        # TODO
-        logger.info("")
-
         self.request.user = user
         self.server.save_token(token, self.request)
         self.execute_hook("process_token", token=token)
         return 200, token, self.TOKEN_RESPONSE_HEADER
+
+    def _validate_request_token(self, client):
+        """
+        OVERRIDES method from authlib.
+
+        Why? Becuase our "token" is not a class with `check_client` method.
+        So we just need to treat it like a dictionary.
+        """
+        refresh_token = self.request.data.get("refresh_token")
+        if refresh_token is None:
+            raise InvalidRequestError(
+                'Missing "refresh_token" in request.',
+            )
+
+        token = self.authenticate_refresh_token(refresh_token)
+        if not token or not token["azp"] == client.get_client_id():
+            raise InvalidGrantError()
+        return token
 
     def _validate_token_scope(self, token):
         """

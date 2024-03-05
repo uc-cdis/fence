@@ -9,7 +9,7 @@ Define the authorization server. It must later be initialized onto a Flask app:
 from fence.oidc.client import authenticate_public_client, query_client
 from fence.oidc.endpoints import RevocationEndpoint
 from fence.oidc.grants import (
-    OpenIDCodeGrant,
+    AuthorizationCodeGrant,
     ImplicitGrant,
     RefreshTokenGrant,
     ClientCredentialsGrant,
@@ -18,7 +18,7 @@ from fence.oidc.oidc_server import OIDCServer
 
 
 server = OIDCServer(query_client=query_client, save_token=lambda *_: None)
-server.register_grant(OpenIDCodeGrant)
+server.register_grant(AuthorizationCodeGrant)
 server.register_grant(ImplicitGrant)
 server.register_grant(RefreshTokenGrant)
 server.register_grant(ClientCredentialsGrant)

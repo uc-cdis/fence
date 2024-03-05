@@ -12,6 +12,7 @@ def test_google_id_token_not_linked(oauth_test_client):
     Test google email and link expiration are in id_token for a linked account
     """
     data = {"confirm": "yes"}
+
     oauth_test_client.authorize(data=data)
     tokens = oauth_test_client.token()
     id_token = jwt.decode(

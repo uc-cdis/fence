@@ -24,8 +24,7 @@ def test_session_cookie_creation(app):
     with app.test_client() as client:
         with client.session_transaction():
             pass
-
-        client_cookies = [cookie.key for cookie in client.cookie_jar]
+        client_cookies = client.get_cookie(config["SESSION_COOKIE_NAME"])
         assert not client_cookies
 
 
@@ -36,15 +35,9 @@ def test_session_cookie_creation_session_modified(app):
         with client.session_transaction() as session:
             session["username"] = "Captain Janeway"
 
-        client_cookies = [cookie.key for cookie in client.cookie_jar]
-        assert config["SESSION_COOKIE_NAME"] in client_cookies
-        session_cookie = [
-            cookie
-            for cookie in client.cookie_jar
-            if cookie.key == config["SESSION_COOKIE_NAME"]
-        ]
-        assert len(session_cookie) == 1
-        assert session_cookie[0].value  # Make sure it's not empty
+        session_cookie = client.get_cookie(config["SESSION_COOKIE_NAME"])
+        assert session_cookie
+        assert session_cookie.value  # Make sure it's not empty
 
 
 def test_valid_session(app):
@@ -58,8 +51,8 @@ def test_valid_session(app):
     # the username
     with app.test_client() as client:
         # manually set cookie for initial session
+        # domain is set to localhost be default
         client.set_cookie(
-            "localhost",
             config["SESSION_COOKIE_NAME"],
             test_session_jwt,
             httponly=True,
@@ -82,7 +75,6 @@ def test_valid_session_modified(app):
     with app.test_client() as client:
         # manually set cookie for initial session
         client.set_cookie(
-            "localhost",
             config["SESSION_COOKIE_NAME"],
             test_session_jwt,
             httponly=True,
@@ -112,7 +104,6 @@ def test_expired_session_lifetime(app):
     with app.test_client() as client:
         # manually set cookie for initial session
         client.set_cookie(
-            "localhost",
             config["SESSION_COOKIE_NAME"],
             test_session_jwt,
             httponly=True,
@@ -144,7 +135,6 @@ def test_expired_session_timeout(app):
     with app.test_client() as client:
         # manually set cookie for initial session
         client.set_cookie(
-            "localhost",
             config["SESSION_COOKIE_NAME"],
             test_session_jwt,
             httponly=True,
@@ -168,9 +158,8 @@ def test_session_cleared(app):
     with app.test_client() as client:
         # manually set cookie for initial session
         client.set_cookie(
-            "localhost",
-            config["SESSION_COOKIE_NAME"],
-            test_session_jwt,
+            key=config["SESSION_COOKIE_NAME"],
+            value=test_session_jwt,
             httponly=True,
             samesite="Lax",
         )
@@ -178,8 +167,8 @@ def test_session_cleared(app):
             session["username"] = username
             session.clear()
             assert session.get("username") != username
-        client_cookies = [cookie.key for cookie in client.cookie_jar]
-        assert config["SESSION_COOKIE_NAME"] not in client_cookies
+        client_cookie = client.get_cookie(config["SESSION_COOKIE_NAME"])
+        assert not client_cookie
 
 
 def test_invalid_session_cookie(app):
@@ -190,7 +179,6 @@ def test_invalid_session_cookie(app):
     with app.test_client() as client:
         # manually set cookie for initial session
         client.set_cookie(
-            "localhost",
             config["SESSION_COOKIE_NAME"],
             test_session_jwt,
             httponly=True,
@@ -234,14 +222,12 @@ def test_valid_session_valid_access_token(
     with app.test_client() as client:
         # manually set cookie for initial session
         client.set_cookie(
-            "localhost",
             config["SESSION_COOKIE_NAME"],
             test_session_jwt,
             httponly=True,
             samesite="Lax",
         )
         client.set_cookie(
-            "localhost",
             config["ACCESS_TOKEN_COOKIE_NAME"],
             test_access_jwt,
             httponly=True,
@@ -287,14 +273,12 @@ def test_valid_session_valid_access_token_diff_user(
     with app.test_client() as client:
         # manually set cookie for initial session
         client.set_cookie(
-            "localhost",
             config["SESSION_COOKIE_NAME"],
             test_session_jwt,
             httponly=True,
             samesite="Lax",
         )
         client.set_cookie(
-            "localhost",
             config["ACCESS_TOKEN_COOKIE_NAME"],
             test_access_jwt,
             httponly=True,

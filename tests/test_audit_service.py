@@ -450,7 +450,7 @@ def test_login_log_login_endpoint(
     elif idp == "fence":
         mocked_fetch_access_token = MagicMock(return_value={"id_token": jwt_string})
         patch(
-            f"flask.current_app.fence_client.fetch_access_token",
+            f"authlib.integrations.flask_client.apps.FlaskOAuth2App.fetch_access_token",
             mocked_fetch_access_token,
         ).start()
         mocked_validate_jwt = MagicMock(
@@ -490,7 +490,7 @@ def test_login_log_login_endpoint(
             data={},
             status_code=201,
         )
-        path = f"/login/{idp}/{callback_endpoint}"
+        path = f"/login/{idp}/{callback_endpoint}"  # SEE fence/blueprints/login/fence_login.py L91
         response = client.get(path, headers=headers)
         assert response.status_code == 200, response
         audit_service_requests.post.assert_called_once_with(

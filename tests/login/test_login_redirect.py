@@ -91,10 +91,10 @@ def test_valid_redirect_base(app, client, idp, get_value_from_discovery_doc_patc
     """
     if idp == "fence":
         mocked_generate_authorize_redirect = MagicMock(
-            return_value=("authorization_url", "state")
+            return_value={"url": "authorization_url", "state": "state"}
         )
         mock = patch(
-            f"flask.current_app.fence_client.generate_authorize_redirect",
+            f"authlib.integrations.flask_client.apps.FlaskOAuth2App.create_authorization_url",
             mocked_generate_authorize_redirect,
         ).start()
 

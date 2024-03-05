@@ -35,7 +35,7 @@ def test_reuse_code_invalid(oauth_test_client):
     """
     Test that an authorization code returned from the authorization endpoint
     can be used only once, and after that its attempted usage will return an
-    ``invalid_request`` error.
+    ``invalid_grant`` error.
     """
     code = oauth_test_client.authorize(data={"confirm": "yes"}).code
     # Test that the first time using the code is fine.
@@ -45,20 +45,20 @@ def test_reuse_code_invalid(oauth_test_client):
     response = oauth_test_client.token_response.response
     assert response.status_code == 400
     assert "error" in response.json
-    assert response.json["error"] == "invalid_request"
+    assert response.json["error"] == "invalid_grant"
 
 
 def test_different_client_invalid(oauth_test_client, oauth_test_client_B):
     """
     Test that one client cannot use an authorization code which was issued to a
-    different client, and the request fails with ``invalid_request``.
+    different client, and the request fails with ``invalid_grant``.
     """
     code = oauth_test_client.authorize(data={"confirm": "yes"}).code
     # Have client B send the code to the token endpoint.
     response = oauth_test_client_B.token(code=code, do_asserts=False).response
     assert response.status_code == 400
     assert "error" in response.json
-    assert response.json["error"] == "invalid_request"
+    assert response.json["error"] == "invalid_grant"
 
 
 def test_invalid_code(oauth_test_client):
@@ -69,27 +69,27 @@ def test_invalid_code(oauth_test_client):
     response = oauth_test_client.token(code=code, do_asserts=False).response
     assert response.status_code == 400
     assert "error" in response.json
-    assert response.json["error"] == "invalid_request"
+    assert response.json["error"] == "invalid_grant"
 
 
 def test_invalid_redirect_uri(oauth_test_client):
     """
     Test that if the token request has a different redirect_uri than the one
     the client is suppsed to be using that an error is raised, with the
-    ``invalid_request`` code.
+    ``invalid_grant`` code.
     """
     oauth_test_client.authorize(data={"confirm": "yes"})
     data = {"redirect_uri": oauth_test_client.url + "/some-garbage"}
     response = oauth_test_client.token(data=data, do_asserts=False).response
     assert response.status_code == 400
     assert "error" in response.json
-    assert response.json["error"] == "invalid_request"
+    assert response.json["error"] == "invalid_grant"
 
 
 def test_no_redirect_uri(client, oauth_test_client):
     """
     Test that if the token request has no ``redirect_uri`` that an error is
-    raised, with the ``invalid_request`` code.
+    raised, with the ``invalid_grant`` code.
     """
     code = oauth_test_client.authorize(data={"confirm": "yes"}).code
     headers = oauth_test_client._auth_header
@@ -105,4 +105,4 @@ def test_no_redirect_uri(client, oauth_test_client):
     )
     assert token_response.status_code == 400
     assert "error" in token_response.json
-    assert token_response.json["error"] == "invalid_request"
+    assert token_response.json["error"] == "invalid_grant"
