@@ -9,9 +9,9 @@ from flask import current_app
 from sqlalchemy import desc, func
 
 from cdislogging import get_logger
-from cirrus import GoogleCloudManager
-from cirrus.google_cloud.iam import GooglePolicyMember
-from cirrus.google_cloud.utils import (
+from gen3cirrus import GoogleCloudManager
+from gen3cirrus.google_cloud.iam import GooglePolicyMember
+from gen3cirrus.google_cloud.utils import (
     get_valid_service_account_id_for_client,
     get_valid_service_account_id_for_user,
 )

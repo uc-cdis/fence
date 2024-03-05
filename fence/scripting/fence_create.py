@@ -9,9 +9,9 @@ import pprint
 import asyncio
 
 from alembic.config import main as alembic_main
-from cirrus import GoogleCloudManager
-from cirrus.google_cloud.errors import GoogleAuthError
-from cirrus.config import config as cirrus_config
+from gen3cirrus import GoogleCloudManager
+from gen3cirrus.google_cloud.errors import GoogleAuthError
+from gen3cirrus.config import config as cirrus_config
 from cdislogging import get_logger
 from sqlalchemy import func
 from userdatamodel.models import (
