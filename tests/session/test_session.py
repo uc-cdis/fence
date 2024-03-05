@@ -51,6 +51,7 @@ def test_valid_session(app):
     # the username
     with app.test_client() as client:
         # manually set cookie for initial session
+        # domain is set to localhost be default
         client.set_cookie(
             config["SESSION_COOKIE_NAME"],
             test_session_jwt,
