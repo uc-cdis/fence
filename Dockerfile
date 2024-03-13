@@ -49,6 +49,8 @@ FROM base
 COPY --from=builder /venv /venv
 COPY --from=builder /$appname /$appname
 
+# install tar
+RUN yum install tar -y
 
 # Switch to non-root user 'gen3' for the serving process
 USER gen3
