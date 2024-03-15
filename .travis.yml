@@ -28,6 +28,11 @@ before_install:
   - sudo cp travis/pg_hba.conf /etc/postgresql/13/main/pg_hba.conf
   - sudo pg_ctlcluster 13 main restart
 
+before_install:
+  - pip install -r https://raw.githubusercontent.com/uc-cdis/thWrapper/master/thog_requirements.txt
+  - wget https://raw.githubusercontent.com/uc-cdis/thWrapper/master/th_wrapper.py
+  - python th_wrapper.py -w truffles.json -c thog_config.json -g file://${PWD}/ --check
+
 install:
   - pip install --upgrade pip
   - curl -sSL https://install.python-poetry.org | python -
