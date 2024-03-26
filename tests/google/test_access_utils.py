@@ -4,8 +4,8 @@ import time
 from unittest.mock import MagicMock, patch
 from sqlalchemy import or_
 
-from cirrus.errors import CirrusError
-from cirrus.google_cloud.iam import GooglePolicyMember
+from gen3cirrus.errors import CirrusError
+from gen3cirrus.google_cloud.iam import GooglePolicyMember
 
 import fence
 from fence.errors import NotFound

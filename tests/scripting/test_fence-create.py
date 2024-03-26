@@ -5,8 +5,8 @@ import mock
 from unittest.mock import MagicMock, patch
 import pytest
 
-import cirrus
-from cirrus.google_cloud.errors import GoogleAuthError
+import gen3cirrus
+from gen3cirrus.google_cloud.errors import GoogleAuthError
 from userdatamodel.models import Group
 
 from fence.config import config
@@ -670,7 +670,6 @@ def test_create_user_access_token(
 def test_create_refresh_token_with_found_user(
     app, db_session, oauth_test_client, kid, rsa_private_key
 ):
-
     DB = config["DB"]
     username = "test_user"
     BASE_URL = config["BASE_URL"]
@@ -818,7 +817,7 @@ def test_delete_expired_service_accounts_with_one_fail_first(
     import fence
 
     fence.settings = MagicMock()
-    cirrus.config.update = MagicMock()
+    gen3cirrus.config.update = MagicMock()
     cloud_manager.return_value.__enter__.return_value.remove_member_from_group.side_effect = [
         HttpError(mock.Mock(status=403), bytes("Permission denied", "utf-8")),
         {},
@@ -1129,7 +1128,7 @@ def test_delete_expired_google_access_with_one_fail_first(
     import fence
 
     fence.settings = MagicMock()
-    cirrus.config.update = MagicMock()
+    gen3cirrus.config.update = MagicMock()
     cloud_manager.return_value.__enter__.return_value.remove_member_from_group.side_effect = [
         HttpError(mock.Mock(status=403), bytes("Permission denied", "utf-8")),
         {},
@@ -1391,7 +1390,6 @@ def test_verify_google_service_account_member_not_call_delete_operation(
 
 
 def test_link_external_bucket(app, cloud_manager, db_session):
-
     (cloud_manager.return_value.__enter__.return_value.create_group.return_value) = {
         "email": "test_bucket_read_gbag@someemail.com"
     }

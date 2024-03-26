@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.sql.functions import user
 from cached_property import cached_property
-import cirrus
-from cirrus import GoogleCloudManager
+import gen3cirrus
+from gen3cirrus import GoogleCloudManager
 from cdislogging import get_logger
 from cdispyutils.config import get_value
 from cdispyutils.hmac4 import generate_aws_presigned_url
@@ -82,7 +82,7 @@ def get_signed_url_for_file(
     r_pays_project = flask.request.args.get("userProject", None)
     db_session = db_session or current_app.scoped_session()
 
-    # default to signing the url
+    # default to signing the URL
     force_signed_url = True
     no_force_sign_param = flask.request.args.get("no_force_sign")
     if no_force_sign_param and no_force_sign_param.lower() == "true":
@@ -162,13 +162,14 @@ def get_signed_url_for_file(
     _log_signed_url_data_info(
         indexed_file=indexed_file,
         user_sub=flask.g.audit_data.get("sub", ""),
-        requested_protocol=requested_protocol
+        client_id=_get_client_id(),
+        requested_protocol=requested_protocol,
     )
 
     return {"url": signed_url}
 
 
-def _log_signed_url_data_info(indexed_file, user_sub, requested_protocol):
+def _log_signed_url_data_info(indexed_file, user_sub, client_id, requested_protocol):
     size_in_kibibytes = (indexed_file.index_document.get("size") or 0) / 1024
     acl = indexed_file.index_document.get("acl")
     authz = indexed_file.index_document.get("authz")
@@ -192,9 +193,20 @@ def _log_signed_url_data_info(indexed_file, user_sub, requested_protocol):
                 break
 
     logger.info(
-        f"Signed URL Generated. size_in_kibibytes={size_in_kibibytes} acl={acl} authz={authz} bucket={bucket} user_sub={user_sub}"
+        f"Signed URL Generated. size_in_kibibytes={size_in_kibibytes} "
+        f"acl={acl} authz={authz} bucket={bucket} user_sub={user_sub} client_id={client_id}"
     )
 
+
+def _get_client_id():
+    client_id = "Unknown Client"
+
+    try:
+        client_id = current_token.get("azp") or "Unknown Client"
+    except Exception as exc:
+        pass
+
+    return client_id
 
 def prepare_presigned_url_audit_log(protocol, indexed_file):
     """
@@ -423,7 +435,7 @@ class IndexedFile(object):
         also be cleaner).
 
     Args:
-        file_id (str): GUID for the file.
+        file_id (str): GUID for the file
     """
 
     def __init__(self, file_id):
@@ -1197,7 +1209,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     ):
         # we will use the main fence SA service account to sign anonymous requests
         private_key = get_google_app_creds()
-        final_url = cirrus.google_cloud.utils.get_signed_url(
+        final_url = gen3cirrus.google_cloud.utils.get_signed_url(
             resource_path,
             http_verb,
             expires_in,
@@ -1338,7 +1350,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         if config["BILLING_PROJECT_FOR_SIGNED_URLS"] and not r_pays_project:
             r_pays_project = config["BILLING_PROJECT_FOR_SIGNED_URLS"]
 
-        final_url = cirrus.google_cloud.utils.get_signed_url(
+        final_url = gen3cirrus.google_cloud.utils.get_signed_url(
             resource_path,
             http_verb,
             expires_in,

@@ -28,7 +28,6 @@ from authutils.testing.fixtures import (
 )
 from cryptography.fernet import Fernet
 import bcrypt
-from cdisutilstest.code.storage_client_mock import get_client
 import jwt
 from mock import patch, MagicMock, PropertyMock
 import pytest
@@ -53,6 +52,7 @@ from tests import test_settings
 from tests import utils
 from tests.utils import TEST_RAS_USERNAME, TEST_RAS_SUB
 from tests.utils.oauth2.client import OAuth2TestClient
+from tests.storageclient.storage_client_mock import get_client
 
 
 # Allow authlib to use HTTP for local testing.
@@ -1571,7 +1571,8 @@ def cloud_manager():
 def google_signed_url():
     manager = MagicMock()
     patch(
-        "fence.blueprints.data.indexd.cirrus.google_cloud.utils.get_signed_url", manager
+        "fence.blueprints.data.indexd.gen3cirrus.google_cloud.utils.get_signed_url",
+        manager,
     ).start()
 
     # Note: example outpu/format from google's docs, will not actually work

@@ -5,7 +5,7 @@ import json
 from unittest import mock
 from mock import patch
 
-import cirrus
+import gen3cirrus
 import pytest
 
 import fence.blueprints.data.indexd as indexd
@@ -441,7 +441,7 @@ def test_internal_get_gs_signed_url_cache_new_key_if_old_key_expired(
             return_value=(sa_private_key),
         ):
             with mock.patch.object(
-                cirrus.google_cloud.utils,
+                gen3cirrus.google_cloud.utils,
                 "get_signed_url",
                 return_value="https://cloud.google.com/compute/url",
             ):
@@ -514,7 +514,7 @@ def test_internal_get_gs_signed_url_clear_cache_and_parse_json(
             return_value=(sa_private_key),
         ):
             with mock.patch.object(
-                cirrus.google_cloud.utils,
+                gen3cirrus.google_cloud.utils,
                 "get_signed_url",
                 return_value="https://cloud.google.com/compute/url",
             ):
@@ -670,7 +670,7 @@ def test_delete_files_unable_to_get_file_name(app, public_bucket_indexd_client):
                             side_effect=Exception("url not available"),
                         ):
                             with patch(
-                                "cirrus.GoogleCloudManager.delete_data_file",
+                                "gen3cirrus.GoogleCloudManager.delete_data_file",
                                 side_effect=Exception("url not available"),
                             ):
                                 with patch(
@@ -737,7 +737,8 @@ def test_delete_files_successful(app, public_bucket_indexd_client):
                 return_value=("", 204),
             ):
                 with patch(
-                    "cirrus.GoogleCloudManager.delete_data_file", return_value=("", 204)
+                    "gen3cirrus.GoogleCloudManager.delete_data_file",
+                    return_value=("", 204),
                 ):
                     with patch(
                         "fence.blueprints.data.indexd.BlobServiceClient.from_connection_string",
@@ -787,7 +788,7 @@ def test_delete_files_fails_invalid_connection_string(app, public_bucket_indexd_
                 side_effect=ValueError("Invalid connection string"),
             ):
                 with patch(
-                    "cirrus.GoogleCloudManager.delete_data_file",
+                    "gen3cirrus.GoogleCloudManager.delete_data_file",
                     side_effect=ValueError("Invalid connection string"),
                 ):
                     with patch(
