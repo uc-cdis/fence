@@ -184,7 +184,7 @@ def test_indexd_upload_file_key_error(
 
     current_app = fence.blueprints.data.indexd.flask.current_app
     expected_value = copy.deepcopy(current_app.config)
-    del expected_value["DATA_UPLOAD_BUCKET"]
+    expected_value["DATA_UPLOAD_BUCKET"] = ""
     del expected_value["AZ_BLOB_CONTAINER_URL"]
 
     with patch.object(current_app, "config", expected_value):
@@ -276,7 +276,7 @@ def test_indexd_upload_file_filename_key_error(
 
     current_app = fence.blueprints.data.indexd.flask.current_app
     expected_value = copy.deepcopy(current_app.config)
-    del expected_value["DATA_UPLOAD_BUCKET"]
+    expected_value["DATA_UPLOAD_BUCKET"] = ""
     del expected_value["AZ_BLOB_CONTAINER_URL"]
 
     with patch.object(current_app, "config", expected_value):
