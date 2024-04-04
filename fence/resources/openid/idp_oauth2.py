@@ -154,7 +154,7 @@ class Oauth2ClientBase(object):
         )
         return uri
 
-    def get_user_id(self, code):
+    def get_auth_info(self, code):
         """
         Exchange code for tokens, get user_id from id token claims.
         Return dictionary with necessary field(s) for successfully logged in
@@ -169,7 +169,10 @@ class Oauth2ClientBase(object):
             if claims.get(user_id_field):
                 if user_id_field == "email" and not claims.get("email_verified"):
                     return {"error": "Email is not verified"}
-                return {user_id_field: claims[user_id_field]}
+                return {
+                    user_id_field: claims[user_id_field],
+                    "mfa": self.has_mfa_claim(claims),
+                }
             else:
                 self.logger.exception(
                     f"Can't get {user_id_field} from claims: {claims}"
@@ -219,6 +222,43 @@ class Oauth2ClientBase(object):
         )
 
         return token_response
+
+    def has_mfa_claim(self, decoded_id_token):
+        """
+        Determines if the claim denoting whether multifactor authentication was used is contained within the claims
+        of the provided id_token.
+
+        Parameters:
+        - decoded_id_token (dict): The decoded id_token, a dict of claims -> claim values.
+
+        """
+        mfa_claim_info = self.settings.get("multifactor_auth_claim_info")
+        if not mfa_claim_info:
+            return False
+        claim_name = mfa_claim_info.get("claim")
+        mfa_values = mfa_claim_info.get("values")
+        if not claim_name or not mfa_values:
+            self.logger.warning(
+                f"{self.idp} has a configured multifactor_auth_claim_info with a missing claim name "
+                f"and values. Please check the OPENID_CONNECT settings for {self.idp} in the fence "
+                f"config yaml."
+            )
+            return False
+        mfa_claims = []
+        if claim_name == "amr":
+            mfa_claims = decoded_id_token.get(claim_name, [])
+        elif claim_name == "acr":
+            mfa_claims = decoded_id_token.get(claim_name, "").split(" ")
+        else:
+            self.logger.error(
+                f"{claim_name} is neither AMR or ACR - cannot determine if MFA was used"
+            )
+            return False
+
+        self.logger.info(
+            f"Comparing token's {claim_name} claims: {mfa_claims} to mfa values {mfa_values}"
+        )
+        return len(set(mfa_claims) & set(mfa_values)) > 0
 
     def store_refresh_token(self, user, refresh_token, expires, db_session=None):
         """

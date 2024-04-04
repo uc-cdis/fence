@@ -13,7 +13,6 @@ from fence.blueprints.data.indexd import (
 )
 from fence.config import config
 from fence.errors import Forbidden, InternalError, UserError, Unauthorized
-from fence.resources.audit.utils import enable_audit_logging
 from fence.utils import get_valid_expiration
 
 
@@ -330,7 +329,6 @@ def upload_file(file_id):
 
 
 @blueprint.route("/download/<path:file_id>", methods=["GET"])
-@enable_audit_logging
 def download_file(file_id):
     """
     Get a presigned url to download a file given by file_id.

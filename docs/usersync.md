@@ -42,7 +42,6 @@ Add below to manifest.json to global block to copy dbGaP authorization files to 
 +    "dbgap_backup_bucket": "s3://di-planx-test",
 +    "aws_sa_rule_arn": "arn:aws:iam::707767160287:role/devplanetv1-dbgap-bakup-role",
 ```
-More deployment details can be found here: https://github.com/uc-cdis/cdis-wiki/blob/master/ops/DBGAP-backup-deployment.md
 
 ## Usersync result example
 

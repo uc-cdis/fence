@@ -107,8 +107,10 @@ class MockResponse(object):
 
 
 @pytest.mark.parametrize("indexd_client_with_arborist", ["s3_and_gs"], indirect=True)
+@pytest.mark.parametrize("endpoint", ["download", "ga4gh-drs"])
 @pytest.mark.parametrize("protocol", ["gs", None])
 def test_presigned_url_log(
+    endpoint,
     protocol,
     client,
     user_client,
@@ -133,9 +135,12 @@ def test_presigned_url_log(
     monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"presigned_url": True})
 
     guid = "dg.hello/abc"
-    path = f"/data/download/{guid}"
-    if protocol:
-        path += f"?protocol={protocol}"
+    if endpoint == "download":
+        path = f"/data/download/{guid}"
+        if protocol:
+            path += f"?protocol={protocol}"
+    else:
+        path = f"/ga4gh/drs/v1/objects/{guid}/access/{protocol or 's3'}"
     resource_paths = ["/my/resource/path1", "/path2"]
     indexd_client_with_arborist(resource_paths)
     headers = {
@@ -182,7 +187,9 @@ def test_presigned_url_log(
 @pytest.mark.parametrize(
     "indexd_client_with_arborist", ["s3_and_gs_acl_no_authz"], indirect=True
 )
+@pytest.mark.parametrize("endpoint", ["download", "ga4gh-drs"])
 def test_presigned_url_log_acl(
+    endpoint,
     client,
     user_client,
     mock_arborist_requests,
@@ -206,7 +213,10 @@ def test_presigned_url_log_acl(
 
     protocol = "gs"
     guid = "dg.hello/abc"
-    path = f"/data/download/{guid}?protocol={protocol}"
+    if endpoint == "download":
+        path = f"/data/download/{guid}?protocol={protocol}"
+    else:
+        path = f"/ga4gh/drs/v1/objects/{guid}/access/{protocol}"
     indexd_client_with_arborist(None)
     headers = {
         "Authorization": "Bearer "
@@ -244,7 +254,8 @@ def test_presigned_url_log_acl(
 
 
 @pytest.mark.parametrize("public_indexd_client", ["s3_and_gs"], indirect=True)
-def test_presigned_url_log_public(client, public_indexd_client, monkeypatch):
+@pytest.mark.parametrize("endpoint", ["download", "ga4gh-drs"])
+def test_presigned_url_log_public(endpoint, client, public_indexd_client, monkeypatch):
     """
     Same as `test_presigned_url_log`, but with an anonymous user downloading
     public data.
@@ -254,8 +265,12 @@ def test_presigned_url_log_public(client, public_indexd_client, monkeypatch):
     )
     monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"presigned_url": True})
 
+    protocol = "s3"
     guid = "dg.hello/abc"
-    path = f"/data/download/{guid}"
+    if endpoint == "download":
+        path = f"/data/download/{guid}?protocol={protocol}"
+    else:
+        path = f"/ga4gh/drs/v1/objects/{guid}/access/{protocol}"
 
     with audit_service_mocker as audit_service_requests:
         audit_service_requests.post.return_value = MockResponse(
@@ -275,13 +290,15 @@ def test_presigned_url_log_public(client, public_indexd_client, monkeypatch):
                 "guid": guid,
                 "resource_paths": [],
                 "action": "download",
-                "protocol": "s3",
+                "protocol": protocol,
             },
         )
 
 
 @pytest.mark.parametrize("indexd_client_with_arborist", ["s3_and_gs"], indirect=True)
+@pytest.mark.parametrize("endpoint", ["download", "ga4gh-drs"])
 def test_presigned_url_log_disabled(
+    endpoint,
     client,
     user_client,
     mock_arborist_requests,
@@ -307,7 +324,10 @@ def test_presigned_url_log_disabled(
 
     protocol = "gs"
     guid = "dg.hello/abc"
-    path = f"/data/download/{guid}"
+    if endpoint == "download":
+        path = f"/data/download/{guid}"
+    else:
+        path = f"/ga4gh/drs/v1/objects/{guid}/access/{protocol}"
     if protocol:
         path += f"?protocol={protocol}"
     resource_paths = ["/my/resource/path1", "/path2"]
@@ -324,9 +344,6 @@ def test_presigned_url_log_disabled(
         )
     }
 
-    # protocol=None should fall back to s3 (first indexed location):
-    expected_protocol = protocol or "s3"
-
     with audit_service_mocker as audit_service_requests:
         audit_service_requests.post.return_value = MockResponse(
             data={},
@@ -339,17 +356,26 @@ def test_presigned_url_log_disabled(
 
 
 @pytest.mark.parametrize("indexd_client", ["s3_and_gs"], indirect=True)
-def test_presigned_url_log_unauthorized(client, indexd_client, db_session, monkeypatch):
+@pytest.mark.parametrize("endpoint", ["download", "ga4gh-drs"])
+def test_presigned_url_log_unauthorized(
+    endpoint, client, indexd_client, db_session, monkeypatch
+):
     """
-    If Fence does not return a presigned URL, no audit log should be created.
+    If Fence does not return a presigned URL, an audit log with the appropriate status
+    code should be created.
     """
     audit_service_mocker = mock.patch(
         "fence.resources.audit.client.requests", new_callable=mock.Mock
     )
     monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"presigned_url": True})
 
+    protocol = "s3"
     guid = "dg.hello/abc"
-    path = f"/data/download/{guid}"
+    path = f"/data/download/{guid}?protocol={protocol}"
+    if endpoint == "download":
+        path = f"/data/download/{guid}?protocol={protocol}"
+    else:
+        path = f"/ga4gh/drs/v1/objects/{guid}/access/{protocol}"
     with audit_service_mocker as audit_service_requests:
         audit_service_requests.post.return_value = MockResponse(
             data={},
@@ -367,7 +393,7 @@ def test_presigned_url_log_unauthorized(client, indexd_client, db_session, monke
                 "guid": guid,
                 "resource_paths": [],
                 "action": "download",
-                "protocol": "s3",
+                "protocol": protocol,
             },
         )
 
@@ -400,27 +426,27 @@ def test_login_log_login_endpoint(
     callback_endpoint = "login"
     idp_name = idp
     headers = {}
-    get_user_id_value = {}
+    get_auth_info_value = {}
     jwt_string = jwt.encode(
         {"iat": int(time.time())}, key=rsa_private_key, algorithm="RS256"
     )
 
     if idp == "synapse":
-        get_user_id_value = {
+        get_auth_info_value = {
             "fence_username": username,
             "sub": username,
             "given_name": username,
             "family_name": username,
         }
     elif idp == "orcid":
-        get_user_id_value = {"orcid": username}
+        get_auth_info_value = {"orcid": username}
     elif idp == "cilogon":
-        get_user_id_value = {"sub": username}
+        get_auth_info_value = {"sub": username}
     elif idp == "shib":
         headers["persistent_id"] = username
         idp_name = "itrust"
     elif idp == "okta":
-        get_user_id_value = {"okta": username}
+        get_auth_info_value = {"okta": username}
     elif idp == "fence":
         mocked_fetch_access_token = MagicMock(return_value={"id_token": jwt_string})
         patch(
@@ -434,7 +460,7 @@ def test_login_log_login_endpoint(
             f"fence.blueprints.login.fence_login.validate_jwt", mocked_validate_jwt
         ).start()
     elif idp == "ras":
-        get_user_id_value = {"username": username}
+        get_auth_info_value = {"username": username}
         callback_endpoint = "callback"
         # these should be populated by a /login/<idp> call that we're skipping:
         flask.g.userinfo = {"sub": "testSub123"}
@@ -444,20 +470,20 @@ def test_login_log_login_endpoint(
         }
         flask.g.encoded_visas = ""
     elif idp == "generic1":
-        get_user_id_value = {"generic1_username": username}
+        get_auth_info_value = {"generic1_username": username}
     elif idp == "generic2":
-        get_user_id_value = {"sub": username}
+        get_auth_info_value = {"sub": username}
 
     if idp in ["google", "microsoft", "okta", "synapse", "cognito"]:
-        get_user_id_value["email"] = username
+        get_auth_info_value["email"] = username
 
-    get_user_id_patch = None
-    if get_user_id_value:
-        mocked_get_user_id = MagicMock(return_value=get_user_id_value)
-        get_user_id_patch = patch(
-            f"flask.current_app.{idp}_client.get_user_id", mocked_get_user_id
+    get_auth_info_patch = None
+    if get_auth_info_value:
+        mocked_get_auth_info = MagicMock(return_value=get_auth_info_value)
+        get_auth_info_patch = patch(
+            f"flask.current_app.{idp}_client.get_auth_info", mocked_get_auth_info
         )
-        get_user_id_patch.start()
+        get_auth_info_patch.start()
 
     with audit_service_mocker as audit_service_requests:
         audit_service_requests.post.return_value = MockResponse(
@@ -481,8 +507,8 @@ def test_login_log_login_endpoint(
             },
         )
 
-    if get_user_id_patch:
-        get_user_id_patch.stop()
+    if get_auth_info_patch:
+        get_auth_info_patch.stop()
 
 
 ##########################
@@ -599,11 +625,11 @@ def test_login_log_push_to_sqs(
     mocked_sqs = mock_audit_service_sqs(app)
 
     username = "test@test"
-    mocked_get_user_id = MagicMock(return_value={"email": username})
-    get_user_id_patch = patch(
-        "flask.current_app.google_client.get_user_id", mocked_get_user_id
+    mocked_get_auth_info = MagicMock(return_value={"email": username})
+    get_auth_info_patch = patch(
+        "flask.current_app.google_client.get_auth_info", mocked_get_auth_info
     )
-    get_user_id_patch.start()
+    get_auth_info_patch.start()
 
     path = "/login/google/login"
     response = client.get(path)
@@ -611,4 +637,4 @@ def test_login_log_push_to_sqs(
     # not checking the parameters here because we can't json.dumps "sub: ANY"
     mocked_sqs.send_message.assert_called_once()
 
-    get_user_id_patch.stop()
+    get_auth_info_patch.stop()

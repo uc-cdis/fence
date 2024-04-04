@@ -1,7 +1,7 @@
 import copy
 from functools import wraps
 
-from storageclient import get_client
+from fence.resources.storage.storageclient import get_client
 
 from fence.models import (
     CloudProvider,

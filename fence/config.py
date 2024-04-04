@@ -2,7 +2,7 @@ import os
 from yaml import safe_load as yaml_load
 import urllib.parse
 
-import cirrus
+import gen3cirrus
 from gen3config import Config
 
 from cdislogging import get_logger
@@ -93,7 +93,7 @@ class FenceConfig(Config):
         if self._configs.get("MOCK_STORAGE", False):
             self._configs["STORAGE_CREDENTIALS"] = {}
 
-        cirrus.config.config.update(**self._configs.get("CIRRUS_CFG", {}))
+        gen3cirrus.config.config.update(**self._configs.get("CIRRUS_CFG", {}))
 
         # if we have a default google project for billing requester pays, we should
         # NOT allow end-users to have permission to create Temporary Google Service
@@ -143,6 +143,13 @@ class FenceConfig(Config):
             raise Exception(
                 "Visa parsing on login is enabled but `ENABLE_VISA_UPDATE_CRON` is disabled!"
             )
+
+        for idp_id, idp in self._configs.get("OPENID_CONNECT", {}).items():
+            mfa_info = idp.get("multifactor_auth_claim_info")
+            if mfa_info and mfa_info["claim"] not in ["amr", "acr"]:
+                logger.warning(
+                    f"IdP '{idp_id}' is using multifactor_auth_claim_info '{mfa_info['claim']}', which is neither AMR or ACR. Unable to determine if a user used MFA. Fence will continue and assume they have not used MFA."
+                )
 
         self._validate_parent_child_studies(self._configs["dbGaP"])
 

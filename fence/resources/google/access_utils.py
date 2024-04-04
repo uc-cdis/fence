@@ -8,10 +8,10 @@ import flask
 from urllib.parse import unquote
 import traceback
 
-from cirrus.google_cloud.iam import GooglePolicyMember
-from cirrus.google_cloud.errors import GoogleAPIError
-from cirrus.google_cloud.iam import GooglePolicy
-from cirrus import GoogleCloudManager
+from gen3cirrus.google_cloud.iam import GooglePolicyMember
+from gen3cirrus.google_cloud.errors import GoogleAPIError
+from gen3cirrus.google_cloud.iam import GooglePolicy
+from gen3cirrus import GoogleCloudManager
 
 import fence
 from cdislogging import get_logger
@@ -218,7 +218,7 @@ def get_google_project_valid_users_and_service_accounts(
             Will make call to Google API if membership is None
 
     Return:
-        List[cirrus.google_cloud.iam.GooglePolicyMember]: Members on the
+        List[gen3cirrus.google_cloud.iam.GooglePolicyMember]: Members on the
             google project
 
     Raises:
