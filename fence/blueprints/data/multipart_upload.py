@@ -13,7 +13,7 @@ MAX_TRIES = 5
 logger = get_logger(__name__)
 
 
-def initilize_multipart_upload(bucket_name, key, credentials):
+def initialize_multipart_upload(bucket_name, key, credentials):
     """
     Initialize multipart upload
 

@@ -329,11 +329,6 @@ class BlankIndex(object):
             None if success otherwise an exception
         """
         if bucket:
-            s3_buckets = get_value(
-                flask.current_app.config,
-                "ALLOWED_DATA_UPLOAD_BUCKETS",
-                InternalError("ALLOWED_DATA_UPLOAD_BUCKETS not configured"),
-            )
             verify_data_upload_bucket_configuration(bucket)
         else:
             bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
@@ -1034,7 +1029,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             self.bucket_name(), aws_creds, expires_in
         )
 
-        return multipart_upload.initilize_multipart_upload(
+        return multipart_upload.initialize_multipart_upload(
             self.parsed_url.netloc, self.parsed_url.path.strip("/"), credentials
         )
 
@@ -1608,11 +1603,7 @@ def filter_auth_ids(action, list_auth_ids):
 
 
 def verify_data_upload_bucket_configuration(bucket):
-    s3_buckets = get_value(
-        flask.current_app.config,
-        "ALLOWED_DATA_UPLOAD_BUCKETS",
-        InternalError("ALLOWED_DATA_UPLOAD_BUCKETS not configured"),
-    )
+    s3_buckets = flask.current_app.config["ALLOWED_DATA_UPLOAD_BUCKETS"]
     if bucket not in s3_buckets:
         logger.error(f"Bucket '{bucket}' not in ALLOWED_DATA_UPLOAD_BUCKETS config")
         logger.debug(f"Buckets configgured in ALLOWED_DATA_UPLOAD_BUCKETS {s3_buckets}")
