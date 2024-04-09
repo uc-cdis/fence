@@ -32,9 +32,25 @@ class ClientAuthentication(AuthlibClientAuthentication):
         """
         Override method from authlib
         """
-        client = super(ClientAuthentication, self).authenticate(
-            request, methods, endpoint
-        )
+        logger.info("oidc_server.py cleintAuthentioncatoin authenticate")
+        logger.info("request is")
+        logger.info(request)
+        logger.info("methods are")
+        logger.info(methods)
+        logger.info("endpoint is")
+        logger.info(endpoint)
+
+        try:
+            client = super(ClientAuthentication, self).authenticate(
+                request, methods, endpoint
+            )
+        except AuthlibClientError:
+            raise InvalidClientError(
+                "OAuth client failed to authenticate; client ID or secret is"
+                " missing or incorrect"
+            )
+
+        logger.info("oidc_server.py clientAuthentioncation authenticate complete")
         # don't allow confidential clients to not use auth
         if client.is_confidential:
             m = list(methods)
@@ -46,9 +62,10 @@ class ClientAuthentication(AuthlibClientAuthentication):
                 )
             except AuthlibClientError:
                 raise InvalidClientError(
-                    "OAuth client failed to authenticate; client ID or secret is"
+                    "Confidential OAuth client failed to authenticate; client ID or secret is"
                     " missing or incorrect"
                 )
+
         return client
 
 
