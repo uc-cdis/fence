@@ -40,21 +40,9 @@ class ClientAuthentication(AuthlibClientAuthentication):
         logger.info("endpoint is")
         logger.info(endpoint)
 
-        try:
-            for method in methods:
-                func = self._methods[method]
-                client = func(self.query_client, request)
-                if client and client.check_endpoint_auth_method(method, endpoint):
-                    request.auth_method = method
-
-            client = super(ClientAuthentication, self).authenticate(
-                request, methods, endpoint
-            )
-        except AuthlibClientError:
-            raise InvalidClientError(
-                "OAuth client failed to authenticate; client ID or secret is"
-                " missing or incorrect"
-            )
+        client = super(ClientAuthentication, self).authenticate(
+            request, methods, endpoint
+        )
 
         logger.info("oidc_server.py clientAuthentioncation authenticate complete")
         # don't allow confidential clients to not use auth
