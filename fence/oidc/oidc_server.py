@@ -41,6 +41,12 @@ class ClientAuthentication(AuthlibClientAuthentication):
         logger.info(endpoint)
 
         try:
+            for method in methods:
+                func = self._methods[method]
+                client = func(self.query_client, request)
+                if client and client.check_endpoint_auth_method(method, endpoint):
+                    request.auth_method = method
+
             client = super(ClientAuthentication, self).authenticate(
                 request, methods, endpoint
             )
