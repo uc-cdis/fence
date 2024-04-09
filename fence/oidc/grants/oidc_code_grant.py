@@ -206,6 +206,7 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
 
     def validate_token_request(self):
         # authenticate the client if client authentication is included
+        logger.debug("Authenticating token client..")
         client = self.authenticate_token_endpoint_client()
 
         logger.debug("Validate token request of %r", client)
