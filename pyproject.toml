@@ -22,11 +22,8 @@ cached_property = "^1.5.1"
 cdiserrors = "<2.0.0"
 cdislogging = "^1.0.0"
 cdispyutils = "^2.0.1"
-cryptography = ">=42.0.2"
-#Pegging flask to <= 2.3.3 to maintain compatibilty with pytest-flask
-#Pytest 1.2.0 (latest on 10-09-2023) still doesn't work with flask 3.0.0
-#https://github.com/pytest-dev/pytest-flask/issues/167
 flask = ">=3.0.0"
+cryptography = ">=42.0.5"
 flask-cors = ">=3.0.3"
 flask-restful = ">=0.3.8"
 email_validator = "^1.1.1"
