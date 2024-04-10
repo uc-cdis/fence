@@ -349,6 +349,7 @@ class Client(Base, OAuth2ClientMixin):
         """
         Only basic auth is supported. If anything else gets added, change this
         """
+        # TODO REMOVE
         logger.info("checking endpoint and auth method")
         logger.info("method is ")
         logger.info(method)

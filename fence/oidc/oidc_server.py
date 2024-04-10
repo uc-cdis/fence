@@ -32,6 +32,7 @@ class ClientAuthentication(AuthlibClientAuthentication):
         """
         Override method from authlib
         """
+        # TODO REMOVE
         logger.info("oidc_server.py cleintAuthentioncatoin authenticate")
         logger.info("request is")
         logger.info(request)
@@ -104,7 +105,13 @@ class OIDCServer(AuthorizationServer):
         :param request: HTTP request instance
         """
         request = self.create_oauth2_request(request)
-
+        # TODO REMOVE
+        logger.debug("request grant_type is")
+        logger.debug(request.grant_type)
+        logger.debug("request.client_id is ")
+        logger.debug(request.client_id)
+        logger.debug("request data is")
+        logger.debug(request.data)
         try:
             grant = self.get_token_grant(request)
         except UnsupportedGrantTypeError as error:
