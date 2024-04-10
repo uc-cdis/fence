@@ -349,14 +349,6 @@ class Client(Base, OAuth2ClientMixin):
         """
         Only basic auth is supported. If anything else gets added, change this
         """
-        # TODO REMOVE
-        logger.info("checking endpoint and auth method")
-        logger.info("method is ")
-        logger.info(method)
-        logger.info("endpoint is")
-        logger.info(endpoint)
-        logger.info("confidential is ")
-        logger.info(self.is_confidential)
         if endpoint == "token":
             protected_types = [ClientAuthType.basic.value, ClientAuthType.post.value]
             return (self.is_confidential and method in protected_types) or (

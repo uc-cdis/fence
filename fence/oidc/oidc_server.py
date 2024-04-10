@@ -32,27 +32,6 @@ class ClientAuthentication(AuthlibClientAuthentication):
         """
         Override method from authlib
         """
-        # TODO REMOVE
-        logger.info("oidc_server.py cleintAuthentioncatoin authenticate")
-        logger.info("request is")
-        logger.info(request)
-        logger.info("methods are")
-        logger.info(methods)
-        logger.info("endpoint is")
-        logger.info(endpoint)
-        logger.info("query_client is")
-        logger.info(self.query_client)
-        for method in methods:
-            func = self._methods[method]
-            logger.info("func is")
-            logger.info(func)
-            client = func(self.query_client, request)
-            logger.info("self.query_client is")
-            logger.info(client)
-            if client and client.check_endpoint_auth_method(method, endpoint):
-                request.auth_method = method
-                logger.info("method found")
-
         client = super(ClientAuthentication, self).authenticate(
             request, methods, endpoint
         )
@@ -105,13 +84,7 @@ class OIDCServer(AuthorizationServer):
         :param request: HTTP request instance
         """
         request = self.create_oauth2_request(request)
-        # TODO REMOVE
-        logger.debug("request grant_type is")
-        logger.debug(request.grant_type)
-        logger.debug("request.client_id is ")
-        logger.debug(request.client_id)
-        logger.debug("request data is")
-        logger.debug(request.data)
+
         try:
             grant = self.get_token_grant(request)
         except UnsupportedGrantTypeError as error:
