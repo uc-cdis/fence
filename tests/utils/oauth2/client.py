@@ -256,7 +256,15 @@ class OAuth2TestClient(object):
                 default_data["scope"] = scope
 
         default_data.update(data)
+
+        # TODO REMOVE
+        default_data = {}
+        default_data["scope"] = "openid user"
+        self.PATH_TOKEN = self.PATH_TOKEN + "?grant_type=client_credentials"
         headers = self._auth_header if include_auth else {}
+        headers[
+            "Authorization"
+        ] = "Basic UXR4eE5PbmltSTFDc0QyYWpiMFB1MWx6RXRhNFBibFc4MExnY1FGOnF2T1VjNkFjcWxKSzJYa0hnWUQxVGZOZWlKVldqbzNsekdxT0VkNzcxYkg0bUJidlpNWHpHY0c="
         response = self._client.post(
             self.PATH_TOKEN, headers=headers, data=default_data
         )
