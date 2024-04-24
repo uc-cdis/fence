@@ -333,14 +333,9 @@ class BlankIndex(object):
             )
         else:
             if not bucket:
-                try:
-                    bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
-                except KeyError:
-                    raise InternalError(
-                        "fence not configured with data upload bucket; can't create signed URL"
-                    )
+                bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
 
-            self.logger.debug("Attemping to upload to bucket '{}'".format(bucket))
+            self.logger.debug("Attempting to upload to bucket '{}'".format(bucket))
             s3_url = "s3://{}/{}/{}".format(bucket, self.guid, file_name)
             url = S3IndexedFileLocation(s3_url).get_signed_url("upload", expires_in)
 
@@ -353,7 +348,7 @@ class BlankIndex(object):
         return url
 
     @staticmethod
-    def init_multipart_upload(key, expires_in=None):
+    def init_multipart_upload(key, expires_in=None, bucket=None):
         """
         Initilize multipart upload given key
 
@@ -363,17 +358,13 @@ class BlankIndex(object):
         Returns:
             uploadId(str)
         """
-        try:
+        if not bucket:
             bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
-        except KeyError:
-            raise InternalError(
-                "fence not configured with data upload bucket; can't create signed URL"
-            )
         s3_url = "s3://{}/{}".format(bucket, key)
         return S3IndexedFileLocation(s3_url).init_multipart_upload(expires_in)
 
     @staticmethod
-    def complete_multipart_upload(key, uploadId, parts, expires_in=None):
+    def complete_multipart_upload(key, uploadId, parts, expires_in=None, bucket=None):
         """
         Complete multipart upload
 
@@ -386,19 +377,19 @@ class BlankIndex(object):
         Returns:
             None if success otherwise an exception
         """
-        try:
+        if bucket:
+            verify_data_upload_bucket_configuration(bucket)
+        else:
             bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
-        except KeyError:
-            raise InternalError(
-                "fence not configured with data upload bucket; can't create signed URL"
-            )
         s3_url = "s3://{}/{}".format(bucket, key)
         S3IndexedFileLocation(s3_url).complete_multipart_upload(
             uploadId, parts, expires_in
         )
 
     @staticmethod
-    def generate_aws_presigned_url_for_part(key, uploadId, partNumber, expires_in):
+    def generate_aws_presigned_url_for_part(
+        key, uploadId, partNumber, expires_in, bucket=None
+    ):
         """
         Generate presigned url for each part
 
@@ -410,12 +401,10 @@ class BlankIndex(object):
         Returns:
             presigned_url(str)
         """
-        try:
+        if bucket:
+            verify_data_upload_bucket_configuration(bucket)
+        else:
             bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
-        except KeyError:
-            raise InternalError(
-                "fence not configured with data upload bucket; can't create signed URL"
-            )
         s3_url = "s3://{}/{}".format(bucket, key)
         return S3IndexedFileLocation(s3_url).generate_presigned_url_for_part_upload(
             uploadId, partNumber, expires_in
@@ -1089,7 +1078,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             self.bucket_name(), aws_creds, expires_in
         )
 
-        return multipart_upload.initilize_multipart_upload(
+        return multipart_upload.initialize_multipart_upload(
             self.parsed_url.netloc, self.parsed_url.path.strip("/"), credentials
         )
 
@@ -1660,3 +1649,11 @@ def filter_auth_ids(action, list_auth_ids):
         if checked_permission in values:
             authorized_dbgaps.append(key)
     return authorized_dbgaps
+
+
+def verify_data_upload_bucket_configuration(bucket):
+    s3_buckets = flask.current_app.config["ALLOWED_DATA_UPLOAD_BUCKETS"]
+    if bucket not in s3_buckets:
+        logger.error(f"Bucket '{bucket}' not in ALLOWED_DATA_UPLOAD_BUCKETS config")
+        logger.debug(f"Buckets configgured in ALLOWED_DATA_UPLOAD_BUCKETS {s3_buckets}")
+        raise Forbidden(f"Uploading to bucket '{bucket}' is not allowed")

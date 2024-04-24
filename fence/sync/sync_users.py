@@ -1,3 +1,4 @@
+import backoff
 import glob
 import jwt
 import os
@@ -42,7 +43,7 @@ from fence.resources.google.access_utils import bulk_update_google_groups
 from fence.resources.google.access_utils import GoogleUpdateException
 from fence.sync import utils
 from fence.sync.passport_sync.ras_sync import RASVisa
-from fence.utils import get_SQLAlchemyDriver
+from fence.utils import get_SQLAlchemyDriver, DEFAULT_BACKOFF_SETTINGS
 
 
 def _format_policy_id(path, privilege):
@@ -429,12 +430,16 @@ class UserSyncer(object):
                     parameters.get("port", "unknown"),
                 )
             )
-            client.connect(**parameters)
+            self._connect_with_ssh(ssh_client=client, parameters=parameters)
             with client.open_sftp() as sftp:
                 download_dir(sftp, "./", path)
 
         if proxy:
             proxy.close()
+
+    @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
+    def _connect_with_ssh(self, ssh_client, parameters):
+        ssh_client.connect(**parameters)
 
     def _get_from_ftp_with_proxy(self, server, path):
         """
