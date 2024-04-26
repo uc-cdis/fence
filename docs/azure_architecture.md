@@ -1,7 +1,6 @@
 # Fence and Microsoft
 
-## Data Access Overview Test
-
+## Data Access Overview
 Fence can issue short lived, cloud native credentials to access data in various cloud storage services. For Microsoft, you can use a [signed URL](#Signed-URLs) with [Azure Blob Storage](#Azure-Blob-Storage)
 and you can authenticate with [Azure AD](#Azure-Active-Directory).
 
