@@ -20,7 +20,7 @@ jobs:
     name: Build Image and Push
     # TODO Add this line back once we update to Python 3.9 from 3.6
     # needs: Security
-    uses: uc-cdis/.github/.github/workflows/image_build_push.yaml@master
+    uses: uc-cdis/.github/.github/workflows/image_build_push_slim.yaml@feat/GPE-1121
     secrets:
       ECR_AWS_ACCESS_KEY_ID: ${{ secrets.ECR_AWS_ACCESS_KEY_ID }}
       ECR_AWS_SECRET_ACCESS_KEY: ${{ secrets.ECR_AWS_SECRET_ACCESS_KEY }}
