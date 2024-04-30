@@ -3,4 +3,5 @@
 /var/run/gen3/uwsgi.sock
 /etc/uwsgi/uwsgi.ini
 /var/www/.cache/Python-Eggs/
-/usr/local/bin/pip
+/usr/local/bin/
+/usr/local/lib/
