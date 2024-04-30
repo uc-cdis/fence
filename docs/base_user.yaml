@@ -78,14 +78,16 @@ authz:
       - /programs
   - id: open_data_reader
     role_ids:
-      - reader
-      - storage_reader
+      - peregrine_reader
+      - guppy_reader
+      - fence_storage_reader
     resource_paths:
     - /open
   - id: all_programs_reader
     role_ids:
-    - reader
-    - storage_reader
+    - peregrine_reader
+    - guppy_reader
+    - fence_storage_reader
     resource_paths:
     - /programs
   - id: MyFirstProject_submitter
@@ -168,6 +170,24 @@ authz:
         action:
           service: '*'
           method: read-storage
+  - id: peregrine_reader
+    permissions:
+    - id: peregrine_reader
+      action:
+        method: read
+        service: peregrine
+  - id: guppy_reader
+    permissions:
+    - id: guppy_reader
+      action:
+        method: read
+        service: guppy
+  - id: fence_storage_reader
+    permissions:
+    - id: fence_storage_reader
+      action:
+        method: read-storage
+        service: fence
 
 clients:
   wts:
