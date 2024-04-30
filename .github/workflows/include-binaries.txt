@@ -5,3 +5,4 @@
 /usr/local/bin/python
 /bin/tar
 /bin/ls
+/usr/local/bin/aws
