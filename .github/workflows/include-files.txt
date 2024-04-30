@@ -1,5 +1,4 @@
 /var/run/gen3/uwsgi.sock
 /usr/local/lib/python3.9/
-/var/www/fence/
 /etc/uwsgi/uwsgi.ini
 /var/www/.cache/Python-Eggs/
