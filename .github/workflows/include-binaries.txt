@@ -6,4 +6,3 @@
 /bin/tar
 /bin/ls
 /usr/local/bin/aws
-/usr/local/bin/pip

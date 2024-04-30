@@ -1,2 +1,3 @@
 /usr/local/lib/python3.9
 /fence
+//usr/local/lib/python3.9-config
