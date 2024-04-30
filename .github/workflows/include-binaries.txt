@@ -8,3 +8,4 @@
 /usr/bin/env
 /usr/local/bin/aws
 /usr/bin/whoami
+/usr/bin/which
