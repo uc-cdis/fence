@@ -1,3 +1,6 @@
 /usr/local/lib/python3.9
 /fence
-/usr/local/lib/python3.9-config
+/var/run/gen3/uwsgi.sock
+/etc/uwsgi/uwsgi.ini
+/var/www/.cache/Python-Eggs/
+/usr/local/bin/pip
