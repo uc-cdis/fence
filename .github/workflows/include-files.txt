@@ -2,7 +2,7 @@
 /etc/uwsgi/uwsgi.ini
 /var/www/.cache/Python-Eggs/
 /usr/local/bin/pip
-/usr/local/lib/python3.9-config
-/usr/local/lib/python3-config
-/usr/local/lib/python-config
+/usr/local/bin/python3.9-config
+/usr/local/bin/python3-config
+/usr/local/bin/python-config
 /usr/local/lib/python3.9/site-packages/
