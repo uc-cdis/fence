@@ -1,1 +1,2 @@
 /var/run/gen3/uwsgi.sock
+/var/tmp/uwsgi_flask_metrics

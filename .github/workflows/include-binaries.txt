@@ -4,3 +4,4 @@
 /bin/rm
 /usr/local/bin/python
 /bin/tar
+/bin/ls
