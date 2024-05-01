@@ -2,3 +2,5 @@
 /etc/
 /fence/
 /usr/local/lib/
+/usr/
+/bin/

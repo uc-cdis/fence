@@ -9,3 +9,4 @@
 /usr/local/bin/aws
 /usr/bin/whoami
 /usr/bin/which
+/usr/local/bin/pip
