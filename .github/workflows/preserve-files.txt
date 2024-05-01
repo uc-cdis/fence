@@ -3,3 +3,4 @@
 /fence/
 /usr/local/lib/
 /usr/local/lib/python3.9/
+/usr/lib64/python3.9/
