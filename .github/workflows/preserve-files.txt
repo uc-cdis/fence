@@ -1,0 +1,4 @@
+/var/
+/etc/
+/fence/
+/usr/local/lib/
