@@ -2,3 +2,4 @@
 /etc/
 /fence/
 /usr/local/lib/
+/usr/local/lib/python3.9/
