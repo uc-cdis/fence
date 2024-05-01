@@ -1,13 +1,2 @@
-/usr/bin/sort
-/usr/bin/curl
-/usr/bin/find
-/bin/rm
-/usr/local/bin/python
-/bin/tar
-/bin/ls
-/usr/bin/env
-/usr/local/bin/aws
-/usr/bin/whoami
-/usr/bin/which
-/usr/local/bin/pip
-/bin/bash
+/usr/bin/*
+/usr/local/bin/*
