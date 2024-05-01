@@ -7,3 +7,5 @@
 /usr/local/lib/python/
 /usr/lib64/python3.9/
 /usr/local/lib/python3.9/site-packages/sqlalchemy/util/_compat_py3k.py
+/usr/local/lib/python3.9/site-packages/sqlalchemy/util/_preloaded.py
+/usr/local/lib/python3.9/site-packages/
