@@ -7,3 +7,5 @@
 /usr/local/bin/python-config
 /usr/local/lib/python3.9/site-packages/
 /usr/local/lib/python3.9/
+/usr/local/lib/python3/
+/usr/local/lib/python/
