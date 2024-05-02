@@ -10,3 +10,6 @@
 /venv/lib/python3.9
 /usr/lib/python3.9
 /usr/bin
+/venv/usr/share/licenses
+/usr/share/licenses
+/usr/share

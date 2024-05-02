@@ -1,7 +1,1 @@
-/usr/bin/tar
-/usr/bin/xz
-/usr/bin/mv
-/usr/bin/rm
-/usr/bin/mkdir
 /bin/bash
-/usr/bin/ls
