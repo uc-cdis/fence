@@ -4,6 +4,8 @@
 /usr/local/bin/python
 /usr/bin/tar
 /usr/bin/xz
+/usr/bin/mv
+/usr/bin/mkdir
 /usr/bin/rm
 /usr/bin/ls
 /usr/bin/pwd
