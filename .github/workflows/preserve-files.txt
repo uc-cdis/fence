@@ -3,5 +3,8 @@
 /venv/usr/share/licenses
 /usr/share/licenses
 /venv/src/authlib
+/usr/lib/locale
+/venv/src/storage-client
+/usr/share
 /venv/lib/python3.9
 /usr/lib/python3.9
