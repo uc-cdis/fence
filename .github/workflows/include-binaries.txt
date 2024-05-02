@@ -5,6 +5,7 @@
 /usr/local/bin/python
 /bin/tar
 /usr/bin/ls
+/usr/bin/pwd
 /usr/bin/env
 /usr/local/bin/aws
 /usr/bin/whoami
