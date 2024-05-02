@@ -6,7 +6,6 @@
 /usr/lib/locale
 /usr/share/locale
 /fence/dockerrun.bash
-/lib64
 /usr/lib/rpm/platform/x86_64-linux/macros
 /venv/src/storage-client
 /usr/share
