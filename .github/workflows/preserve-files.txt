@@ -4,7 +4,7 @@
 /usr/lib/locale
 /usr/share/locale
 /fence
-/var/www/fence/
+/var/www/fence
 /usr/lib/rpm/platform/x86_64-linux/macros
 /venv/src/storage-client
 /venv/lib/python3.9
