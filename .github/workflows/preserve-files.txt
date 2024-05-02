@@ -8,6 +8,7 @@
 /fence/dockerrun.bash
 /lib/x86_64-linux-gnu
 /lib/x86_64-linux-gnu/libdl.so.2
+/usr/lib/rpm/platform/x86_64-linux/macros
 /venv/src/storage-client
 /usr/share
 /venv/lib/python3.9
