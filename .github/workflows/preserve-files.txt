@@ -1,5 +1,4 @@
 /venv/lib/python3.9
-/usr/lib64
 /venv/usr/share/licenses
 /usr/share/licenses
 /venv/src/authlib
