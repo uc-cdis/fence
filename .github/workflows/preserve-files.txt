@@ -12,4 +12,3 @@
 /usr/share
 /venv/lib/python3.9
 /usr/lib/python3.9
-/usr/bin
