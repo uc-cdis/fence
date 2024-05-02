@@ -6,7 +6,7 @@
 /usr/lib/locale
 /usr/share/locale
 /fence/dockerrun.bash
-/lib/x86_64-linux-gnu/
+/lib
 /venv/src/storage-client
 /usr/share
 /venv/lib/python3.9
