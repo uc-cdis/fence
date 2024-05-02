@@ -3,6 +3,7 @@
 /usr/bin/find
 /usr/local/bin/python
 /usr/bin/tar
+/usr/bin/xz
 /usr/bin/rm
 /usr/bin/ls
 /usr/bin/pwd
