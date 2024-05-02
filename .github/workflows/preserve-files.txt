@@ -5,6 +5,7 @@
 /venv/src/authlib
 /usr/lib/locale
 /usr/share/locale
+/fence/dockerrun.bash
 /venv/src/storage-client
 /usr/share
 /venv/lib/python3.9
