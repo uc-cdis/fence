@@ -1,1 +1,17 @@
+/usr/bin/sort
+/usr/bin/curl
+/usr/bin/find
+/usr/local/bin/python
+/usr/bin/tar
+/usr/bin/xz
+/usr/bin/mv
+/usr/bin/mkdir
+/usr/bin/rm
+/usr/bin/ls
+/usr/bin/pwd
+/usr/bin/env
+/usr/local/bin/aws
+/usr/bin/whoami
+/usr/bin/which
+/usr/local/bin/pip
 /bin/bash
