@@ -15,4 +15,6 @@
 /usr/bin/tar
 /usr/bin/xz
 /usr/bin/mv
+/usr/bin/rm
+/bin/bash
 /usr/bin/mkdir
