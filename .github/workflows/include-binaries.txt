@@ -4,3 +4,4 @@
 /usr/bin/rm
 /usr/bin/mkdir
 /bin/bash
+/usr/bin/ls
