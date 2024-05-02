@@ -12,3 +12,7 @@
 /usr/share
 /venv/lib/python3.9
 /usr/lib/python3.9
+/usr/bin/tar
+/usr/bin/xz
+/usr/bin/mv
+/usr/bin/mkdir
