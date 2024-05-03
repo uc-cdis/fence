@@ -1,4 +1,4 @@
 /usr/lib64
-/venv/lib/python3.9
+/fence
 /var/www/fence/
 /usr/bin
