@@ -7,7 +7,6 @@
 /usr/share/locale
 /fence
 /var/www/fence/
-/usr/lib/rpm/platform/x86_64-linux/macros
 /venv/src/storage-client
 /usr/share
 /venv/lib/python3.9
