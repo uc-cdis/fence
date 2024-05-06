@@ -99,6 +99,7 @@ def app_init(
     app_sessions(app)
     app_register_blueprints(app)
     try:
+        logger.debug("Starting metrics server")
         metrics = UWsgiPrometheusMetrics(app, path=None)
         metrics.start_http_server(9090)
     except:
