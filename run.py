@@ -40,6 +40,9 @@ if config.get("ENABLE_DB_MIGRATION"):
 
 app_init(app, config_path=args.config_path, config_file_name=args.config_file_name)
 
-metrics = UWsgiPrometheusMetrics(app, path=None)
-metrics.start_http_server(9090)
+try:
+    metrics = UWsgiPrometheusMetrics(app, path=None)
+    metrics.start_http_server(9090)
+except:
+    logger.error("Failed to start metrics server")
 app.run(debug=False, port=8000)
