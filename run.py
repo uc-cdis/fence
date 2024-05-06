@@ -7,7 +7,6 @@ from fence import app, app_init, config
 # Prometheus metrics exporter
 from prometheus_flask_exporter.multiprocess import UWsgiPrometheusMetrics
 
-metrics = UWsgiPrometheusMetrics(app, path=None)
 
 # Serve metrics on port 9090
 # metrics.start_http_server(9090)
@@ -41,4 +40,6 @@ if config.get("ENABLE_DB_MIGRATION"):
 
 app_init(app, config_path=args.config_path, config_file_name=args.config_file_name)
 
-app.run(debug=True, port=8000)
+metrics = UWsgiPrometheusMetrics(app, path=None)
+metrics.start_http_server(9090)
+app.run(debug=False, port=8000)
