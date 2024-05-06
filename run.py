@@ -10,7 +10,7 @@ from prometheus_flask_exporter.multiprocess import UWsgiPrometheusMetrics
 metrics = UWsgiPrometheusMetrics(app, path=None)
 
 # Serve metrics on port 9090
-metrics.start_http_server(9090)
+# metrics.start_http_server(9090)
 
 parser = argparse.ArgumentParser()
 parser.add_argument(
