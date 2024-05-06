@@ -96,6 +96,11 @@ def app_init(
     )
     app_sessions(app)
     app_register_blueprints(app)
+    try:
+        metrics = UWsgiPrometheusMetrics(app, path=None)
+        metrics.start_http_server(9090)
+    except:
+        logger.error("Failed to start metrics server")
     server.init_app(app, query_client=query_client)
 
 
