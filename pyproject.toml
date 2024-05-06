@@ -63,6 +63,7 @@ cachelib = "^0.2.0"
 azure-storage-blob = "^12.6.0"
 Flask-WTF = "^1.0.0"
 boto = "*"
+prometheus-flask-exporter = "^0.23.0"
 
 [tool.poetry.dev-dependencies]
 addict = "^2.2.1"
