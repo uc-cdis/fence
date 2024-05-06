@@ -66,6 +66,8 @@ import fence.blueprints.privacy
 import fence.blueprints.register
 import fence.blueprints.ga4gh
 
+# Prometheus metrics exporter
+from prometheus_flask_exporter.multiprocess import UWsgiPrometheusMetrics
 
 app = flask.Flask(__name__)
 CORS(app=app, headers=["content-type", "accept"], expose_headers="*")

@@ -4,9 +4,6 @@ from alembic.config import main as alembic_main
 
 from fence import app, app_init, config
 
-# Prometheus metrics exporter
-from prometheus_flask_exporter.multiprocess import UWsgiPrometheusMetrics
-
 
 # Serve metrics on port 9090
 # metrics.start_http_server(9090)
