@@ -53,4 +53,7 @@ RUN COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >$appname/version
 
 WORKDIR /var/www/$appname
 
+RUN mkdir -p /var/tmp/uwsgi_flask_metric \
+    && chown nginx -R /var/tmp/uwsgi_flask_metric
+
 CMD ["sh","-c","bash /fence/dockerrun.bash && /dockerrun.sh"]
