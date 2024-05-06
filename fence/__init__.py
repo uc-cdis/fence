@@ -66,18 +66,9 @@ import fence.blueprints.privacy
 import fence.blueprints.register
 import fence.blueprints.ga4gh
 
-# Prometheus metrics exporter
-from prometheus_flask_exporter.multiprocess import UWsgiPrometheusMetrics
-
 
 app = flask.Flask(__name__)
 CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
-
-
-metrics = UWsgiPrometheusMetrics(app, path=None)
-
-# Serve metrics on port 9090
-metrics.start_http_server(9090)
 
 
 def warn_about_logger():
