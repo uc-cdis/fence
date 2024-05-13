@@ -199,16 +199,19 @@ def upload_data_file():
 def init_multipart_upload():
     """
     Initialize a multipart upload request
-
-    NOTE This endpoint does not currently accept a `bucket` parameter like
-    `POST /upload` and `GET /upload/<GUID>` do.
     """
     params = flask.request.get_json()
     if not params:
         raise UserError("wrong Content-Type; expected application/json")
     if "file_name" not in params:
         raise UserError("missing required argument `file_name`")
-    blank_index = BlankIndex(file_name=params["file_name"])
+
+    create_record = params.get("create_record", True)
+
+    guid = params.get("did")
+    blank_index = BlankIndex(
+        file_name=params["file_name"], guid=guid, create_record=create_record
+    )
 
     default_expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
     expires_in = get_valid_expiration(

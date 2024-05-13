@@ -208,6 +208,7 @@ def _get_client_id():
 
     return client_id
 
+
 def prepare_presigned_url_audit_log(protocol, indexed_file):
     """
     Store in `flask.g.audit_data` the data needed to record an audit log.
@@ -232,7 +233,13 @@ class BlankIndex(object):
     """
 
     def __init__(
-        self, uploader=None, file_name=None, logger_=None, guid=None, authz=None
+        self,
+        uploader=None,
+        file_name=None,
+        logger_=None,
+        guid=None,
+        authz=None,
+        create_record=True,
     ):
         self.logger = logger_ or logger
         self.indexd = (
@@ -253,7 +260,10 @@ class BlankIndex(object):
         self.file_name = file_name
         self.authz = authz
 
+        self.create_record = create_record
+
         # if a guid is not provided, this will create a blank record for you
+        self.guid = None
         self.guid = guid or self.index_document["did"]
 
     @cached_property
@@ -266,6 +276,16 @@ class BlankIndex(object):
                 response from indexd (the contents of the record), containing ``guid``
                 and ``url``
         """
+
+        # if the record already exists in indexd, just fetch the record
+        if not self.create_record:
+            index_url = self.indexd.rstrip("/") + "/index/index/" + self.guid
+            indexd_response = requests.get(index_url)
+            if indexd_response.status_code == 200:
+                self.logger.info("found record with guid: {}".format(self.guid))
+                data = indexd_response.json()
+                return data
+
         index_url = self.indexd.rstrip("/") + "/index/blank/"
         params = {"uploader": self.uploader, "file_name": self.file_name}
 
