@@ -278,13 +278,17 @@ class BlankIndex(object):
         """
 
         # if the record already exists in indexd, just fetch the record
-        if not self.create_record:
+        if not self.create_record and self.guid:
             index_url = self.indexd.rstrip("/") + "/index/index/" + self.guid
             indexd_response = requests.get(index_url)
             if indexd_response.status_code == 200:
                 self.logger.info("found record with guid: {}".format(self.guid))
                 data = indexd_response.json()
                 return data
+            logger.info("Could not find guid {} in indexd. Creating new blank record.")
+
+        if not self.guid and not self.create_record:
+            logger.info("Guid not provided. Creating a new blank record.")
 
         index_url = self.indexd.rstrip("/") + "/index/blank/"
         params = {"uploader": self.uploader, "file_name": self.file_name}

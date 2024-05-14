@@ -209,6 +209,7 @@ def init_multipart_upload():
     create_record = params.get("create_record", True)
 
     guid = params.get("did")
+
     blank_index = BlankIndex(
         file_name=params["file_name"], guid=guid, create_record=create_record
     )
