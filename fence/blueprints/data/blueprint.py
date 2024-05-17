@@ -206,13 +206,9 @@ def init_multipart_upload():
     if "file_name" not in params:
         raise UserError("missing required argument `file_name`")
 
-    create_record = params.get("create_record", True)
-
     guid = params.get("did")
 
-    blank_index = BlankIndex(
-        file_name=params["file_name"], guid=guid, create_record=create_record
-    )
+    blank_index = BlankIndex(file_name=params["file_name"], guid=guid)
 
     default_expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
     expires_in = get_valid_expiration(

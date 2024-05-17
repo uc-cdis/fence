@@ -239,7 +239,6 @@ class BlankIndex(object):
         logger_=None,
         guid=None,
         authz=None,
-        create_record=True,
     ):
         self.logger = logger_ or logger
         self.indexd = (
@@ -260,10 +259,6 @@ class BlankIndex(object):
         self.file_name = file_name
         self.authz = authz
 
-        self.create_record = create_record
-
-        # if a guid is not provided, this will create a blank record for you
-        self.guid = None
         self.guid = guid or self.index_document["did"]
 
     @cached_property
@@ -276,23 +271,6 @@ class BlankIndex(object):
                 response from indexd (the contents of the record), containing ``guid``
                 and ``url``
         """
-        print("-----------index document---------")
-        print(self.create_record, self.guid)
-        # if the record already exists in indexd, just fetch the record
-        if not self.create_record and self.guid:
-            print("------checking for record-------")
-            index_url = self.indexd.rstrip("/") + "/index/index/" + self.guid
-            print(index_url)
-            indexd_response = requests.get(index_url)
-            print(indexd_response)
-            if indexd_response.status_code == 200:
-                self.logger.info("found record with guid: {}".format(self.guid))
-                data = indexd_response.json()
-                return data
-            logger.info("Could not find guid {} in indexd. Creating new blank record.")
-
-        if not self.guid and not self.create_record:
-            logger.info("Guid not provided. Creating a new blank record.")
 
         index_url = self.indexd.rstrip("/") + "/index/blank/"
         params = {"uploader": self.uploader, "file_name": self.file_name}
