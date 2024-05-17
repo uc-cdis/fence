@@ -276,11 +276,15 @@ class BlankIndex(object):
                 response from indexd (the contents of the record), containing ``guid``
                 and ``url``
         """
-
+        print("-----------index document---------")
+        print(self.create_record, self.guid)
         # if the record already exists in indexd, just fetch the record
         if not self.create_record and self.guid:
+            print("------checking for record-------")
             index_url = self.indexd.rstrip("/") + "/index/index/" + self.guid
+            print(index_url)
             indexd_response = requests.get(index_url)
+            print(indexd_response)
             if indexd_response.status_code == 200:
                 self.logger.info("found record with guid: {}".format(self.guid))
                 data = indexd_response.json()
