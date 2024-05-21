@@ -134,6 +134,8 @@ def upload_data_file():
     authz = params.get("authz")
     uploader = None
 
+    guid = params.get("did")
+
     if authz:
         # if requesting an authz field, using new authorization method which doesn't
         # rely on uploader field, so clear it out
@@ -165,7 +167,10 @@ def upload_data_file():
         )
 
     blank_index = BlankIndex(
-        file_name=params["file_name"], authz=params.get("authz"), uploader=uploader
+        file_name=params["file_name"],
+        authz=params.get("authz"),
+        uploader=uploader,
+        guid=guid,
     )
     default_expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
 
