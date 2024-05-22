@@ -259,7 +259,8 @@ class BlankIndex(object):
         self.file_name = file_name
         self.authz = authz
 
-        self.guid = guid or self.index_document["did"]
+        self.guid = guid
+        self.guid = self.index_document["did"]
 
     @cached_property
     def index_document(self):
@@ -271,6 +272,20 @@ class BlankIndex(object):
                 response from indexd (the contents of the record), containing ``guid``
                 and ``url``
         """
+
+        if self.guid:
+            print("--------in self guid-------")
+            index_url = self.indexd.rstrip("/") + "/index/index/" + self.guid
+            indexd_response = requests.get(index_url)
+            if indexd_response.status_code == 200:
+                document = indexd_response.json()
+                self.guid = document["did"]
+                self.logger.info(f"Record with {self.guid} id found in Indexd.")
+                return document
+            else:
+                self.logger.info(
+                    f"Record with {self.guid} id not found in Indexd. Creating new blank record..."
+                )
 
         index_url = self.indexd.rstrip("/") + "/index/blank/"
         params = {"uploader": self.uploader, "file_name": self.file_name}
@@ -292,6 +307,9 @@ class BlankIndex(object):
         indexd_response = requests.post(
             index_url, json=params, headers=headers, auth=auth
         )
+        print("------------response--------------")
+        print(indexd_response.status_code)
+        print(indexd_response.json())
         if indexd_response.status_code not in [200, 201]:
             try:
                 data = indexd_response.json()

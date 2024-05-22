@@ -819,6 +819,26 @@ def test_public_authz_object_upload_file(
     Test `GET /data/upload/1` in which the `1` Indexd record has authz
     populated with the public value.
     """
+    did = str(uuid.uuid4())
+    index_document = {
+        "did": did,
+        "baseid": "",
+        "rev": "",
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket1/key-{}".format(did[:8])],
+        "acl": ["phs000789"],
+        "hashes": {},
+        "metadata": {},
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    mock_index_document = mock.patch(
+        "fence.blueprints.data.indexd.BlankIndex.index_document", index_document
+    )
+    mock_index_document.start()
+
     indexd_client_accepting_record(INDEXD_RECORD_WITH_PUBLIC_AUTHZ_POPULATED)
     mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
     headers = {
@@ -836,6 +856,8 @@ def test_public_authz_object_upload_file(
     response = client.get(path, headers=headers)
     assert response.status_code == 200
     assert "url" in response.json
+
+    mock_index_document.stop()
 
 
 def test_public_authz_and_acl_object_upload_file_with_failed_authz_check(
@@ -885,6 +907,26 @@ def test_public_authz_and_acl_object_upload_file(
     acl populated with public values. In this case, authz takes precedence over
     acl.
     """
+    did = str(uuid.uuid4())
+    index_document = {
+        "did": did,
+        "baseid": "",
+        "rev": "",
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket1/key-{}".format(did[:8])],
+        "acl": ["phs000789"],
+        "hashes": {},
+        "metadata": {},
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    mock_index_document = mock.patch(
+        "fence.blueprints.data.indexd.BlankIndex.index_document", index_document
+    )
+    mock_index_document.start()
+
     indexd_client_accepting_record(INDEXD_RECORD_WITH_PUBLIC_AUTHZ_AND_ACL_POPULATED)
     mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
     headers = {
@@ -903,6 +945,8 @@ def test_public_authz_and_acl_object_upload_file(
     assert response.status_code == 200
     assert "url" in response.json
 
+    mock_index_document.stop()
+
 
 def test_non_public_authz_and_public_acl_object_upload_file(
     client,
@@ -916,6 +960,26 @@ def test_non_public_authz_and_public_acl_object_upload_file(
     Test that a user can successfully generate an upload url for an Indexd
     record with a non-public authz field and a public acl field.
     """
+    did = str(uuid.uuid4())
+    index_document = {
+        "did": did,
+        "baseid": "",
+        "rev": "",
+        "size": 10,
+        "file_name": "file1",
+        "urls": ["s3://bucket1/key-{}".format(did[:8])],
+        "acl": ["phs000789"],
+        "hashes": {},
+        "metadata": {},
+        "form": "",
+        "created_date": "",
+        "updated_date": "",
+    }
+    mock_index_document = mock.patch(
+        "fence.blueprints.data.indexd.BlankIndex.index_document", index_document
+    )
+    mock_index_document.start()
+
     indexd_record_with_non_public_authz_and_public_acl_populated = {
         "did": "1",
         "baseid": "",
@@ -950,6 +1014,8 @@ def test_non_public_authz_and_public_acl_object_upload_file(
     response = client.get(path, headers=headers)
     assert response.status_code == 200
     assert "url" in response.json
+
+    mock_index_document.stop()
 
 
 def test_anonymous_download_with_public_authz(
