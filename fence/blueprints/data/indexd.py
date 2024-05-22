@@ -274,8 +274,7 @@ class BlankIndex(object):
         """
 
         if self.guid:
-            print("--------in self guid-------")
-            index_url = self.indexd.rstrip("/") + "/index/index/" + self.guid
+            index_url = self.indexd.rstrip("/") + "/index/" + self.guid
             indexd_response = requests.get(index_url)
             if indexd_response.status_code == 200:
                 document = indexd_response.json()
@@ -307,9 +306,6 @@ class BlankIndex(object):
         indexd_response = requests.post(
             index_url, json=params, headers=headers, auth=auth
         )
-        print("------------response--------------")
-        print(indexd_response.status_code)
-        print(indexd_response.json())
         if indexd_response.status_code not in [200, 201]:
             try:
                 data = indexd_response.json()
