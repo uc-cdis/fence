@@ -190,8 +190,8 @@ class UserSessionInterface(SessionInterface):
         token = session.get_updated_token(app)
         if token:
             response.set_cookie(
-                app.config["SESSION_COOKIE_NAME"],
-                token,
+                key=app.config["SESSION_COOKIE_NAME"],
+                value=token,
                 expires=self.get_expiration_time(app, session),
                 httponly=True,
                 domain=domain,
@@ -210,7 +210,7 @@ class UserSessionInterface(SessionInterface):
             # okay if user is hitting with just an access_token
             if user_sess_id != "" and not user:
                 response.set_cookie(
-                    config["ACCESS_TOKEN_COOKIE_NAME"],
+                    key=config["ACCESS_TOKEN_COOKIE_NAME"],
                     expires=0,
                     httponly=True,
                     domain=domain,
@@ -221,7 +221,7 @@ class UserSessionInterface(SessionInterface):
             # clear access token if not
             elif user_sess_id != "" and user.id != user_sess_id:
                 response.set_cookie(
-                    config["ACCESS_TOKEN_COOKIE_NAME"],
+                    key=config["ACCESS_TOKEN_COOKIE_NAME"],
                     expires=0,
                     httponly=True,
                     domain=domain,
@@ -250,14 +250,14 @@ class UserSessionInterface(SessionInterface):
             #       expiration it just won't be stored in the cookie
             #       anymore
             response.set_cookie(
-                app.config["SESSION_COOKIE_NAME"],
+                key=app.config["SESSION_COOKIE_NAME"],
                 expires=0,
                 httponly=True,
                 domain=domain,
                 secure=secure,
             )
             response.set_cookie(
-                config["ACCESS_TOKEN_COOKIE_NAME"],
+                key=config["ACCESS_TOKEN_COOKIE_NAME"],
                 expires=0,
                 httponly=True,
                 domain=domain,
@@ -337,8 +337,8 @@ def _create_access_token_cookie(app, session, response, user):
 
     domain = app.session_interface.get_cookie_domain(app)
     response.set_cookie(
-        config["ACCESS_TOKEN_COOKIE_NAME"],
-        access_token,
+        key=config["ACCESS_TOKEN_COOKIE_NAME"],
+        value=access_token,
         expires=expiration,
         httponly=True,
         domain=domain,
