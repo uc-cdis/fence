@@ -65,11 +65,35 @@ import fence.blueprints.google
 import fence.blueprints.privacy
 import fence.blueprints.register
 import fence.blueprints.ga4gh
-
+from prometheus_client import (
+    CollectorRegistry,
+    multiprocess,
+    make_wsgi_app,
+)
 
 # for some reason the temp dir does not get created properly if we move
 # this statement to `_setup_prometheus()`
 PROMETHEUS_TMP_COUNTER_DIR = tempfile.TemporaryDirectory()
+
+os.environ["prometheus_multiproc_dir"] = PROMETHEUS_TMP_COUNTER_DIR.name
+
+from prometheus_client import (
+    CollectorRegistry,
+    multiprocess,
+    make_wsgi_app,
+)
+
+app.prometheus_registry = CollectorRegistry()
+multiprocess.MultiProcessCollector(app.prometheus_registry)
+presigned_url_counter = Counter(
+    "fence_presigned_url_requests_total",
+    "Total number of presigned URL requests",
+    registry=app.prometheus_registry,
+)
+app.wsgi_app = DispatcherMiddleware(
+    app.wsgi_app, {"/metrics": make_wsgi_app(registry=app.prometheus_registry)}
+)
+
 
 app = flask.Flask(__name__)
 CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
@@ -372,12 +396,6 @@ def app_config(
         from prometheus_client import (
             Counter,
         )
-
-        presigned_url_counter = Counter(
-            "fence_presigned_url_requests_total",
-            "Total number of presigned URL requests",
-            registry=app.prometheus_registry,
-        )
     else:
         logger.info("Prometheus metrics are NOT enabled.")
 
@@ -524,19 +542,6 @@ def _setup_prometheus(app):
     # prometheus modules (or unit tests fail)
     # More details on this awkwardness: https://github.com/prometheus/client_python/issues/250
     os.environ["prometheus_multiproc_dir"] = PROMETHEUS_TMP_COUNTER_DIR.name
-
-    from prometheus_client import (
-        CollectorRegistry,
-        multiprocess,
-        make_wsgi_app,
-    )
-
-    app.prometheus_registry = CollectorRegistry()
-    multiprocess.MultiProcessCollector(app.prometheus_registry)
-    # Add prometheus wsgi middleware to route /metrics requests
-    app.wsgi_app = DispatcherMiddleware(
-        app.wsgi_app, {"/metrics": make_wsgi_app(registry=app.prometheus_registry)}
-    )
 
 
 @app.errorhandler(Exception)
