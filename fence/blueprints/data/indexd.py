@@ -22,7 +22,6 @@ from azure.storage.blob import (
 )
 
 from fence import auth
-from fence import presigned_url_counter
 from fence.auth import (
     get_jwt,
     current_token,
@@ -197,6 +196,8 @@ def _log_signed_url_data_info(indexed_file, user_sub, client_id, requested_proto
         f"Signed URL Generated. size_in_kibibytes={size_in_kibibytes} "
         f"acl={acl} authz={authz} bucket={bucket} user_sub={user_sub} client_id={client_id}"
     )
+    from fence import presigned_url_counter
+
     presigned_url_counter.inc()
 
 
