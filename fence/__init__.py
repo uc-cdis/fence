@@ -65,6 +65,10 @@ import fence.blueprints.google
 import fence.blueprints.privacy
 import fence.blueprints.register
 import fence.blueprints.ga4gh
+
+app = flask.Flask(__name__)
+CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
+
 from prometheus_client import (
     CollectorRegistry,
     multiprocess,
@@ -93,10 +97,6 @@ presigned_url_counter = Counter(
 app.wsgi_app = DispatcherMiddleware(
     app.wsgi_app, {"/metrics": make_wsgi_app(registry=app.prometheus_registry)}
 )
-
-
-app = flask.Flask(__name__)
-CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
 
 
 def warn_about_logger():
