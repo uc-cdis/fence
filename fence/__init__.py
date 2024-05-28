@@ -369,6 +369,11 @@ def app_config(
     if config["ENABLE_PROMETHEUS_METRICS"]:
         logger.info("Enabling Prometheus metrics...")
         _setup_prometheus(app)
+        presigned_url_counter = Counter(
+            "fence_presigned_url_requests_total",
+            "Total number of presigned URL requests",
+            registry=app.prometheus_registry,
+        )
     else:
         logger.info("Prometheus metrics are NOT enabled.")
 
