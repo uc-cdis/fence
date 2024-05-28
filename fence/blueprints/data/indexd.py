@@ -14,7 +14,6 @@ from cdispyutils.hmac4 import generate_aws_presigned_url
 import flask
 from flask import current_app
 import requests
-from prometheus_client import Counter
 from azure.storage.blob import (
     BlobServiceClient,
     ResourceTypes,
@@ -22,7 +21,7 @@ from azure.storage.blob import (
     generate_blob_sas,
 )
 
-from fence import auth, presigned_url_counter
+from fence import auth
 from fence.auth import (
     get_jwt,
     current_token,
