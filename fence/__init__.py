@@ -521,6 +521,7 @@ def _setup_prometheus(app):
         CollectorRegistry,
         multiprocess,
         make_wsgi_app,
+        Counter,
     )
 
     app.prometheus_registry = CollectorRegistry()
