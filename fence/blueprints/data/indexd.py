@@ -67,7 +67,9 @@ SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs", "az"]
 SUPPORTED_ACTIONS = ["upload", "download"]
 ANONYMOUS_USER_ID = "-1"
 ANONYMOUS_USERNAME = "anonymous"
-presigned_url_counter = Counter("presigned_urls", "Number of presigned urls")
+presigned_url_counter = Counter(
+    "presigned_urls", "Number of presigned urls", registry=app.prometheus_registry
+)
 
 
 @enable_audit_logging
