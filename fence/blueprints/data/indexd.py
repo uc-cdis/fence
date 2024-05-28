@@ -22,6 +22,7 @@ from azure.storage.blob import (
 )
 
 from fence import auth
+from fence import presigned_url_counter
 from fence.auth import (
     get_jwt,
     current_token,
