@@ -22,6 +22,9 @@ class ImplicitGrant(OpenIDImplicitGrant):
         here:
 
         https://openid.net/specs/openid-connect-core-1_0.html#ImplicitAuthResponse
+
+        2024-04-19
+        TODO: Re-evaluate this whether if it is still necessary.
         """
         state = self.request.state
         if grant_user:

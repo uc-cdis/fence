@@ -119,4 +119,15 @@ class JWTToken(object):
         ).get("azp")
 
     def check_client(self, client):
+        """
+        Check if token is issued by the same client
+        Expected function by Authlib
+
+        Args:
+            client: oidc client
+
+        Returns:
+            boolean value whether client_id matches
+        """
+
         return self.client_id == client.client_id

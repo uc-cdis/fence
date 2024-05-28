@@ -81,7 +81,10 @@ class OIDCServer(AuthorizationServer):
     def create_token_response(self, request=None):
         """Validate token request and create token response.
 
-        :param request: HTTP request instance
+        Args:
+            request: HTTP request instance
+        Returns:
+            HTTP response with token
         """
         request = self.create_oauth2_request(request)
 

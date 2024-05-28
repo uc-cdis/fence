@@ -65,6 +65,15 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
         return code.code
 
     def save_authorization_code(self, code, request):
+        """Save authorization_code for later use. Must be implemented.
+
+        Args:
+            code: authorization code string
+            request: HTTP request
+
+        Returns:
+           authorization code string
+        """
         # requested lifetime (in seconds) for the refresh token
         refresh_token_expires_in = get_valid_expiration_from_request(
             expiry_param="refresh_token_expires_in",
@@ -92,6 +101,14 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
         return self.server.generate_token(*args, **kwargs)
 
     def create_token_response(self):
+        """Generate Tokens
+
+        Raises:
+            InvalidRequestError: if no user present in authorization code
+
+        Returns:
+            HTTP status code, token, HTTP response header
+        """
         client = self.request.client
         authorization_code = self.request.authorization_code
 
@@ -205,6 +222,16 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
         return self
 
     def validate_token_request(self):
+        """
+        Validate token request by checking allowed grant type,
+        making sure authorization code is found, and redirect URI is valid
+
+        Raises:
+            UnauthorizedClientError: if grant type is incorrect
+            InvalidRequestError: if authorization code is absent
+            InvalidGrantError: if authorization code is invalid
+            InvalidGrantError: if redirect_uri is invalid
+        """
         # authenticate the client if client authentication is included
         logger.debug("Authenticating token client..")
         client = self.authenticate_token_endpoint_client()
