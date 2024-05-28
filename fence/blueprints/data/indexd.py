@@ -22,7 +22,7 @@ from azure.storage.blob import (
     generate_blob_sas,
 )
 
-from fence import auth
+from fence import auth, presigned_url_counter
 from fence.auth import (
     get_jwt,
     current_token,
@@ -67,11 +67,6 @@ SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs", "az"]
 SUPPORTED_ACTIONS = ["upload", "download"]
 ANONYMOUS_USER_ID = "-1"
 ANONYMOUS_USERNAME = "anonymous"
-presigned_url_counter = Counter(
-    "presigned_urls",
-    "Number of presigned urls",
-    registry=flask.current_app.prometheus_registry,
-)
 
 
 @enable_audit_logging

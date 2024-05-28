@@ -525,7 +525,11 @@ def _setup_prometheus(app):
 
     app.prometheus_registry = CollectorRegistry()
     multiprocess.MultiProcessCollector(app.prometheus_registry)
-
+    presigned_url_counter = Counter(
+        "fence_presigned_url_requests_total",
+        "Total number of presigned URL requests",
+        registry=app.prometheus_registry,
+    )
     # Add prometheus wsgi middleware to route /metrics requests
     app.wsgi_app = DispatcherMiddleware(
         app.wsgi_app, {"/metrics": make_wsgi_app(registry=app.prometheus_registry)}
