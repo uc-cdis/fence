@@ -14,6 +14,7 @@ from cdispyutils.hmac4 import generate_aws_presigned_url
 import flask
 from flask import current_app
 import requests
+from prometheus_client import Counter
 from azure.storage.blob import (
     BlobServiceClient,
     ResourceTypes,
@@ -66,6 +67,7 @@ SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs", "az"]
 SUPPORTED_ACTIONS = ["upload", "download"]
 ANONYMOUS_USER_ID = "-1"
 ANONYMOUS_USERNAME = "anonymous"
+presigned_url_counter = Counter("presigned_urls", "Number of presigned urls")
 
 
 @enable_audit_logging
@@ -196,6 +198,7 @@ def _log_signed_url_data_info(indexed_file, user_sub, client_id, requested_proto
         f"Signed URL Generated. size_in_kibibytes={size_in_kibibytes} "
         f"acl={acl} authz={authz} bucket={bucket} user_sub={user_sub} client_id={client_id}"
     )
+    presigned_url_counter.inc()
 
 
 def _get_client_id():
@@ -207,6 +210,7 @@ def _get_client_id():
         pass
 
     return client_id
+
 
 def prepare_presigned_url_audit_log(protocol, indexed_file):
     """
