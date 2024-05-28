@@ -11,6 +11,7 @@ from fence import models
 from fence.resources.google.access_utils import GoogleUpdateException
 from fence.config import config
 from fence.job.visa_update_cronjob import Visa_Token_Update
+from fence.utils import DEFAULT_BACKOFF_SETTINGS
 
 from tests.dbgap_sync.conftest import (
     get_test_encoded_decoded_visa_and_exp,
@@ -497,6 +498,21 @@ def test_sync_with_google_errors(syncer, monkeypatch):
     syncer._update_arborist.assert_called()
     syncer._update_authz_in_arborist.assert_called()
 
+@patch("fence.sync.sync_users.paramiko.SSHClient")
+@patch("os.makedirs")
+@patch("os.path.exists", return_value=False)
+@pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
+def test_sync_with_sftp_connection_errors(mock_path, mock_makedir, mock_ssh_client, syncer, monkeypatch):
+    """
+    Verifies that when there is an sftp connection error connection, that the connection is retried the max amount of
+    tries as configured by DEFAULT_BACKOFF_SETTINGS
+    """
+    monkeypatch.setattr(syncer, "is_sync_from_dbgap_server", True)
+    mock_ssh_client.return_value.__enter__.return_value.connect.side_effect = Exception("Authentication timed out")
+    # usersync System Exits if any exception is raised during download.
+    with pytest.raises(SystemExit):
+        syncer.sync()
+    assert mock_ssh_client.return_value.__enter__.return_value.connect.call_count == DEFAULT_BACKOFF_SETTINGS['max_tries']
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
 def test_sync_from_files(syncer, db_session, storage_client):
