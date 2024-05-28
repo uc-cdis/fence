@@ -85,6 +85,7 @@ from prometheus_client import (
     CollectorRegistry,
     multiprocess,
     make_wsgi_app,
+    Counter,
 )
 
 app.prometheus_registry = CollectorRegistry()
@@ -393,9 +394,6 @@ def app_config(
     if config["ENABLE_PROMETHEUS_METRICS"]:
         logger.info("Enabling Prometheus metrics...")
         _setup_prometheus(app)
-        from prometheus_client import (
-            Counter,
-        )
     else:
         logger.info("Prometheus metrics are NOT enabled.")
 
