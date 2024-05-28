@@ -68,7 +68,9 @@ SUPPORTED_ACTIONS = ["upload", "download"]
 ANONYMOUS_USER_ID = "-1"
 ANONYMOUS_USERNAME = "anonymous"
 presigned_url_counter = Counter(
-    "presigned_urls", "Number of presigned urls", registry=app.prometheus_registry
+    "presigned_urls",
+    "Number of presigned urls",
+    registry=flask.current_app.prometheus_registry,
 )
 
 
