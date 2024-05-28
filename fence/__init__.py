@@ -70,7 +70,7 @@ import fence.blueprints.ga4gh
 # for some reason the temp dir does not get created properly if we move
 # this statement to `_setup_prometheus()`
 PROMETHEUS_TMP_COUNTER_DIR = tempfile.TemporaryDirectory()
-
+presigned_url_counter = {}
 
 app = flask.Flask(__name__)
 CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
