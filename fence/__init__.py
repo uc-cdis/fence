@@ -15,6 +15,7 @@ from flask_wtf.csrf import validate_csrf
 from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
+from fence import metrics
 from urllib.parse import urlparse
 
 # Can't read config yet. Just set to debug for now, else no handlers.
@@ -66,38 +67,9 @@ import fence.blueprints.privacy
 import fence.blueprints.register
 import fence.blueprints.ga4gh
 
+
 app = flask.Flask(__name__)
 CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
-
-from prometheus_client import (
-    CollectorRegistry,
-    multiprocess,
-    make_wsgi_app,
-)
-
-# for some reason the temp dir does not get created properly if we move
-# this statement to `_setup_prometheus()`
-PROMETHEUS_TMP_COUNTER_DIR = tempfile.TemporaryDirectory()
-
-os.environ["prometheus_multiproc_dir"] = PROMETHEUS_TMP_COUNTER_DIR.name
-
-from prometheus_client import (
-    CollectorRegistry,
-    multiprocess,
-    make_wsgi_app,
-    Counter,
-)
-
-app.prometheus_registry = CollectorRegistry()
-multiprocess.MultiProcessCollector(app.prometheus_registry)
-presigned_url_counter = Counter(
-    "fence_presigned_url_requests_total",
-    "Total number of presigned URL requests",
-    registry=app.prometheus_registry,
-)
-app.wsgi_app = DispatcherMiddleware(
-    app.wsgi_app, {"/metrics": make_wsgi_app(registry=app.prometheus_registry)}
-)
 
 
 def warn_about_logger():
@@ -390,13 +362,6 @@ def app_config(
     _load_keys(app, root_dir)
     _set_authlib_cfgs(app)
 
-    app.prometheus_counters = {}
-    if config["ENABLE_PROMETHEUS_METRICS"]:
-        logger.info("Enabling Prometheus metrics...")
-        _setup_prometheus(app)
-    else:
-        logger.info("Prometheus metrics are NOT enabled.")
-
     app.storage_manager = StorageManager(config["STORAGE_CREDENTIALS"], logger=logger)
 
     app.debug = config["DEBUG"]
@@ -533,13 +498,6 @@ def _setup_audit_service_client(app):
     app.audit_service_client = AuditServiceClient(
         service_url=service_url, logger=logger
     )
-
-
-def _setup_prometheus(app):
-    # This environment variable MUST be declared before importing the
-    # prometheus modules (or unit tests fail)
-    # More details on this awkwardness: https://github.com/prometheus/client_python/issues/250
-    os.environ["prometheus_multiproc_dir"] = PROMETHEUS_TMP_COUNTER_DIR.name
 
 
 @app.errorhandler(Exception)
