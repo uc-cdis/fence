@@ -348,7 +348,7 @@ def test_init_multipart_upload_missing_configuration_key(app, indexd_client):
     uploader = MagicMock()
     current_app = flask.current_app
     expected_value = copy.deepcopy(current_app.config)
-    del expected_value["DATA_UPLOAD_BUCKET"]
+    expected_value["DATA_UPLOAD_BUCKET"] = ""
 
     with patch.object(current_app, "config", expected_value):
         assert current_app.config == expected_value
@@ -395,7 +395,7 @@ def test_complete_multipart_upload_missing_key(app, indexd_client):
     uploader = MagicMock()
     current_app = flask.current_app
     expected_value = copy.deepcopy(current_app.config)
-    del expected_value["DATA_UPLOAD_BUCKET"]
+    expected_value["DATA_UPLOAD_BUCKET"] = ""
 
     with patch.object(current_app, "config", expected_value):
         assert current_app.config == expected_value
@@ -444,7 +444,7 @@ def test_generate_aws_presigned_url_for_part_missing_key(app, indexd_client):
     uploader = MagicMock()
     current_app = flask.current_app
     expected_value = copy.deepcopy(current_app.config)
-    del expected_value["DATA_UPLOAD_BUCKET"]
+    expected_value["DATA_UPLOAD_BUCKET"] = ""
 
     with patch.object(current_app, "config", expected_value):
         assert current_app.config == expected_value
@@ -492,7 +492,7 @@ def test_make_signed_url_missing_configuration_key(app, indexd_client):
     current_app = flask.current_app
     expected_value = copy.deepcopy(current_app.config)
     del expected_value["AZ_BLOB_CONTAINER_URL"]
-    del expected_value["DATA_UPLOAD_BUCKET"]
+    expected_value["DATA_UPLOAD_BUCKET"] = ""
 
     indexed_file_location = indexd_client["indexed_file_location"]
     with patch.object(current_app, "config", expected_value):
@@ -502,10 +502,8 @@ def test_make_signed_url_missing_configuration_key(app, indexd_client):
         with patch(
             "fence.blueprints.data.indexd.AzureBlobStorageIndexedFileLocation.get_signed_url"
         ):
-            with patch(
-                "fence.blueprints.data.indexd.S3IndexedFileLocation.get_signed_url"
-            ):
-                with pytest.raises(InternalError):
-                    signed_url = blank_index.make_signed_url(
-                        file_name="some file name", protocol=indexed_file_location
-                    )
+
+            with pytest.raises(InternalError):
+                signed_url = blank_index.make_signed_url(
+                    file_name="some file name", protocol=indexed_file_location
+                )
