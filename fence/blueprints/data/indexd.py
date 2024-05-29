@@ -30,7 +30,6 @@ from fence.auth import (
     validate_request,
     JWTError,
 )
-from fence.metrics import presigned_url_counter
 from fence.config import config
 from fence.errors import (
     Forbidden,
@@ -197,6 +196,8 @@ def _log_signed_url_data_info(indexed_file, user_sub, client_id, requested_proto
         f"Signed URL Generated. size_in_kibibytes={size_in_kibibytes} "
         f"acl={acl} authz={authz} bucket={bucket} user_sub={user_sub} client_id={client_id}"
     )
+
+    from fence.metrics import presigned_url_counter
 
     presigned_url_counter.inc()
 

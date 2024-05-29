@@ -7,7 +7,6 @@ from fence.auth import login_user
 from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
 from fence.errors import UserError
-from fence.metrics import login_counter
 
 
 logger = get_logger(__name__)
@@ -180,4 +179,6 @@ def _login(username, idp_name, email=None, id_from_idp=None):
     if flask.session.get("redirect"):
         return flask.redirect(flask.session.get("redirect"))
     return flask.jsonify({"username": username})
+    from fence.metrics import login_counter
+
     login_counter.inc()

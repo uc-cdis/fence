@@ -85,6 +85,7 @@ def app_init(
     config_file_name=None,
 ):
     app.__dict__["logger"] = warn_about_logger
+    metrics.init_metrics(app)
 
     app_config(
         app,
@@ -95,7 +96,6 @@ def app_init(
     )
     app_sessions(app)
     app_register_blueprints(app)
-    metrics.init_metrics(app)
     server.init_app(app, query_client=query_client)
 
 
