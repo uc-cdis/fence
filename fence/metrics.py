@@ -1,4 +1,7 @@
-from fence import config, logger, app, tempfile, os, DispatcherMiddleware
+import tempfile
+import os
+from fence.config import config
+
 
 # for some reason the temp dir does not get created properly if we move
 # this statement to `_setup_prometheus()`
@@ -6,17 +9,18 @@ PROMETHEUS_TMP_COUNTER_DIR = tempfile.TemporaryDirectory()
 
 
 def _setup_prometheus(app):
-    # This environment variable MUST be declared before importing the
-    # prometheus modules (or unit tests fail)
-    # More details on this awkwardness: https://github.com/prometheus/client_python/issues/250
-    os.environ["prometheus_multiproc_dir"] = PROMETHEUS_TMP_COUNTER_DIR.name
-
+    from werkzeug.middleware.dispatcher import DispatcherMiddleware
     from prometheus_client import (
         CollectorRegistry,
         multiprocess,
         make_wsgi_app,
         Counter,
     )
+
+    # This environment variable MUST be declared before importing the
+    # prometheus modules (or unit tests fail)
+    # More details on this awkwardness: https://github.com/prometheus/client_python/issues/250
+    os.environ["prometheus_multiproc_dir"] = PROMETHEUS_TMP_COUNTER_DIR.name
 
     app.prometheus_registry = CollectorRegistry()
     multiprocess.MultiProcessCollector(app.prometheus_registry)
@@ -39,9 +43,12 @@ def _setup_prometheus(app):
     )
 
 
-app.prometheus_counters = {}
-if config["ENABLE_PROMETHEUS_METRICS"]:
-    logger.info("Enabling Prometheus metrics...")
-    _setup_prometheus(app)
-else:
-    logger.info("Prometheus metrics are NOT enabled.")
+def init_metrics(app):
+    from fence import logger
+
+    app.prometheus_counters = {}
+    if config["ENABLE_PROMETHEUS_METRICS"]:
+        logger.info("Enabling Prometheus metrics...")
+        _setup_prometheus(app)
+    else:
+        logger.info("Prometheus metrics are NOT enabled.")

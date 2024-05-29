@@ -1,6 +1,5 @@
 from collections import OrderedDict
 import os
-import tempfile
 from urllib.parse import urljoin
 import flask
 from flask_cors import CORS
@@ -12,7 +11,6 @@ from authutils.oauth2.client import OAuthClient
 from cdislogging import get_logger
 from gen3authz.client.arborist.client import ArboristClient
 from flask_wtf.csrf import validate_csrf
-from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
 from fence import metrics
@@ -97,6 +95,7 @@ def app_init(
     )
     app_sessions(app)
     app_register_blueprints(app)
+    metrics.init_metrics(app)
     server.init_app(app, query_client=query_client)
 
 
