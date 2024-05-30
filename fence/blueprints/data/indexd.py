@@ -282,10 +282,11 @@ class BlankIndex(object):
                 self.logger.info(f"Record with {self.guid} id found in Indexd.")
                 return document
             else:
-                self.logger.info(
-                    f"Record with {self.guid} id not found in Indexd. Creating new blank record..."
-                )
+                raise NotFound("No indexed document found with id {}".format(self.guid))
 
+        return self._create_blank_record()
+
+    def _create_blank_record(self):
         index_url = self.indexd.rstrip("/") + "/index/blank/"
         params = {"uploader": self.uploader, "file_name": self.file_name}
 

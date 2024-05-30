@@ -134,7 +134,7 @@ def upload_data_file():
     authz = params.get("authz")
     uploader = None
 
-    guid = params.get("did")
+    guid = params.get("guid")
 
     if authz:
         # if requesting an authz field, using new authorization method which doesn't
@@ -211,7 +211,7 @@ def init_multipart_upload():
     if "file_name" not in params:
         raise UserError("missing required argument `file_name`")
 
-    guid = params.get("did")
+    guid = params.get("guid")
 
     blank_index = BlankIndex(file_name=params["file_name"], guid=guid)
 

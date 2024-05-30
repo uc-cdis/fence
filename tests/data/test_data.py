@@ -1730,6 +1730,57 @@ def test_initialize_multipart_upload(
         assert "uploadId" in response.json
 
 
+@pytest.mark.parametrize("indexd_200_response", [True, False])
+def test_initialize_multipart_upload_with_guid_in_request(
+    app, client, auth_client, encoded_creds_jwt, user_client, indexd_200_response
+):
+    class MockResponse(object):
+        def __init__(self, data, status_code=200):
+            self.data = data
+            self.status_code = status_code
+
+        def json(self):
+            return self.data
+
+    data_requests_mocker = mock.patch(
+        "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
+    )
+    arborist_requests_mocker = mock.patch(
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
+    )
+
+    fence.blueprints.data.indexd.BlankIndex.init_multipart_upload = MagicMock()
+    with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
+        did = str(uuid.uuid4())
+        if indexd_200_response:
+            data_requests.get.return_value = MockResponse(
+                INDEXD_RECORD_WITH_PUBLIC_AUTHZ_AND_ACL_POPULATED
+            )
+            data_requests.get.return_value.status_code = 200
+        else:
+            data_requests.get.return_value = MockResponse("no record found")
+            data_requests.get.return_value.status_code = 404
+        arborist_requests.return_value = MockResponse({"auth": True})
+        arborist_requests.return_value.status_code = 200
+        fence.blueprints.data.indexd.BlankIndex.init_multipart_upload.return_value = (
+            "test_uploadId"
+        )
+        headers = {
+            "Authorization": "Bearer " + encoded_creds_jwt.jwt,
+            "Content-Type": "application/json",
+        }
+        file_name = "asdf"
+        data = json.dumps({"file_name": file_name, "guid": did})
+        response = client.post("/data/multipart/init", headers=headers, data=data)
+
+        if indexd_200_response:
+            assert response.status_code == 201, response
+            assert "guid" in response.json
+            assert "uploadId" in response.json
+        else:
+            assert response.status_code == 404, response
+
+
 def test_multipart_upload_presigned_url(
     app, client, auth_client, encoded_creds_jwt, user_client
 ):
