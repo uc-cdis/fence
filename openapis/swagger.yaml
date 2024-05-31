@@ -1691,7 +1691,7 @@ components:
           description: >-
             the requested bucket to upload to.
             If not provided, defaults to the configured DATA_UPLOAD_BUCKET.
-        did:
+        guid:
           type: string
           required: false
           description: GUID to be assigned to the object
@@ -1705,7 +1705,7 @@ components:
           description: requested authorization resources to be set on the
             resulting indexed record. You must have proper authorization to set this
       example:
-        did: "123456abcd"
+        guid: "123456abcd"
         file_name: "my_file.bam"
         bucket: "bucket1"
         expires_in: 1200
@@ -1718,7 +1718,7 @@ components:
           type: string
           required: true
           description: the file name to use for this upload
-        did:
+        guid:
           type: string
           required: false
           description: GUID to be assigned to the object
