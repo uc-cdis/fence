@@ -502,17 +502,12 @@ def list_policies():
     """
     Return a list of all policies. Returns in JSON format
     """
-    res = current_app.arborist.list_policies(False)
+    expand = request.args.get('expand', default = False, type = bool)
+    if(expand):
+        res = current_app.arborist.list_policies(True)
+    else:
+        res = current_app.arborist.list_policies(False)
     return jsonify(res)
-
-@blueprint.route("/list_policies?expand", methods=["GET"])
-@admin_login_required
-@debug_log
-def list_policies_expanded():
-    """Return a list of all policies with expanded information. Returns in JSON format """
-    res = current_app.arborist.list_policies(True)
-    return jsonify(res)
-
 
 @blueprint.route("/add_authz_all", methods=["POST"])
 @admin_login_required
