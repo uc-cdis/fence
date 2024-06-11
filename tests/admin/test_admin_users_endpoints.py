@@ -270,7 +270,7 @@ def test_list_policies(client, admin_user, encoded_admin_jwt db_session):
                 "amanuensis_admin"
             ]   
         })
-    r = client.get("/admin/list_policies")
+    r = client.get("/admin/list_policies", headers={"Authorization": "Bearer " + encoded_admin_jwt})
     assert r.json is not None
     has_test_policy = False
     for policy in r.json["policy_ids"]:
