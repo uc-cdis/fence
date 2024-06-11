@@ -251,6 +251,33 @@ def test_get_user_noauth(client, db_session):
     r = client.get("/admin/user")
     assert r.status_code == 401
 
+# GET /list_policies test
+
+def test_list_policies(client, admin_user, encoded_admin_jwt db_session):
+    res = client.post(
+        "/admin/add_policy",
+        headers={
+            "Authorization": "Bearer " + encoded_admin_jwt,
+            "Content-Type": "application/json",
+        },
+        json={
+            "id": "test_list_policies",
+            "description": "testing policy",
+            "resource_paths": [
+                "/services/amanuensis"
+            ],
+            "role_ids": [
+                "amanuensis_admin"
+            ]   
+        })
+    r = client.get("/admin/list_policies")
+    assert r.json is not None
+    has_test_policy = False
+    for policy in r.json["policy_ids"]:
+        if(policy == "test_list_policies"):
+            has_test_policy = True
+    assert has_test_policy == True
+
 
 # POST /user tests
 
