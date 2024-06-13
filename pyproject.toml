@@ -22,7 +22,7 @@ alembic = "^1.7.7"
 authlib = {git = "https://github.com/uc-cdis/authlib", rev = "v0.11_CVE_patch_v1"}
 # authlib = "*" # let authutils decide which version we're using
 
-authutils = "^6.2.2"
+authutils = {git = "https://git@github.com/uc-cdis/authutils.git", branch = "feat/jq-testing"}
 bcrypt = "^3.1.4"
 boto3 = "*"
 botocore = "*"
