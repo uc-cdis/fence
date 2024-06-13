@@ -21,7 +21,8 @@ jobs:
        run-coveralls: true
   ci:
     name: Build Image and Push
-    needs: Security
+    # TODO Uncomment after PXP-9212
+    # needs: Security
     uses: uc-cdis/.github/.github/workflows/image_build_push.yaml@master
     secrets:
       ECR_AWS_ACCESS_KEY_ID: ${{ secrets.ECR_AWS_ACCESS_KEY_ID }}
