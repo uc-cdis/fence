@@ -177,9 +177,9 @@ def test_google_link_auth_return(
 
     # manually set cookie for initial session
     client.set_cookie(
-        "localhost",
-        config["SESSION_COOKIE_NAME"],
-        test_session_jwt,
+        domain="localhost",
+        key=config["SESSION_COOKIE_NAME"],
+        value=test_session_jwt,
         httponly=True,
         samesite="Lax",
     )
@@ -258,9 +258,9 @@ def test_patch_google_link(
 
     # manually set cookie for initial session
     client.set_cookie(
-        "localhost",
-        config["SESSION_COOKIE_NAME"],
-        test_session_jwt,
+        domain="localhost",
+        key=config["SESSION_COOKIE_NAME"],
+        value=test_session_jwt,
         httponly=True,
         samesite="Lax",
     )
@@ -362,9 +362,9 @@ def test_patch_google_link_account_not_in_token(
 
     # manually set cookie for initial session
     client.set_cookie(
-        "localhost",
-        config["SESSION_COOKIE_NAME"],
-        test_session_jwt,
+        domain="localhost",
+        key=config["SESSION_COOKIE_NAME"],
+        value=test_session_jwt,
         httponly=True,
         samesite="Lax",
     )
@@ -418,9 +418,9 @@ def test_patch_google_link_account_doesnt_exist(
 
     # manually set cookie for initial session
     client.set_cookie(
-        "localhost",
-        config["SESSION_COOKIE_NAME"],
-        test_session_jwt,
+        domain="localhost",
+        key=config["SESSION_COOKIE_NAME"],
+        value=test_session_jwt,
         httponly=True,
         samesite="Lax",
     )
@@ -487,9 +487,9 @@ def test_google_link_g_account_exists(
 
     # manually set cookie for initial session
     client.set_cookie(
-        "localhost",
-        config["SESSION_COOKIE_NAME"],
-        test_session_jwt,
+        domain="localhost",
+        key=config["SESSION_COOKIE_NAME"],
+        value=test_session_jwt,
         httponly=True,
         samesite="Lax",
     )
@@ -566,9 +566,9 @@ def test_google_link_g_account_access_extension(
 
     # manually set cookie for initial session
     client.set_cookie(
-        "localhost",
-        config["SESSION_COOKIE_NAME"],
-        test_session_jwt,
+        domain="localhost",
+        key=config["SESSION_COOKIE_NAME"],
+        value=test_session_jwt,
         httponly=True,
         samesite="Lax",
     )
@@ -653,9 +653,9 @@ def test_google_link_g_account_exists_linked_to_different_user(
 
     # manually set cookie for initial session
     client.set_cookie(
-        "localhost",
-        config["SESSION_COOKIE_NAME"],
-        test_session_jwt,
+        domain="localhost",
+        key=config["SESSION_COOKIE_NAME"],
+        value=test_session_jwt,
         httponly=True,
         samesite="Lax",
     )
@@ -721,9 +721,9 @@ def test_google_link_no_proxy_group(
 
     # manually set cookie for initial session
     client.set_cookie(
-        "localhost",
-        config["SESSION_COOKIE_NAME"],
-        test_session_jwt,
+        domain="localhost",
+        key=config["SESSION_COOKIE_NAME"],
+        value=test_session_jwt,
         httponly=True,
         samesite="Lax",
     )
@@ -807,9 +807,9 @@ def test_google_link_when_google_mocked(
 
     # manually set cookie for initial session
     client.set_cookie(
-        "localhost",
-        config["SESSION_COOKIE_NAME"],
-        test_session_jwt,
+        domain="localhost",
+        key=config["SESSION_COOKIE_NAME"],
+        value=test_session_jwt,
         httponly=True,
         samesite="Lax",
     )
