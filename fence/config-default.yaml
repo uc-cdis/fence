@@ -573,7 +573,7 @@ dbGaP:
     #
     # If `parse_consent_code` is true, then a user will be given access to the exact
     # same consent codes in the child studies
-    parent_to_child_studies_mapping:
+    parent_to_child_studies_mapping: {}
       # 'phs001194': ['phs000571', 'phs001843']
     # A consent of "c999" can indicate access to that study's "exchange area data"
     # and when a user has access to one study's exchange area data, they
