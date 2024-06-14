@@ -35,7 +35,9 @@ def get_jwt():
     try:
         bearer, token = header.split(" ")
     except ValueError:
-        raise Unauthorized("authorization header not in expected format")
+        msg = "authorization header not in expected format"
+        logger.error(f"{msg}. Received header: {header}")
+        raise Unauthorized(msg)
     if bearer.lower() != "bearer":
         raise Unauthorized("expected bearer token in auth header")
     return token
