@@ -24,6 +24,7 @@ def get_jwt_header():
         jwt = header.split(" ")[1]
     except IndexError:
         msg = "authorization header missing token"
-        logger.error(f"{msg}. Received header: {header}")
+        logger.debug(f"{msg}. Received header: {header}")
+        logger.error(f"{msg}.")
         raise Unauthorized(msg)
     return jwt
