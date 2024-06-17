@@ -22,12 +22,7 @@ alembic = "^1.7.7"
 authlib = {git = "https://github.com/uc-cdis/authlib", rev = "v0.11_CVE_patch_v1"}
 # authlib = "*" # let authutils decide which version we're using
 
-# Pinning to the authlib patch above prevents us from using the pypi version of authutils:
-# Because authutils (6.2.5) depends on authlib (>=1.1.0) and fence depends on authlib (*)
-# @ git+https://github.com/uc-cdis/authlib@v0.11_CVE_patch_v1, authutils is forbidden.
-authutils = {git = "https://github.com/uc-cdis/authutils", rev = "6.2.5"}
-# authutils = "<7"
-
+authutils = "<7"
 bcrypt = "^3.1.4"
 boto3 = "*"
 botocore = "*"
