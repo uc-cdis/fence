@@ -257,9 +257,11 @@ class Client(Base, OAuth2ClientMixin):
         # grant types is now part of authlibs client_metadata
         if isinstance(grant_types, list):
             client_metadata["grant_types"] = grant_types
-        else:
+        elif grant_types:
             # assume it's already in correct format and make it a list
             client_metadata["grant_types"] = [grant_types]
+        else:
+            client_metadata["grant_types"] = []
 
         supported_grant_types = [
             "authorization_code",
@@ -284,9 +286,11 @@ class Client(Base, OAuth2ClientMixin):
         response_types = kwargs.pop("response_types", None)
         if isinstance(response_types, list):
             client_metadata["response_types"] = "\n".join(response_types)
-        else:
+        elif response_types:
             # assume it's already in correct format
-            client_metadata["response_types"] = response_types
+            client_metadata["response_types"] = [response_types]
+        else:
+            client_metadata["response_types"] = []
 
         if "token_endpoint_auth_method" in kwargs:
             client_metadata["token_endpoint_auth_method"] = kwargs.pop(

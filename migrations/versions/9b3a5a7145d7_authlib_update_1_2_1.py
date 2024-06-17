@@ -165,7 +165,7 @@ def transform_client_data(op):
             metadata = {}
 
         if client.redirect_uri:
-            metadata["redirect_uris"] = client.redirect_uri
+            metadata["redirect_uris"] = client.redirect_uri.splitlines()
         if client.token_endpoint_auth_method:
             metadata["token_endpoint_auth_method"] = client.token_endpoint_auth_method
         if client.grant_type:
@@ -247,8 +247,12 @@ def set_old_column_values():
         )
         data["token_endpoint_auth_method"] = metadata.get("token_endpoint_auth_method")
         data["_allowed_scopes"] = metadata.get("scope")
-        data["grant_type"] = "\n".join(metadata.get("grant_types") or "")
-        data["response_type"] = "\n".join(metadata.get("response_types") or "")
+        data["grant_type"] = "\n".join(
+            [item for item in metadata.get("grant_type") if item]
+        )
+        data["response_type"] = "\n".join(
+            [item for item in metadata.get("response_type") if item]
+        )
 
         data["client_uri"] = metadata.get("client_uri")
         data["logo_uri"] = metadata.get("logo_uri")
