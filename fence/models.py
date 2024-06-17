@@ -244,8 +244,10 @@ class Client(Base, OAuth2ClientMixin):
             if isinstance(redirect_uris, list):
                 # redirect_uris is now part of the metadata json object
                 client_metadata["redirect_uris"] = redirect_uris
-            else:
+            elif redirect_uris:
                 client_metadata["redirect_uris"] = [redirect_uris]
+            else:
+                client_metadata["redirect_uris"] = []
 
         # default grant types to allow for auth code flow and resfreshing
         grant_types = kwargs.pop("grant_types", None) or [

@@ -242,7 +242,9 @@ def set_old_column_values():
             metadata = {}
             data["i18n_metadata"] = None
 
-        data["redirect_uri"] = metadata.get("redirect_uris")
+        data["redirect_uri"] = "\n".join(
+            [item for item in metadata.get("redirect_uris") if item]
+        )
         data["token_endpoint_auth_method"] = metadata.get("token_endpoint_auth_method")
         data["_allowed_scopes"] = metadata.get("scope")
         data["grant_type"] = "\n".join(metadata.get("grant_types") or "")
