@@ -242,17 +242,29 @@ def set_old_column_values():
             metadata = {}
             data["i18n_metadata"] = None
 
-        data["redirect_uri"] = "\n".join(
-            [item for item in metadata.get("redirect_uris") if item]
-        )
+        if metadata.get("redirect_uris"):
+            data["redirect_uri"] = "\n".join(
+                [item for item in metadata.get("redirect_uris") if item]
+            )
+        else:
+            data["redirect_uri"] = ""
+
         data["token_endpoint_auth_method"] = metadata.get("token_endpoint_auth_method")
         data["_allowed_scopes"] = metadata.get("scope")
-        data["grant_type"] = "\n".join(
-            [item for item in metadata.get("grant_type") if item]
-        )
-        data["response_type"] = "\n".join(
-            [item for item in metadata.get("response_type") if item]
-        )
+
+        if metadata.get("grant_types"):
+            data["grant_type"] = "\n".join(
+                [item for item in metadata.get("grant_types") if item]
+            )
+        else:
+            data["grant_type"] = ""
+
+        if metadata.get("response_types"):
+            data["response_type"] = "\n".join(
+                [item for item in metadata.get("response_types") if item]
+            )
+        else:
+            data["response_type"] = ""
 
         data["client_uri"] = metadata.get("client_uri")
         data["logo_uri"] = metadata.get("logo_uri")
