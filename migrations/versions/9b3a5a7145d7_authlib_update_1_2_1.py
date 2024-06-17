@@ -245,8 +245,8 @@ def set_old_column_values():
         data["redirect_uri"] = metadata.get("redirect_uris")
         data["token_endpoint_auth_method"] = metadata.get("token_endpoint_auth_method")
         data["_allowed_scopes"] = metadata.get("scope")
-        data["grant_type"] = "\n".join(metadata.get("grant_types", "")) or ""
-        data["response_type"] = "\n".join(metadata.get("response_types", "")) or ""
+        data["grant_type"] = "\n".join(metadata.get("grant_types") or "")
+        data["response_type"] = "\n".join(metadata.get("response_types") or "")
 
         data["client_uri"] = metadata.get("client_uri")
         data["logo_uri"] = metadata.get("logo_uri")
