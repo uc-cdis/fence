@@ -24,7 +24,7 @@ from fence.models import (
 )
 import fence.resources.admin as adm
 from tests import utils
-
+from tests import conftest
 
 @pytest.fixture(autouse=True)
 def mock_arborist(mock_arborist_requests):
@@ -60,62 +60,6 @@ def encoded_admin_jwt(kid, rsa_private_key):
     claims["scope"].append("admin")
     return jwt.encode(claims, key=rsa_private_key, headers=headers, algorithm="RS256")
 
-@pytest.fixture(scope="function")
-def mock_arborist_request():
-    """
-    This fixture returns a function which you call to mock out arborist endpoints.
-    Give it an argument in this format:
-        {
-            "arborist/health": {
-                "GET": ("", 200)
-            },
-            "arborist/auth/request": {
-                "POST": ({"auth": False}, 403)
-            }
-        }
-    """
-
-    def do_patch(urls_to_responses=None):
-        urls_to_responses = urls_to_responses or {}
-        defaults = {
-            "arborist/health": {"GET": ("", 200)},
-            "arborist/auth/mapping": {"POST": ({}, "200")},
-            "arborist/policy": {"GET": ({
-            "id": "test_list_policies",
-            "description": "testing policy",
-            "resource_paths": [
-                "/services/amanuensis"
-            ],
-            "role_ids": [
-                "amanuensis_admin"
-            ]   
-        }, 200)}
-        }
-        defaults.update(urls_to_responses)
-        urls_to_responses = defaults
-
-        def response_for(method, url):
-            method = method.upper()
-            mocked_response = MagicMock(requests.Response)
-            if url not in urls_to_responses:
-                mocked_response.status_code = 404
-                mocked_response.text = "NOT FOUND"
-            elif method not in urls_to_responses[url]:
-                mocked_response.status_code = 405
-                mocked_response.text = "METHOD NOT ALLOWED"
-            else:
-                content, code = urls_to_responses[url][method]
-                mocked_response.status_code = code
-                if isinstance(content, dict):
-                    mocked_response.json.return_value = content
-                else:
-                    mocked_response.text = content
-            return mocked_response
-
-        mocked_method = MagicMock(side_effect=response_for)
-        return mocked_method
-
-    return do_patch
 
 # Dictionary for all these random magic numbers that the delete user
 # tests/fixtures are using
@@ -311,9 +255,8 @@ def test_get_user_noauth(client, db_session):
 # GET /list_policies test
 
 def test_list_policies(client, admin_user, encoded_admin_jwt):
-    mock_list = mock_arborist_request()
-    mock_method = mock_list()
-    r = mock_method("GET", "arborist/policies")
+    mock_list = conftest.mock_arborist_requests(("GET", "arborist/policies"))
+    r = mock_list()
     assert r is not None
     has_test_policy = False
     policy = r.json.return_value["id"]
