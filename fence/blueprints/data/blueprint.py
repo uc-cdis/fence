@@ -168,7 +168,7 @@ def upload_data_file():
 
     blank_index = BlankIndex(
         file_name=params["file_name"],
-        authz=params.get("authz"),
+        authz=authz,
         uploader=uploader,
         guid=guid,
     )

@@ -1734,6 +1734,10 @@ def test_initialize_multipart_upload(
 def test_initialize_multipart_upload_with_guid_in_request(
     app, client, auth_client, encoded_creds_jwt, user_client, indexd_200_response
 ):
+    """
+    Test /data/multipart/init with guid parameter in request data
+    """
+
     class MockResponse(object):
         def __init__(self, data, status_code=200):
             self.data = data
@@ -1754,7 +1758,21 @@ def test_initialize_multipart_upload_with_guid_in_request(
         did = str(uuid.uuid4())
         if indexd_200_response:
             data_requests.get.return_value = MockResponse(
-                INDEXD_RECORD_WITH_PUBLIC_AUTHZ_AND_ACL_POPULATED
+                {
+                    "did": did,
+                    "baseid": "",
+                    "rev": "",
+                    "size": 10,
+                    "file_name": "file1",
+                    "urls": ["s3://bucket1/key"],
+                    "hashes": {},
+                    "metadata": {},
+                    "authz": ["/open"],
+                    "acl": ["*"],
+                    "form": "",
+                    "created_date": "",
+                    "updated_date": "",
+                }
             )
             data_requests.get.return_value.status_code = 200
         else:
@@ -1776,6 +1794,7 @@ def test_initialize_multipart_upload_with_guid_in_request(
         if indexd_200_response:
             assert response.status_code == 201, response
             assert "guid" in response.json
+            assert did == response.json.get("guid")
             assert "uploadId" in response.json
         else:
             assert response.status_code == 404, response

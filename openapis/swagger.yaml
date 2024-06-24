@@ -566,7 +566,7 @@ paths:
         "file_upload" on "/data_file" resource. When "authz" is *not* provided, this
         endpoint will check for that permission for your user.
 
-        Accepts a "did" field in the request body. If "did" is provided, it checks indexd for an existing record. If not found, a new blank record will be created.
+        Accepts a "guid" field in the request body. If "guid" is provided, it checks indexd for an existing record. If not found, a new blank record will be created.
       security:
         - OAuth2:
           - user
@@ -671,7 +671,7 @@ paths:
         the GUID for this new record and an uploadId for multipart upload presigned url.
 
 
-        Accepts a "did" field in the request body. If "did" is provided, it checks indexd for an existing record. If not found, a new blank record will be created.
+        Accepts a "guid" field in the request body. If "guid" is provided, it checks indexd for an existing record. If not found, a new blank record will be created.
       security:
         - OAuth2:
           - user

@@ -260,7 +260,9 @@ class BlankIndex(object):
         self.authz = authz
 
         self.guid = guid
-        self.guid = self.index_document["did"]
+        self.guid = self.index_document[
+            "did"
+        ]  # .index_document is a cached property with code below, it creates/retrieves the actual record and this line updates the stored GUID to the returned record
 
     @cached_property
     def index_document(self):
@@ -278,11 +280,10 @@ class BlankIndex(object):
             indexd_response = requests.get(index_url)
             if indexd_response.status_code == 200:
                 document = indexd_response.json()
-                self.guid = document["did"]
                 self.logger.info(f"Record with {self.guid} id found in Indexd.")
                 return document
             else:
-                raise NotFound("No indexed document found with id {}".format(self.guid))
+                raise NotFound(f"No indexed document found with id {self.guid}")
 
         return self._create_blank_record()
 
