@@ -64,6 +64,7 @@ import fence.blueprints.google
 import fence.blueprints.privacy
 import fence.blueprints.register
 import fence.blueprints.ga4gh
+import fence.metrics
 
 
 app = flask.Flask(__name__)
@@ -85,7 +86,8 @@ def app_init(
     config_file_name=None,
 ):
     app.__dict__["logger"] = warn_about_logger
-    metrics.init_metrics(app)
+
+    # import fence.metrics
 
     app_config(
         app,

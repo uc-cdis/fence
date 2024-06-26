@@ -8,7 +8,10 @@ from fence.config import config
 PROMETHEUS_TMP_COUNTER_DIR = tempfile.TemporaryDirectory()
 
 
-def _setup_prometheus(app):
+if config["ENABLE_PROMETHEUS_METRICS"]:
+    from fence import logger
+
+    app.prometheus_counters = {}
     from werkzeug.middleware.dispatcher import DispatcherMiddleware
     from prometheus_client import (
         CollectorRegistry,
@@ -50,7 +53,7 @@ def _setup_prometheus(app):
     )
 
     google_login_counter = Counter(
-        "fence_google_login_requests_total",
+        "google_login_requests_total",
         "Total number of Google login requests",
         registry=app.prometheus_registry,
     )
@@ -85,13 +88,5 @@ def _setup_prometheus(app):
         registry=app.prometheus_registry,
     )
 
-
-def init_metrics(app):
-    from fence import logger
-
-    app.prometheus_counters = {}
-    if config["ENABLE_PROMETHEUS_METRICS"]:
-        logger.info("Enabling Prometheus metrics...")
-        _setup_prometheus(app)
-    else:
-        logger.info("Prometheus metrics are NOT enabled.")
+else:
+    logger.info("Prometheus metrics are NOT enabled.")
