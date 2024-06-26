@@ -124,6 +124,8 @@ class FenceCallback(DefaultOAuth2Callback):
         )
         self.post_login()
 
+        from fence.metrics import fence_login_counter
+
         fence_login_counter.inc()
 
         if config["REGISTER_USERS_ON"]:

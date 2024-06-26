@@ -13,8 +13,6 @@ class GoogleLogin(DefaultOAuth2Login):
 
 
 class GoogleCallback(DefaultOAuth2Callback):
-    from fence.metrics import google_login_counter
-
     def __init__(self):
         super(GoogleCallback, self).__init__(
             idp_name=IdentityProvider.google, client=flask.current_app.google_client
@@ -27,6 +25,8 @@ class GoogleCallback(DefaultOAuth2Callback):
                 config.get("BASE_URL", "")
                 + "/link/google/callback?code={}".format(flask.request.args.get("code"))
             )
+
+        from fence.metrics import google_login_counter
 
         google_login_counter.inc()
 
