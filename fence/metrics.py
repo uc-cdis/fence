@@ -1,6 +1,7 @@
 import tempfile
 import os
 from fence.config import config
+from fence import app
 
 
 # for some reason the temp dir does not get created properly if we move
