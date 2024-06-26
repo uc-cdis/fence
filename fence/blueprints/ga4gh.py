@@ -42,4 +42,9 @@ def get_ga4gh_signed_url(object_id, access_id):
         requested_protocol=access_id,
         ga4gh_passports=ga4gh_passports,
     )
+
+    from fence.metrics import presigned_urls_ga4gh_drs_counter
+
+    presigned_urls_ga4gh_drs_counter.inc()
+
     return flask.jsonify(result)

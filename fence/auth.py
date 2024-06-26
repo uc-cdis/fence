@@ -132,6 +132,10 @@ def login_user(
     current_app.scoped_session().add(user)
     current_app.scoped_session().commit()
 
+    from fence.metrics import login_counter
+
+    login_counter.inc()
+
     set_flask_session_values(user)
 
 

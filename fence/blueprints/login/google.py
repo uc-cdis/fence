@@ -25,4 +25,9 @@ class GoogleCallback(DefaultOAuth2Callback):
                 config.get("BASE_URL", "")
                 + "/link/google/callback?code={}".format(flask.request.args.get("code"))
             )
+
+        from fence.metrics import google_login_counter
+
+        google_login_counter.inc()
+
         return super(GoogleCallback, self).get()

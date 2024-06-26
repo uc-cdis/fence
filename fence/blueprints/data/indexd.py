@@ -197,9 +197,13 @@ def _log_signed_url_data_info(indexed_file, user_sub, client_id, requested_proto
         f"acl={acl} authz={authz} bucket={bucket} user_sub={user_sub} client_id={client_id}"
     )
 
-    from fence.metrics import presigned_url_counter
+    from fence.metrics import (
+        presigned_url_counter,
+        presigned_url_data_metrics_size_gauge,
+    )
 
     presigned_url_counter.inc()
+    presigned_url_data_metrics_size_gauge.set(size_in_kibibytes)
 
 
 def _get_client_id():
@@ -1064,6 +1068,10 @@ class S3IndexedFileLocation(IndexedFileLocation):
             auth_info,
         )
 
+        from fence.metrics import presigned_url_download_protocol_s3_counter
+
+        presigned_url_download_protocol_s3_counter.inc()
+
         return url
 
     def init_multipart_upload(self, expires_in):
@@ -1195,6 +1203,10 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                 auth_info.get("username"),
                 r_pays_project=r_pays_project,
             )
+
+        from fence.metrics import presigned_url_download_protocol_gcs_counter
+
+        presigned_url_download_protocol_gcs_counter.inc()
 
         return url
 
