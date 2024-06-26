@@ -7,6 +7,7 @@ from prometheus_client import (
     Counter,
     Gauge,
 )
+from werkzeug.middleware.dispatcher import DispatcherMiddleware
 
 PROMETHEUS_TMP_COUNTER_DIR = tempfile.TemporaryDirectory()
 
