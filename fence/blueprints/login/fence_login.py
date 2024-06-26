@@ -124,9 +124,11 @@ class FenceCallback(DefaultOAuth2Callback):
         )
         self.post_login()
 
-        from fence.metrics import fence_login_counter
+        from fence.metrics import metrics
 
-        fence_login_counter.inc()
+        fence_login_counter = metrics.fence_login_counter
+        if fence_login_counter:
+            fence_login_counter.inc()
 
         if config["REGISTER_USERS_ON"]:
             if not flask.g.user.additional_info.get("registration_info"):

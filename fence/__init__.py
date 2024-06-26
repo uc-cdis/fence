@@ -86,6 +86,8 @@ def app_init(
 ):
     app.__dict__["logger"] = warn_about_logger
 
+    metrics.initialize_metrics(app)
+
     app_config(
         app,
         settings=settings,
@@ -93,9 +95,6 @@ def app_init(
         config_path=config_path,
         file_name=config_file_name,
     )
-
-    import fence.metrics
-
     app_sessions(app)
     app_register_blueprints(app)
     server.init_app(app, query_client=query_client)

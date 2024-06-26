@@ -43,8 +43,10 @@ def get_ga4gh_signed_url(object_id, access_id):
         ga4gh_passports=ga4gh_passports,
     )
 
-    from fence.metrics import presigned_urls_ga4gh_drs_counter
+    from fence.metrics import metrics
 
-    presigned_urls_ga4gh_drs_counter.inc()
+    presigned_urls_ga4gh_drs_counter = metrics.presigned_urls_ga4gh_drs_counter
+    if presigned_urls_ga4gh_drs_counter:
+        presigned_urls_ga4gh_drs_counter.inc()
 
     return flask.jsonify(result)
