@@ -14,6 +14,7 @@ PROMETHEUS_TMP_COUNTER_DIR = tempfile.TemporaryDirectory()
 
 class Metrics:
     def __init__(self):
+        self.app = None
         self.presigned_url_counter = None
         self.login_counter = None
         self.fence_login_counter = None
