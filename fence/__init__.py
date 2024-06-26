@@ -13,7 +13,7 @@ from gen3authz.client.arborist.client import ArboristClient
 from flask_wtf.csrf import validate_csrf
 from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
-from fence import metrics
+from fence.metrics import metrics
 from urllib.parse import urlparse
 
 # Can't read config yet. Just set to debug for now, else no handlers.
