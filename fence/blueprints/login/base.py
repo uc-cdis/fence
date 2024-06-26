@@ -179,6 +179,3 @@ def _login(username, idp_name, email=None, id_from_idp=None):
     if flask.session.get("redirect"):
         return flask.redirect(flask.session.get("redirect"))
     return flask.jsonify({"username": username})
-    from fence.metrics import login_counter
-
-    login_counter.inc()

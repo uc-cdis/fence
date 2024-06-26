@@ -132,7 +132,12 @@ def login_user(
     current_app.scoped_session().add(user)
     current_app.scoped_session().commit()
 
-    from fence.metrics import login_counter
+    from fence.metrics import (
+        login_counter,
+        fence_login_counter,
+        google_login_counter,
+        ras_login_counter,
+    )
 
     login_counter.inc()
 
