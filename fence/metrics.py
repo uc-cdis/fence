@@ -38,14 +38,14 @@ def _setup_prometheus(app):
     )
 
     login_counter = Counter(
-        "fence_login_requests_total",
+        "fence_all_login_requests_total",
         "Total number of login requests",
         registry=app.prometheus_registry,
     )
 
     fence_login_counter = Counter(
-        "fence_google_login_requests_total",
-        "Total number of Google login requests",
+        "fence_login_requests_total",
+        "Total number of fence login requests",
         registry=app.prometheus_registry,
     )
 
