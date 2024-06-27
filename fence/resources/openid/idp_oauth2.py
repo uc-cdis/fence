@@ -168,34 +168,35 @@ class Oauth2ClientBase(object):
             jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
             claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
 
-            if claims.get(user_id_field):
-                # If we are using the "email" field, check it is verified (or that we are ignoring that explicitly)
-                if user_id_field == "email" and not (claims.get("email_verified") or self.settings.get("assume_emails_verified")):
-                    return {"error": "Email is not verified"}
-            else:
-                # We didn't get the field we were expecting at all
-                self.logger.exception(
-                    f"Can't get {user_id_field} from claims: {claims}"
-                )
-                return {"error": f"Can't get {user_id_field} from claims"}
+            fields = set([user_id_field, user_email_field, id_from_idp_field])
 
-            if claims.get(user_email_field):
-                # If we are using the "email" field, check it is verified (or that we are ignoring that explicitly)
-                if user_email_field == "email" and not (claims.get("email_verified") or self.settings.get("assume_emails_verified")):
-                    return {"error": "Email is not verified"}
-                else:
-                    return {
-                        user_id_field: claims[user_id_field],
-                        user_email_field: claims[user_email_field],
-                        id_from_idp_field: claims[id_from_idp_field],
-                        "mfa": self.has_mfa_claim(claims),
-                    }
+            return_dict = {}
 
-            # We get here if a field matching user_id_field was found, but no user_email_field was available
-            return {
-                user_id_field: claims[user_id_field],
-                "mfa": self.has_mfa_claim(claims),
-            }
+            for field in fields:
+                # Field missing from claims
+                if not claims.get(field):
+                    self.logger.exception(
+                        f"Can't get {field} from claims: {claims}"
+                    )
+                    return {"error": f"Can't get {field} from claims"}
+
+                # Field is email, but isn't verified and we aren't assuming all emails are verified
+                if field == "email" and not (claims.get("email_verified") or self.settings.get("assume_emails_verified")):
+                    return {"error": "Email is not verified"}
+
+                # We got the field, so append it to our dictionary
+                return_dict[field] = claims[field]
+
+            # Append the mfa field
+            return_dict["mfa"] = self.has_mfa_claim(claims)
+
+            # Debug
+            self.logger.debug(
+                f"Oauth2ClientBase get_auth_info returning {return_dict}"
+            )
+
+            # Return what we have assembled
+            return return_dict
 
         except Exception as e:
             self.logger.exception(f"Can't get user info from {self.idp}: {e}")
