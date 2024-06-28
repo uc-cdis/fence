@@ -14,7 +14,7 @@ class ImplicitGrant(OpenIDImplicitGrant):
                 return True
             return False
 
-    def create_authorization_response(self, grant_user):
+    def create_authorization_response(self, redirect_uri, grant_user):
         """
         Overrides method from authlib---authlib has some peculiarities here such as
         trying to access ``token["scope"]`` from the token response which is not
@@ -22,6 +22,9 @@ class ImplicitGrant(OpenIDImplicitGrant):
         here:
 
         https://openid.net/specs/openid-connect-core-1_0.html#ImplicitAuthResponse
+
+        2024-04-19
+        TODO: Re-evaluate this whether if it is still necessary.
         """
         state = self.request.state
         if grant_user:
@@ -46,7 +49,7 @@ class ImplicitGrant(OpenIDImplicitGrant):
 
         # http://openid.net/specs/oauth-v2-multiple-response-types-1_0.html#ResponseModes
         return create_response_mode_response(
-            redirect_uri=self.redirect_uri,
+            redirect_uri=redirect_uri,
             params=params,
             response_mode=self.request.data.get(
                 "response_mode", self.DEFAULT_RESPONSE_MODE
