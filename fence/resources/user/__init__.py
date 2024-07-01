@@ -72,7 +72,7 @@ def get_current_user_info():
 
 
 def get_user_info(current_session, username):
-    user = get_user(current_session, username.lower())
+    user = get_user(current_session, username)
     if user.is_admin:
         role = "admin"
     else:
@@ -106,7 +106,7 @@ def get_user_info(current_session, username):
 
     # User SAs are stored in db with client_id = None
     primary_service_account = (
-        get_service_account(client_id=None, user_id=user.id, username=user.username)
+        get_service_account(client_id=None, user_id=user.id, username=user.username.lower())
         or {}
     )
     primary_service_account_email = getattr(primary_service_account, "email", None)
@@ -114,7 +114,8 @@ def get_user_info(current_session, username):
 
     if hasattr(flask.current_app, "arborist"):
         try:
-            auth_mapping = flask.current_app.arborist.auth_mapping(user.username)
+            normalized_username = user.username.lower()
+            auth_mapping = flask.current_app.arborist.auth_mapping(normalized_username)
             resources = list(auth_mapping.keys())
         except ArboristError as exc:
             logger.error(
