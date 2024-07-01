@@ -208,6 +208,13 @@ def _log_signed_url_data_info(indexed_file, user_sub, client_id, requested_proto
     )
     if presigned_url_data_metrics_size_gauge:
         presigned_url_data_metrics_size_gauge.set(size_in_kibibytes)
+        presigned_url_data_metrics_size_gauge.labels(
+            acl=acl,
+            authz=authz,
+            bucket=bucket,
+            user_sub=user_sub,
+            client_id=client_id,
+        )
 
 
 def _get_client_id():
