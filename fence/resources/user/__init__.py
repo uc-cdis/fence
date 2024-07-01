@@ -72,7 +72,7 @@ def get_current_user_info():
 
 
 def get_user_info(current_session, username):
-    user = get_user(current_session, username)
+    user = get_user(current_session, username.lower())
     if user.is_admin:
         role = "admin"
     else:
