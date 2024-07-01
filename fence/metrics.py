@@ -76,6 +76,7 @@ class Metrics:
         self.presigned_url_data_metrics_size_gauge = Gauge(
             "fence_presigned_url_data_metrics_size_bytes",
             "Size of data metrics in bytes",
+            ["acl", "authz", "bucket", "user_sub", "client_id"],
             registry=app.prometheus_registry,
         )
 
