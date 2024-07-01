@@ -502,7 +502,13 @@ def list_policies():
     """
     Return a list of all policies. Returns in JSON format
     """
-    expand = request.args.get('expand', default = False, type = bool)
+    expand = request.args.get('expand', default = "")
+    if(expand == "True"):
+        expand = True
+    elif(expand == "False" or expand == ""):
+        expand = False
+    else:
+        raise UserError("Expand parameter must be True, False, or left blank")
     if(expand):
         res = current_app.arborist.list_policies(True)
     else:

@@ -254,15 +254,27 @@ def test_get_user_noauth(client, db_session):
 
 # GET /list_policies test
 
-def test_list_policies(client, admin_user, encoded_admin_jwt):
-    mock_list = conftest.mock_arborist_requests(("GET", "arborist/policies"))
-    r = mock_list()
+def test_list_policies(mock_arborist_requests, client, admin_user, encoded_admin_jwt):
+    mock_arborist_requests({"arborist/policy/": {"GET": ({"policy_ids": ["policy-abc", "policy-xyz"]}, 200)}})
+    r = client.get(
+
+        "/admin/list_policies",
+
+        headers={
+
+            "Authorization": "Bearer " + encoded_admin_jwt,
+
+            "Content-Type": "application/json",
+
+        }
+
+    )
     assert r is not None
-    has_test_policy = False
-    policy = r.json.return_value["id"]
-    if(policy == "test_list_policies"):
-        has_test_policy = True
-    assert has_test_policy == True
+    res = r.json
+    policy1 = res["policy_ids"][0]
+    policy2 = res["policy_ids"][1]
+    assert policy1 == "policy-abc"
+    assert policy2 == "policy-xyz"
 
 
 # POST /user tests
