@@ -1,4 +1,3 @@
-import json
 from .idp_oauth2 import Oauth2ClientBase
 
 
