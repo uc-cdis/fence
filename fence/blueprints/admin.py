@@ -505,14 +505,14 @@ def list_policies():
     expand = request.args.get('expand', default = "")
     if(expand == "True"):
         expand = True
-    elif(expand == "False" or expand == ""):
+    elif(expand == ""):
         expand = False
     else:
-        raise UserError("Expand parameter must be True, False, or left blank")
+        raise UserError("Expand parameter must be True or left blank")
     if(expand):
         res = current_app.arborist.list_policies(True)
     else:
-        res = current_app.arborist.list_policies(False)
+        res = current_app.arborist.list_policies()
     return jsonify(res)
 
 @blueprint.route("/add_authz_all", methods=["POST"])

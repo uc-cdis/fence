@@ -23,6 +23,7 @@ from fence.models import (
     UserToGroup,
 )
 import fence.resources.admin as adm
+from fence.errors import UserError
 from tests import utils
 from tests import conftest
 
@@ -255,7 +256,13 @@ def test_get_user_noauth(client, db_session):
 # GET /list_policies test
 
 def test_list_policies(mock_arborist_requests, client, admin_user, encoded_admin_jwt):
-    mock_arborist_requests({"arborist/policy/": {"GET": ({"policy_ids": ["policy-abc", "policy-xyz"]}, 200)}})
+    mock_arborist_requests({"arborist/policy/": {"GET": ({"policies":
+                [{
+                "id":"test_admin",
+                "description":"",
+                "resource_paths":["/test_gateway"],
+                "role_ids":["test_user"]
+                }]}, 200) } } )
     r = client.get(
 
         "/admin/list_policies",
@@ -271,10 +278,80 @@ def test_list_policies(mock_arborist_requests, client, admin_user, encoded_admin
     )
     assert r is not None
     res = r.json
-    policy1 = res["policy_ids"][0]
-    policy2 = res["policy_ids"][1]
-    assert policy1 == "policy-abc"
-    assert policy2 == "policy-xyz"
+    policy = res["policies"][0]
+    assert policy["id"] == "test_admin"
+    assert policy["role_ids"][0] == "test_user"
+    assert policy["resource_paths"][0] == "/test_gateway"
+
+def test_list_policies_expand(mock_arborist_requests, client, admin_user, encoded_admin_jwt):
+    mock_arborist_requests({"arborist/policy/?expand": {"GET": ({
+        "policies": [{
+        "id":"test_admin",
+        "description":"",
+        "resource_paths":["/test_gateway"],
+        "roles":[{
+                "id":"test_user",
+                "description":"",
+                "permissions":[{
+                    "id":"test_access",
+                    "description":"",
+                    "action":{
+                        "service":"",
+                        "method":""
+                    },
+                    "constraints":{
+                    }
+                }
+                ]
+            }
+            ]
+        }
+    ]
+    }, 200) } })
+    r = client.get(
+
+        "/admin/list_policies?expand=True",
+
+        headers={
+
+            "Authorization": "Bearer " + encoded_admin_jwt,
+
+            "Content-Type": "application/json",
+
+        }
+
+    )
+    res = r.json
+    policy = res["policies"][0]
+    assert policy["id"] == "test_admin"
+    assert policy["resource_paths"][0] == "/test_gateway"
+    role = policy["roles"][0]
+    assert role["id"] == "test_user"
+    permissions = role["permissions"][0]
+    assert permissions["id"] == "test_access"
+    assert permissions["action"]["service"] == ""
+
+def test_list_policies_invalid(mock_arborist_requests, client, admin_user, encoded_admin_jwt):
+    mock_arborist_requests({"arborist/policy/": {"GET": ({"policies":
+        [{
+        "id":"test_admin",
+        "description":"",
+        "resource_paths":["/test_gateway"],
+        "role_ids":["test_user"]
+        }]}, 200) } } )
+    r = client.get("/admin/list_policies?expand=invalid",
+        headers={
+
+            "Authorization": "Bearer " + encoded_admin_jwt,
+
+            "Content-Type": "application/json",
+
+        }
+    )
+    assert r is not None
+    assert r.status_code == 400
+
+
 
 
 # POST /user tests
