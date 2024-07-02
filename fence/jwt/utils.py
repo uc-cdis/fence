@@ -1,6 +1,11 @@
 import flask
 
+from cdislogging import get_logger
+
 from fence.errors import Unauthorized
+
+
+logger = get_logger(__name__)
 
 
 def get_jwt_header():
@@ -18,5 +23,8 @@ def get_jwt_header():
     try:
         jwt = header.split(" ")[1]
     except IndexError:
-        raise Unauthorized("authorization header missing token")
+        msg = "authorization header missing token"
+        logger.debug(f"{msg}. Received header: {header}")
+        logger.error(f"{msg}.")
+        raise Unauthorized(msg)
     return jwt
