@@ -100,26 +100,37 @@ def login_user(
 
     user = query_for_user(session=current_app.scoped_session(), username=username)
     if user:
-        _update_users_email(user, email)
-        _update_users_id_from_idp(user, id_from_idp)
-        _update_users_last_auth(user)
+        if user.active is False:
+            # Abort login if user.active is False (user.active is None or True are both
+            # considered active in this case):
+            raise Unauthorized(
+                "User is known but not authorized/activated in the system"
+            )
+        else:
+            _update_users_email(user, email)
+            _update_users_id_from_idp(user, id_from_idp)
+            _update_users_last_auth(user)
 
-        #  This expression is relevant to those users who already have user and
-        #  idp info persisted to the database. We return early to avoid
-        #  unnecessarily re-saving that user and idp info.
-        if user.identity_provider and user.identity_provider.name == provider:
-            set_flask_session_values(user)
-            return
+            #  This expression is relevant to those users who already have user and
+            #  idp info persisted to the database. We return early to avoid
+            #  unnecessarily re-saving that user and idp info.
+            if user.identity_provider and user.identity_provider.name == provider:
+                set_flask_session_values(user)
+                return
     else:
-        # we need a new user
-        user = User(username=username)
+        if not config["ALLOW_NEW_USER_ON_LOGIN"]:
+            # do not create new active users automatically
+            raise Unauthorized("New user is not yet authorized/activated in the system")
+        else:
+            # add the new user
+            user = User(username=username)
 
-        if email:
-            user.email = email
+            if email:
+                user.email = email
 
-        if id_from_idp:
-            user.id_from_idp = id_from_idp
-            # TODO: update iss_sub mapping table?
+            if id_from_idp:
+                user.id_from_idp = id_from_idp
+                # TODO: update iss_sub mapping table?
 
     # setup idp connection for new user (or existing user w/o it setup)
     idp = (
