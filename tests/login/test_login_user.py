@@ -1,8 +1,11 @@
 import flask
+import pytest
 from fence.auth import login_user, logout
 from fence.models import User, IdentityProvider
 import time
 from datetime import datetime
+from fence.config import config
+from fence.errors import Unauthorized
 
 
 def test_login_user_already_in_db(db_session):
@@ -31,6 +34,22 @@ def test_login_user_already_in_db(db_session):
     assert flask.session["provider"] == provider
     assert flask.session["user_id"] == user_id
     assert flask.g.user == test_user
+
+
+def test_login_failure_for_user_already_in_db_but_inactive(db_session):
+    """
+    Test that if a user is already in the database, but is set to user.active == False,
+     and logs in, the login returns an Unauthorized error.
+    """
+    email = "testuser@gmail.com"
+    provider = "Test Provider"
+    id_from_idp = "Provider_ID_0001"
+
+    test_user = User(username=email, is_admin=False, active=False)
+    db_session.add(test_user)
+    db_session.commit()
+    with pytest.raises(Unauthorized):
+        login_user(email, provider, email=email, id_from_idp=id_from_idp)
 
 
 def test_login_user_with_idp_already_in_db(db_session):
@@ -83,6 +102,20 @@ def test_login_new_user(db_session):
     assert flask.session["provider"] == provider
     assert flask.session["user_id"] == str(test_user.id)
     assert flask.g.user == test_user
+
+
+def test_login_new_user_not_allowed(db_session, monkeypatch):
+    """
+    Test that when ALLOW_NEW_USER_ON_LOGIN config is False,
+    and a user that is not in the database logs in, an
+    Unauthorized error is returned.
+    """
+    monkeypatch.setitem(config, "ALLOW_NEW_USER_ON_LOGIN", False)
+    email = "testuser@gmail.com"
+    provider = "Test Provider"
+    id_from_idp = "Provider_ID_0001"
+    with pytest.raises(Unauthorized):
+        login_user(email, provider, email=email, id_from_idp=id_from_idp)
 
 
 def test_last_auth_update_in_db(db_session):
