@@ -1143,6 +1143,9 @@ class UserSyncer(object):
             u.display_name = user_info[username].get("display_name", "")
             u.phone_number = user_info[username].get("phone_number", "")
             u.is_admin = user_info[username].get("admin", False)
+            # the presence of a user in the user sync input will activate the user
+            # by default, unless the user is explicitly being deactivated:
+            u.active = user_info[username].get("active", True)
 
             idp_name = user_info[username].get("idp_name", "")
             if idp_name and not u.identity_provider:
