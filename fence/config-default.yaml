@@ -520,6 +520,16 @@ DEFAULT_BACKOFF_SETTINGS_MAX_TRIES: 3
 SUPPORT_EMAIL_FOR_ERRORS: null
 
 # //////////////////////////////////////////////////////////////////////////////////////
+# USER ACTIVATION
+# //////////////////////////////////////////////////////////////////////////////////////
+# If you want new users (read: users that login for the first time) to automatically be
+# allowed through and added to the Fence DB, set this to true. Otherwise, set this to false.
+# Setting it to false will ensure the user will only be able to login after the user
+# is added to the Fence DB via a separate process. This two-step process allows for
+# a separate onboarding and user "approval" process, instead of the default automatic approval.
+ALLOW_NEW_USER_ON_LOGIN: true
+
+# //////////////////////////////////////////////////////////////////////////////////////
 # SHIBBOLETH
 #   - Support using `shibboleth` in LOGIN_OPTIONS
 #   - Contains defaults for using NIH's Login.
