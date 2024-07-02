@@ -500,6 +500,14 @@ DEFAULT_BACKOFF_SETTINGS_MAX_TRIES: 3
 SUPPORT_EMAIL_FOR_ERRORS: null
 
 # //////////////////////////////////////////////////////////////////////////////////////
+# USER ACTIVATION
+# //////////////////////////////////////////////////////////////////////////////////////
+# If you want new users (that login for the first time) to be non-active by default,
+# set this to false. This will ensure the user will only be able to login after explicit
+# activation of the account.
+AUTO_ACTIVATE_NEW_USER: true
+
+# //////////////////////////////////////////////////////////////////////////////////////
 # SHIBBOLETH
 #   - Support using `shibboleth` in LOGIN_OPTIONS
 #   - Contains defaults for using NIH's Login.

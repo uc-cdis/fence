@@ -47,6 +47,7 @@ class FenceConfig(Config):
             "WHITE_LISTED_GOOGLE_PARENT_ORGS",
             "CLIENT_CREDENTIALS_ON_DOWNLOAD_ENABLED",
             "DATA_UPLOAD_BUCKET",
+            "AUTO_ACTIVATE_NEW_USER",
         ]
         for default in defaults:
             self.force_default_if_none(default, default_cfg=default_config)
