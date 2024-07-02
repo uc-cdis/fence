@@ -260,9 +260,8 @@ class BlankIndex(object):
         self.authz = authz
 
         self.guid = guid
-        self.guid = self.index_document[
-            "did"
-        ]  # .index_document is a cached property with code below, it creates/retrieves the actual record and this line updates the stored GUID to the returned record
+        # .index_document is a cached property with code below, it creates/retrieves the actual record and this line updates the stored GUID to the returned record
+        self.guid = self.index_document["did"]
 
     @cached_property
     def index_document(self):
