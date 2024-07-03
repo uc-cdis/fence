@@ -87,8 +87,9 @@ def login_user(
         Args:
             user (User): User object
         """
-        # Abort login if user is not active:
-        if not user.active:
+        # Abort login if user.active is False (user.active is None or True are both
+        # considered active in this case):
+        if user.active is False:
             raise Unauthorized(
                 "User is known but not yet authorized/activated in the system"
             )
