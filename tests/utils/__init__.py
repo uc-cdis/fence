@@ -54,7 +54,7 @@ def create_user(users, db_session, is_admin=False):
     for username in list(users.keys()):
         user = query_for_user(session=s, username=username)
         if not user:
-            user = User(username=username, is_admin=is_admin)
+            user = User(username=username, is_admin=is_admin, active=True)
             s.add(user)
         for project_data in users[username]["projects"]:
             privilege = project_data["privilege"]
