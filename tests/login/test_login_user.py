@@ -15,7 +15,7 @@ def test_login_user_already_in_db(db_session):
     provider = "Test Provider"
     id_from_idp = "Provider_ID_0001"
 
-    test_user = User(username=email, is_admin=False, active=True)
+    test_user = User(username=email, is_admin=False)
     db_session.add(test_user)
     db_session.commit()
     user_id = str(test_user.id)
@@ -43,11 +43,7 @@ def test_login_user_with_idp_already_in_db(db_session):
     id_from_idp = "Provider_ID_0001"
 
     test_user = User(
-        username=email,
-        email=email,
-        id_from_idp=id_from_idp,
-        is_admin=False,
-        active=True,
+        username=email, email=email, id_from_idp=id_from_idp, is_admin=False
     )
     test_idp = IdentityProvider(name=provider)
     test_user.identity_provider = test_idp
@@ -82,7 +78,6 @@ def test_login_new_user(db_session):
 
     assert test_user.identity_provider.name == provider
     assert test_user.id_from_idp == id_from_idp
-    assert test_user.active == True
     assert test_user.email == email
     assert flask.session["username"] == email
     assert flask.session["provider"] == provider
@@ -98,7 +93,7 @@ def test_last_auth_update_in_db(db_session):
     provider = "Test Provider"
     id_from_idp = "Provider_ID_0001"
 
-    test_user = User(username=email, is_admin=False, active=True)
+    test_user = User(username=email, is_admin=False)
     db_session.add(test_user)
     db_session.commit()
 
