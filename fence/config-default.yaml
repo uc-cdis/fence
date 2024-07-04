@@ -504,7 +504,8 @@ SUPPORT_EMAIL_FOR_ERRORS: null
 # //////////////////////////////////////////////////////////////////////////////////////
 # If you want new users (that login for the first time) to be non-active by default,
 # set this to false. This will ensure the user will only be able to login after explicit
-# activation of the account.
+# activation of the account, OR implicit activation of the account which happens by
+# including the user in a "user sync" batch (see fence/sync/sync_users.py)
 AUTO_ACTIVATE_NEW_USER: true
 
 # //////////////////////////////////////////////////////////////////////////////////////
