@@ -4,7 +4,7 @@ from urllib.parse import urljoin
 import flask
 from flask_cors import CORS
 from sqlalchemy.orm import scoped_session
-from flask import _app_ctx_stack, current_app
+from flask import current_app
 from werkzeug.local import LocalProxy
 
 from authutils.oauth2.client import OAuthClient
@@ -360,7 +360,6 @@ def app_config(
     _setup_audit_service_client(app)
     _setup_data_endpoint_and_boto(app)
     _load_keys(app, root_dir)
-    _set_authlib_cfgs(app)
 
     app.storage_manager = StorageManager(config["STORAGE_CREDENTIALS"], logger=logger)
 
@@ -393,24 +392,6 @@ def _load_keys(app, root_dir):
             [(str(keypair.kid), str(keypair.public_key)) for keypair in app.keypairs]
         )
     }
-
-
-def _set_authlib_cfgs(app):
-    # authlib OIDC settings
-    # key will need to be added
-    settings = {"OAUTH2_JWT_KEY": keys.default_private_key(app)}
-    app.config.update(settings)
-    config.update(settings)
-
-    # only add the following if not already provided
-    config.setdefault("OAUTH2_JWT_ENABLED", True)
-    config.setdefault("OAUTH2_JWT_ALG", "RS256")
-    config.setdefault("OAUTH2_JWT_ISS", app.config["BASE_URL"])
-    config.setdefault("OAUTH2_PROVIDER_ERROR_URI", "/api/oauth2/errors")
-    app.config.setdefault("OAUTH2_JWT_ENABLED", True)
-    app.config.setdefault("OAUTH2_JWT_ALG", "RS256")
-    app.config.setdefault("OAUTH2_JWT_ISS", app.config["BASE_URL"])
-    app.config.setdefault("OAUTH2_PROVIDER_ERROR_URI", "/api/oauth2/errors")
 
 
 def _setup_oidc_clients(app):
@@ -470,7 +451,10 @@ def _setup_oidc_clients(app):
                 logger=logger,
             )
         elif idp == "fence":
-            app.fence_client = OAuthClient(**settings)
+            # https://docs.authlib.org/en/latest/client/flask.html#flask-client
+            app.fence_client = OAuthClient(app)
+            # https://docs.authlib.org/en/latest/client/frameworks.html
+            app.fence_client.register(**settings)
         else:  # generic OIDC implementation
             client = Oauth2ClientBase(
                 settings=settings,
