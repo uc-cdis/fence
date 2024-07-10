@@ -13,7 +13,6 @@ from gen3authz.client.arborist.client import ArboristClient
 from flask_wtf.csrf import validate_csrf
 from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
-from fence.metrics import metrics
 from urllib.parse import urlparse
 
 # Can't read config yet. Just set to debug for now, else no handlers.
@@ -30,6 +29,7 @@ config.load(
 )
 
 from fence.auth import logout, build_redirect_url
+from fence.metrics import metrics
 from fence.blueprints.data.indexd import S3IndexedFileLocation
 from fence.blueprints.login.utils import allowed_login_redirects, domain
 from fence.errors import UserError
@@ -94,7 +94,11 @@ def app_init(
         file_name=config_file_name,
     )
     app_sessions(app)
-    metrics.init_app(app)
+    if config["ENABLE_PROMETHEUS_METRICS"]:
+        logger.info("Enabling Prometheus metrics...")
+        metrics.init_app(app)
+    else:
+        logger.info("Prometheus metrics are NOT enabled.")
     app_register_blueprints(app)
     server.init_app(app, query_client=query_client)
 

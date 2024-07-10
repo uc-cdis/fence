@@ -1,6 +1,5 @@
-import tempfile
 import os
-from cdislogging import get_logger
+import tempfile
 from prometheus_client import (
     CollectorRegistry,
     multiprocess,
@@ -9,6 +8,7 @@ from prometheus_client import (
     generate_latest,
     CONTENT_TYPE_LATEST,
 )
+from cdislogging import get_logger
 
 logger = get_logger(__name__)
 
