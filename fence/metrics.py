@@ -45,7 +45,7 @@ class Metrics:
             logger.info(
                 f"Creating counter {name} with label {labels} and description {description}"
             )
-            self.create_counter(name, description, labels.keys())
+            self.create_counter(name, description, *labels.keys())
             self.metrics[name].labels(*labels.values()).inc()
 
     def set_gauge(self, name, description, labels, value):
@@ -58,7 +58,7 @@ class Metrics:
             logger.info(
                 f"Creating gauge {name} with label {labels} and description {description}"
             )
-            self.create_gauge(name, description, labels.keys())
+            self.create_gauge(name, description, *labels.keys())
             self.metrics[name].labels(*labels.values()).set(value)
 
     def generate_latest_metrics(self):

@@ -110,4 +110,8 @@ class RASCallback(DefaultOAuth2Callback):
                 expires,
             )
 
+        flask.current_app.ras_client.store_refresh_token(
+            user=user, refresh_token=refresh_token, expires=expires + issued_time
+        )
+
         super(RASCallback, self).post_login(token_result=token_result)
