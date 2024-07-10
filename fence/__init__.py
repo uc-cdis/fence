@@ -4,7 +4,7 @@ from urllib.parse import urljoin
 import flask
 from flask_cors import CORS
 from sqlalchemy.orm import scoped_session
-from flask import current_app
+from flask import current_app, Response
 from werkzeug.local import LocalProxy
 
 from authutils.oauth2.client import OAuthClient
@@ -86,8 +86,6 @@ def app_init(
 ):
     app.__dict__["logger"] = warn_about_logger
 
-    metrics.initialize_metrics(app)
-
     app_config(
         app,
         settings=settings,
@@ -96,6 +94,7 @@ def app_init(
         file_name=config_file_name,
     )
     app_sessions(app)
+    metrics.init_app(app)
     app_register_blueprints(app)
     server.init_app(app, query_client=query_client)
 
@@ -201,6 +200,11 @@ def app_register_blueprints(app):
         return flask.jsonify(
             {"keys": [(keypair.kid, keypair.public_key) for keypair in app.keypairs]}
         )
+
+    @app.route("/metrics")
+    def metrics_endpoint():
+        data, content_type = metrics.generate_latest_metrics()
+        return Response(data, content_type=content_type)
 
 
 def _check_azure_storage(app):

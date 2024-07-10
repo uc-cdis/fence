@@ -7,7 +7,7 @@ from fence.auth import login_user
 from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
 from fence.errors import UserError
-
+from fence.metrics import metrics
 
 logger = get_logger(__name__)
 
@@ -129,6 +129,12 @@ class DefaultOAuth2Callback(Resource):
         id_from_idp = result.get(self.id_from_idp_field)
 
         resp = _login(username, self.idp_name, email=email, id_from_idp=id_from_idp)
+        metrics.increment_counter(
+            "gen3_fence_logins_total", "Fence logins", {"idp": "all"}
+        )
+        metrics.increment_counter(
+            "gen3_fence_logins_total", "Fence logins", {"idp": self.idp_name}
+        )
         self.post_login(user=flask.g.user, token_result=result, id_from_idp=id_from_idp)
         return resp
 

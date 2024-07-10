@@ -110,14 +110,4 @@ class RASCallback(DefaultOAuth2Callback):
                 expires,
             )
 
-        from fence.metrics import metrics
-
-        ras_login_counter = metrics.ras_login_counter
-        if ras_login_counter:
-            ras_login_counter.inc()
-
-        flask.current_app.ras_client.store_refresh_token(
-            user=user, refresh_token=refresh_token, expires=expires + issued_time
-        )
-
         super(RASCallback, self).post_login(token_result=token_result)

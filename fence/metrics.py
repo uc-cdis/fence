@@ -1,84 +1,72 @@
 import tempfile
 import os
+from cdislogging import get_logger
 from prometheus_client import (
     CollectorRegistry,
     multiprocess,
-    make_wsgi_app,
     Counter,
     Gauge,
+    generate_latest,
+    CONTENT_TYPE_LATEST,
 )
-from werkzeug.middleware.dispatcher import DispatcherMiddleware
+
+logger = get_logger(__name__)
 
 PROMETHEUS_TMP_COUNTER_DIR = tempfile.TemporaryDirectory()
 
 
 class Metrics:
     def __init__(self):
-        self.presigned_url_counter = None
-        self.login_counter = None
-        self.fence_login_counter = None
-        self.google_login_counter = None
-        self.ras_login_counter = None
-        self.presigned_urls_ga4gh_drs_counter = None
-        self.presigned_url_download_protocol_gcs_counter = None
-        self.presigned_url_download_protocol_s3_counter = None
-        self.presigned_url_data_metrics_size_gauge = None
+        self.registry = CollectorRegistry()
+        multiprocess.MultiProcessCollector(self.registry)
+        self.metrics = {}
 
-    def initialize_metrics(self, app):
-        os.environ["prometheus_multiproc_dir"] = PROMETHEUS_TMP_COUNTER_DIR.name
-        app.prometheus_registry = CollectorRegistry()
-        multiprocess.MultiProcessCollector(app.prometheus_registry)
+    def create_counter(self, name, description, labels):
+        if name not in self.metrics:
+            counter = Counter(name, description, [labels])
+            self.metrics[name] = counter
+        else:
+            raise ValueError(f"Metric {name} already exists")
 
-        # Add prometheus wsgi middleware to route /metrics requests
-        app.wsgi_app = DispatcherMiddleware(
-            app.wsgi_app, {"/metrics": make_wsgi_app(registry=app.prometheus_registry)}
-        )
-        self.presigned_url_counter = Counter(
-            "gen3_fence_presigned_url_requests_total",
-            "Total number of presigned URL requests",
-            registry=app.prometheus_registry,
-        )
-        self.login_counter = Counter(
-            "gen3_fence_all_login_requests_total",
-            "Total number of login requests",
-            registry=app.prometheus_registry,
-        )
-        self.fence_login_counter = Counter(
-            "gen3_fence_login_requests_total",
-            "Total number of fence login requests",
-            registry=app.prometheus_registry,
-        )
-        self.google_login_counter = Counter(
-            "gen3_google_login_requests_total",
-            "Total number of Google login requests",
-            registry=app.prometheus_registry,
-        )
-        self.ras_login_counter = Counter(
-            "gen3_fence_ras_login_requests_total",
-            "Total number of RAS login requests",
-            registry=app.prometheus_registry,
-        )
-        self.presigned_urls_ga4gh_drs_counter = Counter(
-            "gen3_fence_presigned_urls_ga4gh_drs_requests_total",
-            "Total number of presigned URL requests for GA4GH DRS",
-            registry=app.prometheus_registry,
-        )
-        self.presigned_url_download_protocol_gcs_counter = Counter(
-            "gen3_fence_presigned_url_download_protocol_gcs_requests_total",
-            "Total number of presigned URL requests for GCS",
-            registry=app.prometheus_registry,
-        )
-        self.presigned_url_download_protocol_s3_counter = Counter(
-            "gen3_fence_presigned_url_download_protocol_s3_requests_total",
-            "Total number of presigned URL requests for S3",
-            registry=app.prometheus_registry,
-        )
-        self.presigned_url_data_metrics_size_gauge = Gauge(
-            "gen3_fence_presigned_url_data_metrics_size_bytes",
-            "Size of data metrics in bytes",
-            ["acl", "authz", "bucket", "user_sub", "client_id"],
-            registry=app.prometheus_registry,
-        )
+    def create_gauge(self, name, description, labels):
+        if name not in self.metrics:
+            gauge = Gauge(name, description, [labels])
+            self.metrics[name] = gauge
+        else:
+            raise ValueError(f"Metric {name} already exists")
+
+    def increment_counter(self, name, description, labels):
+        if name in self.metrics:
+            logger.info(
+                f"Incrementing counter {name} with label {labels} and description {description}"
+            )
+            self.metrics[name].labels(*labels.values()).inc()
+        else:
+            logger.info(
+                f"Creating counter {name} with label {labels} and description {description}"
+            )
+            self.create_counter(name, description, labels.keys())
+            self.metrics[name].labels(*labels.values()).inc()
+
+    def set_gauge(self, name, description, labels, value):
+        if name in self.metrics:
+            logger.info(
+                f"Setting gauge {name} with label {labels} and description {description}"
+            )
+            self.metrics[name].labels(*labels.values()).set(value)
+        else:
+            logger.info(
+                f"Creating gauge {name} with label {labels} and description {description}"
+            )
+            self.create_gauge(name, description, labels.keys())
+            self.metrics[name].labels(*labels.values()).set(value)
+
+    def generate_latest_metrics(self):
+        return generate_latest(self.registry), CONTENT_TYPE_LATEST
+
+    def init_app(self, app):
+        app.registry = self.registry
 
 
+# Initialize the Metrics instance
 metrics = Metrics()

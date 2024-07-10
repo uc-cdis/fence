@@ -49,6 +49,7 @@ from fence.resources.google.utils import (
 from fence.resources.ga4gh.passports import sync_gen3_users_authz_from_ga4gh_passports
 from fence.resources.audit.utils import enable_audit_logging
 from fence.utils import get_valid_expiration_from_request
+from fence.metrics import metrics
 
 from . import multipart_upload
 from ...models import AssumeRoleCacheAWS, query_for_user, query_for_user_by_id
@@ -77,6 +78,7 @@ def get_signed_url_for_file(
     ga4gh_passports=None,
     db_session=None,
     bucket=None,
+    drs="False",
 ):
     requested_protocol = requested_protocol or flask.request.args.get("protocol", None)
     r_pays_project = flask.request.args.get("userProject", None)
@@ -164,12 +166,16 @@ def get_signed_url_for_file(
         user_sub=flask.g.audit_data.get("sub", ""),
         client_id=_get_client_id(),
         requested_protocol=requested_protocol,
+        action=action,
+        drs=drs,
     )
 
     return {"url": signed_url}
 
 
-def _log_signed_url_data_info(indexed_file, user_sub, client_id, requested_protocol):
+def _log_signed_url_data_info(
+    indexed_file, user_sub, client_id, requested_protocol, action, drs="False"
+):
     size_in_kibibytes = (indexed_file.index_document.get("size") or 0) / 1024
     acl = indexed_file.index_document.get("acl")
     authz = indexed_file.index_document.get("authz")
@@ -197,23 +203,34 @@ def _log_signed_url_data_info(indexed_file, user_sub, client_id, requested_proto
         f"acl={acl} authz={authz} bucket={bucket} user_sub={user_sub} client_id={client_id}"
     )
 
-    from fence.metrics import metrics
-
-    presigned_url_counter = metrics.presigned_url_counter
-    if presigned_url_counter:
-        presigned_url_counter.inc()
-
-    presigned_url_data_metrics_size_gauge = (
-        metrics.presigned_url_data_metrics_size_gauge
+    metrics.increment_counter(
+        "gen3_fence_presigned_url_total",
+        "Fence presigned urls",
+        {
+            "action": action,
+            "protocol": protocol,
+            "acl": acl,
+            "authz": authz,
+            "bucket": bucket,
+            "user_sub": user_sub,
+            "client_id": client_id,
+            "drs": drs,
+        },
     )
-    if presigned_url_data_metrics_size_gauge:
-        presigned_url_data_metrics_size_gauge.labels(
-            acl=acl,
-            authz=authz,
-            bucket=bucket,
-            user_sub=user_sub,
-            client_id=client_id,
-        ).set(size_in_kibibytes)
+    metrics.set_gauge(
+        "gen3_fence_presigned_url_size",
+        "Fence presigned urls",
+        {
+            "action": action,
+            "acl": acl,
+            "authz": authz,
+            "bucket": bucket,
+            "user_sub": user_sub,
+            "client_id": client_id,
+            "drs": drs,
+        },
+        size_in_kibibytes,
+    )
 
 
 def _get_client_id():
@@ -1078,14 +1095,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
             auth_info,
         )
 
-        from fence.metrics import metrics
-
-        presigned_url_download_protocol_s3_counter = (
-            metrics.presigned_url_download_protocol_s3_counter
-        )
-        if presigned_url_download_protocol_s3_counter:
-            presigned_url_download_protocol_s3_counter.inc()
-
         return url
 
     def init_multipart_upload(self, expires_in):
@@ -1217,16 +1226,6 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                 auth_info.get("username"),
                 r_pays_project=r_pays_project,
             )
-
-        from fence.metrics import presigned_url_download_protocol_gcs_counter
-
-        presigned_url_download_protocol_gcs_counter.inc()
-
-        presigned_url_download_protocol_gcs_counter = (
-            metrics.presigned_url_download_protocol_gcs_counter
-        )
-        if presigned_url_download_protocol_gcs_counter:
-            presigned_url_download_protocol_gcs_counter.inc()
 
         return url
 
