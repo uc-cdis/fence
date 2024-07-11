@@ -31,7 +31,7 @@ gen3authz = "^1.5.1"
 gen3cirrus = ">=3.0.1"
 gen3config = ">=1.1.0"
 gen3users = "^1.0.2"
-idna = "^3.7" # https://github.com/python-poetry/poetry/issues/3555
+idna = "^3.7"
 markdown = "^3.1.1"
 
 # this markupsafe pin is due to an error somewhere between Python 3.9.6 and 3.9.16
