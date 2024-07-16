@@ -208,6 +208,7 @@ def _get_client_id():
 
     return client_id
 
+
 def prepare_presigned_url_audit_log(protocol, indexed_file):
     """
     Store in `flask.g.audit_data` the data needed to record an audit log.
@@ -520,6 +521,9 @@ class IndexedFile(object):
                 )
                 raise Unauthorized(msg)
             authorized_user = users_from_passports.get(authorized_username)
+            if not authorized_user:
+                db_session = current_app.scoped_session()
+                authorized_user = query_for_user(session=db_session, username=username)
         else:
             if self.public_acl and action == "upload":
                 raise Unauthorized(
@@ -661,14 +665,21 @@ class IndexedFile(object):
                 #  public data, we still make the request to Arborist
                 token = None
 
+            is_authorized = flask.current_app.arborist.auth_request(
+                jwt=token,
+                service="fence",
+                methods=action,
+                resources=self.index_document["authz"],
+            )
+
+            username = None
+            if token:
+                auth_info = _get_auth_info_for_id_or_from_request(sub_type=int)
+                username = auth_info["username"]
+
             return (
-                flask.current_app.arborist.auth_request(
-                    jwt=token,
-                    service="fence",
-                    methods=action,
-                    resources=self.index_document["authz"],
-                ),
-                None,
+                is_authorized,
+                username,
             )
 
     @cached_property
