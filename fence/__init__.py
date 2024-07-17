@@ -1,19 +1,17 @@
 from collections import OrderedDict
 import os
 from urllib.parse import urljoin
-import flask
-from flask_cors import CORS
-from sqlalchemy.orm import scoped_session
-from flask import current_app, Response
-from werkzeug.local import LocalProxy
 
 from authutils.oauth2.client import OAuthClient
-from cdislogging import get_logger
-from gen3authz.client.arborist.client import ArboristClient
-from flask_wtf.csrf import validate_csrf
 from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
-from urllib.parse import urlparse
+from cdislogging import get_logger
+import flask
+from flask_cors import CORS
+from flask_wtf.csrf import validate_csrf
+from gen3authz.client.arborist.client import ArboristClient
+from sqlalchemy.orm import scoped_session
+
 
 # Can't read config yet. Just set to debug for now, else no handlers.
 # Later, in app_config(), will actually set level based on config
@@ -208,7 +206,7 @@ def app_register_blueprints(app):
     @app.route("/metrics")
     def metrics_endpoint():
         data, content_type = metrics.generate_latest_metrics()
-        return Response(data, content_type=content_type)
+        return flask.Response(data, content_type=content_type)
 
 
 def _check_azure_storage(app):
