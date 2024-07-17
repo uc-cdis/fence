@@ -1,3 +1,7 @@
+
+-- This is a non-comprehensive list of table definitions for for
+-- corresponding ORMs
+
 CREATE TABLE public.ga4gh_passport_cache (
     passport_hash character varying(64) NOT NULL,
     expires_at bigint NOT NULL,

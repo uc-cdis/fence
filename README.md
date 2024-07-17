@@ -263,8 +263,8 @@ files for development), see the `cfg_help.py` file.
 
 ### Set Up Databases
 
-Fence uses sqlalchemy to establish an ORM model against postgres tables. In order to run tests, 
-you will need to create the tables used to run fence operations. You can find a definition file for fence tables 
+Fence uses sqlalchemy to establish an ORM model against postgres tables. In order to run tests,
+you will need to create the tables used to run fence operations. You can find a definition file for fence tables
 [here](docs/db_diagram/table_definitions.sql) and additional tables fence uses in
 [this repo](https://github.com/uc-cdis/userdatamodel).
 
