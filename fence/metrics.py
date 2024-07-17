@@ -58,43 +58,44 @@ class Metrics:
         else:
             raise ValueError(f"Metric {name} already exists")
 
-    def increment_counter(self, name, description, labels):
+    def increment_counter(self, name, labels):
         """
         Increment a Prometheus counter metric
         Args:
             name (str): Name of the metric
-            description (str): Description of the metric
             labels (dict): Dictionary of labels for the metric
         """
         if name in self.metrics:
-            logger.info(
-                f"Incrementing counter {name} with label {labels} and description {description}"
-            )
+            logger.debug(f"Incrementing counter '{name}' with labels: {labels}")
             self.metrics[name].labels(*labels.values()).inc()
         else:
+            description = {
+                "gen3_fence_presigned_url_total": "Fence presigned urls",
+                "gen3_fence_logins_total": "Fence logins",
+            }.get(name, name)
             logger.info(
-                f"Creating counter {name} with label {labels} and description {description}"
+                f"Creating counter '{name}' with description '{description}' and labels: {labels}"
             )
             self.create_counter(name, description, labels)
             self.metrics[name].labels(*labels.values()).inc()
 
-    def set_gauge(self, name, description, labels, value):
+    def set_gauge(self, name, labels, value):
         """
         Set a Prometheus gauge metric
         Args:
             name (str): Name of the metric
-            description (str): Description of the metric
             labels (dict): Dictionary of labels for the metric
             value (int): Value to set the metric to
         """
         if name in self.metrics:
-            logger.info(
-                f"Setting gauge {name} with label {labels} and description {description}"
-            )
+            logger.debug(f"Setting gauge '{name}' with labels: {labels}")
             self.metrics[name].labels(*labels.values()).set(value)
         else:
+            description = {
+                "gen3_fence_presigned_url_size": "Fence presigned urls",
+            }.get(name, name)
             logger.info(
-                f"Creating gauge {name} with label {labels} and description {description}"
+                f"Creating gaude '{name}' with description '{description}' and labels: {labels}"
             )
             self.create_gauge(name, description, labels)
             self.metrics[name].labels(*labels.values()).set(value)

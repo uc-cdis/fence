@@ -129,19 +129,16 @@ class DefaultOAuth2Callback(Resource):
         id_from_idp = result.get(self.id_from_idp_field)
 
         resp = _login(username, self.idp_name, email=email, id_from_idp=id_from_idp)
-        if config["ENABLE_PROMETHEUS_METRICS"]:
-            metrics.increment_counter(
-                "gen3_fence_logins_total", "Fence logins", {"idp": "all"}
-            )
-            metrics.increment_counter(
-                "gen3_fence_logins_total", "Fence logins", {"idp": self.idp_name}
-            )
-
         self.post_login(user=flask.g.user, token_result=result, id_from_idp=id_from_idp)
         return resp
 
     def post_login(self, user=None, token_result=None, **kwargs):
         prepare_login_log(self.idp_name)
+
+        if config["ENABLE_PROMETHEUS_METRICS"]:
+            metrics.increment_counter("gen3_fence_logins_total", {"idp": "all"})
+            metrics.increment_counter("gen3_fence_logins_total", {"idp": self.idp_name})
+
         if token_result:
             username = token_result.get(self.username_field)
             if self.is_mfa_enabled:

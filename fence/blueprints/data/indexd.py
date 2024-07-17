@@ -205,7 +205,6 @@ def _log_signed_url_data_info(
     if config["ENABLE_PROMETHEUS_METRICS"]:
         metrics.increment_counter(
             "gen3_fence_presigned_url_total",
-            "Fence presigned urls",
             {
                 "action": action,
                 "protocol": protocol,
@@ -219,7 +218,6 @@ def _log_signed_url_data_info(
         )
         metrics.set_gauge(
             "gen3_fence_presigned_url_size",
-            "Fence presigned urls",
             {
                 "action": action,
                 "acl": acl,
