@@ -138,3 +138,22 @@ def test_app_config_parent_child_study_mapping(monkeypatch):
     ]
     with pytest.raises(Exception):
         FenceConfig._validate_parent_child_studies(invalid_dbgap_configs)
+
+    valid_dbgap_configs = [
+        {
+            "parent_to_child_studies_mapping": {
+                "phs001194": ["phs000571", "phs001843"],
+                "phs001193": ["phs000572", "phs001844"],
+            }
+        },
+        {
+            "parent_to_child_studies_mapping": {
+                "phs001195": ["phs0015623"],
+                "phs001192": ["phs0001", "phs002"],
+            }
+        },
+    ]
+    try:
+        FenceConfig._validate_parent_child_studies(valid_dbgap_configs)
+    except Exception:
+        pytest.fail("Study validation failed when it should have passed!")
