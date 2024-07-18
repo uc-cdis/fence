@@ -1,3 +1,3 @@
 #!/usr/bin/env bash
 
-poetry run pytest -vv --cov=fence --cov-report xml tests
+poetry run pytest -vv -s --cov=fence --cov-report xml tests
