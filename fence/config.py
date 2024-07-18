@@ -155,8 +155,10 @@ class FenceConfig(Config):
         dbgap_configs = self._configs["dbGaP"]
         if isinstance(dbgap_configs, list):
             corrected_dbgap_configs = dbgap_configs
-        else:  # assume is a dict
+        elif isinstance(dbgap_configs, dict):
             corrected_dbgap_configs = [dbgap_configs]
+        else:
+            raise Exception("The dbgap configuration is not a recognized data structure, aborting!")
         self._validate_parent_child_studies(corrected_dbgap_configs)
 
     @staticmethod
