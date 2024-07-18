@@ -290,6 +290,10 @@ def test_sync(
 
     user = models.query_for_user(session=db_session, username="TESTUSERD")
     assert user.display_name == "USER D"
+    print(user)
+    print(user.phone_number)
+    print(user.email)
+    print(user.id)
     assert user.phone_number == "123-456-789"
 
     user = models.query_for_user(session=db_session, username="test_user1@gmail.com")
@@ -498,21 +502,30 @@ def test_sync_with_google_errors(syncer, monkeypatch):
     syncer._update_arborist.assert_called()
     syncer._update_authz_in_arborist.assert_called()
 
+
 @patch("fence.sync.sync_users.paramiko.SSHClient")
 @patch("os.makedirs")
 @patch("os.path.exists", return_value=False)
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
-def test_sync_with_sftp_connection_errors(mock_path, mock_makedir, mock_ssh_client, syncer, monkeypatch):
+def test_sync_with_sftp_connection_errors(
+    mock_path, mock_makedir, mock_ssh_client, syncer, monkeypatch
+):
     """
     Verifies that when there is an sftp connection error connection, that the connection is retried the max amount of
     tries as configured by DEFAULT_BACKOFF_SETTINGS
     """
     monkeypatch.setattr(syncer, "is_sync_from_dbgap_server", True)
-    mock_ssh_client.return_value.__enter__.return_value.connect.side_effect = Exception("Authentication timed out")
+    mock_ssh_client.return_value.__enter__.return_value.connect.side_effect = Exception(
+        "Authentication timed out"
+    )
     # usersync System Exits if any exception is raised during download.
     with pytest.raises(SystemExit):
         syncer.sync()
-    assert mock_ssh_client.return_value.__enter__.return_value.connect.call_count == DEFAULT_BACKOFF_SETTINGS['max_tries']
+    assert (
+        mock_ssh_client.return_value.__enter__.return_value.connect.call_count
+        == DEFAULT_BACKOFF_SETTINGS["max_tries"]
+    )
+
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
 def test_sync_from_files(syncer, db_session, storage_client):
@@ -1062,6 +1075,7 @@ def test_revoke_all_policies_no_user(db_session, syncer):
 
     # we only care that this doesn't error
     assert True
+
 
 @pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)
 def test_revoke_all_policies_preserve_mfa(monkeypatch, db_session, syncer):
