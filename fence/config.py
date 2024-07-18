@@ -6,6 +6,7 @@ import gen3cirrus
 from gen3config import Config
 
 from cdislogging import get_logger
+from collections import Counter
 
 logger = get_logger(__name__)
 
@@ -150,28 +151,37 @@ class FenceConfig(Config):
                 logger.warning(
                     f"IdP '{idp_id}' is using multifactor_auth_claim_info '{mfa_info['claim']}', which is neither AMR or ACR. Unable to determine if a user used MFA. Fence will continue and assume they have not used MFA."
                 )
+        dbgap_configs = self._configs["dbGaP"]
+        if isinstance(dbgap_configs, list):
+            corrected_dbgap_configs = dbgap_configs
+        else:  # assume is a dict
+            corrected_dbgap_configs = [dbgap_configs]
+        self._validate_parent_child_studies(corrected_dbgap_configs)
 
-        self._validate_parent_child_studies(self._configs["dbGaP"])
+    @staticmethod
+    def find_duplicates(collection):
+        item_with_occurrences = Counter(collection)
+        duplicates = {item
+                      for item, occurrences in item_with_occurrences.items()
+                      if occurrences > 1}
+        return duplicates
 
     @staticmethod
     def _validate_parent_child_studies(dbgap_configs):
-        if isinstance(dbgap_configs, list):
-            configs = dbgap_configs
-        else:
-            configs = [dbgap_configs]
+        def get_parent_studies_safely(dbgap_config):
+            study_parents = dbgap_config.get('parent_to_child_studies_mapping', {})
+            # study_parents could be 'None'
+            return list(study_parents.keys()) if isinstance(study_parents, dict) else []
 
-        all_parent_studies = set()
-        for dbgap_config in configs:
-            parent_studies = dbgap_config.get(
-                "parent_to_child_studies_mapping", {}
-            ).keys()
-            conflicts = parent_studies & all_parent_studies
-            if len(conflicts) > 0:
-                raise Exception(
-                    f"{conflicts} are duplicate parent study ids found in parent_to_child_studies_mapping for "
-                    f"multiple dbGaP configurations."
-                )
-            all_parent_studies.update(parent_studies)
+        safe_list_of_parent_studies = [safe_parent_studies
+                                       for dbgap_config in dbgap_configs
+                                       for safe_parent_studies in get_parent_studies_safely(dbgap_config)]
+
+        duplicates = FenceConfig.find_duplicates(safe_list_of_parent_studies)
+        if len(duplicates) > 0:
+            raise Exception(
+                f"{duplicates} are duplicate parent study ids found in parent_to_child_studies_mapping for "
+                f"multiple dbGaP configurations.")
 
 
 config = FenceConfig(DEFAULT_CFG_PATH)
