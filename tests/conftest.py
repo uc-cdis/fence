@@ -542,9 +542,11 @@ def db(app, request):
         connection = app.db.engine.connect()
         connection.begin()
         for table in reversed(models.Base.metadata.sorted_tables):
-            # Delete table only if it exists
-            if app.db.engine.dialect.has_table(connection, table):
-                connection.execute(table.delete())
+            connection.execute(table.delete())
+
+            # # Delete table only if it exists
+            # if app.db.engine.dialect.has_table(connection, table):
+            #     connection.execute(table.delete())
         connection.close()
 
     request.addfinalizer(drop_all)

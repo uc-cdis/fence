@@ -1141,11 +1141,7 @@ class UserSyncer(object):
 
             u.email = user_info[username].get("email", "")
             u.display_name = user_info[username].get("display_name", "")
-            u.phone_number = (
-                user_info[username].get("phone_number", "")
-                if not u.phone_number
-                else u.phone_number
-            )
+            u.phone_number = user_info[username].get("phone_number", "")
             u.is_admin = user_info[username].get("admin", False)
 
             idp_name = user_info[username].get("idp_name", "")
