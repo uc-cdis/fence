@@ -203,34 +203,17 @@ def _log_signed_url_data_info(
         f"acl={acl} authz={authz} bucket={bucket} user_sub={user_sub} client_id={client_id}"
     )
 
-    if config["ENABLE_PROMETHEUS_METRICS"]:
-        metrics.increment_counter(
-            "gen3_fence_presigned_url_total",
-            {
-                "action": action,
-                "protocol": protocol,
-                "acl": acl,
-                "authz": authz,
-                "bucket": bucket,
-                "user_sub": user_sub,
-                "client_id": client_id,
-                "drs": drs,
-            },
-        )
-        metrics.set_gauge(
-            "gen3_fence_presigned_url_size",
-            {
-                "action": action,
-                "protocol": protocol,
-                "acl": acl,
-                "authz": authz,
-                "bucket": bucket,
-                "user_sub": user_sub,
-                "client_id": client_id,
-                "drs": drs,
-            },
-            size_in_kibibytes,
-        )
+    metrics.add_signed_url_event(
+        action,
+        protocol,
+        acl,
+        authz,
+        bucket,
+        user_sub,
+        client_id,
+        drs,
+        size_in_kibibytes,
+    )
 
 
 def _get_client_id():

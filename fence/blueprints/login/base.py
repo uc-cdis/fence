@@ -135,9 +135,8 @@ class DefaultOAuth2Callback(Resource):
     def post_login(self, user=None, token_result=None, **kwargs):
         prepare_login_log(self.idp_name)
 
-        if config["ENABLE_PROMETHEUS_METRICS"]:
-            metrics.increment_counter("gen3_fence_logins_total", {"idp": "all"})
-            metrics.increment_counter("gen3_fence_logins_total", {"idp": self.idp_name})
+        metrics.add_login_event(idp="all")
+        metrics.add_login_event(idp=self.idp_name)
 
         if token_result:
             username = token_result.get(self.username_field)

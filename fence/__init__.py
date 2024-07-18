@@ -205,7 +205,7 @@ def app_register_blueprints(app):
 
     @app.route("/metrics")
     def metrics_endpoint():
-        data, content_type = metrics.generate_latest_metrics()
+        data, content_type = metrics.get_latest_metrics()
         return flask.Response(data, content_type=content_type)
 
 
