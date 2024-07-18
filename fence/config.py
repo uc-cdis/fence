@@ -169,9 +169,9 @@ class FenceConfig(Config):
     @staticmethod
     def _validate_parent_child_studies(dbgap_configs):
         def get_parent_studies_safely(dbgap_config):
-            study_parents = dbgap_config.get('parent_to_child_studies_mapping', {})
-            # study_parents could be 'None'
-            return list(study_parents.keys()) if isinstance(study_parents, dict) else []
+            study_mapping = dbgap_config.get('parent_to_child_studies_mapping', {})
+            # study mapping could be 'None'
+            return list(study_mapping.keys()) if isinstance(study_mapping, dict) else []
 
         safe_list_of_parent_studies = [safe_parent_studies
                                        for dbgap_config in dbgap_configs
