@@ -290,6 +290,7 @@ def test_sync(
 
     user = models.query_for_user(session=db_session, username="TESTUSERD")
     assert user.display_name == "USER D"
+    print("--------------------------------")
     print(user)
     print(user.phone_number)
     print(user.email)
