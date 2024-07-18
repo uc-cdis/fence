@@ -122,6 +122,14 @@ def test_app_config():
 
 
 def test_app_config_parent_child_study_mapping(monkeypatch):
+
+    none_string_config = [{"parent_to_child_studies_mapping": 'None'},
+                          {"parent_to_child_studies_mapping": 'None'},]
+    try:
+        FenceConfig._validate_parent_child_studies(none_string_config)
+    except Exception:
+        pytest.fail("Study validation failed when given 'None' mapping!")
+
     invalid_dbgap_configs = [
         {
             "parent_to_child_studies_mapping": {
