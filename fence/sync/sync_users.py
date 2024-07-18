@@ -542,6 +542,7 @@ class UserSyncer(object):
             ]  # when converting the YAML from fence-config, python reads it as Python string literal. So "\" turns into "\\" which messes with the regex match
             project_id_patterns += patterns
 
+        self.logger.info(f"Using these file paths: {file_dict.items()}")
         for filepath, privileges in file_dict.items():
             self.logger.info("Reading file {}".format(filepath))
             if os.stat(filepath).st_size == 0:
