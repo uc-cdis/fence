@@ -7,6 +7,7 @@ from gen3config import Config
 
 from cdislogging import get_logger
 from collections import Counter
+from typing import List, Dict, Any
 
 logger = get_logger(__name__)
 
@@ -167,7 +168,7 @@ class FenceConfig(Config):
         return duplicates
 
     @staticmethod
-    def _validate_parent_child_studies(dbgap_configs):
+    def _validate_parent_child_studies(dbgap_configs: List[Dict[str, Any]]) -> None:
         def get_parent_studies_safely(dbgap_config):
             study_mapping = dbgap_config.get('parent_to_child_studies_mapping', {})
             # study mapping could be 'None'
