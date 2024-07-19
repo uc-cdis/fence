@@ -134,9 +134,13 @@ class DefaultOAuth2Callback(Resource):
 
     def post_login(self, user=None, token_result=None, **kwargs):
         prepare_login_log(self.idp_name)
-
-        metrics.add_login_event(idp="all")
-        metrics.add_login_event(idp=self.idp_name)
+        metrics.add_login_event(
+            user_sub=flask.g.user.id,
+            idp=self.idp_name,
+            fence_idp=flask.session.get("fence_idp"),
+            shib_idp=flask.session.get("shib_idp"),
+            client_id=flask.session.get("client_id"),
+        )
 
         if token_result:
             username = token_result.get(self.username_field)

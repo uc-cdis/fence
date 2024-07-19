@@ -15,6 +15,7 @@ import mock
 import uuid
 import random
 import string
+import tempfile
 
 from addict import Dict
 from alembic.config import main as alembic_main
@@ -37,6 +38,12 @@ from sqlalchemy.ext.compiler import compiles
 # Set FENCE_CONFIG_PATH *before* loading the configuration
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 os.environ["FENCE_CONFIG_PATH"] = os.path.join(CURRENT_DIR, "test-fence-config.yaml")
+
+# Set the prometheus working directory *before* loading any fence app files or `prometheus_client`
+PROMETHEUS_TMP_COUNTER_DIR = tempfile.TemporaryDirectory()
+os.environ["prometheus_multiproc_dir"] = PROMETHEUS_TMP_COUNTER_DIR.name
+
+import prometheus_client
 
 import fence
 from fence import app_init
@@ -552,6 +559,11 @@ def db(app, request):
     return app.db
 
 
+@pytest.fixture
+def prometheus_metrics_before():
+    yield copy.deepcopy(list(prometheus_client.REGISTRY.collect()))
+
+
 @fence.app.route("/protected")
 @fence.auth.login_required({"access"})
 def protected_endpoint(methods=["GET"]):
@@ -966,6 +978,7 @@ def indexd_client_with_arborist(app, request):
             "mocker": mocker,
             # only gs or s3 for location, ignore specifiers after the _
             "indexed_file_location": protocol.split("_")[0],
+            "record": record,
         }
 
         return output

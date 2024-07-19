@@ -173,6 +173,20 @@ def get_signed_url_for_file(
     return {"url": signed_url}
 
 
+def get_bucket_from_urls(urls, protocol):
+    bucket = ""
+    for url in urls:
+        if "://" in url:
+            # Extract the protocol and the rest of the URL
+            bucket_protocol, rest_of_url = url.split("://", 1)
+
+            if bucket_protocol == protocol:
+                # Extract bucket name
+                bucket = f"{bucket_protocol}://{rest_of_url.split('/')[0]}"
+                break
+    return bucket
+
+
 def _log_signed_url_data_info(
     indexed_file, user_sub, client_id, requested_protocol, action, drs="False"
 ):
@@ -186,17 +200,7 @@ def _log_signed_url_data_info(
         protocol = indexed_file.indexed_file_locations[0].protocol
 
     # figure out which bucket was used based on the protocol
-    bucket = ""
-    for url in indexed_file.index_document.get("urls", []):
-        bucket_name = None
-        if "://" in url:
-            # Extract the protocol and the rest of the URL
-            bucket_protocol, rest_of_url = url.split("://", 1)
-
-            if bucket_protocol == protocol:
-                # Extract bucket name
-                bucket = f"{bucket_protocol}://{rest_of_url.split('/')[0]}"
-                break
+    bucket = get_bucket_from_urls(indexed_file.index_document.get("urls", []), protocol)
 
     logger.info(
         f"Signed URL Generated. action={action} size_in_kibibytes={size_in_kibibytes} "

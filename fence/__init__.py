@@ -92,13 +92,11 @@ def app_init(
         file_name=config_file_name,
     )
     app_sessions(app)
-    if config["ENABLE_PROMETHEUS_METRICS"]:
-        logger.info("Enabling Prometheus metrics...")
-        metrics.init_app(app)
-    else:
-        logger.info("Prometheus metrics are NOT enabled.")
     app_register_blueprints(app)
     server.init_app(app, query_client=query_client)
+    logger.info(
+        f"Prometheus metrics are{'' if config['ENABLE_PROMETHEUS_METRICS'] else ' NOT'} enabled."
+    )
 
 
 def app_sessions(app):

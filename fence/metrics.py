@@ -16,10 +16,6 @@ from fence.config import config
 
 logger = get_logger(__name__)
 
-PROMETHEUS_TMP_COUNTER_DIR = tempfile.TemporaryDirectory()
-
-os.environ["prometheus_multiproc_dir"] = PROMETHEUS_TMP_COUNTER_DIR.name
-
 
 class Metrics:
     """
@@ -29,7 +25,8 @@ class Metrics:
         metrics (dict): Dictionary to store Prometheus metrics
     """
 
-    def __init__(self):
+    def __init__(self, path):
+        os.environ["prometheus_multiproc_dir"] = path
         self._registry = CollectorRegistry()
         multiprocess.MultiProcessCollector(self._registry)
         self._metrics = {}
@@ -37,20 +34,12 @@ class Metrics:
         # set the descriptions of new metrics here. Descriptions not specified here
         # will default to the metric name.
         self._counter_descriptions = {
-            "gen3_fence_presigned_url_total": "Fence presigned urls",
-            "gen3_fence_logins_total": "Fence logins",
+            "gen3_fence_presigned_url": "Fence presigned urls",
+            "gen3_fence_login": "Fence logins",
         }
         self._gauge_descriptions = {
             "gen3_fence_presigned_url_size": "Fence presigned urls",
         }
-
-    def init_app(self, app):
-        """
-        Initialize the Prometheus metrics app
-        Args:
-            app (Flask): Flask app
-        """
-        app.registry = self._registry
 
     def get_latest_metrics(self):
         """
@@ -63,7 +52,9 @@ class Metrics:
 
     def _increment_counter(self, name, labels):
         """
-        Increment a Prometheus counter metric
+        Increment a Prometheus counter metric.
+        Note that this function should not be called directly - implement a function like
+        `add_login_event` instead. A metric's labels should always be consistent.
         Args:
             name (str): Name of the metric
             labels (dict): Dictionary of labels for the metric
@@ -85,7 +76,9 @@ class Metrics:
 
     def _set_gauge(self, name, labels, value):
         """
-        Set a Prometheus gauge metric
+        Set a Prometheus gauge metric.
+        Note that this function should not be called directly - implement a function like
+        `add_signed_url_event` instead. A metric's labels should always be consistent.
         Args:
             name (str): Name of the metric
             labels (dict): Dictionary of labels for the metric
@@ -106,13 +99,33 @@ class Metrics:
         logger.debug(f"Setting gauge '{name}' with labels: {labels}")
         self._metrics[name].labels(*labels.values()).set(value)
 
-    def add_login_event(self, idp):
+    def add_login_event(self, user_sub, idp, fence_idp, shib_idp, client_id):
         """
         Record a login event
         """
         if not config["ENABLE_PROMETHEUS_METRICS"]:
             return
-        self._increment_counter("gen3_fence_logins_total", {"idp": idp})
+        self._increment_counter(
+            "gen3_fence_login",
+            {
+                "user_sub": user_sub,
+                "idp": idp,
+                "client_id": client_id,
+                "fence_idp": fence_idp,
+                "shib_idp": shib_idp,
+            },
+        )
+        self._increment_counter(
+            "gen3_fence_login",
+            {
+                "user_sub": user_sub,
+                "idp": "all",
+                "client_id": client_id,
+                # when counting all IDPs, we don't care about the fence and ship IDP values
+                "fence_idp": None,
+                "shib_idp": None,
+            },
+        )
 
     def add_signed_url_event(
         self,
@@ -132,7 +145,7 @@ class Metrics:
         if not config["ENABLE_PROMETHEUS_METRICS"]:
             return
         self._increment_counter(
-            "gen3_fence_presigned_url_total",
+            "gen3_fence_presigned_url",
             {
                 "action": action,
                 "protocol": protocol,
@@ -161,4 +174,5 @@ class Metrics:
 
 
 # Initialize the Metrics instance
-metrics = Metrics()
+PROMETHEUS_TMP_COUNTER_DIR = tempfile.TemporaryDirectory()
+metrics = Metrics(path=PROMETHEUS_TMP_COUNTER_DIR.name)
