@@ -27,7 +27,7 @@ from fence.resources.google.access_utils import (
     is_user_member_of_google_project,
     is_user_member_of_all_google_projects,
 )
-from cirrus.google_cloud import GoogleCloudManager
+from gen3cirrus.google_cloud import GoogleCloudManager
 
 from cdislogging import get_logger
 

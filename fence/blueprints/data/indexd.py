@@ -6,8 +6,8 @@ from datetime import datetime, timedelta
 
 from sqlalchemy.sql.functions import user
 from cached_property import cached_property
-import cirrus
-from cirrus import GoogleCloudManager
+import gen3cirrus
+from gen3cirrus import GoogleCloudManager
 from cdislogging import get_logger
 from cdispyutils.config import get_value
 from cdispyutils.hmac4 import generate_aws_presigned_url
@@ -82,7 +82,7 @@ def get_signed_url_for_file(
     r_pays_project = flask.request.args.get("userProject", None)
     db_session = db_session or current_app.scoped_session()
 
-    # default to signing the url
+    # default to signing the URL
     force_signed_url = True
     no_force_sign_param = flask.request.args.get("no_force_sign")
     if no_force_sign_param and no_force_sign_param.lower() == "true":
@@ -162,19 +162,22 @@ def get_signed_url_for_file(
     _log_signed_url_data_info(
         indexed_file=indexed_file,
         user_sub=flask.g.audit_data.get("sub", ""),
-        requested_protocol=requested_protocol
+        client_id=_get_client_id(),
+        requested_protocol=requested_protocol,
     )
 
     return {"url": signed_url}
 
 
-def _log_signed_url_data_info(indexed_file, user_sub, requested_protocol):
-    size_in_kibibytes = indexed_file.index_document.get("size", 0) / 1024
+def _log_signed_url_data_info(indexed_file, user_sub, client_id, requested_protocol):
+    size_in_kibibytes = (indexed_file.index_document.get("size") or 0) / 1024
     acl = indexed_file.index_document.get("acl")
     authz = indexed_file.index_document.get("authz")
 
-    # the behavior later on is to pick the 1st location as the signed URL if a protocol is not requested
-    protocol = requested_protocol or indexed_file.indexed_file_locations[0].protocol
+    # the behavior later on is to pick the 1st location as the signed URL if a protocol is not requested, if available
+    protocol = requested_protocol
+    if not protocol and indexed_file.indexed_file_locations:
+        protocol = indexed_file.indexed_file_locations[0].protocol
 
     # figure out which bucket was used based on the protocol
     bucket = ""
@@ -190,9 +193,20 @@ def _log_signed_url_data_info(indexed_file, user_sub, requested_protocol):
                 break
 
     logger.info(
-        f"Signed URL Generated. size_in_kibibytes={size_in_kibibytes} acl={acl} authz={authz} bucket={bucket} user_sub={user_sub}"
+        f"Signed URL Generated. size_in_kibibytes={size_in_kibibytes} "
+        f"acl={acl} authz={authz} bucket={bucket} user_sub={user_sub} client_id={client_id}"
     )
 
+
+def _get_client_id():
+    client_id = "Unknown Client"
+
+    try:
+        client_id = current_token.get("azp") or "Unknown Client"
+    except Exception as exc:
+        pass
+
+    return client_id
 
 def prepare_presigned_url_audit_log(protocol, indexed_file):
     """
@@ -319,12 +333,7 @@ class BlankIndex(object):
             )
         else:
             if not bucket:
-                try:
-                    bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
-                except KeyError:
-                    raise InternalError(
-                        "fence not configured with data upload bucket; can't create signed URL"
-                    )
+                bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
 
             self.logger.debug("Attempting to upload to bucket '{}'".format(bucket))
             s3_url = "s3://{}/{}/{}".format(bucket, self.guid, file_name)
@@ -349,13 +358,8 @@ class BlankIndex(object):
         Returns:
             uploadId(str)
         """
-        try:
-            bucket = bucket or flask.current_app.config["DATA_UPLOAD_BUCKET"]
-        except KeyError:
-            raise InternalError(
-                "fence not configured with data upload bucket; can't create signed URL"
-            )
-
+        if not bucket:
+            bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
         s3_url = "s3://{}/{}".format(bucket, key)
         return S3IndexedFileLocation(s3_url).init_multipart_upload(expires_in)
 
@@ -376,12 +380,7 @@ class BlankIndex(object):
         if bucket:
             verify_data_upload_bucket_configuration(bucket)
         else:
-            try:
-                bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
-            except KeyError:
-                raise InternalError(
-                    "fence not configured with data upload bucket; can't create signed URL"
-                )
+            bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
         s3_url = "s3://{}/{}".format(bucket, key)
         S3IndexedFileLocation(s3_url).complete_multipart_upload(
             uploadId, parts, expires_in
@@ -405,12 +404,7 @@ class BlankIndex(object):
         if bucket:
             verify_data_upload_bucket_configuration(bucket)
         else:
-            try:
-                bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
-            except KeyError:
-                raise InternalError(
-                    "fence not configured with data upload bucket; can't create signed URL"
-                )
+            bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
         s3_url = "s3://{}/{}".format(bucket, key)
         return S3IndexedFileLocation(s3_url).generate_presigned_url_for_part_upload(
             uploadId, partNumber, expires_in
@@ -430,7 +424,7 @@ class IndexedFile(object):
         also be cleaner).
 
     Args:
-        file_id (str): GUID for the file.
+        file_id (str): GUID for the file
     """
 
     def __init__(self, file_id):
@@ -1204,7 +1198,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
     ):
         # we will use the main fence SA service account to sign anonymous requests
         private_key = get_google_app_creds()
-        final_url = cirrus.google_cloud.utils.get_signed_url(
+        final_url = gen3cirrus.google_cloud.utils.get_signed_url(
             resource_path,
             http_verb,
             expires_in,
@@ -1345,7 +1339,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         if config["BILLING_PROJECT_FOR_SIGNED_URLS"] and not r_pays_project:
             r_pays_project = config["BILLING_PROJECT_FOR_SIGNED_URLS"]
 
-        final_url = cirrus.google_cloud.utils.get_signed_url(
+        final_url = gen3cirrus.google_cloud.utils.get_signed_url(
             resource_path,
             http_verb,
             expires_in,
@@ -1658,22 +1652,7 @@ def filter_auth_ids(action, list_auth_ids):
 
 
 def verify_data_upload_bucket_configuration(bucket):
-    """
-    Verify that the bucket is configured in Fence as an uploadable bucket
-
-    Args:
-        bucket(str): bucket name
-    """
     s3_buckets = flask.current_app.config["ALLOWED_DATA_UPLOAD_BUCKETS"]
-
-    if not s3_buckets:
-        raise InternalError("ALLOWED_DATA_UPLOAD_BUCKETS not configured")
-
-    s3_buckets = get_value(
-        flask.current_app.config,
-        "ALLOWED_DATA_UPLOAD_BUCKETS",
-        InternalError("ALLOWED_DATA_UPLOAD_BUCKETS not configured"),
-    )
     if bucket not in s3_buckets:
         logger.error(f"Bucket '{bucket}' not in ALLOWED_DATA_UPLOAD_BUCKETS config")
         logger.debug(f"Buckets configgured in ALLOWED_DATA_UPLOAD_BUCKETS {s3_buckets}")

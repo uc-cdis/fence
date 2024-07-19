@@ -21,7 +21,10 @@ def allowed_login_redirects():
     with flask.current_app.db.session as session:
         clients = session.query(Client).all()
         for client in clients:
-            allowed.extend(client.redirect_uris)
+            if isinstance(client.redirect_uris, list):
+                allowed.extend(client.redirect_uris)
+            elif isinstance(client.redirect_uris, str):
+                allowed.append(client.redirect_uris)
     return {domain(url) for url in allowed}
 
 

@@ -6,7 +6,7 @@ from flask import current_app
 
 from cdislogging import get_logger
 
-from cirrus import GoogleCloudManager
+from gen3cirrus import GoogleCloudManager
 from fence.blueprints.login.redirect import validate_redirect
 from fence.restful import RestfulApi
 from fence.errors import NotFound

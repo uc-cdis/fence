@@ -11,6 +11,7 @@ from fence import models
 from fence.resources.google.access_utils import GoogleUpdateException
 from fence.config import config
 from fence.job.visa_update_cronjob import Visa_Token_Update
+from fence.utils import DEFAULT_BACKOFF_SETTINGS
 
 from tests.dbgap_sync.conftest import (
     get_test_encoded_decoded_visa_and_exp,
@@ -497,6 +498,21 @@ def test_sync_with_google_errors(syncer, monkeypatch):
     syncer._update_arborist.assert_called()
     syncer._update_authz_in_arborist.assert_called()
 
+@patch("fence.sync.sync_users.paramiko.SSHClient")
+@patch("os.makedirs")
+@patch("os.path.exists", return_value=False)
+@pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
+def test_sync_with_sftp_connection_errors(mock_path, mock_makedir, mock_ssh_client, syncer, monkeypatch):
+    """
+    Verifies that when there is an sftp connection error connection, that the connection is retried the max amount of
+    tries as configured by DEFAULT_BACKOFF_SETTINGS
+    """
+    monkeypatch.setattr(syncer, "is_sync_from_dbgap_server", True)
+    mock_ssh_client.return_value.__enter__.return_value.connect.side_effect = Exception("Authentication timed out")
+    # usersync System Exits if any exception is raised during download.
+    with pytest.raises(SystemExit):
+        syncer.sync()
+    assert mock_ssh_client.return_value.__enter__.return_value.connect.call_count == DEFAULT_BACKOFF_SETTINGS['max_tries']
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
 def test_sync_from_files(syncer, db_session, storage_client):
@@ -1034,6 +1050,20 @@ def test_user_sync_with_visa_sync_job(
 
 
 @pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)
+def test_revoke_all_policies_no_user(db_session, syncer):
+    """
+    Test that function returns even when there's no user
+    """
+    # no arborist user with that username
+    user_that_doesnt_exist = "foobar"
+    syncer.arborist_client.get_user.return_value = None
+
+    syncer._revoke_all_policies_preserve_mfa(user_that_doesnt_exist, "mock_idp")
+
+    # we only care that this doesn't error
+    assert True
+
+@pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)
 def test_revoke_all_policies_preserve_mfa(monkeypatch, db_session, syncer):
     """
     Test that the mfa_policy is re-granted to the user after revoking all their policies.
@@ -1051,7 +1081,7 @@ def test_revoke_all_policies_preserve_mfa(monkeypatch, db_session, syncer):
         username="mockuser", identity_provider=IdentityProvider(name="mock_idp")
     )
     syncer.arborist_client.get_user.return_value = {"policies": ["mfa_policy"]}
-    syncer._revoke_all_policies_preserve_mfa(user)
+    syncer._revoke_all_policies_preserve_mfa(user.username, user.identity_provider.name)
     syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
         user.username
     )
@@ -1080,7 +1110,7 @@ def test_revoke_all_policies_preserve_mfa_no_mfa(monkeypatch, db_session, syncer
     syncer.arborist_client.list_resources_for_user.return_value = [
         "/programs/phs0001111"
     ]
-    syncer._revoke_all_policies_preserve_mfa(user)
+    syncer._revoke_all_policies_preserve_mfa(user.username, user.identity_provider.name)
     syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
         user.username
     )
@@ -1102,7 +1132,7 @@ def test_revoke_all_policies_preserve_mfa_no_idp(monkeypatch, db_session, syncer
         },
     )
     user = User(username="mockuser")
-    syncer._revoke_all_policies_preserve_mfa(user)
+    syncer._revoke_all_policies_preserve_mfa(user.username)
     syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
         user.username
     )
@@ -1132,7 +1162,7 @@ def test_revoke_all_policies_preserve_mfa_ensure_revoke_on_error(
     syncer.arborist_client.list_resources_for_user.side_effect = Exception(
         "Unknown error"
     )
-    syncer._revoke_all_policies_preserve_mfa(user)
+    syncer._revoke_all_policies_preserve_mfa(user.username, user.identity_provider.name)
     syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
         user.username
     )

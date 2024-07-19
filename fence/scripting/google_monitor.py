@@ -7,9 +7,9 @@ handle invalid service accounts and projects.
 """
 import traceback
 
-from cirrus.google_cloud.iam import GooglePolicyMember
-from cirrus import GoogleCloudManager
-from cirrus.google_cloud.errors import GoogleAPIError
+from gen3cirrus.google_cloud.iam import GooglePolicyMember
+from gen3cirrus import GoogleCloudManager
+from gen3cirrus.google_cloud.errors import GoogleAPIError
 
 from cdislogging import get_logger
 
@@ -357,7 +357,6 @@ def _get_invalid_sa_project_removal_reasons(google_project_validity):
 
 
 def _get_access_removal_reasons(google_project_validity):
-
     removal_reasons = {}
 
     if google_project_validity is None:
@@ -537,7 +536,6 @@ def _get_users_without_access(db, auth_ids, user_emails, check_linking):
     no_access = {}
 
     for user_email in user_emails:
-
         user = get_user_by_email(user_email, db) or get_user_by_linked_email(
             user_email, db
         )
@@ -588,7 +586,6 @@ def _get_users_without_access(db, auth_ids, user_emails, check_linking):
 
 
 def email_user_without_access(user_email, projects, google_project_id):
-
     """
     Send email to user, indicating no access to given projects
 
@@ -618,7 +615,6 @@ def email_user_without_access(user_email, projects, google_project_id):
 def email_users_without_access(
     db, auth_ids, user_emails, check_linking, google_project_id
 ):
-
     """
     Build list of users without acess and send emails.
 

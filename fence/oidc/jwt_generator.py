@@ -15,6 +15,7 @@ from fence.resources.google.utils import (
 )
 
 from fence.config import config
+from fence.utils import validate_scopes
 
 
 def generate_token(client, grant_type, **kwargs):
@@ -47,6 +48,10 @@ def generate_token(client, grant_type, **kwargs):
             claims (to avoid having to encode or decode the refresh token
             here)
     """
+    # We need to validate scopes here because Authlib only check request scope against
+    # server's allowed_scopes
+    validate_scopes(kwargs["scope"], client)
+
     if grant_type == "authorization_code" or grant_type == "refresh_token":
         return generate_token_response(client, grant_type, **kwargs)
     elif grant_type == "implicit":

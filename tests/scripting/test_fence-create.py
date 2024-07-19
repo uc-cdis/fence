@@ -5,8 +5,8 @@ import mock
 from unittest.mock import MagicMock, patch
 import pytest
 
-import cirrus
-from cirrus.google_cloud.errors import GoogleAuthError
+import gen3cirrus
+from gen3cirrus.google_cloud.errors import GoogleAuthError
 from userdatamodel.models import Group
 
 from fence.config import config
@@ -113,7 +113,7 @@ def test_create_client_inits_default_allowed_scopes(db_session):
 
     def to_test():
         saved_client = db_session.query(Client).filter_by(name=client_name).first()
-        assert saved_client._allowed_scopes == " ".join(config["CLIENT_ALLOWED_SCOPES"])
+        assert saved_client.scope == " ".join(config["CLIENT_ALLOWED_SCOPES"])
 
     create_client_action_wrapper(
         to_test,
@@ -131,7 +131,7 @@ def test_create_client_inits_passed_allowed_scopes(db_session):
 
     def to_test():
         saved_client = db_session.query(Client).filter_by(name=client_name).first()
-        assert saved_client._allowed_scopes == "openid user data"
+        assert saved_client.scope == "openid user data"
 
     create_client_action_wrapper(
         to_test,
@@ -150,7 +150,7 @@ def test_create_client_adds_openid_when_not_in_allowed_scopes(db_session):
 
     def to_test():
         saved_client = db_session.query(Client).filter_by(name=client_name).first()
-        assert saved_client._allowed_scopes == "user data openid"
+        assert saved_client.scope == "user data openid"
 
     create_client_action_wrapper(
         to_test,
@@ -490,7 +490,7 @@ def test_client_rotate(db_session):
         for attr in [
             "user",
             "redirect_uris",
-            "_allowed_scopes",
+            "scope",
             "description",
             "auto_approve",
             "grant_types",
@@ -537,21 +537,23 @@ def test_client_rotate_and_actions(db_session, capsys):
     capsys.readouterr()  # clear the buffer
     list_client_action(db_session)
     captured_logs = str(capsys.readouterr())
-    assert captured_logs.count("'name': 'client_abc'") == 3
+    assert captured_logs.count("'name\\': \\'client_abc\\'") == 3
     for i in range(3):
-        assert captured_logs.count(f"'client_id': '{clients[i].client_id}'") == 1
+        assert (
+            captured_logs.count(f"\\'client_id\\': \\'{clients[i].client_id}\\'") == 1
+        )
 
     # check that `modify_client_action` updates all the rows
     description = "new description"
     url2 = "new url"
     modify_client_action(
-        db_session, client_name, description=description, urls=[url2], append=True
+        config["DB"], client_name, description=description, urls=[url2], append=True
     )
     clients = db_session.query(Client).filter_by(name=client_name).all()
     assert len(clients) == 3
     for i in range(3):
         assert clients[i].description == description
-        assert clients[i].redirect_uri == f"{url1}\n{url2}"
+        assert clients[i].redirect_uris == [url1, url2]
 
     # check that `delete_client_action` deletes all the rows
     delete_client_action(config["DB"], client_name)
@@ -670,13 +672,12 @@ def test_create_user_access_token(
 def test_create_refresh_token_with_found_user(
     app, db_session, oauth_test_client, kid, rsa_private_key
 ):
-
     DB = config["DB"]
     username = "test_user"
     BASE_URL = config["BASE_URL"]
     scopes = "openid,user"
     expires_in = 3600
-
+    client_id = "test-client"
     user = User(username=username)
     db_session.add(user)
 
@@ -690,6 +691,7 @@ def test_create_refresh_token_with_found_user(
         scopes=scopes,
         expires_in=expires_in,
         private_key=rsa_private_key,
+        client_id=client_id,
     ).create_refresh_token()
 
     refresh_token_response = oauth_test_client.refresh(
@@ -818,7 +820,7 @@ def test_delete_expired_service_accounts_with_one_fail_first(
     import fence
 
     fence.settings = MagicMock()
-    cirrus.config.update = MagicMock()
+    gen3cirrus.config.update = MagicMock()
     cloud_manager.return_value.__enter__.return_value.remove_member_from_group.side_effect = [
         HttpError(mock.Mock(status=403), bytes("Permission denied", "utf-8")),
         {},
@@ -1129,7 +1131,7 @@ def test_delete_expired_google_access_with_one_fail_first(
     import fence
 
     fence.settings = MagicMock()
-    cirrus.config.update = MagicMock()
+    gen3cirrus.config.update = MagicMock()
     cloud_manager.return_value.__enter__.return_value.remove_member_from_group.side_effect = [
         HttpError(mock.Mock(status=403), bytes("Permission denied", "utf-8")),
         {},
@@ -1391,7 +1393,6 @@ def test_verify_google_service_account_member_not_call_delete_operation(
 
 
 def test_link_external_bucket(app, cloud_manager, db_session):
-
     (cloud_manager.return_value.__enter__.return_value.create_group.return_value) = {
         "email": "test_bucket_read_gbag@someemail.com"
     }
@@ -1719,7 +1720,7 @@ def test_modify_client_action_modify_allowed_scopes(db_session):
         client_id=client_id,
         client_secret="secret",  # pragma: allowlist secret
         name=client_name,
-        _allowed_scopes="openid user data",
+        allowed_scopes="openid user data",
         user=User(username="client_user"),
         redirect_uris=["localhost"],
     )
@@ -1738,7 +1739,7 @@ def test_modify_client_action_modify_allowed_scopes(db_session):
     assert client.auto_approve == True
     assert client.name == "test321"
     assert client.description == "test client"
-    assert client._allowed_scopes == "openid user test"
+    assert client.scope == "openid user test"
     assert client.redirect_uris == ["test"]
 
 
@@ -1749,7 +1750,7 @@ def test_modify_client_action_modify_allowed_scopes_append_true(db_session):
         client_id=client_id,
         client_secret="secret",  # pragma: allowlist secret
         name=client_name,
-        _allowed_scopes="openid user data",
+        allowed_scopes="openid user data",
         user=User(username="client_user"),
         redirect_uris=["localhost"],
     )
@@ -1768,9 +1769,7 @@ def test_modify_client_action_modify_allowed_scopes_append_true(db_session):
     assert client.auto_approve == True
     assert client.name == "test321"
     assert client.description == "test client"
-    assert (
-        client._allowed_scopes == "openid user data new_scope new_scope_2 new_scope_3"
-    )
+    assert client.scope == "openid user data new_scope new_scope_2 new_scope_3"
 
 
 def test_modify_client_action_modify_append_url(db_session):
@@ -1780,7 +1779,7 @@ def test_modify_client_action_modify_append_url(db_session):
         client_id=client_id,
         client_secret="secret",  # pragma: allowlist secret
         name=client_name,
-        _allowed_scopes="openid user data",
+        allowed_scopes="openid user data",
         user=User(username="client_user"),
         redirect_uris="abcd",
     )

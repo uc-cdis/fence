@@ -28,7 +28,6 @@ from authutils.testing.fixtures import (
 )
 from cryptography.fernet import Fernet
 import bcrypt
-from cdisutilstest.code.storage_client_mock import get_client
 import jwt
 from mock import patch, MagicMock, PropertyMock
 import pytest
@@ -53,6 +52,7 @@ from tests import test_settings
 from tests import utils
 from tests.utils import TEST_RAS_USERNAME, TEST_RAS_SUB
 from tests.utils.oauth2.client import OAuth2TestClient
+from tests.storageclient.storage_client_mock import get_client
 
 
 # Allow authlib to use HTTP for local testing.
@@ -86,6 +86,7 @@ def mock_get_bucket_location(self, bucket, config):
 def claims_refresh():
     new_claims = tests.utils.default_claims()
     new_claims["pur"] = "refresh"
+    new_claims["azp"] = "test-client"
     return new_claims
 
 
@@ -474,7 +475,6 @@ def app(kid, rsa_private_key, rsa_public_key):
 
     yield fence.app
 
-    alembic_main(["--raiseerr", "downgrade", "base"])
     mocker.unmock_functions()
 
 
@@ -542,7 +542,9 @@ def db(app, request):
         connection = app.db.engine.connect()
         connection.begin()
         for table in reversed(models.Base.metadata.sorted_tables):
-            connection.execute(table.delete())
+            # Delete table only if it exists
+            if app.db.engine.dialect.has_table(connection, table):
+                connection.execute(table.delete())
         connection.close()
 
     request.addfinalizer(drop_all)
@@ -1358,7 +1360,7 @@ def oauth_client_B(app, request, db_session):
 
 
 @pytest.fixture(scope="function")
-def oauth_client_public(app, db_session, oauth_user):
+def oauth_client_public(app, db_session, oauth_user, get_all_shib_idps_patcher):
     """
     Create a public OAuth2 client.
     """
@@ -1428,7 +1430,7 @@ def oauth_test_client_B(client, oauth_client_B):
 
 
 @pytest.fixture(scope="function")
-def oauth_test_client_public(client, oauth_client_public):
+def oauth_test_client_public(client, oauth_client_public, get_all_shib_idps_patcher):
     return OAuth2TestClient(client, oauth_client_public, confidential=False)
 
 
@@ -1571,7 +1573,8 @@ def cloud_manager():
 def google_signed_url():
     manager = MagicMock()
     patch(
-        "fence.blueprints.data.indexd.cirrus.google_cloud.utils.get_signed_url", manager
+        "fence.blueprints.data.indexd.gen3cirrus.google_cloud.utils.get_signed_url",
+        manager,
     ).start()
 
     # Note: example outpu/format from google's docs, will not actually work
