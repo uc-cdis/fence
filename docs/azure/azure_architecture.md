@@ -122,7 +122,7 @@ Also note that there's alternatives that could be considered for [future develop
 
 It's helpful to understand some of the [Arborist terms and definitions](https://github.com/uc-cdis/arborist#terminology-and-definitions), which covers **action**, **permission**, **role**, **resource**, **policy**, and **group**.
 
-Further, it's helpful to understand the Arborist options for [configuring access](https://github.com/uc-cdis/arborist#configuring-access). You can see an example of granting **users** and **groups** access and more details in the [user.yaml guide](../misc/user.yaml_guide.md).
+Further, it's helpful to understand the Arborist options for [configuring access](https://github.com/uc-cdis/arborist#configuring-access). You can see an example of granting **users** and **groups** access and more details in the [user.yaml guide](../additional_documentation/user.yaml_guide.md).
 
 At a high level, this setup involves a couple steps:
 
