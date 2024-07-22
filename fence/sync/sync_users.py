@@ -507,7 +507,7 @@ class UserSyncer(object):
 
         """
         user_projects = dict()
-        user_info = dict()
+        user_info = defaultdict(dict)
 
         # parse dbGaP sftp server information
         dbgap_key = dbgap_config.get("decrypt_key", None)
@@ -658,9 +658,9 @@ class UserSyncer(object):
                         tags["pi"] = row["downloader for names"]
 
                     user_info[username] = {
-                        "email": row.get("email") or "",
+                        "email": row.get("email") or user_info[username].get('email') or "",
                         "display_name": display_name,
-                        "phone_number": row.get("phone") or "",
+                        "phone_number": row.get("phone") or user_info[username].get('phone_number') or "",
                         "tags": tags,
                     }
 
@@ -1571,6 +1571,8 @@ class UserSyncer(object):
             local_csv_file_list = glob.glob(
                 os.path.join(self.sync_from_local_csv_dir, "*")
             )
+            # Sort the list so the order of of files is consistent across platforms
+            local_csv_file_list.sort()
 
         user_projects_csv, user_info_csv = self._merge_multiple_local_csv_files(
             local_csv_file_list,
