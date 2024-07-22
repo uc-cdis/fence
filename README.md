@@ -9,9 +9,9 @@ only trusted entities to enter.
 
 Fence is a core service of the Gen3 stack that has multiple capabilities:
 
-1. Act as an [auth broker](#auth-broker) to integrate with one or more [IdPs](#IdP) and provide downstream authentication and authorization for Gen3 services.
-2. [Manage tokens](#token-management).
-3. Act as an [OIDC provider](#oidc--oauth2) to support external applications to use Gen3 services.
+1. Act as an [auth broker](./docs/introduction/terminology.md#auth-broker) to integrate with one or more [IdPs](#IdP) and provide downstream authentication and authorization for Gen3 services.
+2. [Manage tokens](./docs/introduction/token_management.md).
+3. Act as an [OIDC provider](./docs/introduction/oidc_and_oauth2.md) to support external applications to use Gen3 services.
 4. [Issue short lived, cloud native credentials to access data in various cloud storage services](#accessing-data)
 
 
@@ -20,12 +20,12 @@ Fence is a core service of the Gen3 stack that has multiple capabilities:
 1. [API Documentation](#API-documentation)
 1. [Terminologies](./docs/introduction/terminology.md)
 1. [Identity Providers](#identity-providers)
-1. [OIDC & OAuth2](#oidc--oauth2)
+1. [OIDC & OAuth2](./docs/introduction/oidc_and_oauth2.md)
 1. [Accessing Data](#accessing-data)
-1. [Setup](#setup)
-1. [Token management](#token-management)
-1. [fence-create](#fence-create-automating-common-tasks-with-a-command-line-interface)
-1. [Default expiration times](#default-expiration-times-in-fence)
+1. [Setup](./docs/introduction/setup.md)
+1. [Token management](./docs/introduction/token_management.md)
+1. [fence-create](./docs/introduction/fence_create.md)
+1. [Default expiration times](./docs/introduction/default_expiration_times.md)
 
 
 ## API Documentation
@@ -42,7 +42,7 @@ Fence can be configured to support different Identity Providers (IdPs) for AuthN
 At the moment, supported IDPs include:
 
 - Google
-- [Shibboleth](docs/misc/fence_shibboleth.md)
+- [Shibboleth](docs/additional_documentation/fence_shibboleth.md)
   - NIH iTrust
   - InCommon
   - eduGAIN
@@ -58,7 +58,7 @@ At the moment, supported IDPs include:
 Currently fence works with another Gen3 service named
 [arborist](https://github.com/uc-cdis/arborist) to implement attribute-based access
 control for commons users. The YAML file of access control information (see
-[#create-user-access-file](#create-user-access-file)) contains a section `authz` which are data sent to
+[#create-user-access-file](./docs/introduction/setup.md#create-user-access-file)) contains a section `authz` which are data sent to
 arborist in order to set up the access control model.
 
 ## Accessing Data
@@ -88,6 +88,6 @@ Fence has the ability to request a specific file by its GUID (globally unique id
 
 Whereas pre-signed URL is a cloud agnostic solution, services and tools on Google Cloud Platform prefer to use Google's concept of a "Service Account". Because of that, Fence provides a few more methods to access data in Google.
 
-See [Fence and Google](docs/misc/google_architecture.md) for more details on data access methods specific to Google.
+See [Fence and Google](docs/additional_documentation/google_architecture.md) for more details on data access methods specific to Google.
 
 

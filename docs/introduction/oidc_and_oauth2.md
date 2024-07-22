@@ -26,14 +26,14 @@ Note that the `3rd Party App` acts as the `RP` in these examples.
 
 #### Flow: Client Registration
 
-![Client Registration](docs/images/seq_diagrams/client_registration.png)
+![Client Registration](../images/seq_diagrams/client_registration.png)
 
 #### Flow: OpenID Connect
 
 In the following flow, Fence and the IdP together constitute an `OP`.
 Fence, by itself, acts as an OAuth 2.0 Auth Server; the IdP enables the additional implementation of OIDC (by providing AuthN). From an OIDC viewpoint, therefore, Fence and the IdP can be abstracted into one `OP`.
 
-![OIDC Flow](docs/images/seq_diagrams/openid_connect_flow.png)
+![OIDC Flow](../images/seq_diagrams/openid_connect_flow.png)
 
 If the third-party application doesn't need to use any Gen3 resources (and just
 wants to authenticate the user), they can just get
@@ -47,15 +47,15 @@ passed in an `Authorization` header.
 
 In the following flow, `3rd Party App` is the `RP`; `Protected Endpoint` is an endpoint of a Gen3 Resource (the `microservice`), and both of these are part of a `resource server`; and `Fence` is the `OP`. Here, importantly, `Fence` may be interfacing with another IdP _or_ with another `Fence` instance in order to implement the OIDC layer. Either way, note that the `Fence` blob in this diagram actually abstracts Fence in concert with some IdP, which may or may not also be (a different instance of) Fence.
 
-![Using Access Token](docs/images/seq_diagrams/token_use_for_access.png)
+![Using Access Token](../images/seq_diagrams/token_use_for_access.png)
 
 #### Flow: Refresh Token Use
 
-![Using Refresh Token](docs/images/seq_diagrams/refresh_token_use.png)
+![Using Refresh Token](../images/seq_diagrams/refresh_token_use.png)
 
 #### Flow: Refresh Token Use (Token is Expired)
 
-![Using Expired Refresh Token](docs/images/seq_diagrams/refresh_token_use_expired.png)
+![Using Expired Refresh Token](../images/seq_diagrams/refresh_token_use_expired.png)
 
 #### Flow: Multi-Tenant Fence
 
@@ -66,7 +66,7 @@ A use case for this is when we setup a fence instance that uses NIH login as the
 
 In the following flow, `Fence (Client Instance)` is an OP relative to `OAuth Client`, but an RP relative to `Fence (IDP)`.
 
-![Multi-Tenant Flow](docs/images/seq_diagrams/multi-tenant_flow.png)
+![Multi-Tenant Flow](../images/seq_diagrams/multi-tenant_flow.png)
 
 #### Notes
 
