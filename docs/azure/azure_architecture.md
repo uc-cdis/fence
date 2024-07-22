@@ -11,7 +11,7 @@ You can review how `fence` works with [Azure Blob Storage](#Azure-Blob-Storage) 
 
 ### Azure Blob Storage
 
-![Azure Blob Storage with Fence](./images/m_fence_azure_blob_storage.png)
+![Azure Blob Storage with Fence](../images/m_fence_azure_blob_storage.png)
 
 The diagram shows 2 separate workflows in order for `fence` to interact with [Azure Blob Storage](https://docs.microsoft.com/en-us/azure/storage/blobs/storage-blobs-introduction):
 
@@ -44,7 +44,7 @@ You can use the Azure Blob Storage client to connect to Azure Blob Storage, and 
 
 #### Configuration Details
 
-You can update the [Fence config.yaml](../fence/config-default.yaml) to include the following values:
+You can update the [Fence config.yaml](../../fence/config-default.yaml) to include the following values:
 
 Name | Value | Description
 ------ | ------|----------
@@ -64,7 +64,7 @@ For example, when you index the file (e.g. using the [gen3sdk](https://github.co
 
 So if you navigate to `https://mydatacommons/files/guid` (assuming that the metadata is already setup), you can click on the file to download which will make the call to get the appropriate signed URL.
 
-![Presigned URL](./images/m_fence_presigned_url.png)
+![Presigned URL](../images/m_fence_presigned_url.png)
 
 * If you index the file with a URL for a blob in a **public** Azure Blob Storage Container and the `AZ_BLOB_CREDENTIALS` are set to `'*'`, then the **non-signed** converted indexed URL will be used (e.g. `https://<publicstorageaccount>.blob.core.windows.net/<containername>/some/path/to/file.txt`)
   > You need to replace the URL such as `https://<publicstorageaccount>.blob.core.windows.net/<containername>/some/path/to/file.txt` with `az://<publicstorageaccount>.blob.core.windows.net/<containername>/some/path/to/file.txt` upon submitting the record to `indexd`.
@@ -83,7 +83,7 @@ You can use [user delegation SAS tokens](https://docs.microsoft.com/en-us/rest/a
 
 ### Azure Active Directory
 
-![Azure AD with Fence](./images/m_fence_azure_AD.png)
+![Azure AD with Fence](../images/m_fence_azure_AD.png)
 
 The diagram shows 3 separate workflows in order for `fence` to interact with Azure AD:
 
@@ -104,16 +104,16 @@ Also note that there's alternatives that could be considered for [future develop
 1. [Create](https://docs.microsoft.com/en-us/azure/data-explorer/provision-azure-ad-app) AAD Application
 2. Add a redirect URL
     * The application needs to have redirect URL that is the FDQN of commons appended with `(commons fdqn)/user/login/microsoft/login`.
-![Add Redirect URI](./images/m_fence_azure_AD_app_registration_1.png)
+![Add Redirect URI](../images/m_fence_azure_AD_app_registration_1.png)
 3. Set a secret for the AAD application
-![Set the Client Secret](./images/m_fence_azure_AD_app_registration_2.png)
+![Set the Client Secret](../images/m_fence_azure_AD_app_registration_2.png)
 4. Retrieve the `client id` of the AAD application
-![Retrieve client ID](./images/m_fence_azure_AD_app_registration_3.png)
-5. Update [fence-config.yaml](../fence/config-default.yaml)
+![Retrieve client ID](../images/m_fence_azure_AD_app_registration_3.png)
+5. Update [fence-config.yaml](../../fence/config-default.yaml)
     * Set the `microsoft_client_id` to be the `client_id` in step 4.
     * Set the `microsoft_client_secret` to be the secret value in step 3.
-    * Make sure the `BASE_URL` in [fence-config.yaml](../fence/config-default.yaml) is correct.
-    * Make sure the `redirect_url` in [fence-config.yaml](../fence/config-default.yaml) is `{{BASE_URL}}/login/microsoft/login/` is matches the redirect URL (`(commons fdqn)/user/login/microsoft/login`) in step 2
+    * Make sure the `BASE_URL` in [fence-config.yaml](../../fence/config-default.yaml) is correct.
+    * Make sure the `redirect_url` in [fence-config.yaml](../../fence/config-default.yaml) is `{{BASE_URL}}/login/microsoft/login/` is matches the redirect URL (`(commons fdqn)/user/login/microsoft/login`) in step 2
 6. Restart `fence` service with the updated secrets
 
 #### User Yaml Setup
@@ -122,7 +122,7 @@ Also note that there's alternatives that could be considered for [future develop
 
 It's helpful to understand some of the [Arborist terms and definitions](https://github.com/uc-cdis/arborist#terminology-and-definitions), which covers **action**, **permission**, **role**, **resource**, **policy**, and **group**.
 
-Further, it's helpful to understand the Arborist options for [configuring access](https://github.com/uc-cdis/arborist#configuring-access). You can see an example of granting **users** and **groups** access and more details in the [user.yaml guide](./user.yaml_guide.md).
+Further, it's helpful to understand the Arborist options for [configuring access](https://github.com/uc-cdis/arborist#configuring-access). You can see an example of granting **users** and **groups** access and more details in the [user.yaml guide](../misc/user.yaml_guide.md).
 
 At a high level, this setup involves a couple steps:
 

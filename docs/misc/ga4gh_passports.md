@@ -25,7 +25,7 @@ References:
 
 This shows external DRS Client(s) communicating with Gen3 Framework Services (as a GA4GH DRS Server) and how G3FS interacts with Passport Brokers to validate and verify JWTs.
 
-![Passport and Visa JWT Handling](images/ga4gh/passport_jwt_handling.png)
+![Passport and Visa JWT Handling](../images/ga4gh/passport_jwt_handling.png)
 
 ## G3FS: Configurable Roles for Data Access
 
@@ -33,11 +33,11 @@ Gen3 Framework Services are capable of acting in many different roles. As data r
 
 In order to describe the role of the passport in these various configurations, the following diagrams may help.
 
-![Gen3 as DRS Server](images/ga4gh/gen3_as_drs.png)
+![Gen3 as DRS Server](../images/ga4gh/gen3_as_drs.png)
 
-![Gen3 as Client](images/ga4gh/gen3_as_client.png)
+![Gen3 as Client](../images/ga4gh/gen3_as_client.png)
 
-![Gen3 as Both](images/ga4gh/gen3_as_client_and_drs_server.png)
+![Gen3 as Both](../images/ga4gh/gen3_as_client_and_drs_server.png)
 
 ## Performance Improvements
 
@@ -52,15 +52,15 @@ We added a number of things to mitigate the performance impact on researchers' w
 
 To illustrate the need for such a cache, see the images below for before and after.
 
-![Before Caching](images/ga4gh/caching_before.png)
+![Before Caching](../images/ga4gh/caching_before.png)
 
-![After Caching](images/ga4gh/caching_after.png)
+![After Caching](../images/ga4gh/caching_after.png)
 
 ## User Identities
 
 Different GA4GH Visas may refer to the same subject differently. In order to maintain the known mappings between different representations of the same identity, we are creating an Issuer+Subject to User mapping table. The primary key on this table is the combination of the `iss` and `sub` from JWTs.
 
-![User Identities](images/ga4gh/users.png)
+![User Identities](../images/ga4gh/users.png)
 
 ## Backend Updates and Expiration
 
@@ -68,6 +68,6 @@ In order to ensure the removal of access at the right time, the cronjobs we have
 
 There is an argument here for event-based architecture, but Gen3 does not currently support such an architecture. We are instead extending the support of our cronjobs to ensure expirations occur at the right time.
 
-![Cronjobs and Expirations](images/ga4gh/expiration.png)
+![Cronjobs and Expirations](../images/ga4gh/expiration.png)
 
 > _All diagrams are originally from an **internal** CTDS Document. The link to that document is [here](https://lucid.app/lucidchart/5c52b868-5cd2-4c6e-b53b-de2981f7da98/edit?invitationId=inv_9a757cb1-fc81-4189-934d-98c3db06d2fc) for internal people who need to edit the above diagrams._
