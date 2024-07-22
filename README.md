@@ -254,6 +254,9 @@ python cfg_help.py get
 The file should have detailed information about each of the configuration
 variables. **Remember to fill out the new configuration file!**
 
+Once you have done so, you can run `alembic upgrade head` to generate the tables needed
+to run fence.
+
 #### Other Configuration Notes
 
 * Fence will look for configuration files from a list of search directories (
