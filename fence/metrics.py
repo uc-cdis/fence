@@ -1,3 +1,18 @@
+"""
+Metrics are collected by the Prometheus client and exposed at the `/metrics` endpoint.
+
+To add a new metric:
+- Add a new method to the `Metrics` class below (see `add_login_event` and `add_signed_url_event`
+for example).
+- The new method should call the `_increment_counter` and/or `_set_gauge` methods with the
+appropriate metric name and labels.
+- Call the new method from the code where relevant, for example:
+    from fence.metric import metrics
+    metrics.add_login_event(...)
+- Add unit tests to the `tests/test_metrics` file.
+"""
+
+
 import os
 import tempfile
 
@@ -98,7 +113,7 @@ class Metrics:
             self._metrics[name] = Gauge(name, description, [*labels.keys()])
         elif type(self._metrics[name]) != Gauge:
             raise ValueError(
-                f"Trying to create gauge '{name}' but a counter with this name already exists"
+                f"Trying to create gauge '{name}' but a {type(self._metrics[name])} with this name already exists"
             )
 
         logger.debug(f"Setting gauge '{name}' with labels: {labels}")

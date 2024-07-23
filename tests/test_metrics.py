@@ -32,7 +32,7 @@ import time
 from unittest.mock import ANY, MagicMock, patch
 
 import fence
-from fence import metrics
+from fence.metrics import metrics
 from fence.config import config
 from fence.blueprints.data.indexd import get_bucket_from_urls
 from fence.models import User
