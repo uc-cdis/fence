@@ -73,7 +73,7 @@ class Metrics:
             self._metrics[name] = Counter(name, description, [*labels.keys()])
         elif type(self._metrics[name]) != Counter:
             raise ValueError(
-                f"Trying to create counter '{name}' but a gauge with this name already exists"
+                f"Trying to create counter '{name}' but a {type(self._metrics[name])} with this name already exists"
             )
 
         logger.debug(f"Incrementing counter '{name}' with labels: {labels}")
