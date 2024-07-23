@@ -560,8 +560,10 @@ def db(app, request):
 
 
 @pytest.fixture
-def prometheus_metrics_before():
-    yield copy.deepcopy(list(prometheus_client.REGISTRY.collect()))
+def prometheus_metrics_before(client):
+    resp = client.get("/metrics")
+    assert resp.status_code == 200, "Could not get prometheus metrics initial state"
+    yield resp.text
 
 
 @fence.app.route("/protected")

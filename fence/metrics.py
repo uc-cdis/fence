@@ -126,7 +126,7 @@ class Metrics:
                 "user_sub": user_sub,
                 "idp": "all",
                 "client_id": client_id,
-                # when counting all IDPs, we don't care about the fence and ship IDP values
+                # when counting all IDPs, we don't care about the fence and shib IDP values
                 "fence_idp": None,
                 "shib_idp": None,
             },
