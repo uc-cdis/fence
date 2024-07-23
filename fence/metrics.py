@@ -26,7 +26,7 @@ class Metrics:
     """
 
     def __init__(self, path):
-        os.environ["prometheus_multiproc_dir"] = path
+        os.environ["PROMETHEUS_MULTIPROC_DIR"] = path
         self._registry = CollectorRegistry()
         multiprocess.MultiProcessCollector(self._registry)
         self._metrics = {}
