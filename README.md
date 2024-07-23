@@ -15,7 +15,7 @@ and authorization for Gen3 services.
 2. [Manage tokens](docs/additional_documentation/token_management.md).
 3. Act as an [OIDC provider](README.md#oidc--oauth2) to support external 
 applications to use Gen3 services.
-4. [Issue short lived, cloud native credentials to access data in various cloud storage services](docs/additional_documentation/data_access.md#accessing-data)
+4. [Issue short-lived, cloud native credentials to access data in various cloud storage services](docs/additional_documentation/data_access.md#accessing-data)
 
 
 ## Overview
@@ -38,7 +38,7 @@ At the moment, supported IDPs include:
 - ORCID
 - RAS
 
-### ## API Documentation
+### API Documentation
 
 [OpenAPI documentation available here.](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/uc-cdis/fence/master/openapis/swagger.yaml)
 
@@ -110,7 +110,7 @@ In the following flow, `3rd Party App` is the `RP`; `Protected Endpoint` is an e
 The following diagram illustrates the case in which one fence instance
 uses another fence instance as its identity provider.
 
-A use case for this is when we setup a fence instance that uses NIH login as the IdP. Here, we go through a detailed approval process in NIH. Therefore we would like to do it only once for a single lead Fence instance, and then allow other fence instances to simply redirect to use the lead Fence as an IdP for logging in via NIH.
+A use case for this is when we set up a fence instance that uses NIH login as the IdP. Here, we go through a detailed approval process in NIH. Therefore, we would like to do it only once for a single lead Fence instance, and then allow other fence instances to simply redirect to use the lead Fence as an IdP for logging in via NIH.
 
 In the following flow, `Fence (Client Instance)` is an OP relative to `OAuth Client`, but an RP relative to `Fence (IDP)`.
 
@@ -131,13 +131,12 @@ See [Fence and Google](docs/additional_documentation/google_architecture.md) for
 
 ## Setup
 
-See detailed explination [here](docs/additional_documentation/setup.md)
+See detailed explanation [here](docs/additional_documentation/setup.md)
 
 ## Additional documentation
 
 1. [Terminologies](docs/additional_documentation/terminology.md)
 2. [Accessing Data](docs/additional_documentation/data_access.md#accessing-data)
-3. [Setup](docs/additional_documentation/setup.md)
-4. [Token management](docs/additional_documentation/token_management.md)
-5. [fence-create](docs/additional_documentation/fence_create.md)
-6. [Default expiration times](docs/additional_documentation/default_expiration_times.md)
+3. [Token management](docs/additional_documentation/token_management.md)
+4. [fence-create](docs/additional_documentation/fence_create.md)
+5. [Default expiration times](docs/additional_documentation/default_expiration_times.md)
