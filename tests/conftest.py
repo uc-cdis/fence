@@ -1747,3 +1747,37 @@ def get_all_shib_idps_patcher():
     yield mock
 
     get_all_shib_idps_patch.stop()
+
+
+@pytest.fixture(scope="function")
+def mock_authn_user_flask_context(app):
+    """
+    Mock g and session to simulate a simple user who has authenticated.
+
+    This is primarily to ensure that tests which mock the start of authN where sessions get set can still
+    test the callbacks (where metrics logging rely on session data).
+    """
+    from flask import g
+    from flask import session
+
+    g_before = copy.deepcopy(g)
+    session_before = copy.deepcopy(session)
+
+    user_mock = MagicMock()
+    user_mock.id = 1
+
+    user_mocker = MagicMock()
+    user_mocker.return_value = user_mock
+    g.user = user_mocker
+
+    session = MagicMock()
+    session.return_value = {
+        "fence_idp": "google",
+        "shib_idp": "shib_idp_foobar",
+        "client_id": "client_id_foobar",
+    }
+
+    yield
+
+    g = g_before
+    session = session_before
