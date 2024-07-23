@@ -77,13 +77,13 @@ def assert_prometheus_metrics(metrics_before, text_metrics, expected_metrics):
         metrics_before (list<prometheus Metric objects>): previous state of prometheus metrics
             Example: [ Metric{ samples: [ Sample{ name: "", labels: {}, value: 0 } ] } ]
         text_metrics (str): current state
-            Example:
+            Example
                 # TYPE gen3_fence_login_total counter
                 gen3_fence_login_total{client_id="test_azp",fence_idp="shib",idp="test_idp",shib_idp="university",user_sub="123"} 2.0
                 # HELP gen3_fence_presigned_url_total Fence presigned urls
                 # TYPE gen3_fence_presigned_url_total counter
                 gen3_fence_presigned_url_total{acl="None",action="upload",authz="['/test/path']",bucket="s3://test-bucket",client_id="test_azp",drs="True",protocol="s3",user_sub="123"} 1.0
-        expected_metrics (dict): the expected difference between previous state and current state.
+        expected_metrics (list<prometheus Metric objects>): the expected difference between previous state and current state.
             Only provide the labels we need to check; omitted labels will be ignored even if they
             are present in the current state.
             Example: [

@@ -48,6 +48,11 @@ class Metrics:
             str: Latest Prometheus metrics
             str: Content type of the latest Prometheus metrics
         """
+        # When metrics gathering is not enabled, the metrics endpoint should not error, but it should
+        # not return any data.
+        if not config["ENABLE_PROMETHEUS_METRICS"]:
+            return "", None
+
         return generate_latest(self._registry), CONTENT_TYPE_LATEST
 
     def _increment_counter(self, name, labels):
