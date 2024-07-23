@@ -9,34 +9,19 @@ only trusted entities to enter.
 
 Fence is a core service of the Gen3 stack that has multiple capabilities:
 
-1. Act as an [auth broker](./docs/introduction/terminology.md#auth-broker) to integrate with one or more [IdPs](#IdP) and provide downstream authentication and authorization for Gen3 services.
-2. [Manage tokens](./docs/introduction/token_management.md).
-3. Act as an [OIDC provider](./docs/introduction/oidc_and_oauth2.md) to support external applications to use Gen3 services.
-4. [Issue short lived, cloud native credentials to access data in various cloud storage services](#accessing-data)
+1. Act as an [auth broker](docs/additional_documentation/terminology.md#auth-broker) to integrate with one 
+or more [IdPs](docs/additional_documentation/terminology.md#idp) and provide downstream authentication
+and authorization for Gen3 services.
+2. [Manage tokens](docs/additional_documentation/token_management.md).
+3. Act as an [OIDC provider](README.md#oidc--oauth2) to support external 
+applications to use Gen3 services.
+4. [Issue short lived, cloud native credentials to access data in various cloud storage services](docs/additional_documentation/data_access.md#accessing-data)
 
 
-## Contents
+## Overview
 
-1. [API Documentation](#API-documentation)
-1. [Terminologies](./docs/introduction/terminology.md)
-1. [Identity Providers](#identity-providers)
-1. [OIDC & OAuth2](./docs/introduction/oidc_and_oauth2.md)
-1. [Accessing Data](#accessing-data)
-1. [Setup](./docs/introduction/setup.md)
-1. [Token management](./docs/introduction/token_management.md)
-1. [fence-create](./docs/introduction/fence_create.md)
-1. [Default expiration times](./docs/introduction/default_expiration_times.md)
+### Identity Providers
 
-
-## API Documentation
-
-[OpenAPI documentation available here.](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/uc-cdis/fence/master/openapis/swagger.yaml)
-
-YAML file for the OpenAPI documentation is found in the `openapis` folder (in
-the root directory); see the README in that folder for more details.
-
-
-## Identity Providers
 
 Fence can be configured to support different Identity Providers (IdPs) for AuthN.
 At the moment, supported IDPs include:
@@ -53,41 +38,106 @@ At the moment, supported IDPs include:
 - ORCID
 - RAS
 
-## Access Control / Authz
+### ## API Documentation
 
-Currently fence works with another Gen3 service named
-[arborist](https://github.com/uc-cdis/arborist) to implement attribute-based access
-control for commons users. The YAML file of access control information (see
-[#create-user-access-file](./docs/introduction/setup.md#create-user-access-file)) contains a section `authz` which are data sent to
-arborist in order to set up the access control model.
+[OpenAPI documentation available here.](http://petstore.swagger.io/?url=https://raw.githubusercontent.com/uc-cdis/fence/master/openapis/swagger.yaml)
 
-## Accessing Data
-
-Fence has multiple options that provide a mechanism to access data. The access
-to data can be moderated through authorization information in a User Access File.
-
-Users can be provided specific `privilege`'s on `projects` in the User Access
-File. A `project` is identified by a unique authorization identifier AKA `auth_id`.
-
-A `project` can be associated with various storage backends that store
-object data for that given `project`. You can assign `read-storage` and `write-storage`
-privileges to users who should have access to that stored object data. `read` and
-`write` allow access to the data stored in a graph database.
-
-Depending on the backend, Fence can be configured to provide users access to
-the data in different ways.
+YAML file for the OpenAPI documentation is found in the `openapis` folder (in
+the root directory); see the README in that folder for more details.
 
 
-### Signed URLS
+## OIDC & OAuth2
 
-Temporary signed URLs are supported in all major commercial clouds. Signed URLs are the most 'cloud agnostic' way to allow users to access data located in different platforms.
+Fence acts as a central broker that supports multiple IdPs.
+At the same time, it acts as an IdP itself.
+In that sense, `fence` is both an `RP` and an `OP`.
 
-Fence has the ability to request a specific file by its GUID (globally unique identifier) and retrieve a temporary signed URL for object data in AWS or GCP that will provide direct access to that object.
+### Fence as RP
+
+Example:
+
+- Google IAM is the OpenID Provider (OP)
+- Fence is the Relying Party (RP)
+- Google Calendar API is the resource provider
+
+### Fence as OP
+
+- Fence is the OpenID Provider (OP)
+- A third-party application is the Relying Party (RP)
+- Gen3 microservices (e.g. [`sheepdog`](https://github.com/uc-cdis/sheepdog)) are resource providers
+
+### Example Flows
+
+Note that the `3rd Party App` acts as the `RP` in these examples.
+
+[//]: # (See /docs folder for README on how to regenerate these sequence diagrams)
+
+#### Flow: Client Registration
+
+![Client Registration](./docs/images/seq_diagrams/client_registration.png)
+
+#### Flow: OpenID Connect
+
+In the following flow, Fence and the IdP together constitute an `OP`.
+Fence, by itself, acts as an OAuth 2.0 Auth Server; the IdP enables the additional implementation of OIDC (by providing AuthN). From an OIDC viewpoint, therefore, Fence and the IdP can be abstracted into one `OP`.
+
+![OIDC Flow](./docs/images/seq_diagrams/openid_connect_flow.png)
+
+If the third-party application doesn't need to use any Gen3 resources (and just
+wants to authenticate the user), they can just get
+needed information in the `ID token` after the handshake is finished .
+
+#### Flow: Using Tokens for Access
+
+If a third-party application wants to use Gen3 resources like
+`fence`/`sheepdog`/`peregrine`, they call those services with an `Access Token`
+passed in an `Authorization` header.
+
+In the following flow, `3rd Party App` is the `RP`; `Protected Endpoint` is an endpoint of a Gen3 Resource (the `microservice`), and both of these are part of a `resource server`; and `Fence` is the `OP`. Here, importantly, `Fence` may be interfacing with another IdP _or_ with another `Fence` instance in order to implement the OIDC layer. Either way, note that the `Fence` blob in this diagram actually abstracts Fence in concert with some IdP, which may or may not also be (a different instance of) Fence.
+
+![Using Access Token](./docs/images/seq_diagrams/token_use_for_access.png)
+
+#### Flow: Refresh Token Use
+
+![Using Refresh Token](./docs/images/seq_diagrams/refresh_token_use.png)
+
+#### Flow: Refresh Token Use (Token is Expired)
+
+![Using Expired Refresh Token](./docs/images/seq_diagrams/refresh_token_use_expired.png)
+
+#### Flow: Multi-Tenant Fence
+
+The following diagram illustrates the case in which one fence instance
+uses another fence instance as its identity provider.
+
+A use case for this is when we setup a fence instance that uses NIH login as the IdP. Here, we go through a detailed approval process in NIH. Therefore we would like to do it only once for a single lead Fence instance, and then allow other fence instances to simply redirect to use the lead Fence as an IdP for logging in via NIH.
+
+In the following flow, `Fence (Client Instance)` is an OP relative to `OAuth Client`, but an RP relative to `Fence (IDP)`.
+
+![Multi-Tenant Flow](./docs/images/seq_diagrams/multi-tenant_flow.png)
+
+#### Notes
+
+See the [OIDC specification](http://openid.net/specs/openid-connect-core-1_0.html) for more details.
+Additionally, see the [OAuth2 specification](https://tools.ietf.org/html/rfc6749).
+
 
 ### Google Cloud Storage
 
-Whereas pre-signed URL is a cloud agnostic solution, services and tools on Google Cloud Platform prefer to use Google's concept of a "Service Account". Because of that, Fence provides a few more methods to access data in Google.
+Whereas pre-signed URL is a cloud-agnostic solution, services and tools on Google Cloud Platform prefer to use Google's concept of a "Service Account". Because of that, Fence provides a few more methods to access data in Google.
 
 See [Fence and Google](docs/additional_documentation/google_architecture.md) for more details on data access methods specific to Google.
 
 
+## Setup
+
+See detailed explination [here](docs/additional_documentation/setup.md)
+
+## Additional documentation
+
+1. [Terminologies](docs/additional_documentation/terminology.md)
+2. [Accessing Data](docs/additional_documentation/data_access.md#accessing-data)
+3. [Setup](docs/additional_documentation/setup.md)
+4. [Token management](docs/additional_documentation/token_management.md)
+5. [fence-create](docs/additional_documentation/fence_create.md)
+6. [Default expiration times](docs/additional_documentation/default_expiration_times.md)

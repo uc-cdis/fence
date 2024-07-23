@@ -1,7 +1,7 @@
 
 ## Token management
 
-Fence utilizes [OpenID Connect](./terminology.md#oidc) to generate tokens
+Fence utilizes [OpenID Connect](terminology.mdidc) to generate tokens
 for clients. It can also provide tokens directly to a user.
 
 Clients and users may then use those tokens with other
