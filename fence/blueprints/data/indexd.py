@@ -174,6 +174,9 @@ def get_signed_url_for_file(
 
 
 def get_bucket_from_urls(urls, protocol):
+    """
+    Return the bucket name from the first of the provided URLs that starts with the given protocol (usually `gs`, `s3`, `az`...)
+    """
     bucket = ""
     for url in urls:
         if "://" in url:
