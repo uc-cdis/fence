@@ -121,8 +121,7 @@ def test_app_config():
         patcher.stop()
 
 
-def test_app_config_parent_child_study_mapping(monkeypatch):
-
+def test_validate_parent_child_studies_against_none_config():
     none_string_config = [{"parent_to_child_studies_mapping": 'None'},
                           {"parent_to_child_studies_mapping": 'None'},]
     try:
@@ -130,6 +129,8 @@ def test_app_config_parent_child_study_mapping(monkeypatch):
     except Exception:
         pytest.fail("Study validation failed when given 'None' mapping!")
 
+
+def test_app_config_parent_child_study_mapping(monkeypatch):
     invalid_dbgap_configs = [
         {
             "parent_to_child_studies_mapping": {
