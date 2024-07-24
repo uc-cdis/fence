@@ -38,9 +38,6 @@ from sqlalchemy.ext.compiler import compiles
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 os.environ["FENCE_CONFIG_PATH"] = os.path.join(CURRENT_DIR, "test-fence-config.yaml")
 
-# Set the prometheus working directory *before* loading any fence app files or `prometheus_client`
-os.environ["PROMETHEUS_MULTIPROC_DIR"] = "/var/tmp/uwsgi_flask_metrics/"
-
 import prometheus_client
 
 import fence

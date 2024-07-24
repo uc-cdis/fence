@@ -1,3 +1,4 @@
 #!/usr/bin/env bash
 
+export PROMETHEUS_MULTIPROC_DIR="/var/tmp/uwsgi_flask_metrics/"
 poetry run pytest -vv --cov=fence --cov-report xml tests
