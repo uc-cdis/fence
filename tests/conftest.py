@@ -30,7 +30,6 @@ from cryptography.fernet import Fernet
 import bcrypt
 import jwt
 from mock import patch, MagicMock, PropertyMock
-import prometheus_client
 import pytest
 import requests
 from sqlalchemy.ext.compiler import compiles

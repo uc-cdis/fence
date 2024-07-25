@@ -13,6 +13,36 @@ https://stackoverflow.com/questions/73198616/how-do-i-reset-a-prometheus-python-
 """
 
 
+import os
+import shutil
+
+import pytest
+
+
+@pytest.fixture(autouse=True, scope="session")
+def reset_prometheus_metrics():
+    """
+    Delete the prometheus files after all the tests have run.
+    Without this, when running the tests locally, we would keep reading the metrics from
+    previous test runs.
+    So why not run this in-between the unit tests instead of the `assert_prometheus_metrics`
+    logic? Because it doesn't work, the prometheus client also keeps the state, and the mismatch
+    causes errors. This only works when the client is reset too (new process)
+    """
+    yield
+
+    folder = os.environ["PROMETHEUS_MULTIPROC_DIR"]
+    for filename in os.listdir(folder):
+        file_path = os.path.join(folder, filename)
+        try:
+            if os.path.isfile(file_path) or os.path.islink(file_path):
+                os.unlink(file_path)
+            elif os.path.isdir(file_path):
+                shutil.rmtree(file_path)
+        except Exception as e:
+            print(f"Failed to delete Prometheus metrics file '{file_path}': {e}")
+
+
 def _diff_new_metrics_from_old_metrics(new_metrics, old_metrics):
     """
     Return a list of "current metrics" by comparing the "new metrics" (current state) to the "old metrics" (previous state).

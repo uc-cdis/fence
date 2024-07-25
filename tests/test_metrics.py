@@ -39,7 +39,9 @@ from fence.models import User
 from fence.resources.audit.utils import _clean_authorization_request_url
 from tests import utils
 from tests.conftest import LOGIN_IDPS
-from tests.utils.metrics import assert_prometheus_metrics
+
+# `reset_prometheus_metrics` must be imported even if not used so the autorun fixture gets triggered
+from tests.utils.metrics import assert_prometheus_metrics, reset_prometheus_metrics
 
 
 def test_clean_authorization_request_url():
