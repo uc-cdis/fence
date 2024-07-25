@@ -14,7 +14,9 @@ appropriate metric name and labels.
 
 
 import os
+import pathlib
 
+from cdislogging import get_logger
 from prometheus_client import (
     CollectorRegistry,
     multiprocess,
@@ -23,7 +25,6 @@ from prometheus_client import (
     generate_latest,
     CONTENT_TYPE_LATEST,
 )
-from cdislogging import get_logger
 
 from fence.config import config
 
@@ -39,8 +40,10 @@ class Metrics:
         metrics (dict): Dictionary to store Prometheus metrics
     """
 
-    def __init__(self):
-        os.environ["PROMETHEUS_MULTIPROC_DIR"] = "/var/tmp/uwsgi_flask_metrics/"
+    def __init__(self, prometheus_dir="/var/tmp/uwsgi_flask_metrics"):
+        os.environ["PROMETHEUS_MULTIPROC_DIR"] = prometheus_dir
+        pathlib.Path(prometheus_dir).mkdir(parents=True, exist_ok=True)
+
         self._registry = CollectorRegistry()
         multiprocess.MultiProcessCollector(self._registry)
         self._metrics = {}
