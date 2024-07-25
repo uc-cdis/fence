@@ -14,7 +14,6 @@ appropriate metric name and labels.
 
 
 import os
-import tempfile
 
 from prometheus_client import (
     CollectorRegistry,
@@ -40,8 +39,8 @@ class Metrics:
         metrics (dict): Dictionary to store Prometheus metrics
     """
 
-    def __init__(self, path):
-        os.environ["PROMETHEUS_MULTIPROC_DIR"] = path
+    def __init__(self):
+        os.environ["PROMETHEUS_MULTIPROC_DIR"] = "/var/tmp/uwsgi_flask_metrics/"
         self._registry = CollectorRegistry()
         multiprocess.MultiProcessCollector(self._registry)
         self._metrics = {}
@@ -194,5 +193,4 @@ class Metrics:
 
 
 # Initialize the Metrics instance
-PROMETHEUS_TMP_COUNTER_DIR = tempfile.TemporaryDirectory()
-metrics = Metrics(path=PROMETHEUS_TMP_COUNTER_DIR.name)
+metrics = Metrics()
