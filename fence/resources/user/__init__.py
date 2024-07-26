@@ -141,7 +141,8 @@ def get_user_info(current_session, username):
         )
         optional_info = _get_optional_userinfo(user, requested_userinfo_claims)
         info.update(optional_info)
-
+    logger.info(f"Flask globals: {flask.g.access_token}")
+    logger.info(f"JWT: {get_jwt_header()}")
     # Include ga4gh passport visas if access token has ga4gh_passport_v1 in scope claim
     try:
         encoded_access_token = flask.g.access_token or get_jwt_header()
