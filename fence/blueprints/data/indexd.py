@@ -49,6 +49,7 @@ from fence.resources.google.utils import (
 from fence.resources.ga4gh.passports import sync_gen3_users_authz_from_ga4gh_passports
 from fence.resources.audit.utils import enable_audit_logging
 from fence.utils import get_valid_expiration_from_request
+from fence.metrics import metrics
 
 from . import multipart_upload
 from ...models import AssumeRoleCacheAWS, query_for_user, query_for_user_by_id
@@ -77,6 +78,7 @@ def get_signed_url_for_file(
     ga4gh_passports=None,
     db_session=None,
     bucket=None,
+    drs="False",
 ):
     requested_protocol = requested_protocol or flask.request.args.get("protocol", None)
     r_pays_project = flask.request.args.get("userProject", None)
@@ -164,12 +166,33 @@ def get_signed_url_for_file(
         user_sub=flask.g.audit_data.get("sub", ""),
         client_id=_get_client_id(),
         requested_protocol=requested_protocol,
+        action=action,
+        drs=drs,
     )
 
     return {"url": signed_url}
 
 
-def _log_signed_url_data_info(indexed_file, user_sub, client_id, requested_protocol):
+def get_bucket_from_urls(urls, protocol):
+    """
+    Return the bucket name from the first of the provided URLs that starts with the given protocol (usually `gs`, `s3`, `az`...)
+    """
+    bucket = ""
+    for url in urls:
+        if "://" in url:
+            # Extract the protocol and the rest of the URL
+            bucket_protocol, rest_of_url = url.split("://", 1)
+
+            if bucket_protocol == protocol:
+                # Extract bucket name
+                bucket = f"{bucket_protocol}://{rest_of_url.split('/')[0]}"
+                break
+    return bucket
+
+
+def _log_signed_url_data_info(
+    indexed_file, user_sub, client_id, requested_protocol, action, drs="False"
+):
     size_in_kibibytes = (indexed_file.index_document.get("size") or 0) / 1024
     acl = indexed_file.index_document.get("acl")
     authz = indexed_file.index_document.get("authz")
@@ -180,21 +203,23 @@ def _log_signed_url_data_info(indexed_file, user_sub, client_id, requested_proto
         protocol = indexed_file.indexed_file_locations[0].protocol
 
     # figure out which bucket was used based on the protocol
-    bucket = ""
-    for url in indexed_file.index_document.get("urls", []):
-        bucket_name = None
-        if "://" in url:
-            # Extract the protocol and the rest of the URL
-            bucket_protocol, rest_of_url = url.split("://", 1)
-
-            if bucket_protocol == protocol:
-                # Extract bucket name
-                bucket = f"{bucket_protocol}://{rest_of_url.split('/')[0]}"
-                break
+    bucket = get_bucket_from_urls(indexed_file.index_document.get("urls", []), protocol)
 
     logger.info(
-        f"Signed URL Generated. size_in_kibibytes={size_in_kibibytes} "
+        f"Signed URL Generated. action={action} size_in_kibibytes={size_in_kibibytes} "
         f"acl={acl} authz={authz} bucket={bucket} user_sub={user_sub} client_id={client_id}"
+    )
+
+    metrics.add_signed_url_event(
+        action,
+        protocol,
+        acl,
+        authz,
+        bucket,
+        user_sub,
+        client_id,
+        drs,
+        size_in_kibibytes,
     )
 
 
@@ -207,6 +232,7 @@ def _get_client_id():
         pass
 
     return client_id
+
 
 def prepare_presigned_url_audit_log(protocol, indexed_file):
     """

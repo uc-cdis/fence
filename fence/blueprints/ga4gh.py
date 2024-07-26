@@ -41,5 +41,7 @@ def get_ga4gh_signed_url(object_id, access_id):
         object_id,
         requested_protocol=access_id,
         ga4gh_passports=ga4gh_passports,
+        drs="True",
     )
+
     return flask.jsonify(result)
