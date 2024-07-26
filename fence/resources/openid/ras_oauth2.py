@@ -128,6 +128,7 @@ class RASOauth2Client(Oauth2ClientBase):
             keys = self.get_jwt_keys(jwks_endpoint)
             userinfo = self.get_userinfo(token)
             self.logger.info(f"Received user info: {userinfo}")
+            self.logger.info(f"Received token: {token}")
             claims = jose_jwt.decode(
                 token["id_token"],
                 keys,
