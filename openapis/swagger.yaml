@@ -68,6 +68,18 @@ paths:
           description: successful operation
           schema:
             $ref: '#/definitions/SystemVersionOutputRef'
+  /metrics:
+    get:
+      tags:
+        - system
+      summary: Get Prometheus metrics
+      description: >-
+        Returns Prometheus metrics if the `ENABLE_PROMETHEUS_METRICS` setting is `True`.
+        By default, this endpoint is public. Authorization controls can be setup externally;
+        in cloud-automation setups, access to this endpoint is blocked at the revproxy level.
+      responses:
+        '200':
+          description: successful operation
   /oauth2/authorize:
     get:
       tags:
