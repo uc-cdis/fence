@@ -13,7 +13,7 @@ from gen3authz.client.arborist.client import ArboristClient
 from sqlalchemy.orm import scoped_session
 
 
-# Can't read config yet. Just set to debug for now, else no handlers.
+# Can't read config yet. Just set to debug for now, else no handlers
 # Later, in app_config(), will actually set level based on config
 logger = get_logger(__name__, log_level="debug")
 
