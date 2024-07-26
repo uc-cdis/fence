@@ -7,12 +7,10 @@ for example).
 - The new method should call the `_increment_counter` and/or `_set_gauge` methods with the
 appropriate metric name and labels.
 - Call the new method from the code where relevant, for example:
-    from fence.metric import metrics
-    metrics.add_login_event(...)
+    from flask import current_app
+    current_app.metrics.add_login_event(...)
 - Add unit tests to the `tests/test_metrics` file.
 """
-
-
 import os
 import pathlib
 
@@ -26,13 +24,11 @@ from prometheus_client import (
     CONTENT_TYPE_LATEST,
 )
 
-from fence.config import config
-
 
 logger = get_logger(__name__)
 
 
-class Metrics:
+class Metrics(object):
     """
     Class to handle Prometheus metrics
     Attributes:
@@ -40,23 +36,37 @@ class Metrics:
         metrics (dict): Dictionary to store Prometheus metrics
     """
 
-    def __init__(self, prometheus_dir="/var/tmp/uwsgi_flask_metrics"):
-        pathlib.Path(prometheus_dir).mkdir(parents=True, exist_ok=True)
-        os.environ["PROMETHEUS_MULTIPROC_DIR"] = prometheus_dir
+    def __init__(self, enabled=True, prometheus_dir="/var/tmp/uwsgi_flask_metrics"):
+        """
+        Create a metrics class.
 
-        self._registry = CollectorRegistry()
-        multiprocess.MultiProcessCollector(self._registry)
-        self._metrics = {}
+        Args:
+            enabled (bool): If this is false, the class functions will be no-ops (no operations), effectively
+                            doing nothing. This is the behavior when metrics are disabled. Why? So application code
+                            doesn't have to check, it always tries to log a metric.
+        """
+        self.enabled = enabled
+        if enabled:
+            pathlib.Path(prometheus_dir).mkdir(parents=True, exist_ok=True)
+            os.environ["PROMETHEUS_MULTIPROC_DIR"] = prometheus_dir
 
-        # set the descriptions of new metrics here. Descriptions not specified here
-        # will default to the metric name.
-        self._counter_descriptions = {
-            "gen3_fence_presigned_url": "Fence presigned urls",
-            "gen3_fence_login": "Fence logins",
-        }
-        self._gauge_descriptions = {
-            "gen3_fence_presigned_url_size": "Fence presigned urls",
-        }
+            logger.info(
+                f"PROMETHEUS_MULTIPROC_DIR is {os.environ['PROMETHEUS_MULTIPROC_DIR']}"
+            )
+
+            self._registry = CollectorRegistry()
+            multiprocess.MultiProcessCollector(self._registry)
+            self._metrics = {}
+
+            # set the descriptions of new metrics here. Descriptions not specified here
+            # will default to the metric name.
+            self._counter_descriptions = {
+                "gen3_fence_presigned_url": "Fence presigned urls",
+                "gen3_fence_login": "Fence logins",
+            }
+            self._gauge_descriptions = {
+                "gen3_fence_presigned_url_size": "Fence presigned urls",
+            }
 
     def get_latest_metrics(self):
         """
@@ -67,8 +77,8 @@ class Metrics:
         """
         # When metrics gathering is not enabled, the metrics endpoint should not error, but it should
         # not return any data.
-        if not config["ENABLE_PROMETHEUS_METRICS"]:
-            return "", None
+        if not self.enabled:
+            return "", CONTENT_TYPE_LATEST
 
         return generate_latest(self._registry), CONTENT_TYPE_LATEST
 
@@ -125,7 +135,7 @@ class Metrics:
         """
         Record a login event
         """
-        if not config["ENABLE_PROMETHEUS_METRICS"]:
+        if not self.enabled:
             return
         self._increment_counter(
             "gen3_fence_login",
@@ -164,7 +174,7 @@ class Metrics:
         """
         Record a signed URL event
         """
-        if not config["ENABLE_PROMETHEUS_METRICS"]:
+        if not self.enabled:
             return
         self._increment_counter(
             "gen3_fence_presigned_url",
@@ -193,7 +203,3 @@ class Metrics:
             },
             size_in_kibibytes,
         )
-
-
-# Initialize the Metrics instance
-metrics = Metrics()

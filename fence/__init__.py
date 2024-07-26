@@ -27,7 +27,7 @@ config.load(
 )
 
 from fence.auth import logout, build_redirect_url
-from fence.metrics import metrics
+from fence.metrics import Metrics
 from fence.blueprints.data.indexd import S3IndexedFileLocation
 from fence.blueprints.login.utils import allowed_login_redirects, domain
 from fence.errors import UserError
@@ -97,6 +97,11 @@ def app_init(
     logger.info(
         f"Prometheus metrics are{'' if config['ENABLE_PROMETHEUS_METRICS'] else ' NOT'} enabled."
     )
+    if config["ENABLE_PROMETHEUS_METRICS"]:
+        # Initialize the Metrics instance
+        app.metrics = Metrics()
+    else:
+        app.metrics = Metrics(enabled=False)
 
 
 def app_sessions(app):
@@ -207,7 +212,7 @@ def app_register_blueprints(app):
         /!\ There is no authz control on this endpoint!
         In cloud-automation setups, access to this endpoint is blocked at the revproxy level.
         """
-        data, content_type = metrics.get_latest_metrics()
+        data, content_type = flask.current_app.metrics.get_latest_metrics()
         return flask.Response(data, content_type=content_type)
 
 
