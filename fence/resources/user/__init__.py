@@ -157,7 +157,7 @@ def get_user_info(current_session, username):
             "Unable to check scopes in userinfo; some claims may not be included in response."
         )
         encoded_access_token = None
-
+    logger.info(f"encoded_access_token: {encoded_access_token}")
     if encoded_access_token:
         at_scopes = jwt.decode(
             encoded_access_token,
@@ -165,7 +165,9 @@ def get_user_info(current_session, username):
             options={"verify_signature": False},
         ).get("scope", "")
         if "ga4gh_passport_v1" in at_scopes:
-            info["ga4gh_passport_v1"] = []
+            info["ga4gh_passport_v1"] = flask.current_app.ras_client.get_encoded_passport_v11_userinfo(
+                        flask.g.userinfo
+                    )
 
     return info
 
