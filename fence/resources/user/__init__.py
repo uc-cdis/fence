@@ -164,7 +164,7 @@ def get_user_info(current_session, username):
             algorithms=["RS256"],
             options={"verify_signature": False},
         ).get("scope", "")
-        if "ga4gh_passport_v1" in at_scopes:
+        if "ga4gh_passport_v1" in at_scopes and 'userinfo' in flask.g:
             logger.info(flask.current_app.ras_client)
             logger.info(flask.g.userinfo)
             info["ga4gh_passport_v1"] = flask.current_app.ras_client.get_encoded_passport_v11_userinfo(
