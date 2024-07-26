@@ -87,6 +87,12 @@ def login_user(
         Args:
             user (User): User object
         """
+        # Abort login if user.active is False (user.active is None or True are both
+        # considered active in this case):
+        if user.active is False:
+            raise Unauthorized(
+                "User is known but not yet authorized/activated in the system"
+            )
         flask.session["username"] = user.username
         flask.session["user_id"] = str(user.id)
         flask.session["provider"] = user.identity_provider.name
@@ -112,7 +118,7 @@ def login_user(
             return
     else:
         # we need a new user
-        user = User(username=username)
+        user = User(username=username, active=config["AUTO_ACTIVATE_NEW_USER"])
 
         if email:
             user.email = email
