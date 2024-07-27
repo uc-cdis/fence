@@ -143,6 +143,7 @@ def get_user_info(current_session, username):
         info.update(optional_info)
     logger.info(f"Flask globals: {flask.g.access_token}")
     logger.info(f"JWT: {get_jwt_header()}")
+    logger.info(f"user: {flask.g.user}")
     # Include ga4gh passport visas if access token has ga4gh_passport_v1 in scope claim
     try:
         encoded_access_token = flask.g.access_token or get_jwt_header()
@@ -164,7 +165,7 @@ def get_user_info(current_session, username):
             algorithms=["RS256"],
             options={"verify_signature": False},
         ).get("scope", "")
-        if "ga4gh_passport_v1" in at_scopes and 'userinfo' in flask.g:
+        if "ga4gh_passport_v1" in at_scopes:
             logger.info(flask.current_app.ras_client)
             logger.info(flask.g.userinfo)
             info["ga4gh_passport_v1"] = flask.current_app.ras_client.get_encoded_passport_v11_userinfo(
