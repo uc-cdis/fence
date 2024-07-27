@@ -164,12 +164,12 @@ def get_user_info(current_session, username):
             options={"verify_signature": False},
         ).get("scope", "")
         if "ga4gh_passport_v1" in at_scopes:
-            encoded_visas = [row.ga4gh_visa for row in user.ga4gh_visas_v1]
-            info["ga4gh_passport_v1"] = jwt.decode(
-                encoded_visas,
+            encoded_visas = [jwt.decode(
+                row.ga4gh_visa,
                 algorithms=['RS246'],
                 options={"verify_signature": False}
-            )
+            ) for row in user.ga4gh_visas_v1]
+            info["ga4gh_passport_v1"] = encoded_visas
 
     return info
 
