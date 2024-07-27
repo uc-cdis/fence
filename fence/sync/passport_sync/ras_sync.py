@@ -33,7 +33,6 @@ class RASVisa(DefaultVisa):
         project = {}
         info = {}
         info["tags"] = {}
-
         if time.time() < expires:
             for permission in ras_dbgap_permissions:
                 phsid = permission.get("phs_id", "")
@@ -48,6 +47,7 @@ class RASVisa(DefaultVisa):
                     full_phsid = str(phsid)
                     if parse_consent_code and consent_group:
                         full_phsid += "." + str(consent_group)
+                    self.logger.info(f"{parse_consent_code} and {consent_group}")
                     privileges = {"read-storage", "read"}
 
                     permission_expiration = None

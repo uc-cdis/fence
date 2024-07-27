@@ -1462,6 +1462,7 @@ class UserSyncer(object):
         dbgap_config,
         sess,
     ):
+        self.logger.info(f"_process_user_projects {self._get_parse_consent_code(dbgap_config)}")
         for username in user_projects.keys():
             for project in user_projects[username].keys():
                 phsid = project.split(".")
@@ -2487,7 +2488,7 @@ class UserSyncer(object):
             self.logger.info(
                 f"using study to common exchange area mapping: {study_common_exchange_areas}"
             )
-
+        self.logger.info(user_projects)
         self._process_user_projects(
             user_projects,
             enable_common_exchange_area_access,
