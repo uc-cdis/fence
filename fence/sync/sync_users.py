@@ -2429,6 +2429,8 @@ class UserSyncer(object):
         Return:
             list of successfully parsed visas
         """
+        self.logger.info(user)
+        self.logger.info(ga4gh_visas)
         self.ras_sync_client = RASVisa(logger=self.logger)
         dbgap_config = self.dbGaP[0]
         parse_consent_code = self._get_parse_consent_code(dbgap_config)
@@ -2439,6 +2441,7 @@ class UserSyncer(object):
             "study_common_exchange_areas", {}
         )
 
+        self.logger.info(f"parse_consent_code: {parse_consent_code} enable_common_exchange_area_access: {enable_common_exchange_area_access} study_common_exchange_areas: {study_common_exchange_areas}" )
         try:
             user_yaml = UserYAML.from_file(
                 self.sync_from_local_yaml_file, encrypted=False, logger=self.logger

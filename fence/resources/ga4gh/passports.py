@@ -55,7 +55,7 @@ def sync_gen3_users_authz_from_ga4gh_passports(
               embedded within the passports passed in
     """
     db_session = db_session or current_app.scoped_session()
-
+    logger.info(passports)
     # {"username": user, "username2": user2}
     users_from_all_passports = {}
     for passport in passports:
@@ -387,6 +387,8 @@ def _sync_validated_visa_authorization(
     Return:
         None
     """
+    logger.info(gen3_user)
+    logger.info(ga4gh_visas)
     db_session = db_session or current_app.scoped_session()
     default_args = fence.scripting.fence_create.get_default_init_syncer_inputs(
         authz_provider="GA4GH"
