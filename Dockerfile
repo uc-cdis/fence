@@ -58,15 +58,20 @@ RUN yum install tar -y
 # install nginx
 RUN yum install nginx -y
 
+RUN setcap 'cap_net_bind_service=+ep' /usr/sbin/nginx
+
 # chown nginx directories
 RUN chown -R gen3:gen3 /var/log/nginx
 
+# pipe nginx logs to stdout and stderr
+RUN ln -sf /dev/stdout /var/log/nginx/access.log && ln -sf /dev/stderr /var/log/nginx/error.log
+
+# create /var/lib/nginx/tmp/client_body to allow nginx to write to fence
+RUN mkdir -p /var/lib/nginx/tmp/client_body
+RUN chown -R gen3:gen3 /var/lib/nginx/
+
 # copy nginx config
 COPY ./deployment/nginx/nginx.conf /etc/nginx/nginx.conf
-
-
-RUN mkdir -p /var/tmp/uwsgi_flask_metrics
-RUN chown -R gen3:gen3 /var/tmp/uwsgi_flask_metrics
 
 
 # Switch to non-root user 'gen3' for the serving process
@@ -77,6 +82,5 @@ RUN source /venv/bin/activate
 ENV PYTHONUNBUFFERED=1 \
 PYTHONIOENCODING=UTF-8
 
-# run nginx and gunicorn
-COPY ./deployment/scripts/dockerrun.sh /deployment/scripts/dockerrun.sh
-CMD ["/deployment/scripts/dockerrun.sh"]
+
+CMD ["/fence/dockerrun.bash"]

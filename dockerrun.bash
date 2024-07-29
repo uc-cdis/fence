@@ -19,5 +19,5 @@ if [ -f /fence/jwt-keys.tar ]; then
     fi
   )
 fi
-
+nginx
 gunicorn -c /fence/deployment/wsgi/gunicorn.conf.py
