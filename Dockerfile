@@ -28,6 +28,7 @@ FROM base as builder
 
 # Install postgres dev, needed for psycopg2
 RUN yum install postgresql-devel -y
+RUN yum group install "Development Tools" -y
 
 USER gen3
 
