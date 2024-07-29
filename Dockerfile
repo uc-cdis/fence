@@ -26,13 +26,14 @@ RUN groupadd -g 1000 gen3 && \
 # Builder stage
 FROM base as builder
 
+# Install postgres dev, needed for psycopg2
+RUN yum install postgresql-devel -y
+
 USER gen3
 
 
 RUN python -m venv /venv
 
-# Install postgres dev, needed for psycopg2
-RUN yum install postgresql-devel -y
 
 COPY poetry.lock pyproject.toml /${appname}/
 
