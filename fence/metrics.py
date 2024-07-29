@@ -1,6 +1,9 @@
 """
 Metrics are collected by the Prometheus client and exposed at the `/metrics` endpoint.
 
+This defines a class which can be extended and instantiated at the web app-level. For flask, this is
+stored on the `app` object.
+
 To add a new metric:
 - Add a new method to the `Metrics` class below (see `add_login_event` and `add_signed_url_event`
 for example).
@@ -11,6 +14,7 @@ appropriate metric name and labels.
     current_app.metrics.add_login_event(...)
 - Add unit tests to the `tests/test_metrics` file.
 """
+
 import os
 import pathlib
 
@@ -32,11 +36,11 @@ class Metrics(object):
     """
     Class to handle Prometheus metrics
     Attributes:
-        registry (CollectorRegistry): Prometheus registry
+        _registry (CollectorRegistry): Prometheus registry
         metrics (dict): Dictionary to store Prometheus metrics
     """
 
-    def __init__(self, enabled=True, prometheus_dir="/var/tmp/uwsgi_flask_metrics"):
+    def __init__(self, enabled=True, prometheus_dir="/var/tmp/prometheus_metrics"):
         """
         Create a metrics class.
 
@@ -44,29 +48,34 @@ class Metrics(object):
             enabled (bool): If this is false, the class functions will be no-ops (no operations), effectively
                             doing nothing. This is the behavior when metrics are disabled. Why? So application code
                             doesn't have to check, it always tries to log a metric.
+            prometheus_dir (str): Directory to use when setting PROMETHEUS_MULTIPROC_DIR env var (which prometheus requires
+                                  for multiprocess metrics collection). Note that this the prometheus client is very
+                                  finicky about when the ENV var is set.
         """
         self.enabled = enabled
-        if enabled:
-            pathlib.Path(prometheus_dir).mkdir(parents=True, exist_ok=True)
-            os.environ["PROMETHEUS_MULTIPROC_DIR"] = prometheus_dir
+        if not enabled:
+            return
 
-            logger.info(
-                f"PROMETHEUS_MULTIPROC_DIR is {os.environ['PROMETHEUS_MULTIPROC_DIR']}"
-            )
+        pathlib.Path(prometheus_dir).mkdir(parents=True, exist_ok=True)
+        os.environ["PROMETHEUS_MULTIPROC_DIR"] = prometheus_dir
 
-            self._registry = CollectorRegistry()
-            multiprocess.MultiProcessCollector(self._registry)
-            self._metrics = {}
+        logger.info(
+            f"PROMETHEUS_MULTIPROC_DIR is {os.environ['PROMETHEUS_MULTIPROC_DIR']}"
+        )
 
-            # set the descriptions of new metrics here. Descriptions not specified here
-            # will default to the metric name.
-            self._counter_descriptions = {
-                "gen3_fence_presigned_url": "Fence presigned urls",
-                "gen3_fence_login": "Fence logins",
-            }
-            self._gauge_descriptions = {
-                "gen3_fence_presigned_url_size": "Fence presigned urls",
-            }
+        self._registry = CollectorRegistry()
+        multiprocess.MultiProcessCollector(self._registry)
+        self._metrics = {}
+
+        # set the descriptions of new metrics here. Descriptions not specified here
+        # will default to the metric name.
+        self._counter_descriptions = {
+            "gen3_fence_presigned_url": "Fence presigned urls",
+            "gen3_fence_login": "Fence logins",
+        }
+        self._gauge_descriptions = {
+            "gen3_fence_presigned_url_size": "Fence presigned urls",
+        }
 
     def get_latest_metrics(self):
         """
@@ -98,7 +107,7 @@ class Metrics(object):
                 f"Creating counter '{name}' with description '{description}' and labels: {labels}"
             )
             self._metrics[name] = Counter(name, description, [*labels.keys()])
-        elif type(self._metrics[name]) != Counter:
+        elif type(self._metrics[name]) is not Counter:
             raise ValueError(
                 f"Trying to create counter '{name}' but a {type(self._metrics[name])} with this name already exists"
             )
@@ -123,7 +132,7 @@ class Metrics(object):
                 f"Creating gauge '{name}' with description '{description}' and labels: {labels}"
             )
             self._metrics[name] = Gauge(name, description, [*labels.keys()])
-        elif type(self._metrics[name]) != Gauge:
+        elif type(self._metrics[name]) is not Gauge:
             raise ValueError(
                 f"Trying to create gauge '{name}' but a {type(self._metrics[name])} with this name already exists"
             )

@@ -12,7 +12,7 @@ echo "The full path to the METRICS_SETUP_SCRIPT_PATH file is: $METRICS_SETUP_SCR
 # Check if the script exists and is executable
 if [ -x "$METRICS_SETUP_SCRIPT_PATH" ]; then
     echo "Running $METRICS_SETUP_SCRIPT_PATH"
-    source "$METRICS_SETUP_SCRIPT_PATH" /var/tmp/uwsgi_flask_metrics
+    source "$METRICS_SETUP_SCRIPT_PATH" /var/tmp/prometheus_metrics
 else
     echo "$METRICS_SETUP_SCRIPT_PATH does not exist or is not executable. Attempting test run anyway..."
 fi

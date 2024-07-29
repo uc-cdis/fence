@@ -11,7 +11,7 @@
 #   ./script_name.sh [DIR] [true]
 
 # Default directory if no argument is provided
-DIR=${1:-/var/tmp/uwsgi_flask_metrics}
+DIR=${1:-/var/tmp/prometheus_metrics}
 
 # Determine whether to wipe the directory (default is to wipe)
 SETUP_DIR=${2:-true}
