@@ -302,6 +302,8 @@ class RASOauth2Client(Oauth2ClientBase):
             # this get_access_token also persists the refresh token in the db
             token = self.get_access_token(user, token_endpoint, db_session)
             userinfo = self.get_userinfo(token)
+            self.logger.info(f"Received user info: {userinfo}")
+
             passport = self.get_encoded_passport_v11_userinfo(userinfo)
         except Exception as e:
             err_msg = "Could not retrieve visas"
