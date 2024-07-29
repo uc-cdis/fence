@@ -26,10 +26,6 @@ RUN groupadd -g 1000 gen3 && \
 # Builder stage
 FROM base as builder
 
-# Install postgres dev, needed for psycopg2
-RUN yum install postgresql-devel -y
-RUN yum group install "Development Tools" -y
-
 USER gen3
 
 
@@ -59,12 +55,26 @@ COPY --from=builder /$appname /$appname
 # install tar
 RUN yum install tar -y
 
+# install nginx
+RUN yum install nginx -y
+
+# chown nginx directories
+RUN chown -R gen3:gen3 /var/log/nginx
+
+# copy nginx config
+COPY ./deployment/nginx/nginx.conf /etc/nginx/nginx.conf
+
+
+
+
 # Switch to non-root user 'gen3' for the serving process
 USER gen3
 
 RUN source /venv/bin/activate
 
 ENV PYTHONUNBUFFERED=1 \
-    PYTHONIOENCODING=UTF-8
+PYTHONIOENCODING=UTF-8
 
-CMD ["gunicorn", "-c", "deployment/wsgi/gunicorn.conf.py"]
+# run nginx and gunicorn
+COPY ./deployment/scripts/dockerrun.sh /deployment/scripts/dockerrun.sh
+CMD ["/deployment/scripts/dockerrun.sh"]
