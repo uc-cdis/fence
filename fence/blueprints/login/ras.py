@@ -43,7 +43,7 @@ class RASCallback(DefaultOAuth2Callback):
         query_params = parse_qs(parsed_url.query)
 
         userinfo = flask.g.userinfo
-
+        logger.info(f"Userinfo: {userinfo}")
         global_parse_visas_on_login = config["GLOBAL_PARSE_VISAS_ON_LOGIN"]
         parse_visas = global_parse_visas_on_login or (
             global_parse_visas_on_login == None
