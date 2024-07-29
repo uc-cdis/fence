@@ -386,7 +386,16 @@ We use JSON Web Tokens (JWTs) as the format for all tokens of the following type
 - OIDC access token: this token can be sent to Gen3 services via bearer header and get protected resources.
 - OIDC refresh token: this token can be sent to fence to request a new access / id token.
 
+## Unit testing
 
+The easiest way to ensure your environment is getting set up for tests the same
+way the CI/CD is by using the setup and test run script the CI/CD uses.
+
+You can run unit tests (which are run with pytest behind the scenes) like this:
+
+```shell
+bash ./tests/ci_commands_script.sh
+```
 
 ### JWT Information
 
