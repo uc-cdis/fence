@@ -65,6 +65,8 @@ RUN chown -R gen3:gen3 /var/log/nginx
 COPY ./deployment/nginx/nginx.conf /etc/nginx/nginx.conf
 
 
+RUN mkdir -p /var/tmp/uwsgi_flask_metrics
+RUN chown -R gen3:gen3 /var/tmp/uwsgi_flask_metrics
 
 
 # Switch to non-root user 'gen3' for the serving process
