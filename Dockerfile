@@ -18,6 +18,7 @@ WORKDIR /${appname}
 RUN groupadd -g 1000 gen3 && \
     useradd -m -s /bin/bash -u 1000 -g gen3 gen3  && \
     chown -R gen3:gen3 /$appname && \
+    chown -R gen3:gen3 /var/www/$appname && \
     chown -R gen3:gen3 /venv
 
 
