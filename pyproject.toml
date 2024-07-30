@@ -21,7 +21,7 @@ botocore = "*"
 cached_property = "^1.5.1"
 cdiserrors = "<2.0.0"
 cdislogging = "^1.0.0"
-cdispyutils = {git = "https://github.com/uc-cdis/cdis-python-utils", rev = "feat/metrics"}
+cdispyutils = ">=2.1.0"
 flask = ">=3.0.0"
 cryptography = ">=42.0.5"
 flask-cors = ">=3.0.3"
