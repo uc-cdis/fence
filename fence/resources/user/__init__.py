@@ -155,16 +155,6 @@ def get_user_info(current_session, username):
             "Session token present but no access token found. "
             "Unable to check scopes in userinfo; some claims may not be included in response."
         )
-        encoded_access_token = None
-
-    if encoded_access_token:
-        at_scopes = jwt.decode(
-            encoded_access_token,
-            algorithms=["RS256"],
-            options={"verify_signature": False},
-        ).get("scope", "")
-        if "ga4gh_passport_v1" in at_scopes:
-            info["ga4gh_passport_v1"] = []
 
     return info
 
