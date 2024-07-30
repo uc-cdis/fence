@@ -35,9 +35,16 @@ logger = get_logger(__name__)
 class Metrics(object):
     """
     Class to handle Prometheus metrics
+
     Attributes:
+        enabled (bool): If this is false, the class functions will be no-ops (no operations), effectively
+                        doing nothing. This is the behavior when metrics are disabled. Why? So application code
+                        doesn't have to check, it always tries to log a metric.
+
         _registry (CollectorRegistry): Prometheus registry
-        metrics (dict): Dictionary to store Prometheus metrics
+        _metrics (dict): Dictionary to store Prometheus metrics
+        _counter_descriptions (dict): { "counter_name": "Description" }
+        _gauge_descriptions (dict): { "gauge_name": "Description" }
     """
 
     def __init__(self, enabled=True, prometheus_dir="/var/tmp/prometheus_metrics"):
