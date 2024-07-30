@@ -1,16 +1,16 @@
 # Azure DevOps Build Pipeline
 
-The purpose of this [Azure DevOps Pipeline](../azure-devops-pipeline.yaml) is to build `fence`, run a test suite, and then push the `fence` container into an [Azure Container Registry](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-get-started-portal).
+The purpose of this [Azure DevOps Pipeline](../azure-devops-pipeline.yaml) is to build `fence`, run a test suite, and then push the `fence` container into an [Azure Container Registry](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-get-started-portal?tabs=azure-cli).
 
 ## Getting Started
 
-If you don't already have access, you can use the free sign up with [Azure Devops](https://docs.microsoft.com/en-us/azure/devops/pipelines/get-started/pipelines-sign-up?view=azure-devops).
+If you don't already have access, you can use the free sign up with [Azure Devops](https://learn.microsoft.com/en-us/azure/devops/pipelines/get-started/pipelines-sign-up?view=azure-devops).
 
-You can also import the [pipeline](../azure-devops-pipeline.yaml), see these [doc notes](https://docs.microsoft.com/en-us/azure/devops/pipelines/get-started/clone-import-pipeline?view=azure-devops&tabs=yaml#export-and-import-a-pipeline) as a guide.
+You can also import the [pipeline](../azure-devops-pipeline.yaml), see these [doc notes](https://learn.microsoft.com/en-us/azure/devops/pipelines/get-started/clone-import-pipeline?view=azure-devops&tabs=yaml#export-and-import-a-pipeline) as a guide.
 
 ### Setup Azure Container Registry
 
-[Create a Service Principal](https://docs.microsoft.com/en-us/cli/azure/create-an-azure-service-principal-azure-cli#password-based-authentication) in your Azure Subscription using [Azure CLI](https://docs.microsoft.com/en-us/cli/azure/install-azure-cli).
+[Create a Service Principal](https://learn.microsoft.com/en-us/cli/azure/azure-cli-sp-tutorial-1?tabs=bash#password-based-authentication) in your Azure Subscription using [Azure CLI](https://learn.microsoft.com/en-us/cli/azure/install-azure-cli).
 
 First, log into `az` cli:
 
@@ -36,7 +36,7 @@ spTenantId=$(echo $spObject | jq -r ".tenant")
 
 > You will need to have appropriate permissions in the AAD directory.  If you don't have access, please work with your Azure Subscription administrator to obtain a Service Principal.
 
-You can also create an **Azure Container Registry** using [azure cli](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-get-started-azure-cli) or the [portal](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-get-started-portal).
+You can also create an **Azure Container Registry** using [azure cli](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-get-started-azure-cli) or the [portal](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-get-started-portal?tabs=azure-cli).
 
 You can use the following `az` cli commands in `bash` for reference:
 
@@ -45,7 +45,7 @@ az group create --name myResourceGroup --location eastus
 az acr create --resource-group myResourceGroup --name myContainerRegistry --sku Basic
 ```
 
-Also, make sure that the **Service Principal** has rights to the [Azure Container Registry](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-roles?tabs=azure-cli) to **acrPull** and **acrPush**.
+Also, make sure that the **Service Principal** has rights to the [Azure Container Registry](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-roles?tabs=azure-cli) to **acrPull** and **acrPush**.
 
 ```bash
 acrResourceId="$(az acr show -n myContainerRegistry -g myResourceGroup --query "id" -o tsv)"
@@ -65,7 +65,7 @@ az login --service-principal --username "$spClientId" --password "$spPassword" -
 az acr login --name myContainerRegistry
 ```
 
-You can also verify that this service principal will have `ACRPush` and `ACRPull` permission with ACR, which you can check how the [getting started with docker guide](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-get-started-docker-cli?tabs=azure-cli) for more details.
+You can also verify that this service principal will have `ACRPush` and `ACRPull` permission with ACR, which you can check how the [getting started with docker guide](https://learn.microsoft.com/en-us/azure/container-registry/container-registry-get-started-docker-cli?tabs=azure-cli) for more details.
 
 First, pull and tag an image:
 
@@ -99,13 +99,13 @@ az acr repository list --name mycontainerregistry
 
 You can set the variables on your **Azure DevOps pipeline**.
 
-First, make sure you have already [imported your Azure DevOps Pipeline](https://docs.microsoft.com/en-us/azure/devops/pipelines/get-started/clone-import-pipeline?view=azure-devops&tabs=yaml#export-and-import-a-pipeline).
+First, make sure you have already [imported your Azure DevOps Pipeline](https://learn.microsoft.com/en-us/azure/devops/pipelines/get-started/clone-import-pipeline?view=azure-devops&tabs=yaml#export-and-import-a-pipeline).
 
 Click on the pipeline and then click edit, which will let you update the variables in the Azure DevOps pipeline:
 
 ![Click on Variables](./azure_devops_pipeline_config_1.png)
 
-Variable Name | Description  
+Variable Name | Description
 ------ | ------
 SP_CLIENT_ID | This is your Service Principal Client ID.
 SP_CLIENT_PASS | This is your Service Principal Password.  You can override this value when running the Azure DevOps pipeline.
