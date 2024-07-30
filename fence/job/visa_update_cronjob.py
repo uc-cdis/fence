@@ -42,8 +42,6 @@ class Visa_Token_Update(object):
         # implement a more persistent cache.
         self.pkey_cache = {}
 
-        self.visa_types = config.get("USERSYNC", {}).get("visa_types", {})
-
         # Initialize visa clients:
         oidc = config.get("OPENID_CONNECT", {})
         if "ras" not in oidc:
@@ -184,21 +182,4 @@ class Visa_Token_Update(object):
             and getattr(user.identity_provider, "name") == self.ras_client.idp
         ):
             client = self.ras_client
-        return client
-
-    def _pick_client_from_visa(self, visa):
-        """
-        Pick oidc client according to the visa provider
-        """
-        client = None
-        if visa.type in self.visa_types["ras"]:
-            client = self.ras_client
-        else:
-            raise Exception(
-                "Visa type {} not configured in fence-config".format(visa.type)
-            )
-        if not client:
-            raise Exception(
-                "Visa Client not set up or not available for type {}".format(visa.type)
-            )
         return client
