@@ -393,7 +393,7 @@ def mock_arborist_requests(request):
         urls_to_responses = urls_to_responses or {}
         defaults = {
             "arborist/health": {"GET": ("", 200)},
-            "arborist/auth/mapping": {"POST": ({}, "200")},
+            "arborist/auth/mapping": {"POST": ({}, "200")}
         }
         defaults.update(urls_to_responses)
         urls_to_responses = defaults

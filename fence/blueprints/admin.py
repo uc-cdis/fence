@@ -495,6 +495,25 @@ def add_policy_to_user():
 
     return jsonify(res)
 
+@blueprint.route("/list_policies", methods=["GET"])
+@admin_login_required
+@debug_log
+def list_policies():
+    """
+    Return a list of all policies. Returns in JSON format
+    """
+    expand = request.args.get('expand', default = "")
+    if(expand == "True"):
+        expand = True
+    elif(expand == ""):
+        expand = False
+    else:
+        raise UserError("Expand parameter must be True or left blank")
+    if(expand):
+        res = current_app.arborist.list_policies(True)
+    else:
+        res = current_app.arborist.list_policies()
+    return jsonify(res)
 
 @blueprint.route("/add_authz_all", methods=["POST"])
 @admin_login_required
