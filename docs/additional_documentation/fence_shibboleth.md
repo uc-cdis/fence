@@ -21,7 +21,7 @@ The `/login/shib` endpoint accepts the query parameter `shib_idp`. Fence checks 
 
 After the user logs in and is redirected to `/login/shib/login`, we get the `eppn` (EduPerson Principal Name) from the request headers to use as username. If the `eppn` is not available, we use the `persistent-id` (or `cn`) instead.
 
-![Shibboleth Login Flow](images/seq_diagrams/shibboleth_flow.png)
+![Shibboleth Login Flow](../images/seq_diagrams/shibboleth_flow.png)
 
 Notes about the NIH login implementation:
 - NIH login is used as the default when the `idp` is fence and no `shib_idp` is specified (for backwards compatibility).
@@ -32,7 +32,7 @@ Notes about the NIH login implementation:
 
 ### In the multi-tenant Fence instance
 
-The [Shibboleth dockerfile](../DockerfileShib) image is at https://quay.io/repository/cdis/fence-shib and is NOT compatible yet with python 3/the latest Fence (for now, use Fence 2.7.x).
+The [Shibboleth dockerfile](../../DockerfileShib) image is at https://quay.io/repository/cdis/fence-shib and is NOT compatible yet with python 3/the latest Fence (for now, use Fence 2.7.x).
 
 The deployment only includes `revproxy` and `fenceshib`. The Fence configuration enables the `shibboleth` provider:
 

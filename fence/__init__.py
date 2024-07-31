@@ -1,21 +1,17 @@
 from collections import OrderedDict
 import os
-import tempfile
 from urllib.parse import urljoin
-import flask
-from flask_cors import CORS
-from sqlalchemy.orm import scoped_session
-from flask import current_app
-from werkzeug.local import LocalProxy
 
 from authutils.oauth2.client import OAuthClient
-from cdislogging import get_logger
-from gen3authz.client.arborist.client import ArboristClient
-from flask_wtf.csrf import validate_csrf
-from werkzeug.middleware.dispatcher import DispatcherMiddleware
 from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
-from urllib.parse import urlparse
+from cdislogging import get_logger
+import flask
+from flask_cors import CORS
+from flask_wtf.csrf import validate_csrf
+from gen3authz.client.arborist.client import ArboristClient
+from sqlalchemy.orm import scoped_session
+
 
 # Can't read config yet. Just set to debug for now, else no handlers.
 # Later, in app_config(), will actually set level based on config
@@ -31,6 +27,7 @@ config.load(
 )
 
 from fence.auth import logout, build_redirect_url
+from fence.metrics import metrics
 from fence.blueprints.data.indexd import S3IndexedFileLocation
 from fence.blueprints.login.utils import allowed_login_redirects, domain
 from fence.errors import UserError
@@ -67,11 +64,6 @@ import fence.blueprints.register
 import fence.blueprints.ga4gh
 
 
-# for some reason the temp dir does not get created properly if we move
-# this statement to `_setup_prometheus()`
-PROMETHEUS_TMP_COUNTER_DIR = tempfile.TemporaryDirectory()
-
-
 app = flask.Flask(__name__)
 CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
 
@@ -102,6 +94,9 @@ def app_init(
     app_sessions(app)
     app_register_blueprints(app)
     server.init_app(app, query_client=query_client)
+    logger.info(
+        f"Prometheus metrics are{'' if config['ENABLE_PROMETHEUS_METRICS'] else ' NOT'} enabled."
+    )
 
 
 def app_sessions(app):
@@ -205,6 +200,15 @@ def app_register_blueprints(app):
         return flask.jsonify(
             {"keys": [(keypair.kid, keypair.public_key) for keypair in app.keypairs]}
         )
+
+    @app.route("/metrics")
+    def metrics_endpoint():
+        """
+        /!\ There is no authz control on this endpoint!
+        In cloud-automation setups, access to this endpoint is blocked at the revproxy level.
+        """
+        data, content_type = metrics.get_latest_metrics()
+        return flask.Response(data, content_type=content_type)
 
 
 def _check_azure_storage(app):
@@ -365,13 +369,6 @@ def app_config(
     _setup_data_endpoint_and_boto(app)
     _load_keys(app, root_dir)
 
-    app.prometheus_counters = {}
-    if config["ENABLE_PROMETHEUS_METRICS"]:
-        logger.info("Enabling Prometheus metrics...")
-        _setup_prometheus(app)
-    else:
-        logger.info("Prometheus metrics are NOT enabled.")
-
     app.storage_manager = StorageManager(config["STORAGE_CREDENTIALS"], logger=logger)
 
     app.debug = config["DEBUG"]
@@ -492,27 +489,6 @@ def _setup_audit_service_client(app):
     )
     app.audit_service_client = AuditServiceClient(
         service_url=service_url, logger=logger
-    )
-
-
-def _setup_prometheus(app):
-    # This environment variable MUST be declared before importing the
-    # prometheus modules (or unit tests fail)
-    # More details on this awkwardness: https://github.com/prometheus/client_python/issues/250
-    os.environ["prometheus_multiproc_dir"] = PROMETHEUS_TMP_COUNTER_DIR.name
-
-    from prometheus_client import (
-        CollectorRegistry,
-        multiprocess,
-        make_wsgi_app,
-    )
-
-    app.prometheus_registry = CollectorRegistry()
-    multiprocess.MultiProcessCollector(app.prometheus_registry)
-
-    # Add prometheus wsgi middleware to route /metrics requests
-    app.wsgi_app = DispatcherMiddleware(
-        app.wsgi_app, {"/metrics": make_wsgi_app(registry=app.prometheus_registry)}
     )
 
 
