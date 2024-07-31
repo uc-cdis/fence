@@ -81,7 +81,6 @@ def test_app_config():
         {"patch_name": "fence.app_sessions"},
         {"patch_name": "fence.app_register_blueprints"},
         {"patch_name": "fence.oidc.oidc_server.OIDCServer.init_app"},
-        {"patch_name": "fence._setup_prometheus"},
         {
             "patch_name": "fence.resources.storage.StorageManager.__init__",
             "return_value": None,

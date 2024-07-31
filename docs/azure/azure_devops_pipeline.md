@@ -1,12 +1,12 @@
 # Azure DevOps Build Pipeline
 
-The purpose of this [Azure DevOps Pipeline](../azure-devops-pipeline.yaml) is to build `fence`, run a test suite, and then push the `fence` container into an [Azure Container Registry](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-get-started-portal).
+The purpose of this [Azure DevOps Pipeline](../../azure-devops-pipeline.yaml) is to build `fence`, run a test suite, and then push the `fence` container into an [Azure Container Registry](https://docs.microsoft.com/en-us/azure/container-registry/container-registry-get-started-portal).
 
 ## Getting Started
 
 If you don't already have access, you can use the free sign up with [Azure Devops](https://docs.microsoft.com/en-us/azure/devops/pipelines/get-started/pipelines-sign-up?view=azure-devops).
 
-You can also import the [pipeline](../azure-devops-pipeline.yaml), see these [doc notes](https://docs.microsoft.com/en-us/azure/devops/pipelines/get-started/clone-import-pipeline?view=azure-devops&tabs=yaml#export-and-import-a-pipeline) as a guide.
+You can also import the [pipeline](../../azure-devops-pipeline.yaml), see these [doc notes](https://docs.microsoft.com/en-us/azure/devops/pipelines/get-started/clone-import-pipeline?view=azure-devops&tabs=yaml#export-and-import-a-pipeline) as a guide.
 
 ### Setup Azure Container Registry
 
@@ -103,7 +103,7 @@ First, make sure you have already [imported your Azure DevOps Pipeline](https://
 
 Click on the pipeline and then click edit, which will let you update the variables in the Azure DevOps pipeline:
 
-![Click on Variables](./azure_devops_pipeline_config_1.png)
+![Click on Variables](azure_devops_pipeline_config_1.png)
 
 Variable Name | Description  
 ------ | ------
@@ -117,8 +117,8 @@ GIT_REPO_TAG | This is the tag to use for the `fence` git repository, with a def
 
 After updating the variables, be sure to click **save**:
 
-![Save updated variables](./azure_devops_pipeline_config_2.png)
+![Save updated variables](azure_devops_pipeline_config_2.png)
 
 You can run the pipeline to validate the `fence` build and push to ACR.
 
-![Run the pipeline](./azure_devops_pipeline_config_3.png)
+![Run the pipeline](azure_devops_pipeline_config_3.png)

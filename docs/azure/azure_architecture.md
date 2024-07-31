@@ -11,7 +11,7 @@ You can review how `fence` works with [Azure Blob Storage](#Azure-Blob-Storage) 
 
 ### Azure Blob Storage
 
-![Azure Blob Storage with Fence](./images/m_fence_azure_blob_storage.png)
+![Azure Blob Storage with Fence](../images/m_fence_azure_blob_storage.png)
 
 The diagram shows 2 separate workflows in order for `fence` to interact with [Azure Blob Storage](https://docs.microsoft.com/en-us/azure/storage/blobs/storage-blobs-introduction):
 
@@ -26,7 +26,7 @@ Also note that there's alternatives that could be considered for [future develop
 
 You can provision an Azure Storage Account with [Blob Storage as a one-time setup](https://docs.microsoft.com/en-us/azure/storage/blobs/storage-quickstart-blobs-portal). You can further make the blobs [public read only](https://docs.microsoft.com/en-us/azure/storage/blobs/anonymous-read-access-configure?tabs=portal) for dev / test purposes, but it would be advisable to avoid this setup in a production scenario and consider using non-public ones instead.
 
-With the Azure Blob Storage Account setup, you can further upload files into your Blob Storage using [Azure Storage Explorer](https://azure.microsoft.com/en-us/features/storage-explorer/) for manual testing, or you can automate loading data files into Azure Blob Storage (e.g. using [Azure Blob Storage Python SDK](https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/storage/azure-storage-blob)).
+With the Azure Blob Storage Account setup, you can further upload files into your Blob Storage using [Azure Storage Explorer](https://azure.microsoft.com/en-us/products/storage/storage-explorer/) for manual testing, or you can automate loading data files into Azure Blob Storage (e.g. using [Azure Blob Storage Python SDK](https://github.com/Azure/azure-sdk-for-python/tree/main/sdk/storage/azure-storage-blob)).
 
 Assuming that you have preexisting files in an Azure Blob Storage Account, you can work through the following steps to index the files:
 
@@ -44,12 +44,12 @@ You can use the Azure Blob Storage client to connect to Azure Blob Storage, and 
 
 #### Configuration Details
 
-You can update the [Fence config.yaml](../fence/config-default.yaml) to include the following values:
+You can update the [Fence config.yaml](../../fence/config-default.yaml) to include the following values:
 
-Name | Value | Description
------- | ------|----------
-`AZ_BLOB_CREDENTIALS` | DefaultEndpointsProtocol=https;AccountName=somestorageaccount;AccountKey=storageaccountkey;BlobEndpoint=`https://somestorageaccount.blob.core.windows.net/`; | This is the [Azure Blob Storage Connection String](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage?toc=%2Fazure%2Fstorage%2Fblobs%2Ftoc.json&tabs=azure-portal#view-account-access-keys). You can also set this to `'*'` if you are indexing URLs for [public read access Azure Blob Storage containers](https://docs.microsoft.com/en-us/azure/storage/blobs/anonymous-read-access-configure?tabs=portal). Note that if you're using the URL for a public read access Azure Blob Storage container, then operations such as `delete` and `upload` will not work.
-`AZ_BLOB_CONTAINER_URL` | `https://storageaccountname.blob.core.windows.net/storage-container` | This is the destination container for uploading with a given SAS token. You can set this value to designate a pre-existing storage container to upload indexed files, for example the new files could sit in `https://storageaccountname.blob.core.windows.net/storage-container/someguid/some/blob/file.txt`. If the storage account doesn't align with the indexed URL (e.g. you're using a public url or the storage account doesn't match), the upload will not work. If `AZ_BLOB_CREDENTIALS` is `'*'` then uploads from an indexed file using a public URL will not work. This value should be associated with the same Azure Blob Storage account used with the [Azure Blob Storage Connection String](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage?toc=%2Fazure%2Fstorage%2Fblobs%2Ftoc.json&tabs=azure-portal#view-account-access-keys) for `AZ_BLOB_CREDENTIALS`.
+| Name                    | Value                                                                                                                                                        | Description                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                                      |
+|-------------------------|--------------------------------------------------------------------------------------------------------------------------------------------------------------|------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------|
+| `AZ_BLOB_CREDENTIALS`   | DefaultEndpointsProtocol=https;AccountName=somestorageaccount;AccountKey=storageaccountkey;BlobEndpoint=`https://somestorageaccount.blob.core.windows.net/`; | This is the [Azure Blob Storage Connection String](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage?toc=%2Fazure%2Fstorage%2Fblobs%2Ftoc.json&tabs=azure-portal#view-account-access-keys). You can also set this to `'*'` if you are indexing URLs for [public read access Azure Blob Storage containers](https://docs.microsoft.com/en-us/azure/storage/blobs/anonymous-read-access-configure?tabs=portal). Note that if you're using the URL for a public read access Azure Blob Storage container, then operations such as `delete` and `upload` will not work.                                                                                                                                                                                                                                                                                                              |
+| `AZ_BLOB_CONTAINER_URL` | `https://storageaccountname.blob.core.windows.net/storage-container`                                                                                         | This is the destination container for uploading with a given SAS token. You can set this value to designate a pre-existing storage container to upload indexed files, for example the new files could sit in `https://storageaccountname.blob.core.windows.net/storage-container/someguid/some/blob/file.txt`. If the storage account doesn't align with the indexed URL (e.g. you're using a public url or the storage account doesn't match), the upload will not work. If `AZ_BLOB_CREDENTIALS` is `'*'` then uploads from an indexed file using a public URL will not work. This value should be associated with the same Azure Blob Storage account used with the [Azure Blob Storage Connection String](https://docs.microsoft.com/en-us/azure/storage/common/storage-account-keys-manage?toc=%2Fazure%2Fstorage%2Fblobs%2Ftoc.json&tabs=azure-portal#view-account-access-keys) for `AZ_BLOB_CREDENTIALS`. |
 
 Using pre-signed urls for download is implemented; it's currently using a [SAS Token](https://docs.microsoft.com/en-us/azure/storage/common/storage-sas-overview).
 
@@ -64,7 +64,7 @@ For example, when you index the file (e.g. using the [gen3sdk](https://github.co
 
 So if you navigate to `https://mydatacommons/files/guid` (assuming that the metadata is already setup), you can click on the file to download which will make the call to get the appropriate signed URL.
 
-![Presigned URL](./images/m_fence_presigned_url.png)
+![Presigned URL](../images/m_fence_presigned_url.png)
 
 * If you index the file with a URL for a blob in a **public** Azure Blob Storage Container and the `AZ_BLOB_CREDENTIALS` are set to `'*'`, then the **non-signed** converted indexed URL will be used (e.g. `https://<publicstorageaccount>.blob.core.windows.net/<containername>/some/path/to/file.txt`)
   > You need to replace the URL such as `https://<publicstorageaccount>.blob.core.windows.net/<containername>/some/path/to/file.txt` with `az://<publicstorageaccount>.blob.core.windows.net/<containername>/some/path/to/file.txt` upon submitting the record to `indexd`.
@@ -83,7 +83,7 @@ You can use [user delegation SAS tokens](https://docs.microsoft.com/en-us/rest/a
 
 ### Azure Active Directory
 
-![Azure AD with Fence](./images/m_fence_azure_AD.png)
+![Azure AD with Fence](../images/m_fence_azure_AD.png)
 
 The diagram shows 3 separate workflows in order for `fence` to interact with Azure AD:
 
@@ -104,16 +104,16 @@ Also note that there's alternatives that could be considered for [future develop
 1. [Create](https://docs.microsoft.com/en-us/azure/data-explorer/provision-azure-ad-app) AAD Application
 2. Add a redirect URL
     * The application needs to have redirect URL that is the FDQN of commons appended with `(commons fdqn)/user/login/microsoft/login`.
-![Add Redirect URI](./images/m_fence_azure_AD_app_registration_1.png)
+![Add Redirect URI](../images/m_fence_azure_AD_app_registration_1.png)
 3. Set a secret for the AAD application
-![Set the Client Secret](./images/m_fence_azure_AD_app_registration_2.png)
+![Set the Client Secret](../images/m_fence_azure_AD_app_registration_2.png)
 4. Retrieve the `client id` of the AAD application
-![Retrieve client ID](./images/m_fence_azure_AD_app_registration_3.png)
-5. Update [fence-config.yaml](../fence/config-default.yaml)
+![Retrieve client ID](../images/m_fence_azure_AD_app_registration_3.png)
+5. Update [fence-config.yaml](../../fence/config-default.yaml)
     * Set the `microsoft_client_id` to be the `client_id` in step 4.
     * Set the `microsoft_client_secret` to be the secret value in step 3.
-    * Make sure the `BASE_URL` in [fence-config.yaml](../fence/config-default.yaml) is correct.
-    * Make sure the `redirect_url` in [fence-config.yaml](../fence/config-default.yaml) is `{{BASE_URL}}/login/microsoft/login/` is matches the redirect URL (`(commons fdqn)/user/login/microsoft/login`) in step 2
+    * Make sure the `BASE_URL` in [fence-config.yaml](../../fence/config-default.yaml) is correct.
+    * Make sure the `redirect_url` in [fence-config.yaml](../../fence/config-default.yaml) is `{{BASE_URL}}/login/microsoft/login/` is matches the redirect URL (`(commons fdqn)/user/login/microsoft/login`) in step 2
 6. Restart `fence` service with the updated secrets
 
 #### User Yaml Setup
@@ -122,7 +122,7 @@ Also note that there's alternatives that could be considered for [future develop
 
 It's helpful to understand some of the [Arborist terms and definitions](https://github.com/uc-cdis/arborist#terminology-and-definitions), which covers **action**, **permission**, **role**, **resource**, **policy**, and **group**.
 
-Further, it's helpful to understand the Arborist options for [configuring access](https://github.com/uc-cdis/arborist#configuring-access). You can see an example of granting **users** and **groups** access and more details in the [user.yaml guide](./user.yaml_guide.md).
+Further, it's helpful to understand the Arborist options for [configuring access](https://github.com/uc-cdis/arborist#configuring-access). You can see an example of granting **users** and **groups** access and more details in the [user.yaml guide](../additional_documentation/user.yaml_guide.md).
 
 At a high level, this setup involves a couple steps:
 
