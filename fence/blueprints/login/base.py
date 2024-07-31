@@ -7,6 +7,7 @@ from fence.auth import login_user
 from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
 from fence.errors import UserError
+from fence.metrics import metrics
 
 logger = get_logger(__name__)
 
@@ -133,6 +134,14 @@ class DefaultOAuth2Callback(Resource):
 
     def post_login(self, user=None, token_result=None, **kwargs):
         prepare_login_log(self.idp_name)
+        metrics.add_login_event(
+            user_sub=flask.g.user.id,
+            idp=self.idp_name,
+            fence_idp=flask.session.get("fence_idp"),
+            shib_idp=flask.session.get("shib_idp"),
+            client_id=flask.session.get("client_id"),
+        )
+
         if token_result:
             username = token_result.get(self.username_field)
             if self.is_mfa_enabled:
