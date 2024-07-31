@@ -41,7 +41,7 @@ RUN poetry config virtualenvs.create false \
 COPY . /$appname
 COPY ./deployment/uwsgi/uwsgi.ini /etc/uwsgi/uwsgi.ini
 COPY ./deployment/uwsgi/wsgi.py /$appname/wsgi.py
-COPY clear_prometheus_multiproc /$appname/clear_prometheus_multiproc
+COPY ./deployment/scripts/metrics/setup_prometheus /$appname/setup_prometheus
 
 # install fence
 RUN poetry config virtualenvs.create false \
