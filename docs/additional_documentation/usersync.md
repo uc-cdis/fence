@@ -6,7 +6,7 @@ Usersync is a script that parses user access information from multiple sources (
 
 ## Usersync flow
 
-![Usersync Flow](images/usersync.png)
+![Usersync Flow](../images/usersync.png)
 
 > The access from the user.yaml file and the dbGaP authorization files is combined (see example below), but the user.yaml file overrides the user information (such as email) obtained from the dbGaP authorization files.
 

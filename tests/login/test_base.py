@@ -4,7 +4,7 @@ from unittest.mock import MagicMock, patch
 
 
 @patch("fence.blueprints.login.base.prepare_login_log")
-def test_post_login_set_mfa(app, monkeypatch):
+def test_post_login_set_mfa(app, monkeypatch, mock_authn_user_flask_context):
     """
     Verifies the arborist is called with the mfa_policy if a given token contains the claims found in the
     configured multifactor_auth_claim_info
@@ -37,7 +37,7 @@ def test_post_login_set_mfa(app, monkeypatch):
 
 
 @patch("fence.blueprints.login.base.prepare_login_log")
-def test_post_login_no_mfa_enabled(app, monkeypatch):
+def test_post_login_no_mfa_enabled(app, monkeypatch, mock_authn_user_flask_context):
     """
     Verifies arborist is not called when there is no multifactor_auth_claim_info defined for the given IDP.
     """
