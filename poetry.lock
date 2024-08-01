@@ -250,17 +250,17 @@ files = [
 
 [[package]]
 name = "boto3"
-version = "1.34.150"
+version = "1.34.151"
 description = "The AWS SDK for Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "boto3-1.34.150-py3-none-any.whl", hash = "sha256:ad648c89a4935590a69341e5430fc42a021489a22de171ee3fd7bb204f9ef0fa"},
-    {file = "boto3-1.34.150.tar.gz", hash = "sha256:894b222f7850b870a7ac63d7e378ac36c5c34375da24ddc30e131d9fafe369dc"},
+    {file = "boto3-1.34.151-py3-none-any.whl", hash = "sha256:35bc76faacf1667d3fbb66c1966acf2230ef26206557efc26d9d9d79337bef43"},
+    {file = "boto3-1.34.151.tar.gz", hash = "sha256:30498a76b6f651ee2af7ae8edc1704379279ab8b91f1a8dd1f4ddf51259b0bc2"},
 ]
 
 [package.dependencies]
-botocore = ">=1.34.150,<1.35.0"
+botocore = ">=1.34.151,<1.35.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.10.0,<0.11.0"
 
@@ -269,13 +269,13 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.34.150"
+version = "1.34.151"
 description = "Low-level, data-driven core of boto 3."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "botocore-1.34.150-py3-none-any.whl", hash = "sha256:b988d47f4d502df85befce11a48002421e4e6ea4289997b5e0261bac5fa76ce6"},
-    {file = "botocore-1.34.150.tar.gz", hash = "sha256:4d23387e0f076d87b637a2a35c0ff2b8daca16eace36b63ce27f65630c6b375a"},
+    {file = "botocore-1.34.151-py3-none-any.whl", hash = "sha256:9018680d7d4a8060c26d127ceec5ab5b270879f423ea39b863d8a46f3e34c404"},
+    {file = "botocore-1.34.151.tar.gz", hash = "sha256:0d0968e427a94378f295b49d59170dad539938487ec948de3d030f06092ec6dc"},
 ]
 
 [package.dependencies]
@@ -354,15 +354,18 @@ name = "cdispyutils"
 version = "2.1.0"
 description = "This package includes several utility Python tools for the Gen3 stack."
 optional = false
-python-versions = "*"
-files = []
-develop = false
+python-versions = "<4.0,>=3.9"
+files = [
+    {file = "cdispyutils-2.1.0-py3-none-any.whl", hash = "sha256:ca1310ebb7e1b971d183823a8294e1dc9d8d55f862aa3c83e0feac7125364308"},
+    {file = "cdispyutils-2.1.0.tar.gz", hash = "sha256:1c87830ea1d537f8479364b9473cca037f5ac8906e874471920f69622e3a4431"},
+]
 
-[package.source]
-type = "git"
-url = "https://github.com/uc-cdis/cdis-python-utils"
-reference = "feat/metrics"
-resolved_reference = "f9cbd6637abedee226ce1968f5b990ec63c1f787"
+[package.dependencies]
+cdiserrors = "*"
+cryptography = "*"
+Flask = "*"
+PyJWT = "*"
+requests = "*"
 
 [[package]]
 name = "cdisutilstest"
@@ -1020,13 +1023,13 @@ grpcio-gcp = ["grpcio-gcp (>=0.2.2,<1.0.dev0)"]
 
 [[package]]
 name = "google-api-python-client"
-version = "2.138.0"
+version = "2.139.0"
 description = "Google API Client Library for Python"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "google_api_python_client-2.138.0-py2.py3-none-any.whl", hash = "sha256:1dd279124e4e77cbda4769ffb4abe7e7c32528ef1e18739320fef2a07b750764"},
-    {file = "google_api_python_client-2.138.0.tar.gz", hash = "sha256:31080fbf0e64687876135cc23d1bec1ca3b80d7702177dd17b04131ea889eb70"},
+    {file = "google_api_python_client-2.139.0-py2.py3-none-any.whl", hash = "sha256:1850a92505d91a82e2ca1635ab2b8dff179f4b67082c2651e1db332e8039840c"},
+    {file = "google_api_python_client-2.139.0.tar.gz", hash = "sha256:ed4bc3abe2c060a87412465b4e8254620bbbc548eefc5388e2c5ff912d36a68b"},
 ]
 
 [package.dependencies]
@@ -1758,22 +1761,22 @@ testing = ["google-api-core (>=1.31.5)"]
 
 [[package]]
 name = "protobuf"
-version = "5.27.2"
+version = "5.27.3"
 description = ""
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "protobuf-5.27.2-cp310-abi3-win32.whl", hash = "sha256:354d84fac2b0d76062e9b3221f4abbbacdfd2a4d8af36bab0474f3a0bb30ab38"},
-    {file = "protobuf-5.27.2-cp310-abi3-win_amd64.whl", hash = "sha256:0e341109c609749d501986b835f667c6e1e24531096cff9d34ae411595e26505"},
-    {file = "protobuf-5.27.2-cp38-abi3-macosx_10_9_universal2.whl", hash = "sha256:a109916aaac42bff84702fb5187f3edadbc7c97fc2c99c5ff81dd15dcce0d1e5"},
-    {file = "protobuf-5.27.2-cp38-abi3-manylinux2014_aarch64.whl", hash = "sha256:176c12b1f1c880bf7a76d9f7c75822b6a2bc3db2d28baa4d300e8ce4cde7409b"},
-    {file = "protobuf-5.27.2-cp38-abi3-manylinux2014_x86_64.whl", hash = "sha256:b848dbe1d57ed7c191dfc4ea64b8b004a3f9ece4bf4d0d80a367b76df20bf36e"},
-    {file = "protobuf-5.27.2-cp38-cp38-win32.whl", hash = "sha256:4fadd8d83e1992eed0248bc50a4a6361dc31bcccc84388c54c86e530b7f58863"},
-    {file = "protobuf-5.27.2-cp38-cp38-win_amd64.whl", hash = "sha256:610e700f02469c4a997e58e328cac6f305f649826853813177e6290416e846c6"},
-    {file = "protobuf-5.27.2-cp39-cp39-win32.whl", hash = "sha256:9e8f199bf7f97bd7ecebffcae45ebf9527603549b2b562df0fbc6d4d688f14ca"},
-    {file = "protobuf-5.27.2-cp39-cp39-win_amd64.whl", hash = "sha256:7fc3add9e6003e026da5fc9e59b131b8f22b428b991ccd53e2af8071687b4fce"},
-    {file = "protobuf-5.27.2-py3-none-any.whl", hash = "sha256:54330f07e4949d09614707c48b06d1a22f8ffb5763c159efd5c0928326a91470"},
-    {file = "protobuf-5.27.2.tar.gz", hash = "sha256:f3ecdef226b9af856075f28227ff2c90ce3a594d092c39bee5513573f25e2714"},
+    {file = "protobuf-5.27.3-cp310-abi3-win32.whl", hash = "sha256:dcb307cd4ef8fec0cf52cb9105a03d06fbb5275ce6d84a6ae33bc6cf84e0a07b"},
+    {file = "protobuf-5.27.3-cp310-abi3-win_amd64.whl", hash = "sha256:16ddf3f8c6c41e1e803da7abea17b1793a97ef079a912e42351eabb19b2cffe7"},
+    {file = "protobuf-5.27.3-cp38-abi3-macosx_10_9_universal2.whl", hash = "sha256:68248c60d53f6168f565a8c76dc58ba4fa2ade31c2d1ebdae6d80f969cdc2d4f"},
+    {file = "protobuf-5.27.3-cp38-abi3-manylinux2014_aarch64.whl", hash = "sha256:b8a994fb3d1c11156e7d1e427186662b64694a62b55936b2b9348f0a7c6625ce"},
+    {file = "protobuf-5.27.3-cp38-abi3-manylinux2014_x86_64.whl", hash = "sha256:a55c48f2a2092d8e213bd143474df33a6ae751b781dd1d1f4d953c128a415b25"},
+    {file = "protobuf-5.27.3-cp38-cp38-win32.whl", hash = "sha256:043853dcb55cc262bf2e116215ad43fa0859caab79bb0b2d31b708f128ece035"},
+    {file = "protobuf-5.27.3-cp38-cp38-win_amd64.whl", hash = "sha256:c2a105c24f08b1e53d6c7ffe69cb09d0031512f0b72f812dd4005b8112dbe91e"},
+    {file = "protobuf-5.27.3-cp39-cp39-win32.whl", hash = "sha256:c84eee2c71ed83704f1afbf1a85c3171eab0fd1ade3b399b3fad0884cbcca8bf"},
+    {file = "protobuf-5.27.3-cp39-cp39-win_amd64.whl", hash = "sha256:af7c0b7cfbbb649ad26132e53faa348580f844d9ca46fd3ec7ca48a1ea5db8a1"},
+    {file = "protobuf-5.27.3-py3-none-any.whl", hash = "sha256:8572c6533e544ebf6899c360e91d6bcbbee2549251643d32c52cf8a5de295ba5"},
+    {file = "protobuf-5.27.3.tar.gz", hash = "sha256:82460903e640f2b7e34ee81a947fdaad89de796d324bcbc38ff5430bcdead82c"},
 ]
 
 [[package]]
@@ -1905,13 +1908,13 @@ files = [
 
 [[package]]
 name = "pyjwt"
-version = "2.8.0"
+version = "2.9.0"
 description = "JSON Web Token implementation in Python"
 optional = false
-python-versions = ">=3.7"
+python-versions = ">=3.8"
 files = [
-    {file = "PyJWT-2.8.0-py3-none-any.whl", hash = "sha256:59127c392cc44c2da5bb3192169a91f429924e17aff6534d70fdc02ab3e04320"},
-    {file = "PyJWT-2.8.0.tar.gz", hash = "sha256:57e28d156e3d5c10088e0c68abb90bfac3df82b40a71bd0daa20c65ccd5c23de"},
+    {file = "PyJWT-2.9.0-py3-none-any.whl", hash = "sha256:3b02fb0f44517787776cf48f2ae25d8e14f300e6d7545a4315cee571a415e850"},
+    {file = "pyjwt-2.9.0.tar.gz", hash = "sha256:7e1e5b56cc735432a7369cbfa0efe50fa113ebecdc04ae6922deba8b84582d0c"},
 ]
 
 [package.dependencies]
@@ -1919,8 +1922,8 @@ cryptography = {version = ">=3.4.0", optional = true, markers = "extra == \"cryp
 
 [package.extras]
 crypto = ["cryptography (>=3.4.0)"]
-dev = ["coverage[toml] (==5.0.4)", "cryptography (>=3.4.0)", "pre-commit", "pytest (>=6.0.0,<7.0.0)", "sphinx (>=4.5.0,<5.0.0)", "sphinx-rtd-theme", "zope.interface"]
-docs = ["sphinx (>=4.5.0,<5.0.0)", "sphinx-rtd-theme", "zope.interface"]
+dev = ["coverage[toml] (==5.0.4)", "cryptography (>=3.4.0)", "pre-commit", "pytest (>=6.0.0,<7.0.0)", "sphinx", "sphinx-rtd-theme", "zope.interface"]
+docs = ["sphinx", "sphinx-rtd-theme", "zope.interface"]
 tests = ["coverage[toml] (==5.0.4)", "pytest (>=6.0.0,<7.0.0)"]
 
 [[package]]
