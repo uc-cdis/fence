@@ -8,9 +8,14 @@ database migrations.
 """
 
 from enum import Enum
-
 from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
-from authlib.flask.oauth2.sqla import OAuth2AuthorizationCodeMixin, OAuth2ClientMixin
+from authlib.integrations.sqla_oauth2 import (
+    OAuth2AuthorizationCodeMixin,
+    OAuth2ClientMixin,
+)
+
+import time
+import json
 import bcrypt
 from datetime import datetime, timedelta
 import flask
@@ -153,7 +158,7 @@ def get_client_expires_at(expires_in, grant_types):
             # `timestamp()` already converts to UTC
             expires_at = (datetime.now() + timedelta(days=expires_in)).timestamp()
 
-    if "client_credentials" in grant_types.split("\n"):
+    if "client_credentials" in grant_types:
         if not expires_in or expires_in <= 0 or expires_in > 366:
             logger.warning(
                 "Credentials with the 'client_credentials' grant which will be used externally are required to expire within 12 months. Use the `--expires-in` parameter to add an expiration."
@@ -227,9 +232,9 @@ class Client(Base, OAuth2ClientMixin):
 
     __tablename__ = "client"
 
-    client_id = Column(String(40), primary_key=True)
+    client_id = Column(String(48), primary_key=True, index=True)
     # this is hashed secret
-    client_secret = Column(String(60), unique=True, index=True, nullable=True)
+    client_secret = Column(String(120), unique=True, index=True, nullable=True)
 
     # human readable name
     name = Column(String(40), nullable=False)
@@ -250,46 +255,51 @@ class Client(Base, OAuth2ClientMixin):
     # public or confidential
     is_confidential = Column(Boolean, default=True)
 
-    # NOTE: DEPRECATED
-    # Client now uses `redirect_uri` column, from authlib client model
-    _redirect_uris = Column(Text)
+    expires_at = Column(Integer, nullable=False, default=0)
 
-    _allowed_scopes = Column(Text, nullable=False, default="")
-
+    # Deprecated, keeping these around in case it is needed later
     _default_scopes = Column(Text)
     _scopes = ["compute", "storage", "user"]
 
-    expires_at = Column(Integer, nullable=False, default=0)
-
-    # note that authlib adds a response_type column which is not used here
-
     def __init__(self, client_id, expires_in=0, **kwargs):
-        """
-        NOTE that for authlib, the client must have an attribute ``redirect_uri`` which
-        is a newline-delimited list of valid redirect URIs.
-        """
+
+        # New Json object for Authlib Oauth client
+        if "_client_metadata" in kwargs:
+            client_metadata = json.loads(kwargs.pop("_client_metadata"))
+        else:
+            client_metadata = {}
+
         if "allowed_scopes" in kwargs:
             allowed_scopes = kwargs.pop("allowed_scopes")
             if isinstance(allowed_scopes, list):
-                kwargs["_allowed_scopes"] = " ".join(allowed_scopes)
+                client_metadata["scope"] = " ".join(allowed_scopes)
             else:
-                kwargs["_allowed_scopes"] = allowed_scopes
+                client_metadata["scope"] = allowed_scopes
+
+        # redirect uri is now part of authlibs client_metadata
         if "redirect_uris" in kwargs:
             redirect_uris = kwargs.pop("redirect_uris")
             if isinstance(redirect_uris, list):
-                kwargs["redirect_uri"] = "\n".join(redirect_uris)
+                # redirect_uris is now part of the metadata json object
+                client_metadata["redirect_uris"] = redirect_uris
+            elif redirect_uris:
+                client_metadata["redirect_uris"] = [redirect_uris]
             else:
-                kwargs["redirect_uri"] = redirect_uris
+                client_metadata["redirect_uris"] = []
+
         # default grant types to allow for auth code flow and resfreshing
         grant_types = kwargs.pop("grant_types", None) or [
             GrantType.code.value,
             GrantType.refresh.value,
         ]
+        # grant types is now part of authlibs client_metadata
         if isinstance(grant_types, list):
-            kwargs["grant_type"] = "\n".join(grant_types)
+            client_metadata["grant_types"] = grant_types
+        elif grant_types:
+            # assume it's already in correct format and make it a list
+            client_metadata["grant_types"] = [grant_types]
         else:
-            # assume it's already in correct format
-            kwargs["grant_type"] = grant_types
+            client_metadata["grant_types"] = []
 
         supported_grant_types = [
             "authorization_code",
@@ -299,28 +309,50 @@ class Client(Base, OAuth2ClientMixin):
         ]
         assert all(
             grant_type in supported_grant_types
-            for grant_type in kwargs["grant_type"].split("\n")
-        ), f"Grant types '{kwargs['grant_type']}' are not in supported types {supported_grant_types}"
+            for grant_type in client_metadata["grant_types"]
+        ), f"Grant types '{client_metadata['grant_types']}' are not in supported types {supported_grant_types}"
 
-        if "authorization_code" in kwargs["grant_type"].split("\n"):
+        if "authorization_code" in client_metadata["grant_types"]:
             assert kwargs.get("user") or kwargs.get(
                 "user_id"
             ), "A username is required for the 'authorization_code' grant"
-            assert kwargs.get(
-                "redirect_uri"
+            assert client_metadata.get(
+                "redirect_uris"
             ), "Redirect URL(s) are required for the 'authorization_code' grant"
 
-        expires_at = get_client_expires_at(
-            expires_in=expires_in, grant_types=kwargs["grant_type"]
-        )
-        if expires_at:
-            kwargs["expires_at"] = expires_at
+        # response_types is now part of authlib's client_metadata
+        response_types = kwargs.pop("response_types", None)
+        if isinstance(response_types, list):
+            client_metadata["response_types"] = "\n".join(response_types)
+        elif response_types:
+            # assume it's already in correct format
+            client_metadata["response_types"] = [response_types]
+        else:
+            client_metadata["response_types"] = []
+
+        if "token_endpoint_auth_method" in kwargs:
+            client_metadata["token_endpoint_auth_method"] = kwargs.pop(
+                "token_endpoint_auth_method"
+            )
+
+        # Do this if expires_in is specified or expires_at is not supplied
+        if expires_in != 0 or ("expires_at" not in kwargs):
+            expires_at = get_client_expires_at(
+                expires_in=expires_in, grant_types=client_metadata["grant_types"]
+            )
+            if expires_at:
+                kwargs["expires_at"] = expires_at
+
+        if "client_id_issued_at" not in kwargs or kwargs["client_id_issued_at"] is None:
+            kwargs["client_id_issued_at"] = int(time.time())
+
+        kwargs["_client_metadata"] = json.dumps(client_metadata)
 
         super(Client, self).__init__(client_id=client_id, **kwargs)
 
     @property
     def allowed_scopes(self):
-        return self._allowed_scopes.split(" ")
+        return self.scope.split(" ")
 
     @property
     def client_type(self):
@@ -333,16 +365,6 @@ class Client(Base, OAuth2ClientMixin):
         if self.is_confidential is False:
             return "public"
         return "confidential"
-
-    @property
-    def default_redirect_uri(self):
-        return self.redirect_uris[0]
-
-    @property
-    def default_scopes(self):
-        if self._default_scopes:
-            return self._default_scopes.split()
-        return []
 
     @staticmethod
     def get_by_client_id(client_id):
@@ -366,18 +388,18 @@ class Client(Base, OAuth2ClientMixin):
             return False
         return set(self.allowed_scopes).issuperset(scopes)
 
-    def check_token_endpoint_auth_method(self, method):
+    # Replaces Authlib method. Our logic does not actually look at token_auth_endpoint value
+    def check_endpoint_auth_method(self, method, endpoint):
         """
         Only basic auth is supported. If anything else gets added, change this
         """
-        protected_types = [ClientAuthType.basic.value, ClientAuthType.post.value]
-        return (self.is_confidential and method in protected_types) or (
-            not self.is_confidential and method == ClientAuthType.none.value
-        )
+        if endpoint == "token":
+            protected_types = [ClientAuthType.basic.value, ClientAuthType.post.value]
+            return (self.is_confidential and method in protected_types) or (
+                not self.is_confidential and method == ClientAuthType.none.value
+            )
 
-    def validate_scopes(self, scopes):
-        scopes = scopes[0].split(",")
-        return all(scope in self._scopes for scope in scopes)
+        return True
 
     def check_response_type(self, response_type):
         allowed_response_types = []

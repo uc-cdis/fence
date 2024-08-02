@@ -19,7 +19,8 @@ from werkzeug.datastructures import ImmutableMultiDict
 from fence.models import Client, User, query_for_user
 from fence.errors import NotFound, UserError
 from fence.config import config
-
+from authlib.oauth2.rfc6749.util import scope_to_list
+from authlib.oauth2.rfc6749.errors import InvalidScopeError
 
 rng = SystemRandom()
 alphanumeric = string.ascii_uppercase + string.ascii_lowercase + string.digits
@@ -108,7 +109,7 @@ def create_client(
             client_secret=hashed_secret,
             user=user,
             redirect_uris=urls,
-            _allowed_scopes=" ".join(allowed_scopes),
+            allowed_scopes=" ".join(allowed_scopes),
             description=description,
             name=name,
             auto_approve=auto_approve,
@@ -216,7 +217,7 @@ def clear_cookies(response):
     Set all cookies to empty and expired.
     """
     for cookie_name in list(flask.request.cookies.keys()):
-        response.set_cookie(cookie_name, "", expires=0, httponly=True)
+        response.set_cookie(key=cookie_name, value="", expires=0, httponly=True)
 
 
 def get_error_params(error, description):
@@ -517,3 +518,22 @@ DEFAULT_BACKOFF_SETTINGS = {
     "max_tries": config["DEFAULT_BACKOFF_SETTINGS_MAX_TRIES"],
     "giveup": exception_do_not_retry,
 }
+
+
+def validate_scopes(request_scopes, client):
+    if not client:
+        raise Exception("Client object is None")
+
+    if request_scopes:
+        scopes = scope_to_list(request_scopes)
+        # can we get some debug logs here that log the client, what scopes they have, and what scopes were requested
+        if not client.check_requested_scopes(set(scopes)):
+            logger.debug(
+                "Request Scope are "
+                + " ".join(scopes)
+                + " but client supported scopes are "
+                + client.scope
+            )
+            raise InvalidScopeError("Failed to Authorize due to unsupported scope")
+
+    return True
