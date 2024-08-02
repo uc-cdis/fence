@@ -1614,7 +1614,7 @@ class UserSyncer(object):
             return dbgap_files
         except Exception as e:
             self.logger.error(e)
-            exit(1)
+            raise
 
     def _sync(self, sess):
         """

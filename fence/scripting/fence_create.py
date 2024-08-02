@@ -62,7 +62,7 @@ from fence.utils import (
     generate_client_credentials,
     get_SQLAlchemyDriver,
 )
-
+from sqlalchemy.orm.attributes import flag_modified
 from gen3authz.client.arborist.client import ArboristClient
 
 logger = get_logger(__name__)
@@ -100,15 +100,19 @@ def modify_client_action(
         if not clients:
             raise Exception("client {} does not exist".format(client_name))
         for client in clients:
+            metadata = client.client_metadata
             if urls:
                 if append:
-                    client.redirect_uris += urls
+                    metadata["redirect_uris"] += urls
                     logger.info("Adding {} to urls".format(urls))
                 else:
-                    client.redirect_uris = urls
+                    if isinstance(urls, list):
+                        metadata["redirect_uris"] = urls
+                    else:
+                        metadata["redirect_uris"] = [urls]
                     logger.info("Changing urls to {}".format(urls))
             if delete_urls:
-                client.redirect_uris = []
+                metadata["redirect_uris"] = []
                 logger.info("Deleting urls")
             if set_auto_approve:
                 client.auto_approve = True
@@ -124,19 +128,21 @@ def modify_client_action(
                 logger.info("Updating description to {}".format(description))
             if allowed_scopes:
                 if append:
-                    new_scopes = client._allowed_scopes.split() + allowed_scopes
-                    client._allowed_scopes = " ".join(new_scopes)
+                    new_scopes = client.scope.split() + allowed_scopes
+                    metadata["scope"] = " ".join(new_scopes)
                     logger.info("Adding {} to allowed_scopes".format(allowed_scopes))
                 else:
-                    client._allowed_scopes = " ".join(allowed_scopes)
+                    metadata["scope"] = " ".join(allowed_scopes)
                     logger.info("Updating allowed_scopes to {}".format(allowed_scopes))
             if expires_in:
                 client.expires_at = get_client_expires_at(
-                    expires_in=expires_in, grant_types=client.grant_type
+                    expires_in=expires_in, grant_types=client.grant_types
                 )
+            # Call setter on Json object to persist changes if any
+            client.set_client_metadata(metadata)
         s.commit()
-    if arborist is not None and policies:
-        arborist.update_client(client.client_id, policies)
+        if arborist is not None and policies:
+            arborist.update_client(client.client_id, policies)
 
 
 def create_client_action(
@@ -210,10 +216,10 @@ def delete_expired_clients_action(DB, slack_webhook=None, warning_days=None):
         # to delete
         pass
 
-    def split_uris(uris):
-        if not uris:
+    def format_uris(uris):
+        if not uris or uris == [None]:
             return uris
-        return uris.split("\n")
+        return " ".join(uris)
 
     now = datetime.now().timestamp()
     driver = get_SQLAlchemyDriver(DB)
@@ -229,7 +235,7 @@ def delete_expired_clients_action(DB, slack_webhook=None, warning_days=None):
 
         for client in clients:
             expired_messages.append(
-                f"Client '{client.name}' (ID '{client.client_id}') expired at {datetime.fromtimestamp(client.expires_at)} UTC. Redirect URIs: {split_uris(client.redirect_uri)})"
+                f"Client '{client.name}' (ID '{client.client_id}') expired at {datetime.fromtimestamp(client.expires_at)} UTC. Redirect URIs: {format_uris(client.redirect_uris)})"
             )
             _remove_client_service_accounts(current_session, client)
             current_session.delete(client)
@@ -251,7 +257,7 @@ def delete_expired_clients_action(DB, slack_webhook=None, warning_days=None):
     expiring_messages = ["Some OIDC clients are expiring soon!"]
     expiring_messages.extend(
         [
-            f"Client '{client.name}' (ID '{client.client_id}') expires at {datetime.fromtimestamp(client.expires_at)} UTC. Redirect URIs: {split_uris(client.redirect_uri)}"
+            f"Client '{client.name}' (ID '{client.client_id}') expires at {datetime.fromtimestamp(client.expires_at)} UTC. Redirect URIs: {format_uris(client.redirect_uris)}"
             for client in expiring_clients
         ]
     )
@@ -312,7 +318,7 @@ def rotate_client_action(DB, client_name, expires_in=None):
             # the rest is identical to the client being rotated
             user=client.user,
             redirect_uris=client.redirect_uris,
-            _allowed_scopes=client._allowed_scopes,
+            allowed_scopes=client.scope,
             description=client.description,
             name=client.name,
             auto_approve=client.auto_approve,
@@ -1111,7 +1117,7 @@ def _verify_google_service_account_member(session, access_group, member):
 
 class JWTCreator(object):
     required_kwargs = ["kid", "private_key", "username", "scopes"]
-    all_kwargs = required_kwargs + ["expires_in"]
+    all_kwargs = required_kwargs + ["expires_in", "client_id"]
 
     default_expiration = 3600
 
@@ -1125,6 +1131,7 @@ class JWTCreator(object):
         self.private_key = None
         self.username = None
         self.scopes = None
+        self.client_id = None
 
         for required_kwarg in self.required_kwargs:
             if required_kwarg not in kwargs:
@@ -1185,6 +1192,10 @@ class JWTCreator(object):
                 raise EnvironmentError(
                     "no user found with given username: " + self.username
                 )
+            if not self.client_id:
+                raise EnvironmentError(
+                    "no client id is provided. Required for creating refresh token"
+                )
             jwt_result = generate_signed_refresh_token(
                 self.kid,
                 self.private_key,
@@ -1192,6 +1203,7 @@ class JWTCreator(object):
                 self.expires_in,
                 self.scopes,
                 iss=self.base_url,
+                client_id=self.client_id,
             )
 
             current_session.add(
