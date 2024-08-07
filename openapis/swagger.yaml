@@ -577,6 +577,8 @@ paths:
         Previous authorization check requires a more general, global upload permission:
         "file_upload" on "/data_file" resource. When "authz" is *not* provided, this
         endpoint will check for that permission for your user.
+
+        Accepts a "guid" field in the request body. If "guid" is provided, it checks indexd for an existing record. If not found, it raises a 404.
       security:
         - OAuth2:
           - user
@@ -602,6 +604,8 @@ paths:
                   url:
                     type: string
                     description: the presigned URL usable for data upload
+        404:
+          description: Record with <guid> not found.
   '/data/upload/{file_id}':
     get:
       tags:
@@ -678,7 +682,10 @@ paths:
         flow, Fence needs to provide a list of endpoints for supporting multipart upload presigned url
         This is the first step on the API side for the multipart upload presigned url. This endpoint
         causes fence to make a request to indexd to create a new, blank index record, and returns
-        the GUID for this new record and an uploadId for multipart upload presigned url
+        the GUID for this new record and an uploadId for multipart upload presigned url.
+
+
+        Accepts a "guid" field in the request body. If "guid" is provided, it checks indexd for an existing record. If not found, it raises a 404.
       security:
         - OAuth2:
           - user
@@ -704,6 +711,8 @@ paths:
                   uploadId:
                     type: string
                     description: the uploadId for multipart upload presigned URL usable for data upload
+        404:
+          description: Record with <guid> not found.
 
   '/multipart/upload':
     post:
@@ -1698,6 +1707,10 @@ components:
           description: >-
             the requested bucket to upload to.
             If not provided, defaults to the configured DATA_UPLOAD_BUCKET.
+        guid:
+          type: string
+          required: false
+          description: GUID to be assigned to the object
         expires_in:
           type: integer
           description: optional integer specifying the presigned URL lifetime
@@ -1708,6 +1721,7 @@ components:
           description: requested authorization resources to be set on the
             resulting indexed record. You must have proper authorization to set this
       example:
+        guid: "123456abcd"
         file_name: "my_file.bam"
         bucket: "bucket1"
         expires_in: 1200
@@ -1720,6 +1734,10 @@ components:
           type: string
           required: true
           description: the file name to use for this upload
+        guid:
+          type: string
+          required: false
+          description: GUID to be assigned to the object
         expires_in:
           type: integer
           description: optional integer specifying the presigned URL lifetime
