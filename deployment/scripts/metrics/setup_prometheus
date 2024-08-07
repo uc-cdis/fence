@@ -1,0 +1,33 @@
+#!/usr/bin/env bash
+# This script is called by:
+#   UWSGI during startup, this gets moved to the /fence directory in the Dockerfile
+#     - It prepares the prometheus_multiproc_dir folder to store the metrics from separate uwsgi workers (per PID)
+#   run.py
+#     - So local runs setup necessary environment vars and folders for prometheus metrics
+#   Test framework in conftest
+#     - So test runs setup necessary environment vars and folders for prometheus metrics
+
+# Usage:
+#   ./script_name.sh [DIR] [true]
+
+# Default directory if no argument is provided
+DIR=${1:-/var/tmp/prometheus_metrics}
+
+# Determine whether to wipe the directory (default is to wipe)
+SETUP_DIR=${2:-true}
+
+set -ex
+
+if [[ "$SETUP_DIR" == "true" ]]; then
+    echo "setting up $PROMETHEUS_MULTIPROC_DIR. clearing existing files, ensuring it exists, chmod 755"
+    rm -Rf "$DIR"
+    mkdir -p "$DIR"
+    chmod 755 "$DIR"
+fi
+
+if id -u nginx &>/dev/null; then
+    chown "$(id -u nginx)":"$(id -g nginx)" "$DIR"
+fi
+
+export PROMETHEUS_MULTIPROC_DIR="$DIR"
+echo "PROMETHEUS_MULTIPROC_DIR is $PROMETHEUS_MULTIPROC_DIR"

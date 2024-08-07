@@ -32,9 +32,9 @@ import time
 from unittest.mock import ANY, MagicMock, patch
 
 import fence
-from fence.metrics import metrics
 from fence.config import config
 from fence.blueprints.data.indexd import get_bucket_from_urls
+from fence.metrics import Metrics
 from fence.models import User
 from fence.resources.audit.utils import _clean_authorization_request_url
 from tests import utils
@@ -709,13 +709,25 @@ def test_login_log_push_to_sqs(
 ######################
 
 
-def test_disabled_prometheus_metrics(client, monkeypatch):
+@pytest.fixture(scope="function")
+def disable_metrics_app(app):
+    """
+    temporarily disable metrics on the session-scoped app for this function
+    """
+    enabled_metrics = app.metrics
+    app.metrics = Metrics(enabled=False)
+
+    yield app
+
+    app.metrics = enabled_metrics
+
+
+def test_disabled_prometheus_metrics(disable_metrics_app, client, monkeypatch):
     """
     When metrics gathering is not enabled, the metrics endpoint should not error, but it should
     not return any data.
     """
-    monkeypatch.setitem(config, "ENABLE_PROMETHEUS_METRICS", False)
-    metrics.add_login_event(
+    disable_metrics_app.metrics.add_login_event(
         user_sub="123",
         idp="test_idp",
         fence_idp="shib",
@@ -727,7 +739,7 @@ def test_disabled_prometheus_metrics(client, monkeypatch):
     assert resp.text == ""
 
 
-def test_record_prometheus_events(prometheus_metrics_before, client):
+def test_record_prometheus_events(app, prometheus_metrics_before, client):
     """
     Validate the returned value of the metrics endpoint before any event is logged, after an event
     is logged, and after more events (one identical to the 1st one, and two different) are logged.
@@ -741,7 +753,7 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
     # record a login event and check that we get both a metric for the specific IDP, and an
     # IDP-agnostic metric for the total number of login events. The latter should have no IDP
     # information (no `fence_idp` or `shib_idp`).
-    metrics.add_login_event(
+    app.metrics.add_login_event(
         user_sub="123",
         idp="test_idp",
         fence_idp="shib",
@@ -777,7 +789,7 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
     assert_prometheus_metrics(prometheus_metrics_before, resp.text, expected_metrics)
 
     # same login: should increase the existing counter by 1
-    metrics.add_login_event(
+    app.metrics.add_login_event(
         user_sub="123",
         idp="test_idp",
         fence_idp="shib",
@@ -785,7 +797,7 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
         client_id="test_azp",
     )
     # login with different IDP labels: should create a new metric
-    metrics.add_login_event(
+    app.metrics.add_login_event(
         user_sub="123",
         idp="another_idp",
         fence_idp=None,
@@ -793,7 +805,7 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
         client_id="test_azp",
     )
     # new signed URL event: should create a new metric
-    metrics.add_signed_url_event(
+    app.metrics.add_signed_url_event(
         action="upload",
         protocol="s3",
         acl=None,

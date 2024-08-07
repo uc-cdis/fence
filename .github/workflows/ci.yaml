@@ -1,8 +1,9 @@
+# push will run on every pushed commit to any branch (so this will rerun the tests
+# once a branch gets merged to main in addition to any new commits on any branch)
+on: push
+
 name: CI
-on:
-  push:
-  pull_request:
-    types: [opened, reopened]
+
 concurrency:
   group: '${{ github.workflow }} @ ${{ github.event.pull_request.head.label || github.head_ref || github.ref }}'
   cancel-in-progress: true

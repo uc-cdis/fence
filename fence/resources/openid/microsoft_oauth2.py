@@ -6,7 +6,7 @@ class MicrosoftOauth2Client(Oauth2ClientBase):
     client for interacting with microsoft oauth 2,
     as openid connect is supported under oauth2
 
-    Docs at https://docs.microsoft.com/en-us/azure/active-directory/develop/v2-protocols-oidc
+    Docs at https://learn.microsoft.com/en-us/azure/active-directory/develop/v2-protocols-oidc
 
     """
 
