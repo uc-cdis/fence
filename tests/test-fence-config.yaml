@@ -684,6 +684,7 @@ EXPIRED_AUTHZ_REMOVAL_JOB_FREQ_IN_SECONDS: 1
 # False: Parse for no clients i.e. a fence client will not be able to sync visas during login even with parse_visas param
 GLOBAL_PARSE_VISAS_ON_LOGIN: false
 
+ENABLE_VISA_UPDATE_CRON: false
 # Settings for usersync with visas
 USERSYNC:
   visa_types:
