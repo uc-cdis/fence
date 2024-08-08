@@ -1106,14 +1106,11 @@ class S3IndexedFileLocation(IndexedFileLocation):
         auth_info = _get_auth_info_for_id_or_from_request(user=authorized_user)
 
         action = ACTION_DICT["s3"][action]
+
         if action == "PUT":  # get presigned url for upload
             url = cirrus_aws.uploadPresignedURL(bucket_name, object_id, expires_in)
         else:  # get presigned url for download
-            print(f"---------- DEBUG ------------------ Bucket config {bucket}")
             if bucket.get("requester_pays") == True:
-                print(
-                    f"---------- DEBUG ------------------ WE are generateing a presigned url for a requester pays bucket!!"
-                )
                 url = cirrus_aws.requesterPaysDownloadPresignedURL(
                     bucket_name, object_id, expires_in
                 )
@@ -1126,7 +1123,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         for key in sorted(auth_info.keys()):
             canonical_qs += "&" + key + "=" + quote(auth_info[key], safe="")
 
-        return url + "?" + canonical_qs
+        return url + canonical_qs
 
     def init_multipart_upload(self, expires_in):
         """
