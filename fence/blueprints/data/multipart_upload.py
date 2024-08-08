@@ -139,6 +139,10 @@ def generate_presigned_url_for_uploading_part(
     Returns:
         presigned_url(str)
     """
+    s3_buckets = get_value(
+        config, "S3_BUCKETS", InternalError("S3_BUCKETS not configured")
+    )
+    bucket = s3_buckets.get(bucket_name)
 
     s3_buckets = get_value(
         config, "S3_BUCKETS", InternalError("S3_BUCKETS not configured")

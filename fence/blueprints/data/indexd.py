@@ -259,7 +259,12 @@ class BlankIndex(object):
     """
 
     def __init__(
-        self, uploader=None, file_name=None, logger_=None, guid=None, authz=None
+        self,
+        uploader=None,
+        file_name=None,
+        logger_=None,
+        guid=None,
+        authz=None,
     ):
         self.logger = logger_ or logger
         self.indexd = (
@@ -280,8 +285,9 @@ class BlankIndex(object):
         self.file_name = file_name
         self.authz = authz
 
-        # if a guid is not provided, this will create a blank record for you
-        self.guid = guid or self.index_document["did"]
+        self.guid = guid
+        # .index_document is a cached property with code below, it creates/retrieves the actual record and this line updates the stored GUID to the returned record
+        self.guid = self.index_document["did"]
 
     @cached_property
     def index_document(self):
@@ -293,6 +299,20 @@ class BlankIndex(object):
                 response from indexd (the contents of the record), containing ``guid``
                 and ``url``
         """
+
+        if self.guid:
+            index_url = self.indexd.rstrip("/") + "/index/" + self.guid
+            indexd_response = requests.get(index_url)
+            if indexd_response.status_code == 200:
+                document = indexd_response.json()
+                self.logger.info(f"Record with {self.guid} id found in Indexd.")
+                return document
+            else:
+                raise NotFound(f"No indexed document found with id {self.guid}")
+
+        return self._create_blank_record()
+
+    def _create_blank_record(self):
         index_url = self.indexd.rstrip("/") + "/index/blank/"
         params = {"uploader": self.uploader, "file_name": self.file_name}
 
