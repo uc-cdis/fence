@@ -39,6 +39,7 @@ markupsafe = "^2.0.1"
 
 paramiko = ">=2.6.0"
 prometheus-client = "<1"
+psycopg2 = "*"
 PyJWT = "^2.4.0"
 python_dateutil = "^2.6.1"
 python-jose = "^2.0.2"
