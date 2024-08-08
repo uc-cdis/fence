@@ -39,15 +39,20 @@ def test_upgrade_with_fk_constraint(app):
 
         if constraint_exists:
             db_session.execute(
-                f"ALTER TABLE google_service_account DROP CONSTRAINT client_id;"
+                """
+                ALTER TABLE google_service_account
+                DROP CONSTRAINT google_service_account_client_id_fkey;
+                """
             )
             db_session.commit()
 
         db_session.execute(
             """
-        ALTER TABLE google_service_account
-        ADD CONSTRAINT client_id FOREIGN KEY (client_id) REFERENCES client(client_id);
-        """
+            ALTER TABLE google_service_account
+            ADD CONSTRAINT google_service_account_client_id_fkey
+            FOREIGN KEY (client_id)
+            REFERENCES client(client_id);
+            """
         )
         db_session.commit()
 
@@ -57,7 +62,8 @@ def test_upgrade_with_fk_constraint(app):
         inspector = inspect(app.db.engine)
         foreign_keys = inspector.get_foreign_keys("google_service_account")
         constraint_exists = any(
-            fk["constrained_columns"] == ["client_id"] for fk in foreign_keys
+            fk["constrained_columns"] == ["google_service_account_client_id_fkey"]
+            for fk in foreign_keys
         )
         assert constraint_exists == False
 
@@ -75,12 +81,16 @@ def test_upgrade_without_fk_constraint(app):
         inspector = inspect(app.db.engine)
         foreign_keys = inspector.get_foreign_keys("google_service_account")
         constraint_exists = any(
-            fk["constrained_columns"] == ["client_id"] for fk in foreign_keys
+            fk["constrained_columns"] == ["google_service_account_client_id_fkey"]
+            for fk in foreign_keys
         )
 
         if constraint_exists:
             db_session.execute(
-                f"ALTER TABLE google_service_account DROP CONSTRAINT client_id;"
+                """
+                ALTER TABLE google_service_account
+                DROP CONSTRAINT google_service_account_client_id_fkey;
+                """
             )
             db_session.commit()
 
@@ -90,6 +100,7 @@ def test_upgrade_without_fk_constraint(app):
         inspector = inspect(app.db.engine)
         foreign_keys = inspector.get_foreign_keys("google_service_account")
         constraint_exists = any(
-            fk["constrained_columns"] == ["client_id"] for fk in foreign_keys
+            fk["constrained_columns"] == ["google_service_account_client_id_fkey"]
+            for fk in foreign_keys
         )
         assert constraint_exists == False

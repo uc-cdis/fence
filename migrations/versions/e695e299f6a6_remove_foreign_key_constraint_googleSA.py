@@ -35,13 +35,16 @@ def upgrade():
     fk_exists = False
 
     for fk in foreign_keys:
-        if "client_id" in fk["constrained_columns"]:
+        if (
+            "google_service_account_key_service_account_id_fkey"
+            in fk["constrained_columns"]
+        ):
             fk_exists = True
 
     if fk_exists:
         logger.info("Foreign key client_id exists. Removing constraint...")
         op.drop_constraint(
-            "client_id",
+            "google_service_account_key_service_account_id_fkey",
             "google_service_account",
             type_="foreignkey",
         )
