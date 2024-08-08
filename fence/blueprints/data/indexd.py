@@ -1091,6 +1091,9 @@ class S3IndexedFileLocation(IndexedFileLocation):
         else:  # get presigned url for download
             print(f"---------- DEBUG ------------------ Bucket config {bucket}")
             if bucket.get("requester_pays") == True:
+                print(
+                    f"---------- DEBUG ------------------ WE are generateing a presigned url for a requester pays bucket!!"
+                )
                 url = cirrus_aws.requesterPaysDownloadPresignedURL(
                     bucket_name, object_id, expires_in
                 )
