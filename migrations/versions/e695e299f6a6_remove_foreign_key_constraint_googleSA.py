@@ -33,18 +33,14 @@ def upgrade():
     inspector = sa.inspect(conn)
     foreign_keys = inspector.get_foreign_keys("google_service_account")
     fk_exists = False
-
     for fk in foreign_keys:
-        if (
-            "google_service_account_key_service_account_id_fkey"
-            in fk["constrained_columns"]
-        ):
+        if "client_id" in fk["constrained_columns"]:
             fk_exists = True
 
     if fk_exists:
         logger.info("Foreign key client_id exists. Removing constraint...")
         op.drop_constraint(
-            "google_service_account_key_service_account_id_fkey",
+            "google_service_account_client_id_fkey",
             "google_service_account",
             type_="foreignkey",
         )
