@@ -1,16 +1,17 @@
 import re
 import time
 import json
-from urllib.parse import urlparse, ParseResult, urlunparse
+import boto3
+from urllib.parse import urlparse, ParseResult, urlunparse, quote
 from datetime import datetime, timedelta
 
 from sqlalchemy.sql.functions import user
 from cached_property import cached_property
 import gen3cirrus
 from gen3cirrus import GoogleCloudManager
+from gen3cirrus import AwsService
 from cdislogging import get_logger
 from cdispyutils.config import get_value
-from cdispyutils.hmac4 import generate_aws_presigned_url
 import flask
 from flask import current_app
 import requests
@@ -1061,6 +1062,8 @@ class S3IndexedFileLocation(IndexedFileLocation):
         bucket_name = self.bucket_name()
         bucket = s3_buckets.get(bucket_name)
 
+        object_id = self.parsed_url.path.strip("/")
+
         if bucket and bucket.get("endpoint_url"):
             http_url = bucket["endpoint_url"].strip("/") + "/{}/{}".format(
                 self.parsed_url.netloc, self.parsed_url.path.strip("/")
@@ -1093,19 +1096,34 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 self.parsed_url.netloc, credential
             )
 
-        auth_info = _get_auth_info_for_id_or_from_request(user=authorized_user)
-
-        url = generate_aws_presigned_url(
-            http_url,
-            ACTION_DICT["s3"][action],
-            credential,
+        client = boto3.client(
             "s3",
-            region,
-            expires_in,
-            auth_info,
+            aws_access_key_id=credential["aws_access_key_id"],
+            aws_secret_access_key=credential["aws_secret_access_key"],
         )
 
-        return url
+        cirrus_aws = AwsService(client)
+        auth_info = _get_auth_info_for_id_or_from_request(user=authorized_user)
+
+        action = ACTION_DICT["s3"][action]
+        if action == "PUT":  # get presigned url for upload
+            url = cirrus_aws.uploadPresignedURL(bucket_name, object_id, expires_in)
+        else:  # get presigned url for download
+            print(f"---------- DEBUG ------------------ Bucket config {bucket}")
+            if bucket.get("requester_pays", False) == True:
+                url = cirrus_aws.requesterPaysDownloadPresignedURL(
+                    bucket_name, object_id, expires_in
+                )
+            else:
+                url = cirrus_aws.downloadPresignedURL(
+                    bucket_name, object_id, expires_in
+                )
+
+        canonical_qs = ""
+        for key in sorted(auth_info.keys()):
+            canonical_qs += "&" + key + "=" + quote(auth_info[key], safe="")
+
+        return url + "?" + canonical_qs
 
     def init_multipart_upload(self, expires_in):
         """
