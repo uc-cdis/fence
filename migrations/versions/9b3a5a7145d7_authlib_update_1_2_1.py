@@ -6,6 +6,7 @@ Create Date: 2023-09-01 10:27:16.686456
 
 """
 from alembic import op
+import logging
 import sqlalchemy as sa
 from sqlalchemy.orm import Session
 from sqlalchemy.sql import text
@@ -22,9 +23,12 @@ down_revision = "a04a70296688"  # pragma: allowlist secret
 branch_labels = None
 depends_on = None
 
+logger = logging.getLogger("fence.alembic")
+
 
 def upgrade():
-
+    # Remove google_service_account_client_id_fkey if it exists
+    remove_foreign_key_constraint_if_exists(op)
     temp_table_name = "migration_client"
     # Make a copy of client table
     copy_client_to_temp_table_and_clear_data(op, temp_table_name)
@@ -294,3 +298,33 @@ def set_old_column_values():
         conn.execute(statement, **data)
 
     session.commit()
+
+
+def remove_foreign_key_constraint_if_exists(op):
+    """
+    Pre-alembic era created a foreign key clent_id(from the client table) on the google_service_account table.
+    This foreign key was then removed from the schema but any commons created before the constraint was removed
+    still held the foreign key.
+    The previous alembic migration tuncates the client table but this fails if the foreign key constraint still persists
+    therefore failing the migration.
+    This migration checks for the existence of the foreign key constraint and removes it if it exists.
+    There is no downgrade path for this since not having the foreign key constraint is the correct schema throughout all versions.
+    This migration is specifically for commons that were created before the foreign key constraint was removed
+    """
+    conn = op.get_bind()
+    inspector = sa.inspect(conn)
+    foreign_keys = inspector.get_foreign_keys("google_service_account")
+    fk_exists = False
+    for fk in foreign_keys:
+        if "client_id" in fk["constrained_columns"]:
+            fk_exists = True
+
+    if fk_exists:
+        logger.info("Foreign key client_id exists. Removing constraint...")
+        op.drop_constraint(
+            "google_service_account_client_id_fkey",
+            "google_service_account",
+            type_="foreignkey",
+        )
+    else:
+        logger.info("Foreign key client_id does not exist.")
