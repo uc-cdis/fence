@@ -152,17 +152,21 @@ class FenceConfig(Config):
                 logger.warning(
                     f"IdP '{idp_id}' is using multifactor_auth_claim_info '{mfa_info['claim']}', which is neither AMR or ACR. Unable to determine if a user used MFA. Fence will continue and assume they have not used MFA."
                 )
-        dbgap_configs = self._configs["dbGaP"]
-        if isinstance(dbgap_configs, list):
-            corrected_dbgap_configs = dbgap_configs
-        elif isinstance(dbgap_configs, dict):
-            corrected_dbgap_configs = [dbgap_configs]
-        else:
-            raise Exception("The dbgap configuration is not a recognized data structure, aborting!")
-        self._validate_parent_child_studies(corrected_dbgap_configs)
+        self._validate_dbgap_config(self._configs["dbGaP"])
 
     @staticmethod
     def find_duplicates(collection):
+        """
+
+        Args:
+            collection: any data type accepted by the Counter object
+
+        Returns:
+            a set of items that were found more than once in the collection
+
+        note: if collection is a set, this function will never find duplicates
+        (per the definition of a set)
+        """
         item_with_occurrences = Counter(collection)
         duplicates = {item
                       for item, occurrences in item_with_occurrences.items()
@@ -170,21 +174,54 @@ class FenceConfig(Config):
         return duplicates
 
     @staticmethod
-    def _validate_parent_child_studies(dbgap_configs: List[Dict[str, Any]]) -> None:
-        def get_parent_studies_safely(dbgap_config):
-            study_mapping = dbgap_config.get('parent_to_child_studies_mapping', {})
-            # study mapping could be 'None'
-            return list(study_mapping.keys()) if isinstance(study_mapping, dict) else []
+    def get_parent_studies_safely(dbgap_config):
+        """
+        Args:
+            dbgap_config: { parent_to_child_studies_mapping: { k1: v1, ... } }
+        Returns:
+            [k1, k2, ...]
+        """
+        study_mapping = dbgap_config.get('parent_to_child_studies_mapping', {})
+        # study mapping could be 'None'
+        safe_studies = list(study_mapping.keys()) if isinstance(study_mapping, dict) else []
+        return safe_studies
 
-        safe_list_of_parent_studies = [safe_parent_studies
-                                       for dbgap_config in dbgap_configs
-                                       for safe_parent_studies in get_parent_studies_safely(dbgap_config)]
+    @staticmethod
+    def validate_parent_child_studies(dbgap_configs: List[Dict[str, Any]]) -> None:
+        """
+        Given a list of dictionaries that contain a parent -> child study mapping,
+        this function will check that all parents are unique and not duplicated
+        Args:
+            dbgap_configs: [ { parent_to_child_studies_mapping: { k1: v1, ... } }, ... ]
+
+        Returns:
+            Nothing. This function will throw if duplicates are found.
+        """
+        safe_list_of_parent_studies = []
+        for dbgap_config in dbgap_configs:
+            safe_parent_studies = FenceConfig.get_parent_studies_safely(dbgap_config)
+            safe_list_of_parent_studies.extend(safe_parent_studies)
 
         duplicates = FenceConfig.find_duplicates(safe_list_of_parent_studies)
         if len(duplicates) > 0:
             raise Exception(
                 f"{duplicates} are duplicate parent study ids found in parent_to_child_studies_mapping for "
                 f"multiple dbGaP configurations.")
+
+    @staticmethod
+    def enforce_is_array(dbgap_configs):
+        if isinstance(dbgap_configs, list):
+            corrected_dbgap_configs = dbgap_configs
+        elif isinstance(dbgap_configs, dict):
+            corrected_dbgap_configs = [dbgap_configs]
+        else:
+            raise Exception("The dbgap configuration is not a recognized data structure, aborting!")
+        return corrected_dbgap_configs
+
+    @staticmethod
+    def _validate_dbgap_config(dbgap_configs):
+        corrected_dbgap_configs = FenceConfig.enforce_is_array(dbgap_configs)
+        FenceConfig.validate_parent_child_studies(corrected_dbgap_configs)
 
 
 config = FenceConfig(DEFAULT_CFG_PATH)

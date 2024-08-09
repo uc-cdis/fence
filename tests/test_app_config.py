@@ -121,10 +121,15 @@ def test_app_config():
 
 
 def test_validate_parent_child_studies_against_none_config():
+    """
+    our dbgap config can have nothing for the parent_to_child_studies_mapping property
+    this test ensures the validator handles that case
+    """
     none_string_config = [{"parent_to_child_studies_mapping": 'None'},
                           {"parent_to_child_studies_mapping": 'None'},]
+
     try:
-        FenceConfig._validate_parent_child_studies(none_string_config)
+        FenceConfig.validate_parent_child_studies(none_string_config)
     except Exception:
         pytest.fail("Study validation failed when given 'None' mapping!")
 
@@ -145,7 +150,7 @@ def test_app_config_parent_child_study_mapping(monkeypatch):
         },
     ]
     with pytest.raises(Exception):
-        FenceConfig._validate_parent_child_studies(invalid_dbgap_configs)
+        FenceConfig.validate_parent_child_studies(invalid_dbgap_configs)
 
     valid_dbgap_configs = [
         {
@@ -162,6 +167,6 @@ def test_app_config_parent_child_study_mapping(monkeypatch):
         },
     ]
     try:
-        FenceConfig._validate_parent_child_studies(valid_dbgap_configs)
+        FenceConfig.validate_parent_child_studies(valid_dbgap_configs)
     except Exception:
         pytest.fail("Study validation failed when it should have passed!")
