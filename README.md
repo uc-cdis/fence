@@ -128,10 +128,20 @@ Whereas pre-signed URL is a cloud-agnostic solution, services and tools on Googl
 
 See [Fence and Google](docs/additional_documentation/google_architecture.md) for more details on data access methods specific to Google.
 
-
 ## Setup
 
 See detailed explanation [here](docs/additional_documentation/setup.md)
+
+## Unit testing
+
+The easiest way to ensure your environment is getting set up for tests the same
+way the CI/CD is by using the setup and test run script the CI/CD uses.
+
+You can run unit tests (which are run with pytest behind the scenes) like this:
+
+```shell
+bash ./tests/ci_commands_script.sh
+```
 
 ## Additional documentation
 

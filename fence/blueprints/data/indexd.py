@@ -49,7 +49,6 @@ from fence.resources.google.utils import (
 from fence.resources.ga4gh.passports import sync_gen3_users_authz_from_ga4gh_passports
 from fence.resources.audit.utils import enable_audit_logging
 from fence.utils import get_valid_expiration_from_request
-from fence.metrics import metrics
 
 from . import multipart_upload
 from ...models import AssumeRoleCacheAWS, query_for_user, query_for_user_by_id
@@ -210,7 +209,7 @@ def _log_signed_url_data_info(
         f"acl={acl} authz={authz} bucket={bucket} user_sub={user_sub} client_id={client_id}"
     )
 
-    metrics.add_signed_url_event(
+    current_app.metrics.add_signed_url_event(
         action,
         protocol,
         acl,

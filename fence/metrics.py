@@ -1,17 +1,19 @@
 """
 Metrics are collected by the Prometheus client and exposed at the `/metrics` endpoint.
 
+This defines a class which can be extended and instantiated at the web app-level. For flask, this is
+stored on the `app` object.
+
 To add a new metric:
 - Add a new method to the `Metrics` class below (see `add_login_event` and `add_signed_url_event`
 for example).
 - The new method should call the `_increment_counter` and/or `_set_gauge` methods with the
 appropriate metric name and labels.
 - Call the new method from the code where relevant, for example:
-    from fence.metric import metrics
-    metrics.add_login_event(...)
+    from flask import current_app
+    current_app.metrics.add_login_event(...)
 - Add unit tests to the `tests/test_metrics` file.
 """
-
 
 import os
 import pathlib
@@ -26,23 +28,47 @@ from prometheus_client import (
     CONTENT_TYPE_LATEST,
 )
 
-from fence.config import config
-
 
 logger = get_logger(__name__)
 
 
-class Metrics:
+class Metrics(object):
     """
     Class to handle Prometheus metrics
+
     Attributes:
-        registry (CollectorRegistry): Prometheus registry
-        metrics (dict): Dictionary to store Prometheus metrics
+        enabled (bool): If this is false, the class functions will be no-ops (no operations), effectively
+                        doing nothing. This is the behavior when metrics are disabled. Why? So application code
+                        doesn't have to check, it always tries to log a metric.
+
+        _registry (CollectorRegistry): Prometheus registry
+        _metrics (dict): Dictionary to store Prometheus metrics
+        _counter_descriptions (dict): { "counter_name": "Description" }
+        _gauge_descriptions (dict): { "gauge_name": "Description" }
     """
 
-    def __init__(self, prometheus_dir="/var/tmp/uwsgi_flask_metrics"):
+    def __init__(self, enabled=True, prometheus_dir="/var/tmp/prometheus_metrics"):
+        """
+        Create a metrics class.
+
+        Args:
+            enabled (bool): If this is false, the class functions will be no-ops (no operations), effectively
+                            doing nothing. This is the behavior when metrics are disabled. Why? So application code
+                            doesn't have to check, it always tries to log a metric.
+            prometheus_dir (str): Directory to use when setting PROMETHEUS_MULTIPROC_DIR env var (which prometheus requires
+                                  for multiprocess metrics collection). Note that this the prometheus client is very
+                                  finicky about when the ENV var is set.
+        """
+        self.enabled = enabled
+        if not enabled:
+            return
+
         pathlib.Path(prometheus_dir).mkdir(parents=True, exist_ok=True)
         os.environ["PROMETHEUS_MULTIPROC_DIR"] = prometheus_dir
+
+        logger.info(
+            f"PROMETHEUS_MULTIPROC_DIR is {os.environ['PROMETHEUS_MULTIPROC_DIR']}"
+        )
 
         self._registry = CollectorRegistry()
         multiprocess.MultiProcessCollector(self._registry)
@@ -67,8 +93,8 @@ class Metrics:
         """
         # When metrics gathering is not enabled, the metrics endpoint should not error, but it should
         # not return any data.
-        if not config["ENABLE_PROMETHEUS_METRICS"]:
-            return "", None
+        if not self.enabled:
+            return "", CONTENT_TYPE_LATEST
 
         return generate_latest(self._registry), CONTENT_TYPE_LATEST
 
@@ -88,7 +114,7 @@ class Metrics:
                 f"Creating counter '{name}' with description '{description}' and labels: {labels}"
             )
             self._metrics[name] = Counter(name, description, [*labels.keys()])
-        elif type(self._metrics[name]) != Counter:
+        elif type(self._metrics[name]) is not Counter:
             raise ValueError(
                 f"Trying to create counter '{name}' but a {type(self._metrics[name])} with this name already exists"
             )
@@ -113,7 +139,7 @@ class Metrics:
                 f"Creating gauge '{name}' with description '{description}' and labels: {labels}"
             )
             self._metrics[name] = Gauge(name, description, [*labels.keys()])
-        elif type(self._metrics[name]) != Gauge:
+        elif type(self._metrics[name]) is not Gauge:
             raise ValueError(
                 f"Trying to create gauge '{name}' but a {type(self._metrics[name])} with this name already exists"
             )
@@ -125,7 +151,7 @@ class Metrics:
         """
         Record a login event
         """
-        if not config["ENABLE_PROMETHEUS_METRICS"]:
+        if not self.enabled:
             return
         self._increment_counter(
             "gen3_fence_login",
@@ -164,7 +190,7 @@ class Metrics:
         """
         Record a signed URL event
         """
-        if not config["ENABLE_PROMETHEUS_METRICS"]:
+        if not self.enabled:
             return
         self._increment_counter(
             "gen3_fence_presigned_url",
@@ -193,7 +219,3 @@ class Metrics:
             },
             size_in_kibibytes,
         )
-
-
-# Initialize the Metrics instance
-metrics = Metrics()

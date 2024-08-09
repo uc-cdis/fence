@@ -154,4 +154,4 @@ saved by the OAuth client to use with
 ## Quickstart with Helm
 
 You can now deploy individual services via Helm!
-Please refer to the Helm quickstart guide HERE (https://github.com/uc-cdis/fence/blob/master/docs/quickstart_helm.md)
+Please refer to the Helm quickstart guide [HERE](./quickstart_helm.md)
