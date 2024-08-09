@@ -176,6 +176,8 @@ class FenceConfig(Config):
     @staticmethod
     def get_parent_studies_safely(dbgap_config):
         """
+        This will get a list of parent id's from the dbgap config's mapping property
+        or return and empty array if the entry doesn't exist
         Args:
             dbgap_config: { parent_to_child_studies_mapping: { k1: v1, ... } }
         Returns:
@@ -187,15 +189,14 @@ class FenceConfig(Config):
         return safe_studies
 
     @staticmethod
-    def validate_parent_child_studies(dbgap_configs: List[Dict[str, Any]]) -> None:
+    def _validate_parent_child_studies(dbgap_configs: List[Dict[str, Any]]) -> None:
         """
         Given a list of dictionaries that contain a parent -> child study mapping,
         this function will check that all parents are unique and not duplicated
         Args:
             dbgap_configs: [ { parent_to_child_studies_mapping: { k1: v1, ... } }, ... ]
 
-        Returns:
-            Nothing. This function will throw if duplicates are found.
+        Note: This function will throw if duplicates are found.
         """
         safe_list_of_parent_studies = []
         for dbgap_config in dbgap_configs:
@@ -221,7 +222,7 @@ class FenceConfig(Config):
     @staticmethod
     def _validate_dbgap_config(dbgap_configs):
         corrected_dbgap_configs = FenceConfig.enforce_is_array(dbgap_configs)
-        FenceConfig.validate_parent_child_studies(corrected_dbgap_configs)
+        FenceConfig._validate_parent_child_studies(corrected_dbgap_configs)
 
 
 config = FenceConfig(DEFAULT_CFG_PATH)
