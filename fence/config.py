@@ -190,10 +190,9 @@ class FenceConfig(Config):
         Currently, handles list, dict, and None
         Args:
             exception_message: any string for more context
-            unknown_data_structure: either a list or dict, fails otherwise
+            unknown_data_structure: either a list, dict, or None; fails otherwise
 
-        Returns: the data structure if it's a list,
-        or a list with the data structure in it if it's a dictionary
+        Returns: a list of some kind depending on the provided data structure
 
         note: fails if the unknown data structure is any other type
         """

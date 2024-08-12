@@ -3,7 +3,7 @@ import pytest
 from fence.config import FenceConfig
 
 
-def test_find_duplicates():
+def test__find_duplicates():
     dup_case = FenceConfig._find_duplicates([1, 1, 2])
     unique_case = FenceConfig._find_duplicates([1, 2, 3])
     tuple_dup_case = FenceConfig._find_duplicates((1, 1, 1))
