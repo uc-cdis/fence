@@ -6,13 +6,12 @@ from unittest.mock import MagicMock, patch
 import pytest
 
 import gen3cirrus
-from gen3cirrus.google_cloud.errors import GoogleAuthError
 from userdatamodel.models import Group
 
 from fence.config import config
 from fence.errors import UserError
 from fence.jwt.validate import validate_jwt
-from fence.utils import create_client, get_SQLAlchemyDriver
+from fence.utils import get_SQLAlchemyDriver
 from fence.models import (
     AccessPrivilege,
     Project,

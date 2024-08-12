@@ -1,3 +1,4 @@
+import collections
 import os
 from yaml import safe_load as yaml_load
 import urllib.parse
@@ -6,7 +7,6 @@ import gen3cirrus
 from gen3config import Config
 
 from cdislogging import get_logger
-from collections import Counter
 from typing import List, Dict, Any
 
 logger = get_logger(__name__)
@@ -155,26 +155,7 @@ class FenceConfig(Config):
         self._validate_dbgap_config(self._configs["dbGaP"])
 
     @staticmethod
-    def find_duplicates(collection):
-        """
-
-        Args:
-            collection: any data type accepted by the Counter object
-
-        Returns:
-            a set of items that were found more than once in the collection
-
-        note: if collection is a set, this function will never find duplicates
-        (per the definition of a set)
-        """
-        item_with_occurrences = Counter(collection)
-        duplicates = {item
-                      for item, occurrences in item_with_occurrences.items()
-                      if occurrences > 1}
-        return duplicates
-
-    @staticmethod
-    def get_parent_studies_safely(dbgap_config):
+    def _get_parent_studies_safely(dbgap_config):
         """
         This will get a list of parent id's from the dbgap config's mapping property
         or return and empty array if the entry doesn't exist
@@ -188,6 +169,72 @@ class FenceConfig(Config):
         safe_studies = list(study_mapping.keys()) if isinstance(study_mapping, dict) else []
         return safe_studies
 
+    # TODO(fix-it): These functions should go in utils.py, but cannot be migrated until
+    # the variable DEFAULT_BACKOFF_SETTINGS is migrated here
+    @staticmethod
+    def _some(predicate, iterable, found_nothing_value=None):
+        """ Returns the first element that satisfies the predicate, else fail value
+            Expects predicate to be a boolean lambda and iterable to be a collection
+        """
+        for item in iterable:
+            result = predicate(item)
+            if result:
+                return item
+        return found_nothing_value
+
+    @staticmethod
+    def _coerce_to_array(unknown_data_structure, exception_message="Unrecognized data structure, aborting!"):
+        """
+        Given a dubious data structure, coerces it into a list
+        depending on the data type.
+        Currently, handles list, dict, and None
+        Args:
+            exception_message: any string for more context
+            unknown_data_structure: either a list or dict, fails otherwise
+
+        Returns: the data structure if it's a list,
+        or a list with the data structure in it if it's a dictionary
+
+        note: fails if the unknown data structure is any other type
+        """
+        # TODO: these three functions can be move out on their own when migrated to utils.py
+        identity = lambda v: v
+        wrap_in_array = lambda v: [v]
+        empty_array = lambda _: []
+        # END TODO
+        data_is = lambda data_type: isinstance(unknown_data_structure, data_type)
+        type_to_coercion = {
+            list: identity,
+            dict: wrap_in_array,
+            type(None): empty_array,
+        }
+        data_type_of_parameter = FenceConfig._some(data_is, list(type_to_coercion.keys()), TypeError)
+        if data_type_of_parameter is TypeError:
+            raise ValueError(exception_message + f" | Type: {type(unknown_data_structure)}")
+        return type_to_coercion[data_type_of_parameter](unknown_data_structure)
+
+    @staticmethod
+    def _find_duplicates(collection):
+        """
+
+        Args:
+            collection: any data type accepted by the Counter object
+
+        Returns:
+            a set of items that were found more than once in the collection
+
+        note: if collection is a dictionary, counter will treat it as a
+        duplicates mapping!
+        """
+        item_with_occurrences = collections.Counter(collection)
+        duplicates = {item
+                      for item, occurrences in item_with_occurrences.items()
+                      if occurrences > 1}
+        return duplicates
+
+    # END TODO
+
+
     @staticmethod
     def _validate_parent_child_studies(dbgap_configs: List[Dict[str, Any]]) -> None:
         """
@@ -200,28 +247,19 @@ class FenceConfig(Config):
         """
         safe_list_of_parent_studies = []
         for dbgap_config in dbgap_configs:
-            safe_parent_studies = FenceConfig.get_parent_studies_safely(dbgap_config)
+            safe_parent_studies = FenceConfig._get_parent_studies_safely(dbgap_config)
             safe_list_of_parent_studies.extend(safe_parent_studies)
 
-        duplicates = FenceConfig.find_duplicates(safe_list_of_parent_studies)
+        duplicates = FenceConfig._find_duplicates(safe_list_of_parent_studies)
         if len(duplicates) > 0:
             raise Exception(
                 f"{duplicates} are duplicate parent study ids found in parent_to_child_studies_mapping for "
                 f"multiple dbGaP configurations.")
 
     @staticmethod
-    def enforce_is_array(dbgap_configs):
-        if isinstance(dbgap_configs, list):
-            corrected_dbgap_configs = dbgap_configs
-        elif isinstance(dbgap_configs, dict):
-            corrected_dbgap_configs = [dbgap_configs]
-        else:
-            raise Exception("The dbgap configuration is not a recognized data structure, aborting!")
-        return corrected_dbgap_configs
-
-    @staticmethod
     def _validate_dbgap_config(dbgap_configs):
-        corrected_dbgap_configs = FenceConfig.enforce_is_array(dbgap_configs)
+        error_message = "The dbgap configuration is not a recognized data structure, aborting!"
+        corrected_dbgap_configs = FenceConfig._coerce_to_array(dbgap_configs, error_message)
         FenceConfig._validate_parent_child_studies(corrected_dbgap_configs)
 
 
