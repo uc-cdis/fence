@@ -72,6 +72,7 @@ def test_indexd_download_file(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+    aws_signed_url,
 ):
     """
     Test ``GET /data/download/1``.
@@ -123,6 +124,7 @@ def test_indexd_upload_file(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+    aws_signed_url,
 ):
     """
     Test ``GET /data/download/1``.
@@ -163,6 +165,7 @@ def test_indexd_upload_file_key_error(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+    aws_signed_url,
 ):
     """
     Test upload with a missing configuration key should fail
@@ -211,6 +214,7 @@ def test_indexd_upload_file_filename(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+    aws_signed_url,
     guid,
     file_name,
 ):
@@ -255,6 +259,7 @@ def test_indexd_upload_file_filename_key_error(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+    aws_signed_url,
 ):
     """
     Test ``GET /data/upload/1?file_name=`` with an example file name
@@ -310,6 +315,7 @@ def test_indexd_upload_file_bucket(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+    aws_signed_url,
     bucket,
     expected_status_code,
 ):
@@ -353,6 +359,7 @@ def test_indexd_upload_file_doesnt_exist(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+    aws_signed_url,
 ):
     """
     Test ``GET /data/upload/1`` when 1 doesn't exist.
@@ -391,6 +398,7 @@ def test_indexd_download_file_no_protocol(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+    aws_signed_url,
 ):
     """
     Test ``GET /data/download/1``.
@@ -443,6 +451,7 @@ def test_indexd_unauthorized_download_file(
     indexd_client,
     cloud_manager,
     google_signed_url,
+    aws_signed_url,
 ):
     """
     Test ``GET /data/download/1``.
@@ -472,6 +481,7 @@ def test_unauthorized_indexd_download_file(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+    aws_signed_url,
 ):
     """
     Test ``GET /data/download/1``.
@@ -536,6 +546,7 @@ def test_unauthorized_indexd_upload_file(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+    aws_signed_url,
 ):
     """
     Test ``GET /data/upload/1``.
@@ -600,6 +611,7 @@ def test_unavailable_indexd_upload_file(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+    aws_signed_url,
 ):
     """
     Test ``GET /data/upload/1``.
@@ -660,6 +672,7 @@ def test_public_object_download_file(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+    aws_signed_url,
 ):
     """
     Test ``GET /data/download/1``.
@@ -686,6 +699,7 @@ def test_public_object_download_file_no_force_sign(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+    aws_signed_url,
 ):
     """
     Test ``GET /data/download/1?no_force_sign=True``.
@@ -721,6 +735,7 @@ def test_public_bucket_download_file(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+    aws_signed_url,
 ):
     """
     Test ``GET /data/download/1`` with public bucket
@@ -755,6 +770,7 @@ def test_public_bucket_download_file_no_force_sign(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+    aws_signed_url,
 ):
     """
     Test ``GET /data/upload/1`` with public bucket with no_force_sign request
@@ -777,6 +793,7 @@ def test_public_bucket_unsupported_protocol_file(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+    aws_signed_url,
 ):
     """
     Test ``GET /data/upload/1`` with public bucket
@@ -1271,6 +1288,7 @@ def test_assume_role_cache(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+    aws_signed_url,
 ):
     """
     Test ``GET /data/download/1`` with authorized user (user is the uploader).
@@ -1380,6 +1398,7 @@ def test_indexd_download_with_uploader_unauthorized(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+    aws_signed_url,
 ):
     """
     Test ``GET /data/download/1`` with unauthorized user (user is not the uploader).
@@ -1650,6 +1669,7 @@ def test_abac(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+    aws_signed_url,
 ):
     mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
     indexd_client = indexd_client_with_arborist("test_abac")

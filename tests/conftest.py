@@ -33,6 +33,10 @@ from mock import patch, MagicMock, PropertyMock
 import pytest
 import requests
 from sqlalchemy.ext.compiler import compiles
+import boto3
+import botocore
+from gen3cirrus import AwsService
+from botocore.stub import Stubber
 
 # Set FENCE_CONFIG_PATH *before* loading the configuration
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -1593,6 +1597,30 @@ def google_signed_url():
         "7J4WApzkzxERdOQmAdrvshKSzUHg8Jqp1lw9tbiJfE2ExdOOIoJVmGLoDeAGnfzCd4fTsWcLbal9"
         "sFpqXsQI8IQi1493mw%3D"
     )
+    return manager
+
+
+@pytest.fixture(scope="function")
+def aws_signed_url():
+    """
+    Mock signed urls coming from AWS using a side effect function
+    """
+
+    def presigned_url_side_effect(*args, **kwargs):
+        print(args)
+        return f"https://{args[0]}/{args[1]}/?X-Amz-Expires={args[2]}"
+
+    manager = MagicMock(side_effect=presigned_url_side_effect)
+
+    patch(
+        "fence.blueprints.data.indexd.gen3cirrus.aws.services.AwsService.downloadPresignedURL",
+        manager,
+    ).start()
+    patch(
+        "fence.blueprints.data.indexd.gen3cirrus.aws.services.AwsService.uploadPresignedURL",
+        manager,
+    ).start()
+
     return manager
 
 
