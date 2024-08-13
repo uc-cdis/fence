@@ -1622,7 +1622,12 @@ def test_delete_file_locations_by_uploader(
 
 
 def test_blank_index_upload_unauthorized(
-    app, client, auth_client, encoded_creds_jwt, user_client
+    app,
+    client,
+    auth_client,
+    encoded_creds_jwt,
+    user_client,
+    aws_signed_url,
 ):
     class MockResponse(object):
         def __init__(self, data, status_code=200):
