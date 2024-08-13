@@ -149,14 +149,6 @@ def generate_presigned_url_for_uploading_part(
     )
     bucket = s3_buckets.get(bucket_name)
 
-    # if bucket.get("endpoint_url"):
-    #     url = bucket["endpoint_url"].strip("/") + "/{}/{}".format(
-    #         bucket_name, key.strip("/")
-    #     )
-    # else:
-    #     url = "https://{}.s3.amazonaws.com/{}".format(bucket_name, key)
-    # additional_signed_qs = {"partNumber": str(partNumber), "uploadId": uploadId}
-
     try:
         s3client = boto3.client(
             "s3",
@@ -169,9 +161,6 @@ def generate_presigned_url_for_uploading_part(
             bucket, key, expires, uploadId, partNumber
         )
 
-        # presigned_url = generate_aws_presigned_url(
-        #     url, "PUT", credentials, "s3", region, expires, additional_signed_qs
-        # )
         return presigned_url
     except Exception as e:
         raise InternalError(
