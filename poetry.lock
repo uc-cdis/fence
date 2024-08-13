@@ -250,17 +250,17 @@ files = [
 
 [[package]]
 name = "boto3"
-version = "1.34.156"
+version = "1.34.159"
 description = "The AWS SDK for Python"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "boto3-1.34.156-py3-none-any.whl", hash = "sha256:cbbd453270b8ce94ef9da60dfbb6f9ceeb3eeee226b635aa9ec44b1def98cc96"},
-    {file = "boto3-1.34.156.tar.gz", hash = "sha256:b33e9a8f8be80d3053b8418836a7c1900410b23a30c7cb040927d601a1082e68"},
+    {file = "boto3-1.34.159-py3-none-any.whl", hash = "sha256:21120d23cc37c0e80dc4f64434bc5664d2a5645dcd9bf8a8fa97ed5c82164ca0"},
+    {file = "boto3-1.34.159.tar.gz", hash = "sha256:ffe7bbb88ba81b5d54bc8fa0cfb2f3b7fe63a6cffa0f9207df2ef5c22a1c0587"},
 ]
 
 [package.dependencies]
-botocore = ">=1.34.156,<1.35.0"
+botocore = ">=1.34.159,<1.35.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.10.0,<0.11.0"
 
@@ -269,13 +269,13 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.34.156"
+version = "1.34.159"
 description = "Low-level, data-driven core of boto 3."
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "botocore-1.34.156-py3-none-any.whl", hash = "sha256:c48f8c8996216dfdeeb0aa6d3c0f2c7ae25234766434a2ea3e57bdc08494bdda"},
-    {file = "botocore-1.34.156.tar.gz", hash = "sha256:5d1478c41ab9681e660b3322432fe09c4055759c317984b7b8d3af9557ff769a"},
+    {file = "botocore-1.34.159-py3-none-any.whl", hash = "sha256:7633062491457419a49f5860c014251ae85689f78266a3ce020c2c8688a76b97"},
+    {file = "botocore-1.34.159.tar.gz", hash = "sha256:dc28806eb21e3c8d690c422530dff8b4b242ac033cbe98f160a9d37796c09cb1"},
 ]
 
 [package.dependencies]
@@ -1117,13 +1117,13 @@ grpc = ["grpcio (>=1.38.0,<2.0dev)", "grpcio-status (>=1.38.0,<2.0.dev0)"]
 
 [[package]]
 name = "google-cloud-storage"
-version = "2.18.1"
+version = "2.18.2"
 description = "Google Cloud Storage API client library"
 optional = false
 python-versions = ">=3.7"
 files = [
-    {file = "google_cloud_storage-2.18.1-py2.py3-none-any.whl", hash = "sha256:9d8db6bde3a979cca7150511cd0e4cb363e5f69d31259d890ba1124fa109418c"},
-    {file = "google_cloud_storage-2.18.1.tar.gz", hash = "sha256:6707a6f30a05aee36faca81296419ca2907ac750af1c0457f278bc9a6fb219ad"},
+    {file = "google_cloud_storage-2.18.2-py2.py3-none-any.whl", hash = "sha256:97a4d45c368b7d401ed48c4fdfe86e1e1cb96401c9e199e419d289e2c0370166"},
+    {file = "google_cloud_storage-2.18.2.tar.gz", hash = "sha256:aaf7acd70cdad9f274d29332673fcab98708d0e1f4dceb5a5356aaef06af4d99"},
 ]
 
 [package.dependencies]
@@ -1131,7 +1131,7 @@ google-api-core = ">=2.15.0,<3.0.0dev"
 google-auth = ">=2.26.1,<3.0dev"
 google-cloud-core = ">=2.3.0,<3.0dev"
 google-crc32c = ">=1.0,<2.0dev"
-google-resumable-media = ">=2.6.0"
+google-resumable-media = ">=2.7.2"
 requests = ">=2.18.0,<3.0.0dev"
 
 [package.extras]
@@ -1704,13 +1704,13 @@ files = [
 
 [[package]]
 name = "paramiko"
-version = "3.4.0"
+version = "3.4.1"
 description = "SSH2 protocol library"
 optional = false
 python-versions = ">=3.6"
 files = [
-    {file = "paramiko-3.4.0-py3-none-any.whl", hash = "sha256:43f0b51115a896f9c00f59618023484cb3a14b98bbceab43394a39c6739b7ee7"},
-    {file = "paramiko-3.4.0.tar.gz", hash = "sha256:aac08f26a31dc4dffd92821527d1682d99d52f9ef6851968114a8728f3c274d3"},
+    {file = "paramiko-3.4.1-py3-none-any.whl", hash = "sha256:8e49fd2f82f84acf7ffd57c64311aa2b30e575370dc23bdb375b10262f7eac32"},
+    {file = "paramiko-3.4.1.tar.gz", hash = "sha256:8b15302870af7f6652f2e038975c1d2973f06046cb5d7d65355668b3ecbece0c"},
 ]
 
 [package.dependencies]
@@ -2571,13 +2571,13 @@ files = [
 
 [[package]]
 name = "zipp"
-version = "3.19.2"
+version = "3.20.0"
 description = "Backport of pathlib-compatible object wrapper for zip files"
 optional = false
 python-versions = ">=3.8"
 files = [
-    {file = "zipp-3.19.2-py3-none-any.whl", hash = "sha256:f091755f667055f2d02b32c53771a7a6c8b47e1fdbc4b72a8b9072b3eef8015c"},
-    {file = "zipp-3.19.2.tar.gz", hash = "sha256:bf1dcf6450f873a13e952a29504887c89e6de7506209e5b1bcc3460135d4de19"},
+    {file = "zipp-3.20.0-py3-none-any.whl", hash = "sha256:58da6168be89f0be59beb194da1250516fdaa062ccebd30127ac65d30045e10d"},
+    {file = "zipp-3.20.0.tar.gz", hash = "sha256:0145e43d89664cfe1a2e533adc75adafed82fe2da404b4bbb6b026c0157bdb31"},
 ]
 
 [package.extras]
