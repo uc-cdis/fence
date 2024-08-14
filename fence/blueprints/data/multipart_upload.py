@@ -157,7 +157,7 @@ def generate_presigned_url_for_uploading_part(
         )
         cirrus_aws = AwsService(client)
 
-        presigned_url = cirrus_aws.multipartUploadPresignedURL(
+        presigned_url = cirrus_aws.multipart_upload_presigned_url(
             bucket, key, expires, uploadId, partNumber
         )
 

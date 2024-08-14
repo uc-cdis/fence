@@ -1607,21 +1607,23 @@ def aws_signed_url():
     """
 
     def presigned_url_side_effect(*args, **kwargs):
-        print(args)
         return f"https://{args[0]}/{args[1]}/?X-Amz-Expires={args[2]}"
 
     manager = MagicMock(side_effect=presigned_url_side_effect)
 
-    patch(
-        "fence.blueprints.data.indexd.gen3cirrus.aws.services.AwsService.downloadPresignedURL",
+    down = patch(
+        "fence.blueprints.data.indexd.gen3cirrus.aws.services.AwsService.download_presigned_url",
         manager,
     ).start()
-    patch(
-        "fence.blueprints.data.indexd.gen3cirrus.aws.services.AwsService.uploadPresignedURL",
+    up = patch(
+        "fence.blueprints.data.indexd.gen3cirrus.aws.services.AwsService.upload_presigned_url",
         manager,
     ).start()
 
-    return manager
+    yield manager
+
+    down.stop()
+    up.stop()
 
 
 @pytest.fixture(scope="function")

@@ -1100,6 +1100,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             "s3",
             aws_access_key_id=credential["aws_access_key_id"],
             aws_secret_access_key=credential["aws_secret_access_key"],
+            region_name=region,
         )
 
         cirrus_aws = AwsService(client)
@@ -1108,14 +1109,14 @@ class S3IndexedFileLocation(IndexedFileLocation):
         action = ACTION_DICT["s3"][action]
 
         if action == "PUT":  # get presigned url for upload
-            url = cirrus_aws.uploadPresignedURL(bucket_name, object_id, expires_in)
+            url = cirrus_aws.upload_presigned_url(bucket_name, object_id, expires_in)
         else:  # get presigned url for download
             if bucket.get("requester_pays") == True:
-                url = cirrus_aws.requesterPaysDownloadPresignedURL(
+                url = cirrus_aws.requester_pays_download_presigned_url(
                     bucket_name, object_id, expires_in
                 )
             else:
-                url = cirrus_aws.downloadPresignedURL(
+                url = cirrus_aws.download_presigned_url(
                     bucket_name, object_id, expires_in
                 )
 
