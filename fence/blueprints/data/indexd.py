@@ -3,7 +3,7 @@ import time
 import json
 import boto3
 from botocore.client import Config
-from urllib.parse import urlparse, ParseResult, urlunparse, quote
+from urllib.parse import urlparse, ParseResult, urlunparse, quote, urlencode
 from datetime import datetime, timedelta
 
 from sqlalchemy.sql.functions import user
@@ -1045,24 +1045,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
         else:
             return bucket_cred["region"]
 
-    def is_custom(k):
-        if k == "user_id" or k == "username":
-            return True
-        else:
-            return False
-
-    def client_param_handler(*, params, context, **_kw):
-        # Store custom parameters in context for later event handlers
-        context["custom_params"] = {k: v for k, v in params.items() if is_custom(k)}
-        # Remove custom parameters from client parameters,
-        # because validation would fail on them
-        return {k: v for k, v in params.items() if not is_custom(k)}
-
-    def request_param_injector(*, request, **_kw):
-        if request.context["custom_params"]:
-            request.url += "&" if "?" in request.url else "?"
-            request.url += urlencode(request.context["custom_params"])
-
     def get_signed_url(
         self,
         action,
@@ -1114,7 +1096,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             region = flask.current_app.boto.get_bucket_region(
                 self.parsed_url.netloc, credential
             )
-
+        print("making the client")
         client = boto3.client(
             "s3",
             aws_access_key_id=credential["aws_access_key_id"],
@@ -1123,15 +1105,44 @@ class S3IndexedFileLocation(IndexedFileLocation):
             config=Config(s3={"addressing_style": "path"}, signature_version="s3v4"),
         )
 
+        print("client is done")
+
+        def is_custom(k):
+            if k == "user_id" or k == "username" or k == "client_id":
+                return True
+            else:
+                return False
+
+        def client_param_handler(*, params, context, **_kw):
+            # Store custom parameters in context for later event handlers
+            context["custom_params"] = {k: v for k, v in params.items() if is_custom(k)}
+            # Remove custom parameters from client parameters,
+            # because validation would fail on them
+            return {k: v for k, v in params.items() if not is_custom(k)}
+
+        def request_param_injector(*, request, **_kw):
+            if request.context["custom_params"]:
+                request.url += "&" if "?" in request.url else "?"
+                request.url += urlencode(request.context["custom_params"])
+
         client.meta.events.register(
             "provide-client-params.s3.GetObject", client_param_handler
         )
+
+        print("first event done")
+
         client.meta.events.register("before-sign.s3.GetObject", request_param_injector)
+
+        print("second event done")
 
         cirrus_aws = AwsService(client)
         auth_info = _get_auth_info_for_id_or_from_request(user=authorized_user)
 
         action = ACTION_DICT["s3"][action]
+
+        print("This is the auth info: ", auth_info)
+
+        print("this is the part where we get the url")
 
         if action == "PUT":  # get presigned url for upload
             url = cirrus_aws.upload_presigned_url(
@@ -1146,6 +1157,8 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 url = cirrus_aws.download_presigned_url(
                     bucket_name, object_id, expires_in, auth_info
                 )
+
+        print(f"This is the url: {url}")
 
         return url
 
