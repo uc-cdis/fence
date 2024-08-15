@@ -1045,6 +1045,24 @@ class S3IndexedFileLocation(IndexedFileLocation):
         else:
             return bucket_cred["region"]
 
+    def is_custom(k):
+        if k == "user_id" or k == "username":
+            return True
+        else:
+            return False
+
+    def client_param_handler(*, params, context, **_kw):
+        # Store custom parameters in context for later event handlers
+        context["custom_params"] = {k: v for k, v in params.items() if is_custom(k)}
+        # Remove custom parameters from client parameters,
+        # because validation would fail on them
+        return {k: v for k, v in params.items() if not is_custom(k)}
+
+    def request_param_injector(*, request, **_kw):
+        if request.context["custom_params"]:
+            request.url += "&" if "?" in request.url else "?"
+            request.url += urlencode(request.context["custom_params"])
+
     def get_signed_url(
         self,
         action,
@@ -1105,28 +1123,31 @@ class S3IndexedFileLocation(IndexedFileLocation):
             config=Config(s3={"addressing_style": "path"}, signature_version="s3v4"),
         )
 
+        client.meta.events.register(
+            "provide-client-params.s3.GetObject", client_param_handler
+        )
+        client.meta.events.register("before-sign.s3.GetObject", request_param_injector)
+
         cirrus_aws = AwsService(client)
         auth_info = _get_auth_info_for_id_or_from_request(user=authorized_user)
 
         action = ACTION_DICT["s3"][action]
 
         if action == "PUT":  # get presigned url for upload
-            url = cirrus_aws.upload_presigned_url(bucket_name, object_id, expires_in)
+            url = cirrus_aws.upload_presigned_url(
+                bucket_name, object_id, expires_in, auth_info
+            )
         else:  # get presigned url for download
             if bucket.get("requester_pays") == True:
                 url = cirrus_aws.requester_pays_download_presigned_url(
-                    bucket_name, object_id, expires_in
+                    bucket_name, object_id, expires_in, auth_info
                 )
             else:
                 url = cirrus_aws.download_presigned_url(
-                    bucket_name, object_id, expires_in
+                    bucket_name, object_id, expires_in, auth_info
                 )
 
-        canonical_qs = ""
-        for key in sorted(auth_info.keys()):
-            canonical_qs += "&" + key + "=" + quote(auth_info[key], safe="")
-
-        return url + canonical_qs
+        return url
 
     def init_multipart_upload(self, expires_in):
         """
