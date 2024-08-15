@@ -2,6 +2,7 @@ import re
 import time
 import json
 import boto3
+from botocore.client import Config
 from urllib.parse import urlparse, ParseResult, urlunparse, quote
 from datetime import datetime, timedelta
 
@@ -1101,6 +1102,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             aws_access_key_id=credential["aws_access_key_id"],
             aws_secret_access_key=credential["aws_secret_access_key"],
             region_name=region,
+            config=Config(s3={"addressing_style": "path"}, signature_version="s3v4"),
         )
 
         cirrus_aws = AwsService(client)

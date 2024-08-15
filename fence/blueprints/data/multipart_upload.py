@@ -1,4 +1,5 @@
 import boto3
+from botocore.client import Config
 from botocore.exceptions import ClientError
 from retry.api import retry_call
 
@@ -154,6 +155,7 @@ def generate_presigned_url_for_uploading_part(
             "s3",
             aws_access_key_id=credentials["aws_access_key_id"],
             aws_secret_access_key=credentials["aws_secret_access_key"],
+            config=Config(s3={"addressing_style": "path"}, signature_version="s3v4"),
         )
         cirrus_aws = AwsService(client)
 
