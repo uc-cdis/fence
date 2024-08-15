@@ -1140,13 +1140,13 @@ class S3IndexedFileLocation(IndexedFileLocation):
             )
         else:  # get presigned url for download
             if bucket.get("requester_pays") == True:
+                # need to add extra parameter to signing url for header
+                # https://github.com/boto/boto3/issues/3685
+                auth_info["x-amz-request-payer"] = "requester"
                 url = cirrus_aws.requester_pays_download_presigned_url(
                     bucket_name, object_id, expires_in, auth_info
                 )
             else:
-                # need to add extra parameter to signing url for header
-                # https://github.com/boto/boto3/issues/3685
-                auth_info["x-amz-request-payer"] = "requester"
                 url = cirrus_aws.download_presigned_url(
                     bucket_name, object_id, expires_in, auth_info
                 )
