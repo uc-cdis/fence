@@ -1096,7 +1096,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
             region = flask.current_app.boto.get_bucket_region(
                 self.parsed_url.netloc, credential
             )
-        print("making the client")
         client = boto3.client(
             "s3",
             aws_access_key_id=credential["aws_access_key_id"],
@@ -1105,10 +1104,10 @@ class S3IndexedFileLocation(IndexedFileLocation):
             config=Config(s3={"addressing_style": "path"}, signature_version="s3v4"),
         )
 
-        print("client is done")
+        custom_params = ["user_id", "username", "client_id", "x-amz-request-payer"]
 
         def is_custom(k):
-            if k == "user_id" or k == "username" or k == "client_id":
+            if k in custom_params:
                 return True
             else:
                 return False
@@ -1128,21 +1127,12 @@ class S3IndexedFileLocation(IndexedFileLocation):
         client.meta.events.register(
             "provide-client-params.s3.GetObject", client_param_handler
         )
-
-        print("first event done")
-
         client.meta.events.register("before-sign.s3.GetObject", request_param_injector)
-
-        print("second event done")
 
         cirrus_aws = AwsService(client)
         auth_info = _get_auth_info_for_id_or_from_request(user=authorized_user)
 
         action = ACTION_DICT["s3"][action]
-
-        print("This is the auth info: ", auth_info)
-
-        print("this is the part where we get the url")
 
         if action == "PUT":  # get presigned url for upload
             url = cirrus_aws.upload_presigned_url(
@@ -1154,11 +1144,12 @@ class S3IndexedFileLocation(IndexedFileLocation):
                     bucket_name, object_id, expires_in, auth_info
                 )
             else:
+                # need to add extra parameter to signing url for header
+                # https://github.com/boto/boto3/issues/3685
+                auth_info["x-amz-request-payer"] = "requester"
                 url = cirrus_aws.download_presigned_url(
                     bucket_name, object_id, expires_in, auth_info
                 )
-
-        print(f"This is the url: {url}")
 
         return url
 
