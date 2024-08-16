@@ -999,7 +999,7 @@ class UserSyncer(object):
 
         if config["GOOGLE_BULK_UPDATES"]:
             self.logger.info("Doing bulk Google update...")
-            bulk_update_google_groups(google_bulk_mapping)
+            bulk_update_google_groups(google_bulk_mapping, keep_existing=True)
             self.logger.info("Bulk Google update done!")
 
         sess.commit()

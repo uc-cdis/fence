@@ -42,7 +42,7 @@ class GoogleUpdateException(Exception):
     pass
 
 
-def bulk_update_google_groups(google_bulk_mapping):
+def bulk_update_google_groups(google_bulk_mapping, keep_existing=False):
     """
     Update Google Groups based on mapping provided from Group -> Users.
 
@@ -103,21 +103,22 @@ def bulk_update_google_groups(google_bulk_mapping):
                     google_update_failures = True
 
             # do remove
-            for member_email in to_delete:
-                logger.info(f"Removing from group {group}: {member_email}")
+            if not keep_existing:
+                for member_email in to_delete:
+                    logger.info(f"Removing from group {group}: {member_email}")
 
-                try:
-                    _remove_member_from_google_group(gcm, member_email, group)
-                except Exception as exc:
-                    logger.error(
-                        f"ERROR: FAILED TO REMOVE MEMBER {member_email} FROM "
-                        f"GOOGLE GROUP {group}! This sync will SKIP "
-                        f"the above user to try and update other authorization "
-                        f"(rather than failing early). The error will be re-raised "
-                        f"after attempting to update all other users. Exc: "
-                        f"{traceback.format_exc()}"
-                    )
-                    google_update_failures = True
+                    try:
+                        _remove_member_from_google_group(gcm, member_email, group)
+                    except Exception as exc:
+                        logger.error(
+                            f"ERROR: FAILED TO REMOVE MEMBER {member_email} FROM "
+                            f"GOOGLE GROUP {group}! This sync will SKIP "
+                            f"the above user to try and update other authorization "
+                            f"(rather than failing early). The error will be re-raised "
+                            f"after attempting to update all other users. Exc: "
+                            f"{traceback.format_exc()}"
+                        )
+                        google_update_failures = True
 
             if google_update_failures:
                 raise GoogleUpdateException(
