@@ -1100,6 +1100,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             "s3",
             aws_access_key_id=credential["aws_access_key_id"],
             aws_secret_access_key=credential["aws_secret_access_key"],
+            aws_session_token=credential.get("aws_session_token", None),
             region_name=region,
             config=Config(s3={"addressing_style": "path"}, signature_version="s3v4"),
         )
@@ -1128,6 +1129,10 @@ class S3IndexedFileLocation(IndexedFileLocation):
             "provide-client-params.s3.GetObject", client_param_handler
         )
         client.meta.events.register("before-sign.s3.GetObject", request_param_injector)
+        client.meta.events.register(
+            "provide-client-params.s3.PutObject", client_param_handler
+        )
+        client.meta.events.register("before-sign.s3.PutObject", request_param_injector)
 
         cirrus_aws = AwsService(client)
         auth_info = _get_auth_info_for_id_or_from_request(user=authorized_user)
