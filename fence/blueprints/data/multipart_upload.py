@@ -5,6 +5,7 @@ from retry.api import retry_call
 
 from cdispyutils.config import get_value
 from cdislogging import get_logger
+from gen3cirrus import AwsService
 from fence.config import config
 from fence.errors import InternalError
 
@@ -157,7 +158,7 @@ def generate_presigned_url_for_uploading_part(
             aws_secret_access_key=credentials["aws_secret_access_key"],
             config=Config(s3={"addressing_style": "path"}, signature_version="s3v4"),
         )
-        cirrus_aws = AwsService(client)
+        cirrus_aws = AwsService(s3client)
 
         presigned_url = cirrus_aws.multipart_upload_presigned_url(
             bucket, key, expires, uploadId, partNumber
