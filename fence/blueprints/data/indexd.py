@@ -1096,7 +1096,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             region = flask.current_app.boto.get_bucket_region(
                 self.parsed_url.netloc, credential
             )
-        client = boto3.client(
+        s3client = boto3.client(
             "s3",
             aws_access_key_id=credential["aws_access_key_id"],
             aws_secret_access_key=credential["aws_secret_access_key"],
@@ -1125,16 +1125,20 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 request.url += "&" if "?" in request.url else "?"
                 request.url += urlencode(request.context["custom_params"])
 
-        client.meta.events.register(
+        s3client.meta.events.register(
             "provide-client-params.s3.GetObject", client_param_handler
         )
-        client.meta.events.register("before-sign.s3.GetObject", request_param_injector)
-        client.meta.events.register(
+        s3client.meta.events.register(
+            "before-sign.s3.GetObject", request_param_injector
+        )
+        s3client.meta.events.register(
             "provide-client-params.s3.PutObject", client_param_handler
         )
-        client.meta.events.register("before-sign.s3.PutObject", request_param_injector)
+        s3client.meta.events.register(
+            "before-sign.s3.PutObject", request_param_injector
+        )
 
-        cirrus_aws = AwsService(client)
+        cirrus_aws = AwsService(s3client)
         auth_info = _get_auth_info_for_id_or_from_request(user=authorized_user)
 
         action = ACTION_DICT["s3"][action]
