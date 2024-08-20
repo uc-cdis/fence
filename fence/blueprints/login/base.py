@@ -127,8 +127,13 @@ class DefaultOAuth2Callback(Resource):
 
         email = result.get(self.email_field)
         id_from_idp = result.get(self.id_from_idp_field)
+        # if self.client.config["check_groups"]
+        # fetch access token from self.client
 
         resp = _login(username, self.idp_name, email=email, id_from_idp=id_from_idp)
+
+        # if self.client.config["check_groups"]
+        #pass access token to post_login
         self.post_login(user=flask.g.user, token_result=result, id_from_idp=id_from_idp)
         return resp
 
@@ -141,6 +146,16 @@ class DefaultOAuth2Callback(Resource):
             shib_idp=flask.session.get("shib_idp"),
             client_id=flask.session.get("client_id"),
         )
+
+        #if self.client.config["check_groups"]
+        # grab all groups defined in arborist via self.app.arborist.list_groups()
+        # grab the groups claim from the auth_token passed in
+        # split groups claim by " "
+        # for group in groups:
+        # groupname: remove this.client.config["prefix"] form the group
+        # if groupname is in the list from arborist:
+        # add user to group via: self.app.arborist.add_user_to_group() with the correct expires_at
+
 
         if token_result:
             username = token_result.get(self.username_field)

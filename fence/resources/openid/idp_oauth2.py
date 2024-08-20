@@ -25,6 +25,7 @@ class Oauth2ClientBase(object):
             scope=scope or settings.get("scope") or "openid",
             redirect_uri=settings["redirect_url"],
         )
+
         self.discovery_url = (
             discovery_url
             or settings.get("discovery_url")
@@ -39,6 +40,18 @@ class Oauth2ClientBase(object):
                 f"OAuth2 Client for {self.idp} does not have a valid 'discovery_url'. "
                 f"Some calls for this client may fail if they rely on the OIDC Discovery page. Use 'discovery' to configure clients without a discovery page."
             )
+
+        # implent boolean setting read from settings here. read_group_information
+        # if set to yes, then the following needs to happen:
+        # 1. in the discovery_doc, response_types_supported needs to contain "code" // this seems to be assumed in the implementation
+        # 2. the discovery_doc (if it provides "claims_supported", then "claims_supported" needs to contain "groups"
+        #
+        # Implement a string setting "group_prefix", this is used to have namespaced groups in case of multi system OIDC
+        #
+        # implement a string setting "audience" here, implement a boolean "check_audience" here.
+        # if the audience is not set, but check_audience is spit out an ERROR that the audience is not set.
+
+
 
     @cached_property
     def discovery_doc(self):
@@ -79,6 +92,7 @@ class Oauth2ClientBase(object):
         token = self.get_token(token_endpoint, code)
         keys = self.get_jwt_keys(jwks_endpoint)
 
+        # change is to validate audience and hash. also ensure that the algorithm is correclty derived from the token.
         return jwt.decode(
             token["id_token"],
             keys,
@@ -187,6 +201,9 @@ class Oauth2ClientBase(object):
         """
         Get access_token using a refresh_token and store new refresh in upstream_refresh_token table.
         """
+
+        ###this function is not correct. use self.session.fetch_access_token, validate the token for audience and then return the validated token. Still store the refresh token. it will be needed for periodic re-fetching of information.
+
         refresh_token = None
         expires = None
 
