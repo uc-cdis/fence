@@ -404,7 +404,7 @@ class BlankIndex(object):
             key(str): object key
 
         Returns:
-            upload_id(str)
+            uploadId(str)
         """
         if not bucket:
             bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
@@ -412,13 +412,13 @@ class BlankIndex(object):
         return S3IndexedFileLocation(s3_url).init_multipart_upload(expires_in)
 
     @staticmethod
-    def complete_multipart_upload(key, upload_id, parts, expires_in=None, bucket=None):
+    def complete_multipart_upload(key, uploadId, parts, expires_in=None, bucket=None):
         """
         Complete multipart upload
 
         Args:
             key(str): object key or `GUID/filename`
-            upload_id(str): upload id of the current upload
+            uploadId(str): upload id of the current upload
             parts(list(set)): List of part infos
                 [{"Etag": "1234567", "PartNumber": 1}, {"Etag": "4321234", "PartNumber": 2}]
 
@@ -431,19 +431,19 @@ class BlankIndex(object):
             bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
         s3_url = "s3://{}/{}".format(bucket, key)
         S3IndexedFileLocation(s3_url).complete_multipart_upload(
-            upload_id, parts, expires_in
+            uploadId, parts, expires_in
         )
 
     @staticmethod
     def generate_aws_presigned_url_for_part(
-        key, upload_id, partNumber, expires_in, bucket=None
+        key, uploadId, partNumber, expires_in, bucket=None
     ):
         """
         Generate presigned url for each part
 
         Args:
             key(str): object key of `guid/filename`
-            upload_id(str): upload_id of the current upload.
+            uploadId(str): uploadId of the current upload.
             partNumber(int): the part number
 
         Returns:
@@ -455,7 +455,7 @@ class BlankIndex(object):
             bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
         s3_url = "s3://{}/{}".format(bucket, key)
         return S3IndexedFileLocation(s3_url).generate_presigned_url_for_part_upload(
-            upload_id, partNumber, expires_in
+            uploadId, partNumber, expires_in
         )
 
 
@@ -1170,7 +1170,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             expires(int): expiration time
 
         Returns:
-            upload_id(str)
+            uploadId(str)
         """
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
@@ -1183,15 +1183,13 @@ class S3IndexedFileLocation(IndexedFileLocation):
             self.parsed_url.netloc, self.parsed_url.path.strip("/"), credentials
         )
 
-    def generate_presigned_url_for_part_upload(
-        self, upload_id, part_number, expires_in
-    ):
+    def generate_presigned_url_for_part_upload(self, uploadId, partNumber, expires_in):
         """
-        Generate presigned url for uploading object part given upload_id and part number
+        Generate presigned url for uploading object part given uploadId and part number
 
         Args:
-            upload_id(str): upload_id of the multipart upload
-            part_number(int): part number
+            uploadId(str): uploadId of the multipart upload
+            partNumber(int): part number
             expires(int): expiration time
 
         Returns:
@@ -1215,18 +1213,18 @@ class S3IndexedFileLocation(IndexedFileLocation):
             bucket_name,
             self.parsed_url.path.strip("/"),
             credential,
-            upload_id,
-            part_number,
+            uploadId,
+            partNumber,
             region,
             expires_in,
         )
 
-    def complete_multipart_upload(self, upload_id, parts, expires_in):
+    def complete_multipart_upload(self, uploadId, parts, expires_in):
         """
         Complete multipart upload.
 
         Args:
-            upload_id(str): upload id of the current upload
+            uploadId(str): upload id of the current upload
             parts(list(set)): List of part infos
                     [{"Etag": "1234567", "PartNumber": 1}, {"Etag": "4321234", "PartNumber": 2}]
         """
@@ -1242,7 +1240,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             self.parsed_url.netloc,
             self.parsed_url.path.strip("/"),
             credentials,
-            upload_id,
+            uploadId,
             parts,
         )
 

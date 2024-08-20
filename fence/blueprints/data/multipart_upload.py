@@ -64,7 +64,7 @@ def initialize_multipart_upload(bucket_name, key, credentials):
     return multipart_upload.get("UploadId")
 
 
-def complete_multipart_upload(bucket_name, key, credentials, upload_id, parts):
+def complete_multipart_upload(bucket_name, key, credentials, uploadId, parts):
     """
     Complete multipart upload.
     Raise exception if something wrong happens; otherwise success
@@ -73,7 +73,7 @@ def complete_multipart_upload(bucket_name, key, credentials, upload_id, parts):
         bucket(str): bucket name
         key(str): object key or `GUID/filename`
         credentials(dict): aws credentials
-        upload_id(str): upload id of the current upload
+        uploadId(str): upload id of the current upload
         parts(list(set)): List of part infos
                 [{"Etag": "1234567", "PartNumber": 1}, {"Etag": "4321234", "PartNumber": 2}]
 
@@ -107,7 +107,7 @@ def complete_multipart_upload(bucket_name, key, credentials, upload_id, parts):
                 "Bucket": bucket_name,
                 "Key": key,
                 "MultipartUpload": {"Parts": parts},
-                "UploadId": upload_id,
+                "UploadId": uploadId,
             },
             tries=MAX_TRIES,
             jitter=10,
@@ -124,7 +124,7 @@ def complete_multipart_upload(bucket_name, key, credentials, upload_id, parts):
 
 
 def generate_presigned_url_for_uploading_part(
-    bucket_name, key, credentials, upload_id, part_number, region, expires
+    bucket_name, key, credentials, uploadId, partNumber, region, expires
 ):
     """
     Generate presigned url for uploading object part given uploadId and part number
@@ -133,8 +133,8 @@ def generate_presigned_url_for_uploading_part(
         bucket(str): bucket
         key(str): key
         credentials(dict): dictionary of aws credentials
-        upload_id(str): uploadID of the multipart upload
-        part_number(int): part number
+        uploadId(str): uploadID of the multipart upload
+        partNumber(int): part number
         region(str): bucket region
         expires(int): expiration time
 
@@ -153,13 +153,13 @@ def generate_presigned_url_for_uploading_part(
         cirrus_aws = AwsService(s3client)
 
         presigned_url = cirrus_aws.multipart_upload_presigned_url(
-            bucket_name, key, expires, upload_id, part_number
+            bucket_name, key, expires, uploadId, partNumber
         )
 
         return presigned_url
     except Exception as e:
         raise InternalError(
             "Can not generate presigned url for part number {} of key {}. Detail {}".format(
-                part_number, key, e
+                partNumber, key, e
             )
         )
