@@ -1148,7 +1148,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 bucket_name, object_id, expires_in, {}
             )
         else:  # get presigned url for download
-            if bucket.get("requester_pays") == True:
+            if bucket.get("requester_pays") is True:
                 # need to add extra parameter to signing url for header
                 # https://github.com/boto/boto3/issues/3685
                 auth_info["x-amz-request-payer"] = "requester"
@@ -1183,13 +1183,15 @@ class S3IndexedFileLocation(IndexedFileLocation):
             self.parsed_url.netloc, self.parsed_url.path.strip("/"), credentials
         )
 
-    def generate_presigned_url_for_part_upload(self, uploadId, partNumber, expires_in):
+    def generate_presigned_url_for_part_upload(
+        self, upload_id, part_number, expires_in
+    ):
         """
         Generate presigned url for uploading object part given uploadId and part number
 
         Args:
-            uploadId(str): uploadID of the multipart upload
-            partNumber(int): part number
+            upload_id(str): uploadID of the multipart upload
+            part_number(int): part number
             expires(int): expiration time
 
         Returns:
@@ -1212,18 +1214,18 @@ class S3IndexedFileLocation(IndexedFileLocation):
             self.parsed_url.netloc,
             self.parsed_url.path.strip("/"),
             credential,
-            uploadId,
-            partNumber,
+            upload_id,
+            part_number,
             region,
             expires_in,
         )
 
-    def complete_multipart_upload(self, uploadId, parts, expires_in):
+    def complete_multipart_upload(self, upload_id, parts, expires_in):
         """
         Complete multipart upload.
 
         Args:
-            uploadId(str): upload id of the current upload
+            upload_id(str): upload id of the current upload
             parts(list(set)): List of part infos
                     [{"Etag": "1234567", "PartNumber": 1}, {"Etag": "4321234", "PartNumber": 2}]
         """
@@ -1239,7 +1241,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             self.parsed_url.netloc,
             self.parsed_url.path.strip("/"),
             credentials,
-            uploadId,
+            upload_id,
             parts,
         )
 
