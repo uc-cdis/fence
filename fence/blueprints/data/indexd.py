@@ -398,13 +398,13 @@ class BlankIndex(object):
     @staticmethod
     def init_multipart_upload(key, expires_in=None, bucket=None):
         """
-        Initilize multipart upload given key
+        Initialize multipart upload given key
 
         Args:
             key(str): object key
 
         Returns:
-            uploadId(str)
+            upload_id(str)
         """
         if not bucket:
             bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
@@ -412,13 +412,13 @@ class BlankIndex(object):
         return S3IndexedFileLocation(s3_url).init_multipart_upload(expires_in)
 
     @staticmethod
-    def complete_multipart_upload(key, uploadId, parts, expires_in=None, bucket=None):
+    def complete_multipart_upload(key, upload_id, parts, expires_in=None, bucket=None):
         """
         Complete multipart upload
 
         Args:
             key(str): object key or `GUID/filename`
-            uploadId(str): upload id of the current upload
+            upload_id(str): upload id of the current upload
             parts(list(set)): List of part infos
                 [{"Etag": "1234567", "PartNumber": 1}, {"Etag": "4321234", "PartNumber": 2}]
 
@@ -431,19 +431,19 @@ class BlankIndex(object):
             bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
         s3_url = "s3://{}/{}".format(bucket, key)
         S3IndexedFileLocation(s3_url).complete_multipart_upload(
-            uploadId, parts, expires_in
+            upload_id, parts, expires_in
         )
 
     @staticmethod
     def generate_aws_presigned_url_for_part(
-        key, uploadId, partNumber, expires_in, bucket=None
+        key, upload_id, partNumber, expires_in, bucket=None
     ):
         """
         Generate presigned url for each part
 
         Args:
             key(str): object key of `guid/filename`
-            uploadID(str): uploadId of the current upload.
+            upload_id(str): upload_id of the current upload.
             partNumber(int): the part number
 
         Returns:
@@ -455,7 +455,7 @@ class BlankIndex(object):
             bucket = flask.current_app.config["DATA_UPLOAD_BUCKET"]
         s3_url = "s3://{}/{}".format(bucket, key)
         return S3IndexedFileLocation(s3_url).generate_presigned_url_for_part_upload(
-            uploadId, partNumber, expires_in
+            upload_id, partNumber, expires_in
         )
 
 
@@ -1170,7 +1170,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             expires(int): expiration time
 
         Returns:
-            UploadId(str)
+            upload_id(str)
         """
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
@@ -1187,21 +1187,22 @@ class S3IndexedFileLocation(IndexedFileLocation):
         self, upload_id, part_number, expires_in
     ):
         """
-        Generate presigned url for uploading object part given uploadId and part number
+        Generate presigned url for uploading object part given upload_id and part number
 
         Args:
-            upload_id(str): uploadID of the multipart upload
+            upload_id(str): upload_id of the multipart upload
             part_number(int): part number
             expires(int): expiration time
 
         Returns:
             presigned_url(str)
         """
+        bucket_name = self.bucket_name()
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
         credential = S3IndexedFileLocation.get_credential_to_access_bucket(
-            self.bucket_name(), aws_creds, expires_in
+            bucket_name, aws_creds, expires_in
         )
 
         region = self.get_bucket_region()
@@ -1211,7 +1212,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             )
 
         return multipart_upload.generate_presigned_url_for_uploading_part(
-            self.parsed_url.netloc,
+            bucket_name,
             self.parsed_url.path.strip("/"),
             credential,
             upload_id,
