@@ -398,7 +398,7 @@ class BlankIndex(object):
     @staticmethod
     def init_multipart_upload(key, expires_in=None, bucket=None):
         """
-        Initilize multipart upload given key
+        Initialize multipart upload given key
 
         Args:
             key(str): object key
@@ -443,7 +443,7 @@ class BlankIndex(object):
 
         Args:
             key(str): object key of `guid/filename`
-            uploadID(str): uploadId of the current upload.
+            uploadId(str): uploadId of the current upload.
             partNumber(int): the part number
 
         Returns:
@@ -1096,10 +1096,11 @@ class S3IndexedFileLocation(IndexedFileLocation):
             region = flask.current_app.boto.get_bucket_region(
                 self.parsed_url.netloc, credential
             )
-        client = boto3.client(
+        s3client = boto3.client(
             "s3",
             aws_access_key_id=credential["aws_access_key_id"],
             aws_secret_access_key=credential["aws_secret_access_key"],
+            aws_session_token=credential.get("aws_session_token", None),
             region_name=region,
             config=Config(s3={"addressing_style": "path"}, signature_version="s3v4"),
         )
@@ -1124,12 +1125,20 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 request.url += "&" if "?" in request.url else "?"
                 request.url += urlencode(request.context["custom_params"])
 
-        client.meta.events.register(
+        s3client.meta.events.register(
             "provide-client-params.s3.GetObject", client_param_handler
         )
-        client.meta.events.register("before-sign.s3.GetObject", request_param_injector)
+        s3client.meta.events.register(
+            "before-sign.s3.GetObject", request_param_injector
+        )
+        s3client.meta.events.register(
+            "provide-client-params.s3.PutObject", client_param_handler
+        )
+        s3client.meta.events.register(
+            "before-sign.s3.PutObject", request_param_injector
+        )
 
-        cirrus_aws = AwsService(client)
+        cirrus_aws = AwsService(s3client)
         auth_info = _get_auth_info_for_id_or_from_request(user=authorized_user)
 
         action = ACTION_DICT["s3"][action]
@@ -1139,7 +1148,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 bucket_name, object_id, expires_in, {}
             )
         else:  # get presigned url for download
-            if bucket.get("requester_pays") == True:
+            if bucket.get("requester_pays") is True:
                 # need to add extra parameter to signing url for header
                 # https://github.com/boto/boto3/issues/3685
                 auth_info["x-amz-request-payer"] = "requester"
@@ -1161,7 +1170,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             expires(int): expiration time
 
         Returns:
-            UploadId(str)
+            uploadId(str)
         """
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
@@ -1179,18 +1188,19 @@ class S3IndexedFileLocation(IndexedFileLocation):
         Generate presigned url for uploading object part given uploadId and part number
 
         Args:
-            uploadId(str): uploadID of the multipart upload
+            uploadId(str): uploadId of the multipart upload
             partNumber(int): part number
             expires(int): expiration time
 
         Returns:
             presigned_url(str)
         """
+        bucket_name = self.bucket_name()
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
         credential = S3IndexedFileLocation.get_credential_to_access_bucket(
-            self.bucket_name(), aws_creds, expires_in
+            bucket_name, aws_creds, expires_in
         )
 
         region = self.get_bucket_region()
@@ -1200,7 +1210,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             )
 
         return multipart_upload.generate_presigned_url_for_uploading_part(
-            self.parsed_url.netloc,
+            bucket_name,
             self.parsed_url.path.strip("/"),
             credential,
             uploadId,
