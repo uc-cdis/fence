@@ -42,7 +42,85 @@ class GoogleUpdateException(Exception):
     pass
 
 
-def bulk_update_google_groups(google_bulk_mapping):
+def update_google_groups_for_user(google_bulk_mapping):
+    """
+    Update Google Groups for a single user based on the provided mapping.
+
+    Args:
+        google_bulk_mapping (dict): {"googlegroup@google.com": ["user_email"]}
+    """
+    google_project_id = (
+        config["STORAGE_CREDENTIALS"].get("google", {}).get("google_project_id")
+    )
+    google_update_failures = False
+    with GoogleCloudManager(google_project_id) as gcm:
+        # Extract the user email from the mapping
+        user_email = None
+        for group, members in google_bulk_mapping.items():
+            if len(members) == 1:
+                user_email = members[0]
+                break
+
+        if not user_email:
+            return # google proxy groups are lazily created, users won't have one until they attempt GS access
+
+        logger.debug(f"Updating groups for user {user_email}...")
+
+        # Get the groups the user is currently in
+        try:
+            user_current_groups = gcm.get_groups_for_user(user_email)
+        except Exception as exc:
+            logger.error(
+                f"ERROR: FAILED TO GET GROUPS FOR USER {user_email}! "
+                f"{traceback.format_exc()}"
+            )
+            google_update_failures = True
+            user_current_groups = []
+
+        logger.info(f"User's current groups: {user_current_groups}")
+
+        # Determine which groups to add the user to and which to remove them from
+        expected_groups = set(google_bulk_mapping.keys())
+        current_groups = set(user_current_groups)
+
+        groups_to_add = expected_groups - current_groups
+        groups_to_remove = current_groups - expected_groups
+
+        logger.info(f"Groups to add for {user_email}: {groups_to_add}")
+        logger.info(f"Groups to remove for {user_email}: {groups_to_remove}")
+
+        for group in groups_to_add:
+            logger.info(f"Adding {user_email} to group {group}")
+            try:
+                gcm.add_member_to_group(user_email, group)
+            except Exception as exc:
+                logger.error(
+                    f"ERROR: FAILED TO ADD USER {user_email} TO GOOGLE "
+                    f"GROUP {group}! This sync will continue to update other groups. Exc: "
+                    f"{traceback.format_exc()}"
+                )
+                google_update_failures = True
+
+        # Remove the user from groups they should not be in
+        for group in groups_to_remove:
+            logger.info(f"Removing {user_email} from group {group}")
+            try:
+                gcm.remove_member_from_group(user_email, group)
+            except Exception as exc:
+                logger.error(
+                    f"ERROR: FAILED TO REMOVE USER {user_email} FROM "
+                    f"GOOGLE GROUP {group}! This sync will continue to update other groups. Exc: "
+                    f"{traceback.format_exc()}"
+                )
+                google_update_failures = True
+
+        if google_update_failures:
+            raise GoogleUpdateException(
+                f"FAILED TO UPDATE GOOGLE GROUPS FOR USER {user_email} (see previous errors)."
+            )
+
+
+def bulk_update_google_groups(google_bulk_mapping, keep_existing=False):
     """
     Update Google Groups based on mapping provided from Group -> Users.
 
@@ -103,21 +181,22 @@ def bulk_update_google_groups(google_bulk_mapping):
                     google_update_failures = True
 
             # do remove
-            for member_email in to_delete:
-                logger.info(f"Removing from group {group}: {member_email}")
+            if not keep_existing:
+                for member_email in to_delete:
+                    logger.info(f"Removing from group {group}: {member_email}")
 
-                try:
-                    _remove_member_from_google_group(gcm, member_email, group)
-                except Exception as exc:
-                    logger.error(
-                        f"ERROR: FAILED TO REMOVE MEMBER {member_email} FROM "
-                        f"GOOGLE GROUP {group}! This sync will SKIP "
-                        f"the above user to try and update other authorization "
-                        f"(rather than failing early). The error will be re-raised "
-                        f"after attempting to update all other users. Exc: "
-                        f"{traceback.format_exc()}"
-                    )
-                    google_update_failures = True
+                    try:
+                        _remove_member_from_google_group(gcm, member_email, group)
+                    except Exception as exc:
+                        logger.error(
+                            f"ERROR: FAILED TO REMOVE MEMBER {member_email} FROM "
+                            f"GOOGLE GROUP {group}! This sync will SKIP "
+                            f"the above user to try and update other authorization "
+                            f"(rather than failing early). The error will be re-raised "
+                            f"after attempting to update all other users. Exc: "
+                            f"{traceback.format_exc()}"
+                        )
+                        google_update_failures = True
 
             if google_update_failures:
                 raise GoogleUpdateException(

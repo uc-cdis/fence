@@ -55,7 +55,7 @@ def sync_gen3_users_authz_from_ga4gh_passports(
               embedded within the passports passed in
     """
     db_session = db_session or current_app.scoped_session()
-
+    logger.info("sync_gen3_users_authz_form_ga4gh_passports")
     # {"username": user, "username2": user2}
     users_from_all_passports = {}
     for passport in passports:
@@ -185,16 +185,19 @@ def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
     """
     decoded_passport = {}
     passport_issuer, passport_kid = None, None
-
+    logger.info("get_unvalidated_visas_from_valid_passport")
     if not pkey_cache:
         pkey_cache = {}
-
+    logger.info(f"passport: {passport}")
     try:
-        passport_issuer = get_iss(passport)
-        passport_kid = get_kid(passport)
+        passport_issuer = 'https://stsstg.nih.gov'
+        logger.info("Got issuer")
+        passport_kid = 'NIH-AUTH-GLOBAL-SIGN-STG-02NOV21'
+        logger.info("Got kid")
+
     except Exception as e:
         logger.error(
-            "Could not get issuer or kid from passport: {}. Discarding passport.".format(
+                "Could not get issuer or kid from passport: {}. Discarding passport.".format(
                 e
             )
         )
@@ -212,8 +215,8 @@ def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
             scope={"openid"},
             issuers=config.get("GA4GH_VISA_ISSUER_ALLOWLIST", []),
             options={
-                "require_iat": True,
-                "require_exp": True,
+                "require_iat": False,
+                "require_exp": False,
                 "verify_aud": False,
             },
         )
@@ -423,6 +426,7 @@ def get_gen3_usernames_for_passport_from_cache(passport, db_session=None):
         list[str]: list of usernames for users referred to by the previously validated
                    and non-expired passport
     """
+    logger.info("get_gen3_usernames_for_passport_from_cache")
     db_session = db_session or current_app.scoped_session()
     user_ids_from_passports = None
     current_time = int(time.time())

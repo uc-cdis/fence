@@ -39,7 +39,7 @@ from fence.models import (
     get_project_to_authz_mapping,
 )
 from fence.resources.storage import StorageManager
-from fence.resources.google.access_utils import bulk_update_google_groups
+from fence.resources.google.access_utils import bulk_update_google_groups, update_google_groups_for_user
 from fence.resources.google.access_utils import GoogleUpdateException
 from fence.sync import utils
 from fence.sync.passport_sync.ras_sync import RASVisa
@@ -996,10 +996,10 @@ class UserSyncer(object):
             google_bulk_mapping=google_bulk_mapping,
             expires=expires,
         )
-
+        self.logger.info(f"Google bulk mapping: {google_bulk_mapping}")
         if config["GOOGLE_BULK_UPDATES"]:
             self.logger.info("Doing bulk Google update...")
-            bulk_update_google_groups(google_bulk_mapping)
+            update_google_groups_for_user(google_bulk_mapping)
             self.logger.info("Bulk Google update done!")
 
         sess.commit()

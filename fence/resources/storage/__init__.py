@@ -173,8 +173,12 @@ class StorageManager(object):
 
         storage_username = StorageManager._get_storage_username(storage_user, provider)
 
+        self.logger.info(f"project: {project} \t access: {access}")
+        self.logger.info(f"storage_user: {storage_username}")
+        self.logger.info(f"buckets: {project.buckets}")
         if storage_username:
             for b in project.buckets:
+                self.logger.info(b.name)
                 self._update_access_to_bucket(
                     b,
                     provider,
@@ -235,6 +239,7 @@ class StorageManager(object):
         from the specific user
         :return User
         """
+        self.logger.info('get_or_create_user')
         return self.clients[provider].get_or_create_user(user.username)
 
     @check_exist
@@ -355,9 +360,10 @@ class StorageManager(object):
         Returns:
             fence.models.User: User with username
         """
+        self.logger.info(f"username: {username}")
         if provider == GOOGLE_PROVIDER:
             user = query_for_user(session=session, username=username.lower())
-
+            self.logger.info(f"user: {user}")
             if not user:
                 raise NotFound(
                     "User not found with username {}. For Google Storage "
@@ -379,6 +385,8 @@ class StorageManager(object):
         google_bulk_mapping=None,
         expires=None,
     ):
+        self.logger.info(f"_update_access_to_bucket provider: {provider}")
+
         # Need different logic for google (since buckets can have multiple
         # access groups)
         if not provider == GOOGLE_PROVIDER:
@@ -394,6 +402,7 @@ class StorageManager(object):
 
         access = StorageManager._get_bucket_access_privileges(access)
 
+        self.logger.info(f"bucket_access_group: {bucket.google_bucket_access_groups}")
         for bucket_access_group in bucket.google_bucket_access_groups:
             bucket_privileges = bucket_access_group.privileges or []
             if set(bucket_privileges).issubset(access):
