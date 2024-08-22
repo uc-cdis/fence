@@ -3,7 +3,7 @@ import time
 import json
 import boto3
 from botocore.client import Config
-from urllib.parse import urlparse, ParseResult, urlunparse, quote, urlencode
+from urllib.parse import urlparse, ParseResult, urlunparse
 from datetime import datetime, timedelta
 
 from sqlalchemy.sql.functions import user
@@ -1103,39 +1103,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
             aws_session_token=credential.get("aws_session_token", None),
             region_name=region,
             config=Config(s3={"addressing_style": "path"}, signature_version="s3v4"),
-        )
-
-        custom_params = ["user_id", "username", "client_id", "x-amz-request-payer"]
-
-        def is_custom(k):
-            if k in custom_params:
-                return True
-            else:
-                return False
-
-        def client_param_handler(*, params, context, **_kw):
-            # Store custom parameters in context for later event handlers
-            context["custom_params"] = {k: v for k, v in params.items() if is_custom(k)}
-            # Remove custom parameters from client parameters,
-            # because validation would fail on them
-            return {k: v for k, v in params.items() if not is_custom(k)}
-
-        def request_param_injector(*, request, **_kw):
-            if request.context["custom_params"]:
-                request.url += "&" if "?" in request.url else "?"
-                request.url += urlencode(request.context["custom_params"])
-
-        s3client.meta.events.register(
-            "provide-client-params.s3.GetObject", client_param_handler
-        )
-        s3client.meta.events.register(
-            "before-sign.s3.GetObject", request_param_injector
-        )
-        s3client.meta.events.register(
-            "provide-client-params.s3.PutObject", client_param_handler
-        )
-        s3client.meta.events.register(
-            "before-sign.s3.PutObject", request_param_injector
         )
 
         cirrus_aws = AwsService(s3client)
