@@ -1218,7 +1218,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         authorized_user=None,
     ):
         resource_path = self.get_resource_path()
-
+        logger.info("get_signed_url google")
         auth_info = _get_auth_info_for_id_or_from_request(user=authorized_user)
 
         if not force_signed_url:
