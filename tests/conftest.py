@@ -33,10 +33,7 @@ from mock import patch, MagicMock, PropertyMock
 import pytest
 import requests
 from sqlalchemy.ext.compiler import compiles
-import boto3
-import botocore
-from gen3cirrus import AwsService
-from botocore.stub import Stubber
+
 
 # Set FENCE_CONFIG_PATH *before* loading the configuration
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
