@@ -1604,10 +1604,10 @@ def aws_signed_url():
     """
 
     def presigned_url_side_effect(*args, **kwargs):
-        addional_qs = ""
+        additional_qs = ""
         for k in args[3]:
-            addional_qs += f"{k}={args[3][k]}&"
-        return f"https://{args[0]}/{args[1]}/?X-Amz-Expires={args[2]}&{addional_qs}"
+            additional_qs += f"{k}={args[3][k]}&"
+        return f"https://{args[0]}/{args[1]}/?X-Amz-Expires={args[2]}&{additional_qs}"
 
     manager = MagicMock(side_effect=presigned_url_side_effect)
 
