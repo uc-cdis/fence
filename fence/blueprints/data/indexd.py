@@ -1112,7 +1112,9 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
         # get presigned url for upload
         if action == "PUT":
-            url = cirrus_aws.upload_presigned_url(bucket_name, object_id, expires_in)
+            url = cirrus_aws.upload_presigned_url(
+                bucket_name, object_id, expires_in, None
+            )
         # get presigned url for download
         else:
             if bucket.get("requester_pays") is True:
