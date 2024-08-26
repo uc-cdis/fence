@@ -59,7 +59,7 @@ def initialize_multipart_upload(bucket_name, key, credentials):
                 key, error
             )
         )
-        raise InternalError("Can not initilize multipart upload for {}".format(key))
+        raise InternalError("Can not initialize multipart upload for {}".format(key))
 
     return multipart_upload.get("UploadId")
 
