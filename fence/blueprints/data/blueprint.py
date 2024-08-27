@@ -134,6 +134,8 @@ def upload_data_file():
     authz = params.get("authz")
     uploader = None
 
+    guid = params.get("guid")
+
     if authz:
         # if requesting an authz field, using new authorization method which doesn't
         # rely on uploader field, so clear it out
@@ -165,7 +167,10 @@ def upload_data_file():
         )
 
     blank_index = BlankIndex(
-        file_name=params["file_name"], authz=params.get("authz"), uploader=uploader
+        file_name=params["file_name"],
+        authz=authz,
+        uploader=uploader,
+        guid=guid,
     )
     default_expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
 
@@ -199,16 +204,16 @@ def upload_data_file():
 def init_multipart_upload():
     """
     Initialize a multipart upload request
-
-    NOTE This endpoint does not currently accept a `bucket` parameter like
-    `POST /upload` and `GET /upload/<GUID>` do.
     """
     params = flask.request.get_json()
     if not params:
         raise UserError("wrong Content-Type; expected application/json")
     if "file_name" not in params:
         raise UserError("missing required argument `file_name`")
-    blank_index = BlankIndex(file_name=params["file_name"])
+
+    guid = params.get("guid")
+
+    blank_index = BlankIndex(file_name=params["file_name"], guid=guid)
 
     default_expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
     expires_in = get_valid_expiration(
@@ -288,7 +293,11 @@ def complete_multipart_upload():
         raise UserError("missing required arguments: {}".format(list(missing)))
 
     default_expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
+
     bucket = params.get("bucket")
+    if bucket:
+        verify_data_upload_bucket_configuration(bucket)
+
     expires_in = get_valid_expiration(
         params.get("expires_in"),
         max_limit=default_expires_in,

@@ -552,6 +552,13 @@ def db(app, request):
     return app.db
 
 
+@pytest.fixture
+def prometheus_metrics_before(client):
+    resp = client.get("/metrics")
+    assert resp.status_code == 200, "Could not get prometheus metrics initial state"
+    yield resp.text
+
+
 @fence.app.route("/protected")
 @fence.auth.login_required({"access"})
 def protected_endpoint(methods=["GET"]):
@@ -966,6 +973,7 @@ def indexd_client_with_arborist(app, request):
             "mocker": mocker,
             # only gs or s3 for location, ignore specifiers after the _
             "indexed_file_location": protocol.split("_")[0],
+            "record": record,
         }
 
         return output
@@ -1734,3 +1742,37 @@ def get_all_shib_idps_patcher():
     yield mock
 
     get_all_shib_idps_patch.stop()
+
+
+@pytest.fixture(scope="function")
+def mock_authn_user_flask_context(app):
+    """
+    Mock g and session to simulate a simple user who has authenticated.
+
+    This is primarily to ensure that tests which mock the start of authN where sessions get set can still
+    test the callbacks (where metrics logging rely on session data).
+    """
+    from flask import g
+    from flask import session
+
+    g_before = copy.deepcopy(g)
+    session_before = copy.deepcopy(session)
+
+    user_mock = MagicMock()
+    user_mock.id = 1
+
+    user_mocker = MagicMock()
+    user_mocker.return_value = user_mock
+    g.user = user_mocker
+
+    session = MagicMock()
+    session.return_value = {
+        "fence_idp": "google",
+        "shib_idp": "shib_idp_foobar",
+        "client_id": "client_id_foobar",
+    }
+
+    yield
+
+    g = g_before
+    session = session_before

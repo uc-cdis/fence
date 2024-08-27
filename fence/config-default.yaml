@@ -68,6 +68,7 @@ MOCK_STORAGE: true
 # WARNING: ONLY set to true when fence will be deployed in such a way that it will
 #          ONLY receive traffic from internal clients and can safely use HTTP.
 AUTHLIB_INSECURE_TRANSPORT: true
+
 # enable Prometheus Metrics for observability purposes
 #
 # WARNING: Any counters, gauges, histograms, etc. should be carefully
