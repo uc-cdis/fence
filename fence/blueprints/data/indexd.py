@@ -30,7 +30,6 @@ from fence.auth import (
     login_required,
     set_current_token,
     validate_request,
-    JWTError,
 )
 from fence.config import config
 from fence.errors import (
