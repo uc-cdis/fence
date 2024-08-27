@@ -1,10 +1,11 @@
 import boto3
+from botocore.client import Config
 from botocore.exceptions import ClientError
 from retry.api import retry_call
 
-from cdispyutils.hmac4 import generate_aws_presigned_url
 from cdispyutils.config import get_value
 from cdislogging import get_logger
+from gen3cirrus import AwsService
 from fence.config import config
 from fence.errors import InternalError
 
@@ -58,7 +59,7 @@ def initialize_multipart_upload(bucket_name, key, credentials):
                 key, error
             )
         )
-        raise InternalError("Can not initilize multipart upload for {}".format(key))
+        raise InternalError("Can not initialize multipart upload for {}".format(key))
 
     return multipart_upload.get("UploadId")
 
@@ -140,28 +141,21 @@ def generate_presigned_url_for_uploading_part(
     Returns:
         presigned_url(str)
     """
-    s3_buckets = get_value(
-        config, "S3_BUCKETS", InternalError("S3_BUCKETS not configured")
-    )
-    bucket = s3_buckets.get(bucket_name)
-
-    s3_buckets = get_value(
-        config, "S3_BUCKETS", InternalError("S3_BUCKETS not configured")
-    )
-    bucket = s3_buckets.get(bucket_name)
-
-    if bucket.get("endpoint_url"):
-        url = bucket["endpoint_url"].strip("/") + "/{}/{}".format(
-            bucket_name, key.strip("/")
-        )
-    else:
-        url = "https://{}.s3.amazonaws.com/{}".format(bucket_name, key)
-    additional_signed_qs = {"partNumber": str(partNumber), "uploadId": uploadId}
-
     try:
-        presigned_url = generate_aws_presigned_url(
-            url, "PUT", credentials, "s3", region, expires, additional_signed_qs
+        s3client = boto3.client(
+            "s3",
+            aws_access_key_id=credentials["aws_access_key_id"],
+            aws_secret_access_key=credentials["aws_secret_access_key"],
+            aws_session_token=credentials.get("aws_session_token", None),
+            region_name=region,
+            config=Config(s3={"addressing_style": "path"}, signature_version="s3v4"),
         )
+        cirrus_aws = AwsService(s3client)
+
+        presigned_url = cirrus_aws.multipart_upload_presigned_url(
+            bucket_name, key, expires, uploadId, partNumber
+        )
+
         return presigned_url
     except Exception as e:
         raise InternalError(
