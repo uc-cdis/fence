@@ -1,8 +1,14 @@
 """
+Tests for the metrics features (Audit Service and Prometheus)
+
 Tests for the Audit Service integration:
 - test the creation of presigned URL audit logs
 - test the creation of login audit logs
 - test the SQS flow
+
+In Audit Service tests where it makes sense, we also test that Prometheus
+metrics are created as expected. The last section tests Prometheus metrics
+independently.
 
 Note 1: there is no test for the /oauth2 endpoint: the /oauth2 endpoint
 should redirect the user to the /login endpoint (tested in
@@ -16,7 +22,6 @@ tests and we need the DB session to be cleared after they run, so other
 tests looking at users are not affected.
 """
 
-
 import boto3
 import flask
 import json
@@ -27,10 +32,16 @@ import time
 from unittest.mock import ANY, MagicMock, patch
 
 import fence
+from fence.metrics import metrics
 from fence.config import config
+from fence.blueprints.data.indexd import get_bucket_from_urls
+from fence.models import User
 from fence.resources.audit.utils import _clean_authorization_request_url
 from tests import utils
 from tests.conftest import LOGIN_IDPS
+
+# `reset_prometheus_metrics` must be imported even if not used so the autorun fixture gets triggered
+from tests.utils.metrics import assert_prometheus_metrics, reset_prometheus_metrics
 
 
 def test_clean_authorization_request_url():
@@ -111,6 +122,7 @@ class MockResponse(object):
 @pytest.mark.parametrize("protocol", ["gs", None])
 def test_presigned_url_log(
     endpoint,
+    prometheus_metrics_before,
     protocol,
     client,
     user_client,
@@ -126,7 +138,7 @@ def test_presigned_url_log(
     """
     Get a presigned URL from Fence and make sure a call to the Audit Service
     was made to create an audit log. Test with and without a requested
-    protocol.
+    protocol. Also check that a prometheus metric is created.
     """
     mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
     audit_service_mocker = mock.patch(
@@ -142,7 +154,7 @@ def test_presigned_url_log(
     else:
         path = f"/ga4gh/drs/v1/objects/{guid}/access/{protocol or 's3'}"
     resource_paths = ["/my/resource/path1", "/path2"]
-    indexd_client_with_arborist(resource_paths)
+    record = indexd_client_with_arborist(resource_paths)["record"]
     headers = {
         "Authorization": "Bearer "
         + jwt.encode(
@@ -182,6 +194,39 @@ def test_presigned_url_log(
                 "protocol": expected_protocol,
             },
         )
+
+    # check prometheus metrics
+    resp = client.get("/metrics")
+    assert resp.status_code == 200
+    bucket = get_bucket_from_urls(record["urls"], expected_protocol)
+    size_in_kibibytes = record["size"] / 1024
+    expected_metrics = [
+        {
+            "name": "gen3_fence_presigned_url_total",
+            "labels": {
+                "action": "download",
+                "authz": resource_paths,
+                "bucket": bucket,
+                "drs": endpoint == "ga4gh-drs",
+                "protocol": expected_protocol,
+                "user_sub": user_client.user_id,
+            },
+            "value": 1.0,
+        },
+        {
+            "name": "gen3_fence_presigned_url_size",
+            "labels": {
+                "action": "download",
+                "authz": resource_paths,
+                "bucket": bucket,
+                "drs": endpoint == "ga4gh-drs",
+                "protocol": expected_protocol,
+                "user_sub": user_client.user_id,
+            },
+            "value": size_in_kibibytes,
+        },
+    ]
+    assert_prometheus_metrics(prometheus_metrics_before, resp.text, expected_metrics)
 
 
 @pytest.mark.parametrize(
@@ -411,10 +456,11 @@ def test_login_log_login_endpoint(
     rsa_private_key,
     db_session,  # do not remove :-) See note at top of file
     monkeypatch,
+    prometheus_metrics_before,
 ):
     """
     Test that logging in via any of the existing IDPs triggers the creation
-    of a login audit log.
+    of a login audit log and of a prometheus metric.
     """
     mock_arborist_requests()
     audit_service_mocker = mock.patch(
@@ -450,7 +496,7 @@ def test_login_log_login_endpoint(
     elif idp == "fence":
         mocked_fetch_access_token = MagicMock(return_value={"id_token": jwt_string})
         patch(
-            f"flask.current_app.fence_client.fetch_access_token",
+            f"authlib.integrations.flask_client.apps.FlaskOAuth2App.fetch_access_token",
             mocked_fetch_access_token,
         ).start()
         mocked_validate_jwt = MagicMock(
@@ -490,16 +536,17 @@ def test_login_log_login_endpoint(
             data={},
             status_code=201,
         )
-        path = f"/login/{idp}/{callback_endpoint}"
+        path = f"/login/{idp}/{callback_endpoint}"  # SEE fence/blueprints/login/fence_login.py L91
         response = client.get(path, headers=headers)
         assert response.status_code == 200, response
+        user_sub = db_session.query(User).filter(User.username == username).first().id
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/login",
             json={
                 "request_url": path,
                 "status_code": 200,
                 "username": username,
-                "sub": ANY,
+                "sub": user_sub,
                 "idp": idp_name,
                 "fence_idp": None,
                 "shib_idp": None,
@@ -510,10 +557,27 @@ def test_login_log_login_endpoint(
     if get_auth_info_patch:
         get_auth_info_patch.stop()
 
+    # check prometheus metrics
+    resp = client.get("/metrics")
+    assert resp.status_code == 200
+    expected_metrics = [
+        {
+            "name": "gen3_fence_login_total",
+            "labels": {"idp": "all", "user_sub": user_sub},
+            "value": 1.0,
+        },
+        {
+            "name": "gen3_fence_login_total",
+            "labels": {"idp": idp_name, "user_sub": user_sub},
+            "value": 1.0,
+        },
+    ]
+    assert_prometheus_metrics(prometheus_metrics_before, resp.text, expected_metrics)
 
-##########################
-# Push audit logs to SQS #
-##########################
+
+##########################################
+# Audit Service - Push audit logs to SQS #
+##########################################
 
 
 def mock_audit_service_sqs(app):
@@ -638,3 +702,171 @@ def test_login_log_push_to_sqs(
     mocked_sqs.send_message.assert_called_once()
 
     get_auth_info_patch.stop()
+
+
+######################
+# Prometheus metrics #
+######################
+
+
+def test_disabled_prometheus_metrics(client, monkeypatch):
+    """
+    When metrics gathering is not enabled, the metrics endpoint should not error, but it should
+    not return any data.
+    """
+    monkeypatch.setitem(config, "ENABLE_PROMETHEUS_METRICS", False)
+    metrics.add_login_event(
+        user_sub="123",
+        idp="test_idp",
+        fence_idp="shib",
+        shib_idp="university",
+        client_id="test_azp",
+    )
+    resp = client.get("/metrics")
+    assert resp.status_code == 200
+    assert resp.text == ""
+
+
+def test_record_prometheus_events(prometheus_metrics_before, client):
+    """
+    Validate the returned value of the metrics endpoint before any event is logged, after an event
+    is logged, and after more events (one identical to the 1st one, and two different) are logged.
+    """
+    # NOTE: To update later. The metrics utils don't support this yet. The gauges are not handled correctly.
+    # resp = client.get("/metrics")
+    # assert resp.status_code == 200
+    # # no metrics have been recorded yet
+    # assert_prometheus_metrics(prometheus_metrics_before, resp.text, [])
+
+    # record a login event and check that we get both a metric for the specific IDP, and an
+    # IDP-agnostic metric for the total number of login events. The latter should have no IDP
+    # information (no `fence_idp` or `shib_idp`).
+    metrics.add_login_event(
+        user_sub="123",
+        idp="test_idp",
+        fence_idp="shib",
+        shib_idp="university",
+        client_id="test_azp",
+    )
+    resp = client.get("/metrics")
+    assert resp.status_code == 200
+    expected_metrics = [
+        {
+            "name": "gen3_fence_login_total",
+            "labels": {
+                "user_sub": "123",
+                "idp": "test_idp",
+                "fence_idp": "shib",
+                "shib_idp": "university",
+                "client_id": "test_azp",
+            },
+            "value": 1.0,
+        },
+        {
+            "name": "gen3_fence_login_total",
+            "labels": {
+                "user_sub": "123",
+                "idp": "all",
+                "fence_idp": "None",
+                "shib_idp": "None",
+                "client_id": "test_azp",
+            },
+            "value": 1.0,
+        },
+    ]
+    assert_prometheus_metrics(prometheus_metrics_before, resp.text, expected_metrics)
+
+    # same login: should increase the existing counter by 1
+    metrics.add_login_event(
+        user_sub="123",
+        idp="test_idp",
+        fence_idp="shib",
+        shib_idp="university",
+        client_id="test_azp",
+    )
+    # login with different IDP labels: should create a new metric
+    metrics.add_login_event(
+        user_sub="123",
+        idp="another_idp",
+        fence_idp=None,
+        shib_idp=None,
+        client_id="test_azp",
+    )
+    # new signed URL event: should create a new metric
+    metrics.add_signed_url_event(
+        action="upload",
+        protocol="s3",
+        acl=None,
+        authz=["/test/path"],
+        bucket="s3://test-bucket",
+        user_sub="123",
+        client_id="test_azp",
+        drs=True,
+        size_in_kibibytes=1.2,
+    )
+    resp = client.get("/metrics")
+    assert resp.status_code == 200
+    expected_metrics = [
+        {
+            "name": "gen3_fence_login_total",
+            "labels": {
+                "user_sub": "123",
+                "idp": "all",
+                "fence_idp": "None",
+                "shib_idp": "None",
+                "client_id": "test_azp",
+            },
+            "value": 3.0,  # recorded login events since the beginning of the test
+        },
+        {
+            "name": "gen3_fence_login_total",
+            "labels": {
+                "user_sub": "123",
+                "idp": "test_idp",
+                "fence_idp": "shib",
+                "shib_idp": "university",
+                "client_id": "test_azp",
+            },
+            "value": 2.0,  # recorded login events for this idp, fence_idp and shib_idp combo
+        },
+        {
+            "name": "gen3_fence_login_total",
+            "labels": {
+                "user_sub": "123",
+                "idp": "another_idp",
+                "fence_idp": "None",
+                "shib_idp": "None",
+                "client_id": "test_azp",
+            },
+            "value": 1.0,  # recorded login events for the different idp
+        },
+        {
+            "name": "gen3_fence_presigned_url_total",
+            "labels": {
+                "user_sub": "123",
+                "action": "upload",
+                "protocol": "s3",
+                "authz": ["/test/path"],
+                "bucket": "s3://test-bucket",
+                "user_sub": "123",
+                "client_id": "test_azp",
+                "drs": True,
+            },
+            "value": 1.0,  # recorded presigned URL events
+        },
+        {
+            "name": "gen3_fence_presigned_url_size",
+            "labels": {
+                "user_sub": "123",
+                "action": "upload",
+                "protocol": "s3",
+                "authz": ["/test/path"],
+                "bucket": "s3://test-bucket",
+                "user_sub": "123",
+                "client_id": "test_azp",
+                "drs": True,
+            },
+            "value": 1.2,  # presigned URL gauge with the file size as value
+        },
+    ]
+    assert_prometheus_metrics(prometheus_metrics_before, resp.text, expected_metrics)

@@ -112,14 +112,12 @@ def load_non_google_user_data(db_session, test_user_d):
     client = Client(
         client_id=userd_dict["client_id"],
         user_id=userd_dict["user_id"],
-        issued_at=420,
-        expires_at=42020,
-        redirect_uri="dclient.com",
-        grant_type="dgrant",
-        response_type="dresponse",
-        scope="dscope",
+        client_id_issued_at=420,
+        client_secret_expires_at=42020,
+        redirect_uris="dclient.com",
+        response_types="dresponse",
         name="dclientname",
-        _allowed_scopes="dallscopes",
+        allowed_scopes="dallscopes",
     )
     grp = Group(id=userd_dict["group_id"])
     usr_grp = UserToGroup(
@@ -778,6 +776,7 @@ def assert_google_proxy_group_data_deleted(db_session):
 
 
 def test_delete_user_username(
+    app,
     client,
     admin_user,
     encoded_admin_jwt,
