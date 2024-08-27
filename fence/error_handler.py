@@ -8,12 +8,13 @@ from cdislogging import get_logger
 
 from fence.errors import APIError
 from fence.config import config
+import traceback
 
 
 logger = get_logger(__name__)
 
 
-def get_error_response(error):
+def get_error_response(error: Exception):
     details, status_code = get_error_details_and_status(error)
     support_email = config.get("SUPPORT_EMAIL_FOR_ERRORS")
     app_name = config.get("APP_NAME", "Gen3 Data Commons")
@@ -26,6 +27,8 @@ def get_error_response(error):
             status_code, error_id, str(details)
         )
     )
+
+    raise error
 
     # don't include internal details in the public error message
     # to do this, only include error messages for known http status codes

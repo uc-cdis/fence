@@ -34,6 +34,8 @@ class Oauth2ClientBase(object):
         )
         self.idp = idp  # display name for use in logs and error messages
         self.HTTP_PROXY = HTTP_PROXY
+        self.groups = settings.get("groups", None)
+        self.read_group_information = False
 
         if not self.discovery_url and not settings.get("discovery"):
             self.logger.warning(
@@ -45,13 +47,15 @@ class Oauth2ClientBase(object):
         # if set to yes, then the following needs to happen:
         # 1. in the discovery_doc, response_types_supported needs to contain "code" // this seems to be assumed in the implementation
         # 2. the discovery_doc (if it provides "claims_supported", then "claims_supported" needs to contain "groups"
+        #   2.1 groups claim is not standard in claims_supported, i.e. does not exists in keycloak and configurable.
         #
         # Implement a string setting "group_prefix", this is used to have namespaced groups in case of multi system OIDC
         #
         # implement a string setting "audience" here, implement a boolean "check_audience" here.
         # if the audience is not set, but check_audience is spit out an ERROR that the audience is not set.
-
-
+        if self.groups:
+            self.read_group_information = self.groups.get("read_group_information", False)
+            self.group_prefix = self.groups.get("group_prefix","")
 
     @cached_property
     def discovery_doc(self):
@@ -66,9 +70,11 @@ class Oauth2ClientBase(object):
         return None
 
     def get_token(self, token_endpoint, code):
+
         return self.session.fetch_token(
             url=token_endpoint, code=code, proxies=self.get_proxies()
         )
+
 
     def get_jwt_keys(self, jwks_uri):
         """
@@ -90,15 +96,21 @@ class Oauth2ClientBase(object):
         Get jwt identity claims
         """
         token = self.get_token(token_endpoint, code)
+
         keys = self.get_jwt_keys(jwks_endpoint)
 
+        refresh_token = token.get("refresh_token")
+
         # change is to validate audience and hash. also ensure that the algorithm is correclty derived from the token.
-        return jwt.decode(
+        decoded_token =  jwt.decode(
             token["id_token"],
             keys,
             options={"verify_aud": False, "verify_at_hash": False},
             algorithms=["RS256"],
         )
+
+        return decoded_token, refresh_token
+
 
     def get_value_from_discovery_doc(self, key, default_value):
         """
@@ -178,7 +190,11 @@ class Oauth2ClientBase(object):
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
             jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
-            claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
+            claims, refresh_token = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
+
+            groups = None
+            if self.read_group_information:
+                groups = claims.get("groups")
 
             if claims.get(user_id_field):
                 if user_id_field == "email" and not claims.get("email_verified"):
@@ -186,6 +202,11 @@ class Oauth2ClientBase(object):
                 return {
                     user_id_field: claims[user_id_field],
                     "mfa": self.has_mfa_claim(claims),
+                    "refresh_token": refresh_token,
+                    "iat": claims.get("iat"),
+                    "exp": claims.get("exp"),
+                    "groups": groups
+
                 }
             else:
                 self.logger.exception(

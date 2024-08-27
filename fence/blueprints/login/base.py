@@ -1,7 +1,12 @@
 import flask
+import jwt
+import datetime
+
 from cdislogging import get_logger
 from flask_restful import Resource
 from urllib.parse import urlparse, urlencode, parse_qsl
+
+from sqlalchemy.sql.functions import grouping_sets
 
 from fence.auth import login_user
 from fence.blueprints.login.redirect import validate_redirect
@@ -119,6 +124,9 @@ class DefaultOAuth2Callback(Resource):
 
         code = flask.request.args.get("code")
         result = self.client.get_auth_info(code)
+
+        refresh_token = result.get("refresh_token")
+
         username = result.get(self.username_field)
         if not username:
             raise UserError(
@@ -127,14 +135,27 @@ class DefaultOAuth2Callback(Resource):
 
         email = result.get(self.email_field)
         id_from_idp = result.get(self.id_from_idp_field)
-        # if self.client.config["check_groups"]
-        # fetch access token from self.client
 
         resp = _login(username, self.idp_name, email=email, id_from_idp=id_from_idp)
 
+        # # Store refresh token in db
+        gen3_user = flask.g.user
+
+        expires = result.get("exp")
+
+        self.client.store_refresh_token(gen3_user,refresh_token,expires)
+
         # if self.client.config["check_groups"]
         #pass access token to post_login
-        self.post_login(user=flask.g.user, token_result=result, id_from_idp=id_from_idp)
+        groups_from_idp = result.get("groups")
+        self.post_login(
+            user=flask.g.user,
+            token_result=result,
+            id_from_idp=id_from_idp,
+            groups_from_idp=groups_from_idp,
+            username=username,
+            expires_at=expires
+        )
         return resp
 
     def post_login(self, user=None, token_result=None, **kwargs):
@@ -147,15 +168,37 @@ class DefaultOAuth2Callback(Resource):
             client_id=flask.session.get("client_id"),
         )
 
+
+        jwks_endpoint = self.client.get_value_from_discovery_doc("jwks_uri", "")
+        keys = self.client.get_jwt_keys(jwks_endpoint)
+
         #if self.client.config["check_groups"]
         # grab all groups defined in arborist via self.app.arborist.list_groups()
-        # grab the groups claim from the auth_token passed in
-        # split groups claim by " "
-        # for group in groups:
-        # groupname: remove this.client.config["prefix"] form the group
-        # if groupname is in the list from arborist:
-        # add user to group via: self.app.arborist.add_user_to_group() with the correct expires_at
+        if self.client.read_group_information:
+            arborist_groups = self.app.arborist.list_groups().get("groups")
+            group_prefix = self.client.group_prefix
+            print(group_prefix)
+            groups_from_idp = [group.removeprefix('group_prefix').lstrip('/') for group in kwargs.get("groups_from_idp") ]
+            print(groups_from_idp)
+            exp = datetime.datetime.fromtimestamp(
+                kwargs.get("expires_at"),
+                tz=datetime.timezone.utc
+            )
 
+            # split groups claim by " "
+            # for group in groups:
+            # groupname: remove this.client.config["prefix"] form the group
+            # if groupname is in the list from arborist:
+            # add user to group via: self.app.arborist.add_user_to_group() with the correct expires_at
+
+            for idp_group in groups_from_idp:
+                for arborist_group in arborist_groups:
+                    if idp_group == arborist_group['name']:
+                        self.app.arborist.add_user_to_group(
+                            username=kwargs.get("username"),
+                            group_name=idp_group,
+                            expires_at=exp
+                        )
 
         if token_result:
             username = token_result.get(self.username_field)

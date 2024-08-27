@@ -33,4 +33,4 @@ if config.get("ENABLE_DB_MIGRATION"):
 
 app_init(app, config_path=args.config_path, config_file_name=args.config_file_name)
 
-app.run(debug=True, port=8000)
+app.run(debug=True,host='0.0.0.0', port=8000)
