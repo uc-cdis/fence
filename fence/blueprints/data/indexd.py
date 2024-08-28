@@ -1101,7 +1101,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             aws_secret_access_key=credential["aws_secret_access_key"],
             aws_session_token=credential.get("aws_session_token", None),
             region_name=region,
-            config=Config(s3={"addressing_style": "path"}, signature_version="s3v4"),
+            config=Config(signature_version="s3v4"),
         )
 
         cirrus_aws = AwsService(s3client)
