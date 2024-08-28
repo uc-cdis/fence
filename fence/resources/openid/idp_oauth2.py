@@ -2,6 +2,7 @@ from authlib.integrations.requests_client import OAuth2Session
 from cached_property import cached_property
 from flask import current_app
 from jose import jwt
+from jose.exceptions import JWTError, JWTClaimsError
 import requests
 import time
 
@@ -36,6 +37,8 @@ class Oauth2ClientBase(object):
         self.HTTP_PROXY = HTTP_PROXY
         self.groups = settings.get("groups", None)
         self.read_group_information = False
+        self.verify_aud = settings.get("verify_aud", False)
+        self.audience = self.settings.get("audience", self.settings.get("client_id"))
 
         if not self.discovery_url and not settings.get("discovery"):
             self.logger.warning(
@@ -55,7 +58,6 @@ class Oauth2ClientBase(object):
         # if the audience is not set, but check_audience is spit out an ERROR that the audience is not set.
         if self.groups:
             self.read_group_information = self.groups.get("read_group_information", False)
-            self.group_prefix = self.groups.get("group_prefix","/")
 
     @cached_property
     def discovery_doc(self):
@@ -82,6 +84,7 @@ class Oauth2ClientBase(object):
         Return None if there is an error while retrieving keys from the api
         """
         resp = requests.get(url=jwks_uri, proxies=self.get_proxies())
+
         if resp.status_code != requests.codes.ok:
             self.logger.error(
                 "{} ERROR: Can not retrieve jwt keys from IdP's API {}".format(
@@ -91,25 +94,34 @@ class Oauth2ClientBase(object):
             return None
         return resp.json()["keys"]
 
+
     def get_jwt_claims_identity(self, token_endpoint, jwks_endpoint, code):
         """
         Get jwt identity claims
         """
+
         token = self.get_token(token_endpoint, code)
 
         keys = self.get_jwt_keys(jwks_endpoint)
 
         refresh_token = token.get("refresh_token", None)
 
-        # change is to validate audience and hash. also ensure that the algorithm is correclty derived from the token.
-        decoded_token =  jwt.decode(
-            token["id_token"],
-            keys,
-            options={"verify_aud": False, "verify_at_hash": False},
-            algorithms=["RS256"],
-        )
-
-        return decoded_token, refresh_token
+        # validate audience and hash. also ensure that the algorithm is correctly derived from the token.
+        # hash verification has not been implemented yet
+        try:
+            decoded_token =  jwt.decode(
+                token["id_token"],
+                keys,
+                options={"verify_aud": self.verify_aud, "verify_at_hash": False},
+                algorithms=["RS256"],
+                audience=self.audience
+            )
+            return decoded_token, refresh_token
+        except JWTClaimsError as e:
+            self.logger.error(f"Claim error: {e}")
+            raise  JWTClaimsError("Invalid audience")
+        except JWTError as e:
+            self.logger.error(e)
 
 
     def get_value_from_discovery_doc(self, key, default_value):
@@ -187,14 +199,18 @@ class Oauth2ClientBase(object):
         user OR "error" field with details of the error.
         """
         user_id_field = self.settings.get("user_id_field", "sub")
+
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
             jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
             claims, refresh_token = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
 
             groups = None
+            group_prefix = None
+
             if self.read_group_information:
                 groups = claims.get("groups")
+                group_prefix = self.settings.get("groups").get("group_prefix")
 
             if claims.get(user_id_field):
                 if user_id_field == "email" and not claims.get("email_verified"):
@@ -205,8 +221,8 @@ class Oauth2ClientBase(object):
                     "refresh_token": refresh_token,
                     "iat": claims.get("iat"),
                     "exp": claims.get("exp"),
-                    "groups": groups
-
+                    "groups": groups,
+                    "group_prefix": group_prefix
                 }
             else:
                 self.logger.exception(
@@ -222,12 +238,9 @@ class Oauth2ClientBase(object):
         """
         Get access_token using a refresh_token and store new refresh in upstream_refresh_token table.
         """
-
         ###this function is not correct. use self.session.fetch_access_token, validate the token for audience and then return the validated token. Still store the refresh token. it will be needed for periodic re-fetching of information.
-
         refresh_token = None
         expires = None
-
         # get refresh_token and expiration from db
         for row in sorted(user.upstream_refresh_tokens, key=lambda row: row.expires):
             refresh_token = row.refresh_token

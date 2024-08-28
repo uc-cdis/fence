@@ -94,6 +94,7 @@ DB_MIGRATION_POSTGRES_LOCK_KEY: 100
 #   - WARNING: Be careful changing the *_ALLOWED_SCOPES as you can break basic
 #              and optional functionality
 # //////////////////////////////////////////////////////////////////////////////////////
+CHECK_GROUPS: false
 OPENID_CONNECT:
   # any OIDC IDP that does not differ from the generic implementation can be
   # configured without code changes

@@ -69,6 +69,7 @@ SESSION_COOKIE_SECURE: true
 
 ENABLE_CSRF_PROTECTION: false
 
+CHECK_GROUPS: false
 # //////////////////////////////////////////////////////////////////////////////////////
 # OPEN ID CONNECT (OIDC)
 #   - Fully configure at least one client so login works
@@ -141,6 +142,17 @@ OPENID_CONNECT:
     redirect_url: '{{BASE_URL}}/login/generic2/login'
     discovery:
       authorization_endpoint: 'https://generic2/authorization_endpoint'
+  generic3:
+    name: 'generic3'  # optional; display name for this IDP
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/generic3/login'  # replace IDP name
+    # use `discovery` to configure IDPs that do not expose a discovery
+    # endpoint. One of `discovery_url` or `discovery` should be configured
+    discovery_url: 'http://localhost/realms/generic3/.well-known/openid-configuration'
+    groups:
+      read_group_information: true
+      group_prefix: /covid
 
 # these are the *possible* scopes a client can be given, NOT scopes that are
 # given to all clients. You can be more restrictive during client creation

@@ -1,12 +1,9 @@
 import flask
-import jwt
 import datetime
 
 from cdislogging import get_logger
 from flask_restful import Resource
 from urllib.parse import urlparse, urlencode, parse_qsl
-
-from sqlalchemy.sql.functions import grouping_sets
 
 from fence.auth import login_user
 from fence.blueprints.login.redirect import validate_redirect
@@ -98,6 +95,7 @@ class DefaultOAuth2Callback(Resource):
             "OPENID_CONNECT"
         ].get(self.idp_name, {})
         self.app = app
+        self.check_groups = config.get("CHECK_GROUPS", False)
 
     def get(self):
         # Check if user granted access
@@ -128,6 +126,7 @@ class DefaultOAuth2Callback(Resource):
         refresh_token = result.get("refresh_token")
 
         username = result.get(self.username_field)
+
         if not username:
             raise UserError(
                 f"OAuth2 callback error: no '{self.username_field}' in {result}"
@@ -143,19 +142,23 @@ class DefaultOAuth2Callback(Resource):
 
         expires = result.get("exp")
 
-        self.client.store_refresh_token(gen3_user,refresh_token,expires)
 
-        # if self.client.config["check_groups"]
-        #pass access token to post_login
-        groups_from_idp = result.get("groups")
-        self.post_login(
-            user=flask.g.user,
-            token_result=result,
-            id_from_idp=id_from_idp,
-            groups_from_idp=groups_from_idp,
-            username=username,
-            expires_at=expires
-        )
+        if self.check_groups:
+            self.client.store_refresh_token(gen3_user,refresh_token,expires)
+
+            # if self.client.config["check_groups"]
+            #pass access token to post_login
+            groups_from_idp = result.get("groups")
+            group_prefix = result.get("group_prefix")
+            self.post_login(
+                user=flask.g.user,
+                token_result=result,
+                id_from_idp=id_from_idp,
+                groups_from_idp=groups_from_idp,
+                group_prefix=group_prefix,
+                username=username,
+                expires_at=expires
+            )
         return resp
 
     def post_login(self, user=None, token_result=None, **kwargs):
@@ -168,35 +171,43 @@ class DefaultOAuth2Callback(Resource):
             client_id=flask.session.get("client_id"),
         )
 
+        if self.check_groups:
 
-        jwks_endpoint = self.client.get_value_from_discovery_doc("jwks_uri", "")
-        keys = self.client.get_jwt_keys(jwks_endpoint)
+            group_prefix = kwargs.get("group_prefix", "/")
 
-        #if self.client.config["check_groups"]
-        # grab all groups defined in arborist via self.app.arborist.list_groups()
-        if self.client.read_group_information:
+            # grab all groups defined in arborist
             arborist_groups = self.app.arborist.list_groups().get("groups")
-            groups_from_idp = [group.removeprefix("group_prefix").lstrip('/') for group in kwargs.get("groups_from_idp") ]
+
+            # grab all groups defined in idp
+            groups_from_idp = kwargs.get("groups_from_idp")
+
             exp = datetime.datetime.fromtimestamp(
                 kwargs.get("expires_at"),
                 tz=datetime.timezone.utc
             )
 
-            # split groups claim by " "
-            # for group in groups:
-            # groupname: remove this.client.config["prefix"] form the group
-            # if groupname is in the list from arborist:
+            # if group name is in the list from arborist:
             # add user to group via: self.app.arborist.add_user_to_group() with the correct expires_at
-
-            for idp_group in groups_from_idp:
-                for arborist_group in arborist_groups:
-                    if idp_group == arborist_group['name']:
-                        self.app.arborist.add_user_to_group(
-                            username=kwargs.get("username"),
-                            group_name=idp_group,
-                            expires_at=exp
-                        )
-
+            if groups_from_idp:
+                groups_from_idp = [group.removeprefix(group_prefix).lstrip('/') for group in groups_from_idp]
+                for idp_group in groups_from_idp:
+                    for arborist_group in arborist_groups:
+                        if idp_group == arborist_group['name']:
+                            logger.info(f"Adding {kwargs.get('username')} to group: {idp_group} ")
+                            self.app.arborist.add_user_to_group(
+                                username=kwargs.get("username"),
+                                group_name=idp_group,
+                                expires_at=exp
+                            )
+                        else:
+                            if kwargs.get("username") in arborist_group.get("users",[]):
+                                self.app.arborist.remove_user_from_group(
+                                    username=kwargs.get("username"),
+                                    group_name=arborist_group['name']
+                                )
+            else:
+                logger.warning(
+                    f"Check-groups feature is enabled, however did receive groups from idp: {self.idp_name} for user: {kwargs.get('username')}")
         if token_result:
             username = token_result.get(self.username_field)
             if self.is_mfa_enabled:

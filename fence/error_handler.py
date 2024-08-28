@@ -28,6 +28,7 @@ def get_error_response(error: Exception):
         )
     )
 
+
     #raise error
 
     # don't include internal details in the public error message
