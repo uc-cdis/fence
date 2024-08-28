@@ -1,7 +1,12 @@
+import pytest
+
 from fence.blueprints.login import DefaultOAuth2Callback
 from fence.config import config
 from unittest.mock import MagicMock, patch
 
+@pytest.fixture(autouse=True)
+def mock_arborist(mock_arborist_requests):
+    mock_arborist_requests()
 
 @patch("fence.blueprints.login.base.prepare_login_log")
 def test_post_login_set_mfa(app, monkeypatch, mock_authn_user_flask_context):
