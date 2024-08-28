@@ -28,7 +28,7 @@ def get_error_response(error: Exception):
         )
     )
 
-    raise error
+    #raise error
 
     # don't include internal details in the public error message
     # to do this, only include error messages for known http status codes

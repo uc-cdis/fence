@@ -176,8 +176,7 @@ class DefaultOAuth2Callback(Resource):
         # grab all groups defined in arborist via self.app.arborist.list_groups()
         if self.client.read_group_information:
             arborist_groups = self.app.arborist.list_groups().get("groups")
-            group_prefix = self.client.group_prefix
-            groups_from_idp = [group.removeprefix('group_prefix').lstrip('/') for group in kwargs.get("groups_from_idp") ]
+            groups_from_idp = [group.removeprefix("group_prefix").lstrip('/') for group in kwargs.get("groups_from_idp") ]
             exp = datetime.datetime.fromtimestamp(
                 kwargs.get("expires_at"),
                 tz=datetime.timezone.utc

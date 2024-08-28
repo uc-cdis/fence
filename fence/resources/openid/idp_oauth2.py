@@ -55,7 +55,7 @@ class Oauth2ClientBase(object):
         # if the audience is not set, but check_audience is spit out an ERROR that the audience is not set.
         if self.groups:
             self.read_group_information = self.groups.get("read_group_information", False)
-            self.group_prefix = self.groups.get("group_prefix","")
+            self.group_prefix = self.groups.get("group_prefix","/")
 
     @cached_property
     def discovery_doc(self):
@@ -99,7 +99,7 @@ class Oauth2ClientBase(object):
 
         keys = self.get_jwt_keys(jwks_endpoint)
 
-        refresh_token = token.get("refresh_token")
+        refresh_token = token.get("refresh_token", None)
 
         # change is to validate audience and hash. also ensure that the algorithm is correclty derived from the token.
         decoded_token =  jwt.decode(
