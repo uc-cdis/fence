@@ -142,12 +142,18 @@ def generate_presigned_url_for_uploading_part(
         presigned_url(str)
     """
     try:
+        s3_buckets = get_value(
+            config, "S3_BUCKETS", InternalError("S3_BUCKETS not configured")
+        )
+        bucket = s3_buckets.get(bucket_name)
+        endpoint_url = bucket.get("endpoint_url", None)
         s3client = boto3.client(
             "s3",
             aws_access_key_id=credentials["aws_access_key_id"],
             aws_secret_access_key=credentials["aws_secret_access_key"],
             aws_session_token=credentials.get("aws_session_token", None),
             region_name=region,
+            endpoint_url=endpoint_url,
             config=Config(signature_version="s3v4"),
         )
         cirrus_aws = AwsService(s3client)
