@@ -30,7 +30,6 @@ from fence.auth import (
     login_required,
     set_current_token,
     validate_request,
-    JWTError,
 )
 from fence.config import config
 from fence.errors import (
@@ -1096,13 +1095,15 @@ class S3IndexedFileLocation(IndexedFileLocation):
             region = flask.current_app.boto.get_bucket_region(
                 self.parsed_url.netloc, credential
             )
+        endpoint_url = bucket.get("endpoint_url", None)
         s3client = boto3.client(
             "s3",
             aws_access_key_id=credential["aws_access_key_id"],
             aws_secret_access_key=credential["aws_secret_access_key"],
             aws_session_token=credential.get("aws_session_token", None),
             region_name=region,
-            config=Config(s3={"addressing_style": "path"}, signature_version="s3v4"),
+            endpoint_url=endpoint_url,
+            config=Config(signature_version="s3v4"),
         )
 
         cirrus_aws = AwsService(s3client)
