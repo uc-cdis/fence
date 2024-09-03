@@ -1,4 +1,6 @@
 import os
+
+import requests
 from yaml import safe_load as yaml_load
 import urllib.parse
 
@@ -6,6 +8,12 @@ import gen3cirrus
 from gen3config import Config
 
 from cdislogging import get_logger
+
+from fence import get_SQLAlchemyDriver
+from fence.utils import log_backoff_retry, log_backoff_giveup, exception_do_not_retry, generate_client_credentials, \
+    logger
+from fence.models import Client, User, query_for_user
+from fence.errors import NotFound
 
 logger = get_logger(__name__)
 
@@ -175,3 +183,121 @@ class FenceConfig(Config):
 
 
 config = FenceConfig(DEFAULT_CFG_PATH)
+DEFAULT_BACKOFF_SETTINGS = {
+    "on_backoff": log_backoff_retry,
+    "on_giveup": log_backoff_giveup,
+    "max_tries": config["DEFAULT_BACKOFF_SETTINGS_MAX_TRIES"],
+    "giveup": exception_do_not_retry,
+}
+
+
+def send_email(from_email, to_emails, subject, text, smtp_domain):
+    """
+    Send email to group of emails using mail gun api.
+
+    https://app.mailgun.com/
+
+    Args:
+        from_email(str): from email
+        to_emails(list): list of emails to receive the messages
+        text(str): the text message
+        smtp_domain(dict): smtp domain server
+
+            {
+                "smtp_hostname": "smtp.mailgun.org",
+                "default_login": "postmaster@mailgun.planx-pla.net",
+                "api_url": "https://api.mailgun.net/v3/mailgun.planx-pla.net",
+                "smtp_password": "password", # pragma: allowlist secret
+                "api_key": "api key" # pragma: allowlist secret
+            }
+
+    Returns:
+        Http response
+
+    Exceptions:
+        KeyError
+
+    """
+    if smtp_domain not in config["GUN_MAIL"] or not config["GUN_MAIL"].get(
+        smtp_domain
+    ).get("smtp_password"):
+        raise NotFound(
+            "SMTP Domain '{}' does not exist in configuration for GUN_MAIL or "
+            "smtp_password was not provided. "
+            "Cannot send email.".format(smtp_domain)
+        )
+
+    api_key = config["GUN_MAIL"][smtp_domain].get("api_key", "")
+    email_url = config["GUN_MAIL"][smtp_domain].get("api_url", "") + "/messages"
+
+    return requests.post(
+        email_url,
+        auth=("api", api_key),
+        data={"from": from_email, "to": to_emails, "subject": subject, "text": text},
+    )
+
+
+def create_client(
+    DB,
+    username=None,
+    urls=[],
+    name="",
+    description="",
+    auto_approve=False,
+    is_admin=False,
+    grant_types=None,
+    confidential=True,
+    arborist=None,
+    policies=None,
+    allowed_scopes=None,
+    expires_in=None,
+):
+    client_id, client_secret, hashed_secret = generate_client_credentials(confidential)
+    if arborist is not None:
+        arborist.create_client(client_id, policies)
+    driver = get_SQLAlchemyDriver(DB)
+    auth_method = "client_secret_basic" if confidential else "none"
+
+    allowed_scopes = allowed_scopes or config["CLIENT_ALLOWED_SCOPES"]
+    if not set(allowed_scopes).issubset(set(config["CLIENT_ALLOWED_SCOPES"])):
+        raise ValueError(
+            "Each allowed scope must be one of: {}".format(
+                config["CLIENT_ALLOWED_SCOPES"]
+            )
+        )
+
+    if "openid" not in allowed_scopes:
+        allowed_scopes.append("openid")
+        logger.warning('Adding required "openid" scope to list of allowed scopes.')
+
+    with driver.session as s:
+        user = None
+        if username:
+            user = query_for_user(session=s, username=username)
+            if not user:
+                user = User(username=username, is_admin=is_admin)
+                s.add(user)
+
+        if s.query(Client).filter(Client.name == name).first():
+            if arborist is not None:
+                arborist.delete_client(client_id)
+            raise Exception("client {} already exists".format(name))
+
+        client = Client(
+            client_id=client_id,
+            client_secret=hashed_secret,
+            user=user,
+            redirect_uris=urls,
+            allowed_scopes=" ".join(allowed_scopes),
+            description=description,
+            name=name,
+            auto_approve=auto_approve,
+            grant_types=grant_types,
+            is_confidential=confidential,
+            token_endpoint_auth_method=auth_method,
+            expires_in=expires_in,
+        )
+        s.add(client)
+        s.commit()
+
+    return client_id, client_secret

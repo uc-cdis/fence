@@ -16,7 +16,7 @@ from authutils.token.core import get_iss, get_kid
 from gen3authz.client.arborist.errors import ArboristError
 
 
-from fence.config import config
+from fence.config import config, DEFAULT_BACKOFF_SETTINGS
 from fence.models import (
     GA4GHVisaV1,
     IdentityProvider,
@@ -26,7 +26,6 @@ from fence.models import (
     create_user,
 )
 from fence.jwt.validate import validate_jwt
-from fence.utils import DEFAULT_BACKOFF_SETTINGS
 from fence.errors import InternalError
 from .idp_oauth2 import Oauth2ClientBase
 

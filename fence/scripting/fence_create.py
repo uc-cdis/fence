@@ -54,10 +54,9 @@ from fence.models import (
     get_client_expires_at,
 )
 from fence.scripting.google_monitor import email_users_without_access, validation_check
-from fence.config import config
+from fence.config import config, create_client
 from fence.sync.sync_users import UserSyncer
 from fence.utils import (
-    create_client,
     get_valid_expiration,
     generate_client_credentials,
     get_SQLAlchemyDriver,
