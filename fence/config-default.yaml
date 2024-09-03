@@ -676,6 +676,10 @@ S3_BUCKETS: {}
 #     cred: 'CRED1'
 #     region: 'us-east-1'
 #     role-arn: 'arn:aws:iam::role1'
+#   bucket5:
+#     cred: 'CRED3'
+#     region: 'us-east-1'
+#     requester_pays: true # to indicate this is a requester pay enabled S3 bucket
 GS_BUCKETS: {}
 # NOTE: Remove the {} and supply buckets if needed. Example in comments below
 #   bucket1:

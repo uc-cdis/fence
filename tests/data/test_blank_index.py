@@ -41,7 +41,14 @@ class MockResponse:
         return self.data
 
 
-def test_blank_index_upload(app, client, auth_client, encoded_creds_jwt, user_client):
+def test_blank_index_upload(
+    app,
+    client,
+    auth_client,
+    encoded_creds_jwt,
+    user_client,
+    aws_signed_url,
+):
     """
     test BlankIndex upload
     POST /data/upload
@@ -149,6 +156,7 @@ def test_blank_index_upload_bucket(
     user_client,
     bucket,
     expected_status_code,
+    aws_signed_url,
 ):
     """
     Same test as above, except request a specific bucket to upload the file to
