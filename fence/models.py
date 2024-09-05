@@ -35,27 +35,11 @@ from sqlalchemy import func
 from sqlalchemy.schema import ForeignKey
 from userdatamodel import Base
 from userdatamodel.models import (
-    AccessPrivilege,
-    Application,
-    AuthorizationProvider,
     Bucket,
-    Certificate,
-    CloudProvider,
-    ComputeAccess,
     GoogleProxyGroup,
-    Group,
-    HMACKeyPair,
-    HMACKeyPairArchive,
     IdentityProvider,
     Project,
-    ProjectToBucket,
-    S3Credential,
-    StorageAccess,
-    Tag,
-    User,
-    UserToBucket,
-    UserToGroup,
-)
+    User)
 
 from fence import logger
 from fence.config import config

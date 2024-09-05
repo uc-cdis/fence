@@ -14,7 +14,6 @@ from cdislogging import get_logger
 import flask
 from werkzeug.datastructures import ImmutableMultiDict
 
-from fence.models import Client
 from fence.errors import UserError
 from authlib.oauth2.rfc6749.util import scope_to_list
 from authlib.oauth2.rfc6749.errors import InvalidScopeError
@@ -53,31 +52,6 @@ def generate_client_credentials(confidential):
             client_secret.encode("utf-8"), bcrypt.gensalt()
         ).decode("utf-8")
     return client_id, client_secret, hashed_secret
-
-
-def hash_secret(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        has_secret = "client_secret" in flask.request.form
-        has_client_id = "client_id" in flask.request.form
-        if flask.request.form and has_secret and has_client_id:
-            form = flask.request.form.to_dict()
-            with flask.current_app.db.session as session:
-                client = (
-                    session.query(Client)
-                    .filter(Client.client_id == form["client_id"])
-                    .first()
-                )
-                if client:
-                    form["client_secret"] = bcrypt.hashpw(
-                        form["client_secret"].encode("utf-8"),
-                        client.client_secret.encode("utf-8"),
-                    ).decode("utf-8")
-                flask.request.form = ImmutableMultiDict(form)
-
-        return f(*args, **kwargs)
-
-    return wrapper
 
 
 def wrap_list_required(f):
@@ -272,35 +246,6 @@ def exception_do_not_retry(error):
         return True
 
     return False
-
-
-def get_from_cache(item_id, memory_cache, db_cache_table, db_cache_table_id_field="id"):
-    """
-    Attempt to get a cached item and store in memory cache from db if necessary.
-
-    NOTE: This requires custom implementation for putting items in the db cache table.
-    """
-    # try to retrieve from local in-memory cache
-    rv, expires_at = memory_cache.get(item_id, (None, 0))
-    if expires_at > expiry:
-        return rv
-
-    # try to retrieve from database cache
-    if hasattr(flask.current_app, "db"):  # we don't have db in startup
-        with flask.current_app.db.session as session:
-            cache = (
-                session.query(db_cache_table)
-                .filter(
-                    getattr(db_cache_table, db_cache_table_id_field, None) == item_id
-                )
-                .first()
-            )
-            if cache and cache.expires_at and cache.expires_at > expiry:
-                rv = dict(cache)
-
-                # store in memory cache
-                memory_cache[item_id] = rv, cache.expires_at
-                return rv
 
 
 def get_SQLAlchemyDriver(db_conn_url):

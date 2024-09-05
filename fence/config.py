@@ -1,6 +1,10 @@
 import os
+from functools import wraps
 
+import bcrypt
+import flask
 import requests
+from werkzeug.datastructures import ImmutableMultiDict
 from yaml import safe_load as yaml_load
 import urllib.parse
 
@@ -301,3 +305,28 @@ def create_client(
         s.commit()
 
     return client_id, client_secret
+
+
+def hash_secret(f):
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        has_secret = "client_secret" in flask.request.form
+        has_client_id = "client_id" in flask.request.form
+        if flask.request.form and has_secret and has_client_id:
+            form = flask.request.form.to_dict()
+            with flask.current_app.db.session as session:
+                client = (
+                    session.query(Client)
+                    .filter(Client.client_id == form["client_id"])
+                    .first()
+                )
+                if client:
+                    form["client_secret"] = bcrypt.hashpw(
+                        form["client_secret"].encode("utf-8"),
+                        client.client_secret.encode("utf-8"),
+                    ).decode("utf-8")
+                flask.request.form = ImmutableMultiDict(form)
+
+        return f(*args, **kwargs)
+
+    return wrapper
