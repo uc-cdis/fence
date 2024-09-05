@@ -17,6 +17,19 @@ from fence.utils import log_backoff_retry, log_backoff_giveup, exception_do_not_
     logger
 from fence.models import Client, User, query_for_user
 from fence.errors import NotFound
+from userdatamodel import Base
+from sqlalchemy import (
+    Integer,
+    String,
+    Column,
+    text,
+    event,
+    ForeignKey)
+from sqlalchemy.orm import relationship, backref
+from sqlalchemy.dialects.postgresql import JSONB
+from userdatamodel.models import (
+    IdentityProvider,
+    User)
 
 logger = get_logger(__name__)
 
@@ -94,8 +107,8 @@ class FenceConfig(Config):
         # NOTE: use when fence will be deployed in such a way that fence will
         #       only receive traffic from internal clients, and can safely use HTTP
         if (
-            self._configs.get("AUTHLIB_INSECURE_TRANSPORT")
-            and "AUTHLIB_INSECURE_TRANSPORT" not in os.environ
+                self._configs.get("AUTHLIB_INSECURE_TRANSPORT")
+                and "AUTHLIB_INSECURE_TRANSPORT" not in os.environ
         ):
             os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "true"
 
@@ -117,11 +130,11 @@ class FenceConfig(Config):
         #       billing rights (in other words, only use it when interacting with buckets
         #       Fence is aware of)
         if self._configs.get("BILLING_PROJECT_FOR_SA_CREDS") or self._configs.get(
-            "BILLING_PROJECT_FOR_SIGNED_URLS"
+                "BILLING_PROJECT_FOR_SIGNED_URLS"
         ):
             if (
-                "USER_ALLOWED_SCOPES" in self._configs
-                and "google_credentials" in self._configs["USER_ALLOWED_SCOPES"]
+                    "USER_ALLOWED_SCOPES" in self._configs
+                    and "google_credentials" in self._configs["USER_ALLOWED_SCOPES"]
             ):
                 logger.warning(
                     "Configuration does not restrict end-user access to billing. Correcting. "
@@ -134,8 +147,8 @@ class FenceConfig(Config):
                 self._configs["USER_ALLOWED_SCOPES"].remove("google_credentials")
 
             if (
-                "SESSION_ALLOWED_SCOPES" in self._configs
-                and "google_credentials" in self._configs["SESSION_ALLOWED_SCOPES"]
+                    "SESSION_ALLOWED_SCOPES" in self._configs
+                    and "google_credentials" in self._configs["SESSION_ALLOWED_SCOPES"]
             ):
                 logger.warning(
                     "Configuration does not restrict end-user access to billing. Correcting. "
@@ -148,8 +161,8 @@ class FenceConfig(Config):
                 self._configs["SESSION_ALLOWED_SCOPES"].remove("google_credentials")
 
         if (
-            not self._configs["ENABLE_VISA_UPDATE_CRON"]
-            and self._configs["GLOBAL_PARSE_VISAS_ON_LOGIN"] is not False
+                not self._configs["ENABLE_VISA_UPDATE_CRON"]
+                and self._configs["GLOBAL_PARSE_VISAS_ON_LOGIN"] is not False
         ):
             raise Exception(
                 "Visa parsing on login is enabled but `ENABLE_VISA_UPDATE_CRON` is disabled!"
@@ -222,7 +235,7 @@ def send_email(from_email, to_emails, subject, text, smtp_domain):
 
     """
     if smtp_domain not in config["GUN_MAIL"] or not config["GUN_MAIL"].get(
-        smtp_domain
+            smtp_domain
     ).get("smtp_password"):
         raise NotFound(
             "SMTP Domain '{}' does not exist in configuration for GUN_MAIL or "
@@ -241,19 +254,19 @@ def send_email(from_email, to_emails, subject, text, smtp_domain):
 
 
 def create_client(
-    DB,
-    username=None,
-    urls=[],
-    name="",
-    description="",
-    auto_approve=False,
-    is_admin=False,
-    grant_types=None,
-    confidential=True,
-    arborist=None,
-    policies=None,
-    allowed_scopes=None,
-    expires_in=None,
+        DB,
+        username=None,
+        urls=[],
+        name="",
+        description="",
+        auto_approve=False,
+        is_admin=False,
+        grant_types=None,
+        confidential=True,
+        arborist=None,
+        policies=None,
+        allowed_scopes=None,
+        expires_in=None,
 ):
     client_id, client_secret, hashed_secret = generate_client_credentials(confidential)
     if arborist is not None:
@@ -339,3 +352,81 @@ def get_SQLAlchemyDriver(db_conn_url):
     # TODO move userdatamodel code to Fence and remove dependencies to it
     SQLAlchemyDriver.setup_db = lambda _: None
     return SQLAlchemyDriver(db_conn_url)
+
+
+def get_issuer_to_idp():
+    possibly_matching_idps = [IdentityProvider.ras]
+    issuer_to_idp = {}
+
+    oidc = config.get("OPENID_CONNECT", {})
+    for idp in possibly_matching_idps:
+        discovery_url = oidc.get(idp, {}).get("discovery_url")
+        if discovery_url:
+            for allowed_issuer in config["GA4GH_VISA_ISSUER_ALLOWLIST"]:
+                if discovery_url.startswith(allowed_issuer):
+                    issuer_to_idp[allowed_issuer] = idp
+                    break
+
+    return issuer_to_idp
+
+
+class IssSubPairToUser(Base):
+    # issuer & sub pair mapping to Gen3 User sub
+
+    __tablename__ = "iss_sub_pair_to_user"
+
+    iss = Column(String(), primary_key=True)
+    sub = Column(String(), primary_key=True)
+
+    fk_to_User = Column(
+        Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False
+    )  #  foreign key for User table
+    user = relationship(
+        "User",
+        backref=backref(
+            "iss_sub_pairs",
+            cascade="all, delete-orphan",
+            passive_deletes=True,
+        ),
+    )
+
+    # dump whatever idp provides in here
+    extra_info = Column(JSONB(), server_default=text("'{}'"))
+
+
+@event.listens_for(IssSubPairToUser.__table__, "after_create")
+def populate_iss_sub_pair_to_user_table(target, connection, **kw):
+    """
+    Populate iss_sub_pair_to_user table using User table's id_from_idp
+    column.
+    """
+    issuer_to_idp = get_issuer_to_idp()
+    for issuer, idp_name in IssSubPairToUser.ISSUER_TO_IDP.items():
+        logger.info(
+            'Attempting to populate iss_sub_pair_to_user table for users with "{}" idp and "{}" issuer'.format(
+                idp_name, issuer
+            )
+        )
+        transaction = connection.begin()
+        try:
+            connection.execute(
+                text(
+                    """
+                    WITH identity_provider_id AS (SELECT id FROM identity_provider WHERE name=:idp_name)
+                    INSERT INTO iss_sub_pair_to_user (iss, sub, "fk_to_User", extra_info)
+                    SELECT :iss, id_from_idp, id, additional_info
+                    FROM "User"
+                    WHERE idp_id IN (SELECT * FROM identity_provider_id) AND id_from_idp IS NOT NULL;
+                    """
+                ),
+                idp_name=idp_name,
+                iss=issuer,
+            )
+        except Exception as e:
+            transaction.rollback()
+            logger.warning(
+                "Could not populate iss_sub_pair_to_user table: {}".format(e)
+            )
+        else:
+            transaction.commit()
+            logger.info("Population was successful")
