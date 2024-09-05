@@ -202,7 +202,8 @@ config = FenceConfig(DEFAULT_CFG_PATH)
 DEFAULT_BACKOFF_SETTINGS = {
     "on_backoff": log_backoff_retry,
     "on_giveup": log_backoff_giveup,
-    "max_tries": config["DEFAULT_BACKOFF_SETTINGS_MAX_TRIES"],
+    # todo: config does not have this key but it probably should. why broken?
+    "max_tries": config.get("DEFAULT_BACKOFF_SETTINGS_MAX_TRIES", 3),
     "giveup": exception_do_not_retry,
 }
 

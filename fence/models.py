@@ -39,8 +39,6 @@ from userdatamodel.models import (
     User)
 
 from fence import logger
-#todo: models relies on config, config relies on models!!!
-from fence.config import config
 from fence.errors import UserError
 
 
