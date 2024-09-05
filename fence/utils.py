@@ -6,7 +6,6 @@ import json
 from random import SystemRandom
 import re
 import string
-import requests
 from urllib.parse import urlencode
 from urllib.parse import parse_qs, urlsplit, urlunsplit
 import sys
@@ -15,9 +14,8 @@ from cdislogging import get_logger
 import flask
 from werkzeug.datastructures import ImmutableMultiDict
 
-from fence.models import Client, User, query_for_user
-from fence.errors import NotFound, UserError
-from fence.config import config
+from fence.models import Client
+from fence.errors import UserError
 from authlib.oauth2.rfc6749.util import scope_to_list
 from authlib.oauth2.rfc6749.errors import InvalidScopeError
 
@@ -55,72 +53,6 @@ def generate_client_credentials(confidential):
             client_secret.encode("utf-8"), bcrypt.gensalt()
         ).decode("utf-8")
     return client_id, client_secret, hashed_secret
-
-
-def create_client(
-    DB,
-    username=None,
-    urls=[],
-    name="",
-    description="",
-    auto_approve=False,
-    is_admin=False,
-    grant_types=None,
-    confidential=True,
-    arborist=None,
-    policies=None,
-    allowed_scopes=None,
-    expires_in=None,
-):
-    client_id, client_secret, hashed_secret = generate_client_credentials(confidential)
-    if arborist is not None:
-        arborist.create_client(client_id, policies)
-    driver = get_SQLAlchemyDriver(DB)
-    auth_method = "client_secret_basic" if confidential else "none"
-
-    allowed_scopes = allowed_scopes or config["CLIENT_ALLOWED_SCOPES"]
-    if not set(allowed_scopes).issubset(set(config["CLIENT_ALLOWED_SCOPES"])):
-        raise ValueError(
-            "Each allowed scope must be one of: {}".format(
-                config["CLIENT_ALLOWED_SCOPES"]
-            )
-        )
-
-    if "openid" not in allowed_scopes:
-        allowed_scopes.append("openid")
-        logger.warning('Adding required "openid" scope to list of allowed scopes.')
-
-    with driver.session as s:
-        user = None
-        if username:
-            user = query_for_user(session=s, username=username)
-            if not user:
-                user = User(username=username, is_admin=is_admin)
-                s.add(user)
-
-        if s.query(Client).filter(Client.name == name).first():
-            if arborist is not None:
-                arborist.delete_client(client_id)
-            raise Exception("client {} already exists".format(name))
-
-        client = Client(
-            client_id=client_id,
-            client_secret=hashed_secret,
-            user=user,
-            redirect_uris=urls,
-            allowed_scopes=" ".join(allowed_scopes),
-            description=description,
-            name=name,
-            auto_approve=auto_approve,
-            grant_types=grant_types,
-            is_confidential=confidential,
-            token_endpoint_auth_method=auth_method,
-            expires_in=expires_in,
-        )
-        s.add(client)
-        s.commit()
-
-    return client_id, client_secret
 
 
 def hash_secret(f):
@@ -254,52 +186,6 @@ def split_url_and_query_params(url):
     return url, query_params
 
 
-def send_email(from_email, to_emails, subject, text, smtp_domain):
-    """
-    Send email to group of emails using mail gun api.
-
-    https://app.mailgun.com/
-
-    Args:
-        from_email(str): from email
-        to_emails(list): list of emails to receive the messages
-        text(str): the text message
-        smtp_domain(dict): smtp domain server
-
-            {
-                "smtp_hostname": "smtp.mailgun.org",
-                "default_login": "postmaster@mailgun.planx-pla.net",
-                "api_url": "https://api.mailgun.net/v3/mailgun.planx-pla.net",
-                "smtp_password": "password", # pragma: allowlist secret
-                "api_key": "api key" # pragma: allowlist secret
-            }
-
-    Returns:
-        Http response
-
-    Exceptions:
-        KeyError
-
-    """
-    if smtp_domain not in config["GUN_MAIL"] or not config["GUN_MAIL"].get(
-        smtp_domain
-    ).get("smtp_password"):
-        raise NotFound(
-            "SMTP Domain '{}' does not exist in configuration for GUN_MAIL or "
-            "smtp_password was not provided. "
-            "Cannot send email.".format(smtp_domain)
-        )
-
-    api_key = config["GUN_MAIL"][smtp_domain].get("api_key", "")
-    email_url = config["GUN_MAIL"][smtp_domain].get("api_url", "") + "/messages"
-
-    return requests.post(
-        email_url,
-        auth=("api", api_key),
-        data={"from": from_email, "to": to_emails, "subject": subject, "text": text},
-    )
-
-
 def get_valid_expiration_from_request(
     expiry_param="expires_in", max_limit=None, default=None
 ):
@@ -428,12 +314,6 @@ def get_SQLAlchemyDriver(db_conn_url):
 
 
 # Default settings to control usage of backoff library.
-DEFAULT_BACKOFF_SETTINGS = {
-    "on_backoff": log_backoff_retry,
-    "on_giveup": log_backoff_giveup,
-    "max_tries": config["DEFAULT_BACKOFF_SETTINGS_MAX_TRIES"],
-    "giveup": exception_do_not_retry,
-}
 
 
 def validate_scopes(request_scopes, client):

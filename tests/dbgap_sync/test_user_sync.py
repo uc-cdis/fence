@@ -9,9 +9,8 @@ from userdatamodel.user import IdentityProvider
 
 from fence import models
 from fence.resources.google.access_utils import GoogleUpdateException
-from fence.config import config
+from fence.config import config, DEFAULT_BACKOFF_SETTINGS
 from fence.job.visa_update_cronjob import Visa_Token_Update
-from fence.utils import DEFAULT_BACKOFF_SETTINGS
 
 from tests.dbgap_sync.conftest import (
     get_test_encoded_decoded_visa_and_exp,

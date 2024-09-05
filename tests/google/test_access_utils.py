@@ -27,7 +27,7 @@ from fence.resources.google.access_utils import (
     remove_white_listed_service_account_ids,
     bulk_update_google_groups,
 )
-from fence.utils import DEFAULT_BACKOFF_SETTINGS
+from fence.config import DEFAULT_BACKOFF_SETTINGS
 
 
 class MockResponse:

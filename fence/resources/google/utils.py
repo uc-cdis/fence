@@ -19,7 +19,7 @@ from gen3cirrus.google_cloud.utils import (
 from userdatamodel.user import GoogleProxyGroup, User, AccessPrivilege
 
 from fence.auth import current_token
-from fence.config import config
+from fence.config import config, DEFAULT_BACKOFF_SETTINGS
 from fence.errors import NotSupported, InternalError, UserError
 from fence.models import (
     GoogleServiceAccount,
@@ -37,8 +37,6 @@ from fence.errors import NotSupported, NotFound
 from fence.utils import get_SQLAlchemyDriver
 
 from cdislogging import get_logger
-
-from fence.utils import DEFAULT_BACKOFF_SETTINGS
 
 logger = get_logger(__name__)
 
