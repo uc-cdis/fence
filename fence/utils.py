@@ -12,7 +12,6 @@ import sys
 
 from cdislogging import get_logger
 import flask
-from werkzeug.datastructures import ImmutableMultiDict
 
 from fence.errors import UserError
 from authlib.oauth2.rfc6749.util import scope_to_list
@@ -246,16 +245,6 @@ def exception_do_not_retry(error):
         return True
 
     return False
-
-
-def get_SQLAlchemyDriver(db_conn_url):
-    from userdatamodel.driver import SQLAlchemyDriver
-
-    # override userdatamodel's `setup_db` function which creates tables
-    # and runs database migrations, because Alembic handles that now.
-    # TODO move userdatamodel code to Fence and remove dependencies to it
-    SQLAlchemyDriver.setup_db = lambda _: None
-    return SQLAlchemyDriver(db_conn_url)
 
 
 # Default settings to control usage of backoff library.

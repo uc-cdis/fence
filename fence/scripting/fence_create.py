@@ -59,8 +59,8 @@ from fence.sync.sync_users import UserSyncer
 from fence.utils import (
     get_valid_expiration,
     generate_client_credentials,
-    get_SQLAlchemyDriver,
 )
+from fence import get_SQLAlchemyDriver
 from sqlalchemy.orm.attributes import flag_modified
 from gen3authz.client.arborist.client import ArboristClient
 

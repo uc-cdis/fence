@@ -43,7 +43,7 @@ from fence.resources.google.access_utils import bulk_update_google_groups
 from fence.resources.google.access_utils import GoogleUpdateException
 from fence.sync import utils
 from fence.sync.passport_sync.ras_sync import RASVisa
-from fence.utils import get_SQLAlchemyDriver
+from fence import get_SQLAlchemyDriver
 
 
 def _format_policy_id(path, privilege):
