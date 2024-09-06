@@ -13,6 +13,7 @@ from gen3config import Config
 
 from cdislogging import get_logger
 
+from fence import CONFIG_SEARCH_FOLDERS
 from fence.utils import log_backoff_retry, log_backoff_giveup, exception_do_not_retry, generate_client_credentials, \
     logger
 from fence.models import Client, User, query_for_user
@@ -199,6 +200,7 @@ class FenceConfig(Config):
 
 
 config = FenceConfig(DEFAULT_CFG_PATH)
+config.load(config_path=os.environ.get("FENCE_CONFIG_PATH"), search_folders=CONFIG_SEARCH_FOLDERS,)
 DEFAULT_BACKOFF_SETTINGS = {
     "on_backoff": log_backoff_retry,
     "on_giveup": log_backoff_giveup,

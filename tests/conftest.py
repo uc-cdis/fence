@@ -19,20 +19,14 @@ import string
 from addict import Dict
 from alembic.config import main as alembic_main
 from authutils.testing.fixtures import (
-    _hazmat_rsa_private_key,
-    _hazmat_rsa_private_key_2,
     rsa_private_key,
-    rsa_private_key_2,
-    rsa_public_key,
-    rsa_public_key_2,
-)
+    rsa_public_key)
 from cryptography.fernet import Fernet
 import bcrypt
 import jwt
 from mock import patch, MagicMock, PropertyMock
 import pytest
 import requests
-from sqlalchemy.ext.compiler import compiles
 
 
 # Set FENCE_CONFIG_PATH *before* loading the configuration
