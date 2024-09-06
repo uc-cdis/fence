@@ -153,7 +153,7 @@ def validate_jwt(
                     attempt_refresh=attempt_refresh,
                     **kwargs
                 )
-            except Error as e:
+            except Exception as e:
                 raise JWTError("Invalid refresh token: {}".format(e))
         elif unverified_claims.get("pur") == "api_key" and isinstance(
             e, JWTAudienceError
@@ -170,7 +170,7 @@ def validate_jwt(
                     attempt_refresh=attempt_refresh,
                     **kwargs
                 )
-            except Error as e:
+            except Exception as e:
                 raise JWTError("Invalid API key: {}".format(e))
         else:
             ##### end refresh token, API key patch block #####

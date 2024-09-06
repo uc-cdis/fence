@@ -26,7 +26,7 @@ CONFIG_SEARCH_FOLDERS = ["/var/www/fence", "{}/.gen3/fence".format(expanduser("~
 # located elsewhere, use that location in ``imp.load_source`` instead of
 # ``/var/www/local_settings.py``, just below.
 def use_deprecated_settings():
-    ENCRYPTION_KEY = HMAC_ENCRYPTION_KEY
+    ENCRYPTION_KEY = "" # HMAC_ENCRYPTION_KEY
 
 
 try:
