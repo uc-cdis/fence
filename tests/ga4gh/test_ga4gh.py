@@ -3,8 +3,8 @@ import jwt
 
 from cdislogging import get_logger
 
-from fence.config import config
-from fence.models import IdentityProvider, IssSubPairToUser
+from fence.config import config, IssSubPairToUser
+from fence.models import IdentityProvider
 from fence.resources.openid.ras_oauth2 import RASOauth2Client
 from fence.resources.ga4gh.passports import get_or_create_gen3_user_from_iss_sub
 

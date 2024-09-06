@@ -6,7 +6,6 @@ from botocore.client import Config
 from urllib.parse import urlparse, ParseResult, urlunparse
 from datetime import datetime, timedelta
 
-from sqlalchemy.sql.functions import user
 from cached_property import cached_property
 import gen3cirrus
 from gen3cirrus import GoogleCloudManager

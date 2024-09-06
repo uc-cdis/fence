@@ -7,25 +7,14 @@ import requests
 import fence.resources.ga4gh.passports
 import fence.scripting.fence_create
 import fence.resources.ga4gh.passports
-
 from flask import current_app
 from jose import jwt as jose_jwt
-
-from authutils.errors import JWTError
-from authutils.token.core import get_iss, get_kid
 from gen3authz.client.arborist.errors import ArboristError
-
-
-from fence.config import config, DEFAULT_BACKOFF_SETTINGS
+from fence.config import config, DEFAULT_BACKOFF_SETTINGS, IssSubPairToUser
 from fence.models import (
-    GA4GHVisaV1,
     IdentityProvider,
-    User,
-    IssSubPairToUser,
     query_for_user,
-    create_user,
-)
-from fence.jwt.validate import validate_jwt
+    create_user)
 from fence.errors import InternalError
 from .idp_oauth2 import Oauth2ClientBase
 
