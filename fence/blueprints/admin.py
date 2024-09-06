@@ -81,8 +81,22 @@ def create_user():
     username = request.get_json().get("name", None)
     role = request.get_json().get("role", None)
     email = request.get_json().get("email", None)
+    display_name = request.get_json().get("display_name", None)
+    phone_number = request.get_json().get("phone_number", None)
+    idp_name = request.get_json().get("idp_name", None)
+    tags = request.get_json().get("tags", None)
+
     return jsonify(
-        admin.create_user(current_app.scoped_session(), username, role, email)
+        admin.create_user(
+            current_app.scoped_session(),
+            username,
+            role,
+            email,
+            display_name,
+            phone_number,
+            idp_name,
+            tags,
+        )
     )
 
 
