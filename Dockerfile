@@ -83,4 +83,4 @@ ENV PYTHONUNBUFFERED=1 \
 PYTHONIOENCODING=UTF-8
 
 
-CMD ["/fence/dockerrun.bash"]
+CMD ["/bin/bash", "-c", "/fence/dockerrun.bash"]
