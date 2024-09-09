@@ -4,7 +4,6 @@ registration.
 """
 import backoff
 import time
-import flask
 from urllib.parse import unquote
 import traceback
 
@@ -17,7 +16,7 @@ import fence
 from cdislogging import get_logger
 
 from fence.config import config
-from fence.errors import NotFound, NotSupported, UserError
+from fence.errors import NotFound, NotSupported
 from fence.models import (
     User,
     Project,
@@ -29,7 +28,6 @@ from fence.models import (
 )
 from fence.resources.google.utils import (
     get_db_session,
-    get_users_from_google_members,
     get_monitoring_service_account_email,
     is_google_managed_service_account,
 )
@@ -42,88 +40,72 @@ class GoogleUpdateException(Exception):
     pass
 
 
-def bulk_update_google_groups(google_bulk_mapping):
+def update_google_groups_for_users(google_single_user_mapping):
     """
-    Update Google Groups based on mapping provided from Group -> Users.
+    Update Google Groups for a single user based on the provided mapping.
 
     Args:
-        google_bulk_mapping (dict): {"googlegroup@google.com": ["member1", "member2"]}
+        google_single_user_mapping (dict): {"user_email": ["googlegroup@google.com"]}
     """
     google_project_id = (
         config["STORAGE_CREDENTIALS"].get("google", {}).get("google_project_id")
     )
     google_update_failures = False
     with GoogleCloudManager(google_project_id) as gcm:
-        for group, expected_members in google_bulk_mapping.items():
-            expected_members = set(expected_members)
-            logger.debug(f"Starting diff for group {group}...")
-
-            # get members list from google
-            members_from_google = []
-
+        for user_email, groups in google_single_user_mapping.items():
+            logger.debug(f"Updating groups for user {user_email}...")
+            expected_groups = set(groups)
+            # Get the groups the user is currently in
             try:
-                members_from_google = _get_members_from_google_group(gcm, group)
+                user_current_groups = gcm.get_groups_for_user(user_email)
             except Exception as exc:
                 logger.error(
-                    f"ERROR: FAILED TO GET MEMBERS FROM GOOGLE GROUP {group}! "
-                    f"This sync will SKIP "
-                    f"the above user to try and update other authorization "
-                    f"(rather than failing early). The error will be re-raised "
-                    f"after attempting to update all other users. Exc: "
+                    f"ERROR: FAILED TO GET GROUPS FOR USER {user_email}! "
                     f"{traceback.format_exc()}"
                 )
                 google_update_failures = True
+                user_current_groups = []
 
-            google_members = set(member.get("email") for member in members_from_google)
+            logger.info(f"User's current groups: {user_current_groups}")
 
-            logger.debug(f"Google membership for {group}: {google_members}")
-            logger.debug(f"Expected membership for {group}: {expected_members}")
+            # Determine which groups to add the user to and which to remove them from
+            current_groups = set(user_current_groups)
 
-            # diff between expected group membership and actual membership
-            to_delete = set.difference(google_members, expected_members)
-            to_add = set.difference(expected_members, google_members)
-            no_update = set.intersection(google_members, expected_members)
+            groups_to_add = expected_groups - current_groups
+            groups_to_remove = current_groups - expected_groups
 
-            logger.info(f"All already in group {group}: {no_update}")
+            logger.info(f"Groups to add for {user_email}: {groups_to_add}")
+            logger.info(f"Groups to remove for {user_email}: {groups_to_remove}")
 
-            # do add
-            for member_email in to_add:
-                logger.info(f"Adding to group {group}: {member_email}")
+            for group in groups_to_add:
+                logger.info(f"Adding {user_email} to group {group}")
                 try:
-                    _add_member_to_google_group(gcm, member_email, group)
+                    gcm.add_member_to_group(user_email, group)
                 except Exception as exc:
                     logger.error(
-                        f"ERROR: FAILED TO ADD MEMBER {member_email} TO GOOGLE "
-                        f"GROUP {group}! This sync will SKIP "
-                        f"the above user to try and update other authorization "
-                        f"(rather than failing early). The error will be re-raised "
-                        f"after attempting to update all other users. Exc: "
+                        f"ERROR: FAILED TO ADD USER {user_email} TO GOOGLE "
+                        f"GROUP {group}! This sync will continue to update other groups. Exc: "
                         f"{traceback.format_exc()}"
                     )
                     google_update_failures = True
 
-            # do remove
-            for member_email in to_delete:
-                logger.info(f"Removing from group {group}: {member_email}")
-
+            # Remove the user from groups they should not be in
+            for group in groups_to_remove:
+                logger.info(f"Removing {user_email} from group {group}")
                 try:
-                    _remove_member_from_google_group(gcm, member_email, group)
+                    gcm.remove_member_from_group(user_email, group)
                 except Exception as exc:
                     logger.error(
-                        f"ERROR: FAILED TO REMOVE MEMBER {member_email} FROM "
-                        f"GOOGLE GROUP {group}! This sync will SKIP "
-                        f"the above user to try and update other authorization "
-                        f"(rather than failing early). The error will be re-raised "
-                        f"after attempting to update all other users. Exc: "
+                        f"ERROR: FAILED TO REMOVE USER {user_email} FROM "
+                        f"GOOGLE GROUP {group}! This sync will continue to update other groups. Exc: "
                         f"{traceback.format_exc()}"
                     )
                     google_update_failures = True
 
             if google_update_failures:
                 raise GoogleUpdateException(
-                    f"FAILED TO UPDATE GOOGLE GROUPS (see previous errors)."
+                    f"FAILED TO UPDATE GOOGLE GROUPS FOR USER {user_email} (see previous errors)."
                 )
-
 
 @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
 def _get_members_from_google_group(gcm, group):

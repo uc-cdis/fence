@@ -398,10 +398,10 @@ class StorageManager(object):
             bucket_privileges = bucket_access_group.privileges or []
             if set(bucket_privileges).issubset(access):
                 bucket_name = bucket_access_group.email
-
+                self.logger.info(f"google_bulk_mapping: {google_bulk_mapping}")
                 if google_bulk_mapping is not None:
-                    google_bulk_mapping.setdefault(bucket_name, []).append(
-                        storage_username
+                    google_bulk_mapping.setdefault(storage_username, []).append(
+                        bucket_name
                     )
                     self.logger.info(
                         "User {}'s Google proxy group ({}) added to bulk mapping for Google Bucket Access Group {}.".format(
