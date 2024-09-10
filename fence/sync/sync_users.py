@@ -932,7 +932,6 @@ class UserSyncer(object):
 
         if config["GOOGLE_BULK_UPDATES"]:
             self.logger.info("Doing bulk Google update...")
-            # convert google_bulk_mapping from gbag -> [proxy] to proxy -> [gbags]
             update_google_groups_for_users(google_bulk_mapping)
             self.logger.info("Bulk Google update done!")
 
