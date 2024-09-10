@@ -359,6 +359,16 @@ def delete_google_proxy_group(
         logger.info("Done with Google deletions.")
 
 
+def soft_delete_user(current_session, username):
+    """
+    Soft-remove the user by marking it as active=False.
+    """
+    logger.debug("Soft-delete user.")
+    usr = us.get_user(current_session, username)
+    usr.active = False
+    return us.get_user_info(current_session, usr.username)
+
+
 def delete_user(current_session, username):
     """
     Remove a user from both the userdatamodel
