@@ -553,7 +553,7 @@ def test_update_google_groups_for_users_get_group_members(cloud_manager):
 
     assert (
         cloud_manager_instance.get_groups_for_user.call_count
-        == DEFAULT_BACKOFF_SETTINGS["max_tries"]
+        == DEFAULT_BACKOFF_SETTINGS["max_tries"] * len(test_mapping.keys())
     )
 
 

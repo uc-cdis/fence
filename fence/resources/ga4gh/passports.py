@@ -185,17 +185,13 @@ def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
     """
     decoded_passport = {}
     passport_issuer, passport_kid = None, None
+
     if not pkey_cache:
         pkey_cache = {}
-    # TODO Revert
-    logger.info(f"passport: {passport}")
-    try:
-        # TODO Revert
-        passport_issuer = 'https://stsstg.nih.gov'
-        logger.info("Got issuer")
-        passport_kid = 'NIH-AUTH-GLOBAL-SIGN-STG-02NOV21'
-        logger.info("Got kid")
 
+    try:
+        passport_issuer = get_iss(passport)
+        passport_kid = get_kid(passport)
     except Exception as e:
         logger.error(
             "Could not get issuer or kid from passport: {}. Discarding passport.".format(
@@ -252,16 +248,16 @@ def validate_visa(raw_visa, pkey_cache=None):
         )
 
     logger.info("Attempting to validate visa")
-    # TODO Revert
-    decoded_visa = jwt.decode(
-            raw_visa, algorithms=["RS256"], options={
-                "require_iat": False,
-                "require_exp": False,
-                "verify_aud": False,
-                "verify_signature": False,
-                "verify_exp": False
-            }
-        )
+
+    decoded_visa = validate_jwt(
+        raw_visa,
+        attempt_refresh=True,
+        scope={"openid", "ga4gh_passport_v1"},
+        require_purpose=False,
+        issuers=config["GA4GH_VISA_ISSUER_ALLOWLIST"],
+        options={"require_iat": True, "require_exp": True, "verify_aud": False},
+        pkey_cache=pkey_cache,
+    )
     logger.info(f'Visa jti: "{decoded_visa.get("jti", "")}"')
     logger.info(f'Visa txn: "{decoded_visa.get("txn", "")}"')
 
