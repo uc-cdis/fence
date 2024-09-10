@@ -181,15 +181,10 @@ def test_project_has_valid_membership(cloud_manager, db_session):
     # not error out on the members created above. e.g. this is faking
     # that these users exist in our db
     get_users_mock.return_value = [0, 1]
-    get_users_patcher = patch(
-        "fence.resources.google.access_utils.get_users_from_google_members",
-        get_users_mock,
-    )
-    get_users_patcher.start()
+
     assert get_google_project_valid_users_and_service_accounts(
         cloud_manager.project_id, cloud_manager
     )
-    get_users_patcher.stop()
 
 
 def test_project_has_invalid_membership(cloud_manager, db_session):
@@ -549,15 +544,15 @@ def test_update_google_groups_for_users_get_group_members(cloud_manager):
     """
     test_mapping = {"member1": ["googlegroup@google.com"], "member2": ["googlegroup@google.com"]}
     cloud_manager_instance = cloud_manager.return_value.__enter__.return_value
-    cloud_manager_instance.get_group_members.side_effect = Exception(
-        "Something's wrong with get_group_members"
+    cloud_manager_instance.get_groups_for_user.side_effect = Exception(
+        "Something's wrong with get_groups_for_user"
     )
 
     with pytest.raises(Exception):
         update_google_groups_for_users(test_mapping)
 
     assert (
-        cloud_manager_instance.get_group_members.call_count
+        cloud_manager_instance.get_groups_for_user.call_count
         == DEFAULT_BACKOFF_SETTINGS["max_tries"]
     )
 
@@ -568,7 +563,7 @@ def test_update_google_groups_for_users_add_group_members(cloud_manager):
     """
     test_mapping = {"member1": ["googlegroup@google.com"], "member2": ["googlegroup@google.com"]}
     cloud_manager_instance = cloud_manager.return_value.__enter__.return_value
-    cloud_manager_instance.get_group_members.return_value = []
+    cloud_manager_instance.get_groups_for_user.return_value = []
     cloud_manager_instance.add_member_to_group.side_effect = Exception(
         "Something's wrong with add_member_to_group"
     )
@@ -576,11 +571,11 @@ def test_update_google_groups_for_users_add_group_members(cloud_manager):
     with pytest.raises(Exception):
         update_google_groups_for_users(test_mapping)
 
-    assert cloud_manager_instance.get_group_members.call_count == 1
+    assert cloud_manager_instance.get_groups_for_user.call_count == len(test_mapping.keys())
     assert (
         cloud_manager_instance.add_member_to_group.call_count
         == DEFAULT_BACKOFF_SETTINGS["max_tries"]
-        * len(test_mapping["googlegroup@google.com"])
+        * len(test_mapping.keys())
     )
 
 
@@ -589,9 +584,9 @@ def test_update_google_groups_for_users_remove_group_members(cloud_manager):
     Tests backoff for when the remove_member_to_group group API calls error out.
     """
     test_mapping = {"member1": [], "member2": []}
-    to_remove = [{"member1": "googlegroup@google.com"}, {"member2": "googlegroup@google.com"}]
+    to_remove = ["googlegroup@google.com"]
     cloud_manager_instance = cloud_manager.return_value.__enter__.return_value
-    cloud_manager_instance.get_group_members.return_value = to_remove
+    cloud_manager_instance.get_groups_for_user.return_value = to_remove
     cloud_manager_instance.remove_member_from_group.side_effect = Exception(
         "Something's wrong with remove_member_from_group"
     )
@@ -599,10 +594,10 @@ def test_update_google_groups_for_users_remove_group_members(cloud_manager):
     with pytest.raises(Exception):
         update_google_groups_for_users(test_mapping)
 
-    assert cloud_manager_instance.get_group_members.call_count == 1
+    assert cloud_manager_instance.get_groups_for_user.call_count == len(test_mapping.keys())
     assert (
         cloud_manager_instance.remove_member_from_group.call_count
-        == DEFAULT_BACKOFF_SETTINGS["max_tries"] * len(to_remove)
+        == DEFAULT_BACKOFF_SETTINGS["max_tries"] * len(test_mapping.keys())
     )
 
 def test_update_google_groups_for_users_add_remove_group_members(cloud_manager):
@@ -610,9 +605,9 @@ def test_update_google_groups_for_users_add_remove_group_members(cloud_manager):
     Tests backoff for when both the add_member_to_group and remove_member_to_group group API calls error out.
     """
     test_mapping = {"member1": ["googlegroup@google.com"]}
-    to_remove = [{"member2": "email"}]
+    to_remove = ["email"]
     cloud_manager_instance = cloud_manager.return_value.__enter__.return_value
-    cloud_manager_instance.get_group_members.return_value = to_remove
+    cloud_manager_instance.get_groups_for_user.return_value = to_remove
     cloud_manager_instance.add_member_to_group.side_effect = Exception(
         "Something's wrong with add_member_to_group"
     )
@@ -623,7 +618,7 @@ def test_update_google_groups_for_users_add_remove_group_members(cloud_manager):
     with pytest.raises(Exception):
         update_google_groups_for_users(test_mapping)
 
-    assert cloud_manager_instance.get_group_members.call_count == 1
+    assert cloud_manager_instance.get_groups_for_user.call_count == 1
     assert (
         cloud_manager_instance.add_member_to_group.call_count
         == DEFAULT_BACKOFF_SETTINGS["max_tries"]
@@ -662,52 +657,6 @@ def test_update_google_groups_for_users_remove_groups(cloud_manager):
     mock_gcm_instance.get_groups_for_user.assert_called_once_with("user@test.com")
     mock_gcm_instance.add_member_to_group.assert_not_called()
     mock_gcm_instance.remove_member_from_group.assert_called_once_with("user@test.com", "group2@google.com")
-
-
-def test_update_google_groups_for_users_error_adding_group(cloud_manager):
-    """
-    Test error when adding a user to a group, and ensure sync continues.
-    """
-    google_single_user_mapping = {"user@test.com": ["group1@google.com", "group2@google.com"]}
-    mock_gcm_instance = cloud_manager.return_value.__enter__.return_value
-    mock_gcm_instance.get_groups_for_user.return_value = ["group2@google.com"]
-    mock_gcm_instance.add_member_to_group.side_effect = Exception("Error adding group")
-
-    with pytest.raises(GoogleUpdateException):
-        update_google_groups_for_users(google_single_user_mapping)
-
-    mock_gcm_instance.add_member_to_group.assert_called_once_with("user@test.com", "group1@google.com")
-    mock_gcm_instance.remove_member_from_group.assert_not_called()
-
-
-def test_update_google_groups_for_users_error_removing_group(cloud_manager):
-    """
-    Test error when removing a user from a group, and ensure sync continues.
-    """
-    google_single_user_mapping = {"user@test.com": ["group1@google.com"]}
-    mock_gcm_instance = cloud_manager.return_value.__enter__.return_value
-    mock_gcm_instance.get_groups_for_user.return_value = ["group1@google.com", "group2@google.com"]
-    mock_gcm_instance.remove_member_from_group.side_effect = Exception("Error removing group")
-
-    with pytest.raises(GoogleUpdateException):
-        update_google_groups_for_users(google_single_user_mapping)
-
-    mock_gcm_instance.get_groups_for_user.assert_called_once_with("user@test.com")
-    mock_gcm_instance.remove_member_from_group.assert_called_once_with("user@test.com", "group2@google.com")
-
-
-def test_update_google_groups_for_users_get_groups_failure(cloud_manager):
-    """
-    Test failure when fetching user's current groups.
-    """
-    google_single_user_mapping = {"user@test.com": ["group1@google.com"]}
-    mock_gcm_instance = cloud_manager.return_value.__enter__.return_value
-    mock_gcm_instance.get_groups_for_user.side_effect = Exception("Error fetching groups")
-
-    with pytest.raises(GoogleUpdateException):
-        update_google_groups_for_users(google_single_user_mapping)
-
-    mock_gcm_instance.get_groups_for_user.assert_called_once_with("user@test.com")
 
 
 def test_update_google_groups_for_multiple_users_success(cloud_manager):

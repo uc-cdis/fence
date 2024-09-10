@@ -28,7 +28,6 @@ from fence.models import (
 )
 from fence.resources.google.utils import (
     get_db_session,
-    get_users_from_google_members,
     get_monitoring_service_account_email,
     is_google_managed_service_account,
 )
@@ -58,7 +57,7 @@ def update_google_groups_for_users(google_single_user_mapping):
             expected_groups = set(groups)
             # Get the groups the user is currently in
             try:
-                user_current_groups = gcm.get_groups_for_user(user_email)
+                user_current_groups = _get_groups_for_user(gcm, user_email)
             except Exception as exc:
                 logger.error(
                     f"ERROR: FAILED TO GET GROUPS FOR USER {user_email}! "
@@ -81,11 +80,11 @@ def update_google_groups_for_users(google_single_user_mapping):
             for group in groups_to_add:
                 logger.info(f"Adding {user_email} to group {group}")
                 try:
-                    gcm.add_member_to_group(user_email, group)
+                    _add_member_to_google_group(gcm, user_email, group)
                 except Exception as exc:
                     logger.error(
                         f"ERROR: FAILED TO ADD USER {user_email} TO GOOGLE "
-                        f"GROUP {group}! This sync will continue to update other groups. Exc: "
+                        f"GROUP {group}! This sync will continue to update other users. Exc: "
                         f"{traceback.format_exc()}"
                     )
                     google_update_failures = True
@@ -94,24 +93,27 @@ def update_google_groups_for_users(google_single_user_mapping):
             for group in groups_to_remove:
                 logger.info(f"Removing {user_email} from group {group}")
                 try:
-                    gcm.remove_member_from_group(user_email, group)
+                    _remove_member_from_google_group(gcm, user_email, group)
                 except Exception as exc:
                     logger.error(
                         f"ERROR: FAILED TO REMOVE USER {user_email} FROM "
-                        f"GOOGLE GROUP {group}! This sync will continue to update other groups. Exc: "
+                        f"GOOGLE GROUP {group}! This sync will continue to update other users. Exc: "
                         f"{traceback.format_exc()}"
                     )
                     google_update_failures = True
 
-            if google_update_failures:
-                raise GoogleUpdateException(
-                    f"FAILED TO UPDATE GOOGLE GROUPS FOR USER {user_email} (see previous errors)."
-                )
+        if google_update_failures:
+            raise GoogleUpdateException(
+                f"FAILED TO UPDATE GOOGLE GROUPS FOR USER {user_email} (see previous errors)."
+            )
 
 @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
 def _get_members_from_google_group(gcm, group):
     return gcm.get_group_members(group)
 
+@backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
+def _get_groups_for_user(gcm, user):
+    return gcm.get_groups_for_user(user)
 
 @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
 def _add_member_to_google_group(gcm, add_member_to_group, group):
