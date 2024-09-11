@@ -325,3 +325,5 @@ class Oauth2ClientBase(object):
         current_db_session = db_session.object_session(upstream_refresh_token)
         current_db_session.add(upstream_refresh_token)
         db_session.commit()
+
+    #implement update_user_authorization analogue to RAS/blueprints/login/base , then potentially refactor and change code in blueprints/login/base to use update_user_authorization

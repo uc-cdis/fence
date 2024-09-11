@@ -12,6 +12,8 @@ from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
 logger = get_logger(__name__, log_level="debug")
 
 
+#Rename to Access_Token_Updater
+# shall we update the filename as well?
 class Visa_Token_Update(object):
     def __init__(
         self,
@@ -44,17 +46,27 @@ class Visa_Token_Update(object):
 
         self.visa_types = config.get("USERSYNC", {}).get("visa_types", {})
 
+        #introduce list on self which contains all clients that need update
+        # self.oidc_clients_requiring_token_refresh
+
+        # keep this as a special case, because RAS will not set group information configuration.
         # Initialize visa clients:
         oidc = config.get("OPENID_CONNECT", {})
         if "ras" not in oidc:
             self.logger.error("RAS client not configured")
+            #remove the line below
             self.ras_client = None
         else:
+            #instead of setting self.ras_client add the RASClient to self.oidc_clients_requiring_token_refresh
             self.ras_client = RASClient(
                 oidc["ras"],
                 HTTP_PROXY=config.get("HTTP_PROXY"),
                 logger=logger,
             )
+
+        #initialise a client for each OIDC client in oidc, which does has group information set to true and add them
+        # to oidc_clients_requiring_token_refresh
+
 
     async def update_tokens(self, db_session):
         """
@@ -68,6 +80,7 @@ class Visa_Token_Update(object):
 
         """
         start_time = time.time()
+        #Change this line to reflect we are refreshing tokens, not just visas
         self.logger.info("Initializing Visa Update Cronjob . . .")
         self.logger.info("Total concurrency size: {}".format(self.concurrency))
         self.logger.info("Total thread pool size: {}".format(self.thread_pool_size))
@@ -178,6 +191,7 @@ class Visa_Token_Update(object):
         """
         Pick oidc client according to the identity provider
         """
+        # change this logic to return any client which is in self.oidc_clients_requiring_token_refresh (check against "name")
         client = None
         if (
             user.identity_provider
