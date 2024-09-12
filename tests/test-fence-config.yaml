@@ -69,7 +69,7 @@ SESSION_COOKIE_SECURE: true
 
 ENABLE_CSRF_PROTECTION: false
 
-CHECK_GROUPS: false
+CHECK_GROUPS: true
 # //////////////////////////////////////////////////////////////////////////////////////
 # OPEN ID CONNECT (OIDC)
 #   - Fully configure at least one client so login works
