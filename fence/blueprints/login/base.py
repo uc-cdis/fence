@@ -159,6 +159,13 @@ class DefaultOAuth2Callback(Resource):
                 username=username,
                 expires_at=expires
             )
+        else:
+            self.post_login(
+                user=flask.g.user,
+                token_result=result,
+                id_from_idp=id_from_idp,
+            )
+
         return resp
 
     def post_login(self, user=None, token_result=None, **kwargs):

@@ -32,15 +32,15 @@ def test_post_login_set_mfa(app, monkeypatch, mock_authn_user_flask_context):
 
     app.arborist = MagicMock()
     token_result = {"username": "lisasimpson", "mfa": True}
-    groups_from_idp = ['data_uploaders','reviewers']
-    expires_at = 0
-    callback.post_login(token_result=token_result,groups_from_idp=groups_from_idp,expires_at=expires_at)
+    callback.post_login(token_result=token_result)
+
     app.arborist.grant_user_policy.assert_called_with(
         username=token_result["username"], policy_id="mfa_policy"
     )
 
     token_result = {"username": "homersimpson", "mfa": False}
-    callback.post_login(token_result=token_result,groups_from_idp=groups_from_idp,expires_at=expires_at)
+    callback.post_login(token_result=token_result)
+
     app.arborist.revoke_user_policy.assert_called_with(
         username=token_result["username"], policy_id="mfa_policy"
     )
@@ -62,9 +62,7 @@ def test_post_login_no_mfa_enabled(app, monkeypatch, mock_authn_user_flask_conte
             "mock_idp", MagicMock(), username_field="username"
         )
         token_result = {"username": "lisasimpson"}
-        groups_from_idp = ['data_uploaders', 'reviewers']
-        expires_at = 0
-        callback.post_login(token_result=token_result,groups_from_idp=groups_from_idp,expires_at=expires_at)
+        callback.post_login(token_result=token_result)
         app.arborist.revoke_user_policy.assert_not_called()
 
 
