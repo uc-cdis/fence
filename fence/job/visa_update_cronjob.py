@@ -2,19 +2,20 @@ import asyncio
 import datetime
 import time
 
+from boto3 import client
 from cdislogging import get_logger
 
 from fence.config import config
 from fence.models import User
 from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
-
+from fence.resources.openid.idp_oauth2 import Oauth2ClientBase as OIDCClient
 
 logger = get_logger(__name__, log_level="debug")
 
 
 #Rename to Access_Token_Updater
 # shall we update the filename as well?
-class Visa_Token_Update(object):
+class Visa_Token_Updater(object):
     def __init__(
         self,
         chunk_size=None,
@@ -47,22 +48,38 @@ class Visa_Token_Update(object):
         self.visa_types = config.get("USERSYNC", {}).get("visa_types", {})
 
         #introduce list on self which contains all clients that need update
-        # self.oidc_clients_requiring_token_refresh
+        self.oidc_clients_requiring_token_refresh = []
 
         # keep this as a special case, because RAS will not set group information configuration.
         # Initialize visa clients:
         oidc = config.get("OPENID_CONNECT", {})
+        print("*******************************")
+        #print(oidc)
         if "ras" not in oidc:
             self.logger.error("RAS client not configured")
             #remove the line below
             self.ras_client = None
         else:
             #instead of setting self.ras_client add the RASClient to self.oidc_clients_requiring_token_refresh
-            self.ras_client = RASClient(
+            ras_client = RASClient(
                 oidc["ras"],
                 HTTP_PROXY=config.get("HTTP_PROXY"),
                 logger=logger,
             )
+            self.oidc_clients_requiring_token_refresh.append(ras_client)
+        for oidc_name in oidc:
+            if "groups" in oidc.get(oidc_name):
+                groups = oidc.get(oidc_name).get("groups")
+                if groups.get("read_group_information", False):
+                    oidc_client = OIDCClient(
+                        settings=oidc[oidc_name],
+                        HTTP_PROXY=config.get("HTTP_PROXY"),
+                        logger=logger,
+                        idp=oidc_name
+                    )
+                    print(f"Adding --> {oidc_name}")
+                    self.oidc_clients_requiring_token_refresh.append(oidc_client)
+
 
         #initialise a client for each OIDC client in oidc, which does has group information set to true and add them
         # to oidc_clients_requiring_token_refresh
