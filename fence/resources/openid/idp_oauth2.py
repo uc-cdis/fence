@@ -5,7 +5,8 @@ from jose import jwt
 from jose.exceptions import JWTError, JWTClaimsError
 import requests
 import time
-
+import backoff
+from fence.utils import DEFAULT_BACKOFF_SETTINGS
 from fence.errors import AuthError
 from fence.models import UpstreamRefreshToken
 
@@ -234,7 +235,7 @@ class Oauth2ClientBase(object):
             self.logger.exception(f"Can't get user info from {self.idp}: {e}")
             return {"error": f"Can't get user info from {self.idp}"}
 
-    def get_access_token(self, user, token_endpoint, db_session=None):
+    def  get_access_token(self, user, token_endpoint, db_session=None):
         """
         Get access_token using a refresh_token and store new refresh in upstream_refresh_token table.
         """
@@ -327,3 +328,15 @@ class Oauth2ClientBase(object):
         db_session.commit()
 
     #implement update_user_authorization analogue to RAS/blueprints/login/base , then potentially refactor and change code in blueprints/login/base to use update_user_authorization
+    @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
+    def update_user_authorization(self, user, pkey_cache, db_session=None):
+        db_session = db_session or current_app.scoped_session()
+        try:
+            token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
+
+            # this get_access_token also persists the refresh token in the db
+            token = self.get_access_token(user, token_endpoint, db_session)
+        except Exception as e:
+            err_msg = "Could not refresh token"
+            self.logger.exception("{}: {}".format(err_msg, e))
+            raise

@@ -11,8 +11,9 @@ db_session = MagicMock(spec=Session)
 
 # Creating mock users in the database
 mock_users = [
-    User(username="user1", identity_provider=MagicMock(name="provider1")),
-    User(username="user2", identity_provider=MagicMock(name="provider2")),
+    User(username="user1", identity_provider=MagicMock(name="fence")),
+    User(username="user2", identity_provider=MagicMock(name="keycloak")),
+    User(username="user3", identity_provider=MagicMock(name="provider3")),
 ]
 
 logger = MagicMock()
@@ -31,6 +32,26 @@ async def driver():
         buffer_size=5,
         logger=logger,
     )
+
+    # Mock OIDC clients requiring token refresh
+    mock_oidc_clients = [
+        MagicMock(idp="keycloak"),
+        MagicMock(idp="fence"),
+    ]
+
+    # Assign the OIDC clients to the updater instance
+    updater.oidc_clients_requiring_token_refresh = mock_oidc_clients
+
+    # Override the _pick_client method to see its effect
+    def mock_pick_client(user):
+        client = None
+        for oidc_client in updater.oidc_clients_requiring_token_refresh:
+            if getattr(user.identity_provider, "name") == oidc_client.idp:
+                client = oidc_client
+                logger.info(f"Picked client for {user.username}: {oidc_client.idp}")
+        return client
+
+    updater._pick_client = mock_pick_client
 
     # Start the update_tokens process with the mock db session
     await updater.update_tokens(db_session)

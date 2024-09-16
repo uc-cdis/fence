@@ -53,12 +53,8 @@ class Visa_Token_Updater(object):
         # keep this as a special case, because RAS will not set group information configuration.
         # Initialize visa clients:
         oidc = config.get("OPENID_CONNECT", {})
-        print("*******************************")
-        #print(oidc)
         if "ras" not in oidc:
             self.logger.error("RAS client not configured")
-            #remove the line below
-            self.ras_client = None
         else:
             #instead of setting self.ras_client add the RASClient to self.oidc_clients_requiring_token_refresh
             ras_client = RASClient(
@@ -67,23 +63,23 @@ class Visa_Token_Updater(object):
                 logger=logger,
             )
             self.oidc_clients_requiring_token_refresh.append(ras_client)
-        for oidc_name in oidc:
-            if "groups" in oidc.get(oidc_name):
-                groups = oidc.get(oidc_name).get("groups")
-                if groups.get("read_group_information", False):
-                    oidc_client = OIDCClient(
-                        settings=oidc[oidc_name],
-                        HTTP_PROXY=config.get("HTTP_PROXY"),
-                        logger=logger,
-                        idp=oidc_name
-                    )
-                    print(f"Adding --> {oidc_name}")
-                    self.oidc_clients_requiring_token_refresh.append(oidc_client)
-
 
         #initialise a client for each OIDC client in oidc, which does has group information set to true and add them
         # to oidc_clients_requiring_token_refresh
-
+        if config["CHECK_GROUPS"]:
+            for oidc_name in oidc:
+                if "groups" in oidc.get(oidc_name):
+                    groups = oidc.get(oidc_name).get("groups")
+                    if groups.get("read_group_information", False):
+                        oidc_client = OIDCClient(
+                            settings=oidc[oidc_name],
+                            HTTP_PROXY=config.get("HTTP_PROXY"),
+                            logger=logger,
+                            idp=oidc_name
+                        )
+                        print(f"Adding --> {oidc_name}")
+                        self.oidc_clients_requiring_token_refresh.append(oidc_client)
+                        print(oidc_client.idp)
 
     async def update_tokens(self, db_session):
         """
@@ -98,7 +94,7 @@ class Visa_Token_Updater(object):
         """
         start_time = time.time()
         #Change this line to reflect we are refreshing tokens, not just visas
-        self.logger.info("Initializing Visa Update Cronjob . . .")
+        self.logger.info("Initializing Visa Update and Token refreshing Cronjob . . .")
         self.logger.info("Total concurrency size: {}".format(self.concurrency))
         self.logger.info("Total thread pool size: {}".format(self.thread_pool_size))
         self.logger.info("Total buffer size: {}".format(self.buffer_size))
@@ -206,15 +202,18 @@ class Visa_Token_Updater(object):
 
     def _pick_client(self, user):
         """
-        Pick oidc client according to the identity provider
+        Select OIDC client based on identity provider.
         """
         # change this logic to return any client which is in self.oidc_clients_requiring_token_refresh (check against "name")
+        self.logger.info(f"Selecting client for user {user.username}")
         client = None
-        if (
-            user.identity_provider
-            and getattr(user.identity_provider, "name") == self.ras_client.idp
-        ):
-            client = self.ras_client
+        for oidc_client in self.oidc_clients_requiring_token_refresh:
+            if getattr(user.identity_provider, "name") == oidc_client.idp:
+                self.logger.info(f"Picked client: {oidc_client.idp} for user {user.username}")
+                client = oidc_client
+                break
+        if not client:
+            self.logger.info(f"No client found for user {user.username}")
         return client
 
     def _pick_client_from_visa(self, visa):
