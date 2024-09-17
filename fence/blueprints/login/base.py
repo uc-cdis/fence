@@ -10,7 +10,7 @@ from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
 from fence.errors import UserError
 from fence.metrics import metrics
-
+from fence.resources.openid.idp_oauth2 import Oauth2ClientBase
 logger = get_logger(__name__)
 
 
@@ -69,7 +69,7 @@ class DefaultOAuth2Callback(Resource):
         username_field="email",
         email_field="email",
         id_from_idp_field="sub",
-        app=flask.current_app,
+        app=None,
     ):
         """
         Construct a resource for a login callback endpoint
@@ -96,6 +96,7 @@ class DefaultOAuth2Callback(Resource):
         ].get(self.idp_name, {})
         self.app = app
         self.check_groups = config.get("CHECK_GROUPS", False)
+        self.app = app if app is not None else flask.current_app
 
     def get(self):
         # Check if user granted access
@@ -179,42 +180,8 @@ class DefaultOAuth2Callback(Resource):
         )
 
         if self.check_groups:
+            self.client.update_user_authorization(user=user,pkey_cache=None,db_session=None,idp_name=self.idp_name)
 
-            group_prefix = kwargs.get("group_prefix", "/")
-
-            # grab all groups defined in arborist
-            arborist_groups = self.app.arborist.list_groups().get("groups")
-
-            # grab all groups defined in idp
-            groups_from_idp = kwargs.get("groups_from_idp")
-
-            exp = datetime.datetime.fromtimestamp(
-                kwargs.get("expires_at"),
-                tz=datetime.timezone.utc
-            )
-
-            # if group name is in the list from arborist:
-            # add user to group via: self.app.arborist.add_user_to_group() with the correct expires_at
-            if groups_from_idp:
-                groups_from_idp = [group.removeprefix(group_prefix).lstrip('/') for group in groups_from_idp]
-                for idp_group in groups_from_idp:
-                    for arborist_group in arborist_groups:
-                        if idp_group == arborist_group['name']:
-                            logger.info(f"Adding {kwargs.get('username')} to group: {idp_group} ")
-                            self.app.arborist.add_user_to_group(
-                                username=kwargs.get("username"),
-                                group_name=idp_group,
-                                expires_at=exp
-                            )
-                        else:
-                            if kwargs.get("username") in arborist_group.get("users",[]):
-                                self.app.arborist.remove_user_from_group(
-                                    username=kwargs.get("username"),
-                                    group_name=arborist_group['name']
-                                )
-            else:
-                logger.warning(
-                    f"Check-groups feature is enabled, however did receive groups from idp: {self.idp_name} for user: {kwargs.get('username')}")
         if token_result:
             username = token_result.get(self.username_field)
             if self.is_mfa_enabled:

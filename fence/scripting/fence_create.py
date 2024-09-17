@@ -38,7 +38,7 @@ from fence.jwt.token import (
     generate_signed_refresh_token,
     issued_and_expiration_times,
 )
-from fence.job.visa_update_cronjob import Visa_Token_Updater
+from fence.job.access_token_updater import AccessTokenUpdater
 from fence.models import (
     Client,
     GoogleServiceAccount,
@@ -1815,7 +1815,7 @@ def access_token_polling_job(
     buffer_size (int): max size of queue
     """
     driver = get_SQLAlchemyDriver(db)
-    job = Visa_Token_Updater(
+    job = AccessTokenUpdater(
         chunk_size=int(chunk_size) if chunk_size else None,
         concurrency=int(concurrency) if concurrency else None,
         thread_pool_size=int(thread_pool_size) if thread_pool_size else None,

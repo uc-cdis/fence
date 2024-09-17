@@ -13,9 +13,7 @@ from fence.resources.openid.idp_oauth2 import Oauth2ClientBase as OIDCClient
 logger = get_logger(__name__, log_level="debug")
 
 
-#Rename to Access_Token_Updater
-# shall we update the filename as well?
-class Visa_Token_Updater(object):
+class AccessTokenUpdater(object):
     def __init__(
         self,
         chunk_size=None,

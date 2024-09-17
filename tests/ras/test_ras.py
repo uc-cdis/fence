@@ -25,7 +25,7 @@ from fence.errors import InternalError
 
 from tests.utils import add_test_ras_user, TEST_RAS_USERNAME, TEST_RAS_SUB
 from tests.dbgap_sync.conftest import add_visa_manually
-from fence.job.visa_update_cronjob import Visa_Token_Updater
+from fence.job.access_token_updater import AccessTokenUpdater
 import tests.utils
 from tests.conftest import get_subjects_to_passports
 
@@ -713,7 +713,7 @@ def test_visa_update_cronjob(
     mock_userinfo.side_effect = _get_userinfo
 
     # test "fence-create update-visa"
-    job = Visa_Token_Updater()
+    job = AccessTokenUpdater()
     job.pkey_cache = {
         "https://stsstg.nih.gov": {
             kid: rsa_public_key,
