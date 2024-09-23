@@ -85,17 +85,21 @@ def test_does_not_has_mfa_claim_multiple_amr(oauth_client_amr):
     has_mfa = oauth_client_amr.has_mfa_claim({"amr": ["pwd, trustme"]})
     assert not has_mfa
 
+@pytest.fixture
+def mock_app():
+    return MagicMock()
+
+@pytest.fixture
+def mock_user():
+    return MagicMock()
+
 # To test the store_refresh_token method of the Oauth2ClientBase class
-def test_store_refresh_token():
+def test_store_refresh_token(mock_user, mock_app):
     """
     Test the `store_refresh_token` method of the `Oauth2ClientBase` class to ensure that
     refresh tokens are correctly stored in the database using the `UpstreamRefreshToken` model.
     """
-
     mock_logger = MagicMock()
-    app = MagicMock()
-    mock_user = MagicMock()
-
     mock_settings = {
         "client_id": "test_client_id",
         "client_secret": "test_client_secret",
@@ -105,27 +109,32 @@ def test_store_refresh_token():
         "user_id_field": "sub",
     }
 
-    with patch.dict(config, {"CHECK_GROUPS": True}, clear=False):
-        oauth_client2 = Oauth2ClientBase(settings=mock_settings, logger=mock_logger, idp="test_idp")
+    # Ensure oauth_client is correctly instantiated
+    oauth_client = Oauth2ClientBase(settings=mock_settings, logger=mock_logger, idp="test_idp")
 
-        # Patch the UpstreamRefreshToken to prevent actual database interactions
-        with patch('fence.resources.openid.idp_oauth2.UpstreamRefreshToken', autospec=True) as MockUpstreamRefreshToken:
+    refresh_token = "mock_refresh_token"
+    expires = 1700000000
 
-            # Call the method to test
-            refresh_token = "mock_refresh_token"
-            expires = 1700000000
-            oauth_client2.store_refresh_token(mock_user, refresh_token, expires, db_session=app.arborist)
+    # Patch the UpstreamRefreshToken to prevent actual database interactions
+    with patch('fence.resources.openid.idp_oauth2.UpstreamRefreshToken', autospec=True) as MockUpstreamRefreshToken:
+        # Mock the db_session's object_session method to return a mocked session object
+        mock_session = MagicMock()
+        mock_app.arborist.object_session.return_value = mock_session
 
-            # Check if UpstreamRefreshToken was instantiated correctly
-            MockUpstreamRefreshToken.assert_called_once_with(
-                user=mock_user,
-                refresh_token=refresh_token,
-                expires=expires,
-            )
+        # Call the method to test
+        oauth_client.store_refresh_token(mock_user, refresh_token, expires, db_session=mock_app.arborist)
 
-            # Check if the mock session's `add` and `commit` methods were called
-            app.arborist.add.assert_called_once_with(MockUpstreamRefreshToken.return_value)
-            app.arborist.commit.assert_called_once()
+        # Check if UpstreamRefreshToken was instantiated correctly
+        MockUpstreamRefreshToken.assert_called_once_with(
+            user=mock_user,
+            refresh_token=refresh_token,
+            expires=expires,
+        )
+
+        # Check if the mock session's `add` and `commit` methods were called
+        mock_app.arborist.object_session.assert_called_once()
+        mock_session.add.assert_called_once_with(MockUpstreamRefreshToken.return_value)
+        mock_app.arborist.commit.assert_called_once()
 
 # To test if a user is granted access using the get_auth_info method in the Oauth2ClientBase
 @patch('fence.resources.openid.idp_oauth2.Oauth2ClientBase.get_jwt_keys')
