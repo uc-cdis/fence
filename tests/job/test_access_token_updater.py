@@ -4,8 +4,22 @@ from unittest.mock import AsyncMock, patch, MagicMock
 from fence.models import User
 from fence.resources.openid.idp_oauth2 import Oauth2ClientBase as OIDCClient
 from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
-
 from fence.job.access_token_updater import AccessTokenUpdater
+
+@pytest.fixture(scope='session', autouse=True)
+def event_loop():
+    loop = asyncio.new_event_loop()
+    asyncio.set_event_loop(loop)
+    yield loop
+    loop.close()
+
+
+@pytest.fixture
+def run_async(event_loop):
+    """Run an async coroutine in the current event loop."""
+    def _run(coro):
+        return event_loop.run_until_complete(coro)
+    return _run
 
 
 @pytest.fixture
@@ -41,10 +55,9 @@ def mock_oidc_clients():
 
 
 @pytest.fixture
-def access_token_updater(mock_oidc_clients):
+def access_token_updater_config(mock_oidc_clients):
     """Fixture to instantiate AccessTokenUpdater with mocked OIDC clients."""
-    # Patch the config to provide mock OIDC client configuration
-    with patch("access_token_updater.config",
+    with patch("fence.config",
                {"OPENID_CONNECT": {"ras": {}, "test_oidc": {"groups": {"read_group_information": True}}},
                 "CHECK_GROUPS": True}):
         updater = AccessTokenUpdater()
@@ -52,101 +65,105 @@ def access_token_updater(mock_oidc_clients):
         return updater
 
 
-@pytest.mark.asyncio
-async def test_get_user_from_db(access_token_updater, mock_db_session, mock_users):
+def test_get_user_from_db(run_async, access_token_updater_config, mock_db_session, mock_users):
     """Test the get_user_from_db method."""
     mock_db_session.query().slice().all.return_value = mock_users
 
-    users = await access_token_updater.get_user_from_db(mock_db_session, chunk_idx=0)
+    users = run_async(access_token_updater_config.get_user_from_db(mock_db_session, chunk_idx=0))
     assert len(users) == 2
     assert users[0].username == "testuser1"
     assert users[1].username == "testuser2"
 
 
-@pytest.mark.asyncio
-async def test_producer(access_token_updater, mock_db_session, mock_users):
+def test_producer(run_async, access_token_updater_config, mock_db_session, mock_users):
     """Test the producer method."""
     queue = asyncio.Queue()
     mock_db_session.query().slice().all.return_value = mock_users
 
     # Run producer to add users to queue
-    await access_token_updater.producer(mock_db_session, queue, chunk_idx=0)
+    run_async(access_token_updater_config.producer(mock_db_session, queue, chunk_idx=0))
 
     assert queue.qsize() == len(mock_users)
     assert not queue.empty()
 
     # Dequeue to check correctness
-    user = await queue.get()
+    user = run_async(queue.get())
     assert user.username == "testuser1"
 
 
-@pytest.mark.asyncio
-async def test_worker(access_token_updater, mock_users):
+def test_worker(run_async, access_token_updater_config, mock_users):
     """Test the worker method."""
     queue = asyncio.Queue()
     updater_queue = asyncio.Queue()
 
     # Add users to the queue
     for user in mock_users:
-        await queue.put(user)
+        run_async(queue.put(user))
 
     # Run the worker to transfer users from queue to updater_queue
-    await access_token_updater.worker("worker_1", queue, updater_queue)
+    run_async(access_token_updater_config.worker("worker_1", queue, updater_queue))
 
     assert updater_queue.qsize() == len(mock_users)
     assert queue.empty()
 
 
-@pytest.mark.asyncio
-async def test_updater(access_token_updater, mock_users, mock_db_session, mock_oidc_clients):
+async def updater_with_timeout(updater, queue, db_session, timeout=5):
+    return await asyncio.wait_for(updater(queue, db_session), timeout)
+
+def test_updater(run_async, access_token_updater_config, mock_users, mock_db_session, mock_oidc_clients):
     """Test the updater method."""
     updater_queue = asyncio.Queue()
 
     # Add a user to the updater_queue
-    await updater_queue.put(mock_users[0])
+    run_async(updater_queue.put(mock_users[0]))
 
     # Mock the client to return a valid update process
     mock_oidc_clients[0].update_user_authorization = AsyncMock()
 
-    # Run the updater to process the user and update authorization
-    await access_token_updater.updater("updater_1", updater_queue, mock_db_session)
+    # Ensure _pick_client returns the correct client
+    with patch.object(access_token_updater_config, '_pick_client', return_value=mock_oidc_clients[0]):
+        # Signal the updater to stop after processing
+        run_async(updater_queue.put(None))  # This should be an awaited call
+
+        # Run the updater to process the user and update authorization
+        run_async(access_token_updater_config.updater("updater_1", updater_queue, mock_db_session))
 
     # Verify that the OIDC client was called with the correct user
     mock_oidc_clients[0].update_user_authorization.assert_called_once_with(
         mock_users[0],
-        pkey_cache=access_token_updater.pkey_cache,
+        pkey_cache=access_token_updater_config.pkey_cache,
         db_session=mock_db_session,
     )
 
-
-@pytest.mark.asyncio
-async def test_no_client_found(access_token_updater, mock_users):
+def test_no_client_found(run_async, access_token_updater_config, mock_users):
     """Test that updater does not crash if no client is found."""
     updater_queue = asyncio.Queue()
 
     # Modify the user to have an unrecognized identity provider
     mock_users[0].identity_provider.name = "unknown_provider"
 
-    await updater_queue.put(mock_users[0])
+    run_async(updater_queue.put(mock_users[0]))  # Ensure this is awaited
+    run_async(updater_queue.put(None))  # Signal the updater to terminate
 
-    # Run the updater and ensure it skips the user with no client
-    await access_token_updater.updater("updater_1", updater_queue, MagicMock())
+    # Mock the client selection to return None
+    with patch.object(access_token_updater_config, '_pick_client', return_value=None):
+        # Run the updater and ensure it skips the user with no client
+        run_async(access_token_updater_config.updater("updater_1", updater_queue, MagicMock()))
 
     assert updater_queue.empty()  # The user should still be dequeued
 
 
-@pytest.mark.asyncio
-async def test_pick_client(access_token_updater, mock_users, mock_oidc_clients):
+def test_pick_client(run_async, access_token_updater_config, mock_users, mock_oidc_clients):
     """Test that the correct OIDC client is selected based on the user's IDP."""
     # Pick the client for a RAS user
-    client = access_token_updater._pick_client(mock_users[0])
+    client = access_token_updater_config._pick_client(mock_users[0])
     assert client.idp == "ras"
 
     # Pick the client for a test OIDC user
-    client = access_token_updater._pick_client(mock_users[1])
+    client = access_token_updater_config._pick_client(mock_users[1])
     assert client.idp == "test_oidc"
 
     # Ensure no client is returned for a user with no matching IDP
     mock_users[0].identity_provider.name = "nonexistent_idp"
-    client = access_token_updater._pick_client(mock_users[0])
+    client = access_token_updater_config._pick_client(mock_users[0])
     assert client is None

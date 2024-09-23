@@ -261,7 +261,6 @@ class Oauth2ClientBase(object):
         for row in sorted(user.upstream_refresh_tokens, key=lambda row: row.expires):
             refresh_token = row.refresh_token
             expires = row.expires
-
             if time.time() > expires:
                 # reset to check for next token
                 refresh_token = None
@@ -284,7 +283,7 @@ class Oauth2ClientBase(object):
         self.store_refresh_token(
             user,
             refresh_token=refresh_token,
-            expires=expires,
+            expires=expires + config["REFRESH_TOKEN_EXPIRES_IN"],
             db_session=db_session,
         )
 
@@ -342,7 +341,6 @@ class Oauth2ClientBase(object):
         current_db_session.add(upstream_refresh_token)
         db_session.commit()
 
-    #implement update_user_authorization analogue to RAS/blueprints/login/base , then potentially refactor and change code in blueprints/login/base to use update_user_authorization
     @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
     def update_user_authorization(self, user, pkey_cache, db_session=None, **kwargs):
 
@@ -380,7 +378,6 @@ class Oauth2ClientBase(object):
                 )
 
                 # if group name is in the list from arborist:
-
                 if groups_from_idp:
                     groups_from_idp = [group.removeprefix(group_prefix).lstrip('/') for group in groups_from_idp]
 

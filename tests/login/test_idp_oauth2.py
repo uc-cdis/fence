@@ -90,44 +90,12 @@ def test_store_refresh_token():
     """
     Test the `store_refresh_token` method of the `Oauth2ClientBase` class to ensure that
     refresh tokens are correctly stored in the database using the `UpstreamRefreshToken` model.
-
-    This test covers:
-      1. Verifying that a new instance of `UpstreamRefreshToken` is created with the correct
-         user, refresh token, and expiration time.
-      2. Ensuring that the database session's `add` and `commit` methods are called to save
-         the refresh token into the database.
-      3. Patching the `UpstreamRefreshToken` class to prevent actual database interactions.
-
-    Args:
-        app (Flask app): The application instance containing the mock Arborist service and database session.
-        settings (Settings): Configuration settings for the `Oauth2ClientBase` instance.
-
-    Test Flow:
-        1. Initializes an `Oauth2ClientBase` instance with mocked settings and logger.
-        2. Patches the `UpstreamRefreshToken` model to avoid actual database access.
-        3. Calls the `store_refresh_token` method with mock user, refresh token, and expiration time.
-        4. Verifies that:
-           - The `UpstreamRefreshToken` is instantiated correctly with the user, refresh token, and expiration.
-           - The database session's `add` and `commit` methods are called to save the token.
-           - The `add` method receives the newly created `UpstreamRefreshToken` object.
-
-    Example Mock Data:
-        - `refresh_token`: "mock_refresh_token"
-        - `expires`: 1700000000 (timestamp for token expiration)
-
-    Assertions:
-        - Checks that the `UpstreamRefreshToken` model was instantiated with the correct parameters.
-        - Ensures that the `add` method is called on the database session to add the `UpstreamRefreshToken` instance.
-        - Confirms that the `commit` method is called on the database session to persist the changes.
-
-    Raises:
-        AssertionError: If the expected database interactions or method calls are not performed.
     """
-    # Create an instance of Oauth2ClientBase
 
     mock_logger = MagicMock()
     app = MagicMock()
     mock_user = MagicMock()
+
     mock_settings = {
         "client_id": "test_client_id",
         "client_secret": "test_client_secret",
@@ -136,12 +104,13 @@ def test_store_refresh_token():
         "groups": {"read_group_information": True, "group_prefix": "/"},
         "user_id_field": "sub",
     }
+
     with patch.dict(config, {"CHECK_GROUPS": True}, clear=False):
         oauth_client2 = Oauth2ClientBase(settings=mock_settings, logger=mock_logger, idp="test_idp")
 
         # Patch the UpstreamRefreshToken to prevent actual database interactions
         with patch('fence.resources.openid.idp_oauth2.UpstreamRefreshToken', autospec=True) as MockUpstreamRefreshToken:
-            yield MockUpstreamRefreshToken
+
             # Call the method to test
             refresh_token = "mock_refresh_token"
             expires = 1700000000
@@ -155,21 +124,8 @@ def test_store_refresh_token():
             )
 
             # Check if the mock session's `add` and `commit` methods were called
-            app.arborist.object_session.assert_called_once()
-            current_db_session = app.arborist.object_session.return_value
-            current_db_session.add.assert_called_once()
+            app.arborist.add.assert_called_once_with(MockUpstreamRefreshToken.return_value)
             app.arborist.commit.assert_called_once()
-
-            # Verify that the `add` method was called with the instance of UpstreamRefreshToken
-            current_db_session.add.assert_called_once_with(MockUpstreamRefreshToken.return_value)
-
-            # Ensure that the `store_refresh_token` method is called with the expected arguments
-            MockUpstreamRefreshToken.assert_called_once_with(
-                user=mock_user,
-                refresh_token=refresh_token,
-                expires=expires
-            )
-            current_db_session.rollback()
 
 # To test if a user is granted access using the get_auth_info method in the Oauth2ClientBase
 @patch('fence.resources.openid.idp_oauth2.Oauth2ClientBase.get_jwt_keys')

@@ -75,9 +75,7 @@ class AccessTokenUpdater(object):
                             logger=logger,
                             idp=oidc_name
                         )
-                        print(f"Adding --> {oidc_name}")
                         self.oidc_clients_requiring_token_refresh.append(oidc_client)
-                        print(oidc_client.idp)
 
     async def update_tokens(self, db_session):
         """
@@ -163,13 +161,12 @@ class AccessTokenUpdater(object):
             queue.task_done()
 
     async def updater(self, name, updater_queue, db_session):
-        """
-        Update visas in the updater_queue.
-        Note that only visas which pass validation will be saved.
-        """
         while True:
-            user = await updater_queue.get()
             try:
+                user = await updater_queue.get()
+                if user is None:  # Use None to signal termination
+                    break
+
                 client = self._pick_client(user)
                 if client:
                     self.logger.info(
@@ -189,14 +186,17 @@ class AccessTokenUpdater(object):
                         f"Updater {name} NOT updating authorization for "
                         f"user {user.username} because no client was found for IdP: {user.identity_provider}"
                     )
+
+                # Only mark the task as done if processing succeeded
+                updater_queue.task_done()
+
             except Exception as exc:
                 self.logger.error(
                     f"Updater {name} could not update authorization "
-                    f"for {user.username}. Error: {exc}. Continuing."
+                    f"for {user.username if user else 'unknown user'}. Error: {exc}. Continuing."
                 )
-                pass
-
-            updater_queue.task_done()
+                # Still mark the task as done even if there was an exception
+                updater_queue.task_done()
 
     def _pick_client(self, user):
         """
