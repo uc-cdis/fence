@@ -1,16 +1,17 @@
+import time
 import flask
-import datetime
-
+import requests
+import base64
+import json
+import jwt
 from cdislogging import get_logger
 from flask_restful import Resource
 from urllib.parse import urlparse, urlencode, parse_qsl
-
 from fence.auth import login_user
 from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
 from fence.errors import UserError
 from fence.metrics import metrics
-from fence.resources.openid.idp_oauth2 import Oauth2ClientBase
 logger = get_logger(__name__)
 
 
@@ -138,39 +139,106 @@ class DefaultOAuth2Callback(Resource):
 
         resp = _login(username, self.idp_name, email=email, id_from_idp=id_from_idp)
 
+        expires = self.extract_exp(refresh_token)
+
+        # if the access token is not a JWT, or does not carry exp, default to now + REFRESH_TOKEN_EXPIRES_IN
+        if expires is None:
+            expires = int(time.time()) + config["REFRESH_TOKEN_EXPIRES_IN"]
+
         # # Store refresh token in db
-        gen3_user = flask.g.user
-
-        expires = result.get("exp")
-
-
         if self.check_groups:
-            self.client.store_refresh_token(gen3_user,refresh_token,expires)
+            self.client.store_refresh_token(flask.g.user,refresh_token,expires)
 
-            # if self.client.config["check_groups"]
-            #pass access token to post_login
-            groups_from_idp = result.get("groups")
-            group_prefix = result.get("group_prefix")
-            self.post_login(
-                user=flask.g.user,
-                token_result=result,
-                id_from_idp=id_from_idp,
-                groups_from_idp=groups_from_idp,
-                group_prefix=group_prefix,
-                username=username,
-                expires_at=expires
-            )
-        else:
-            self.post_login(
-                user=flask.g.user,
-                token_result=result,
-                id_from_idp=id_from_idp,
-            )
+        self.post_login(
+            user=flask.g.user,
+            token_result=result,
+            id_from_idp=id_from_idp,
+        )
 
         return resp
 
+    # see if the refresh token is a JWT. if it is decode to get the exp. we do not care about signatures, the
+    # reason is that the refresh token is checked by the IDP, not us, thus we don't have the key in most circumstances
+    # Also check exp from introspect results
+    def extract_exp(self, refresh_token):
+        # Method 1: PyJWT
+        try:
+            # Skipping keys since we're not verifying the signature
+            decoded_refresh_token = jwt.decode(
+                refresh_token,
+                options=
+                {
+                    "verify_aud": False,
+                    "verify_at_hash": False,
+                    "verify_signature": False
+                },
+                algorithms=["RS256", "HS512"]
+            )
+            exp = decoded_refresh_token.get("exp")
+
+            if exp is not None:
+                return exp
+        except Exception as e:
+            logger.info(f"Refresh token expiry: Method (PyJWT) failed: {e}")
+
+        # Method 2: Introspection
+        try:
+            introspection_response = self.introspect_token(refresh_token)
+            exp = introspection_response.get("exp")
+
+            if exp is not None:
+                return exp
+        except Exception as e:
+            logger.info(f"Refresh token expiry: Method Introspection failed: {e}")
+
+        # Method 3: Manual base64 decoding
+        try:
+            # Assuming the token is a JWT (header.payload.signature)
+            payload_encoded = refresh_token.split('.')[1]
+            # Add necessary padding for base64 decoding
+            payload_encoded += '=' * (4 - len(payload_encoded) % 4)
+            payload_decoded = base64.urlsafe_b64decode(payload_encoded)
+            payload_json = json.loads(payload_decoded)
+            exp = payload_json.get("exp")
+
+            if exp is not None:
+                return exp
+        except Exception as e:
+            logger.info(f"Method 3 (Manual decoding) failed: {e}")
+
+        # If all methods fail, return None
+        return None
+
+    def introspect_token(self, token):
+
+        try:
+            introspect_endpoint = self.client.get_value_from_discovery_doc("introspection_endpoint", "")
+
+            # Headers and payload for the introspection request
+            headers = {
+                "Content-Type": "application/x-www-form-urlencoded"
+            }
+            data = {
+                "token": token,
+                "client_id": self.client.settings.get("client_id"),
+                "client_secret": self.client.settings.get("client_secret")
+            }
+
+            response = requests.post(introspect_endpoint, headers=headers, data=data)
+
+            if response.status_code == 200:
+                return response.json()
+            else:
+                logger.info(f"Error introspecting token: {response.status_code}")
+                return None
+
+        except Exception as e:
+            logger.info(f"Error introspecting token: {e}")
+            return None
+
     def post_login(self, user=None, token_result=None, **kwargs):
         prepare_login_log(self.idp_name)
+
         metrics.add_login_event(
             user_sub=flask.g.user.id,
             idp=self.idp_name,

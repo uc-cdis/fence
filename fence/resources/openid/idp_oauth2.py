@@ -117,7 +117,9 @@ class Oauth2ClientBase(object):
                 algorithms=["RS256"],
                 audience=self.audience
             )
+
             return decoded_token
+
         except JWTClaimsError as e:
             self.logger.error(f"Claim error: {e}")
             raise  JWTClaimsError("Invalid audience")
@@ -283,7 +285,7 @@ class Oauth2ClientBase(object):
         self.store_refresh_token(
             user,
             refresh_token=refresh_token,
-            expires=expires + config["REFRESH_TOKEN_EXPIRES_IN"],
+            expires=expires,
             db_session=db_session,
         )
 
