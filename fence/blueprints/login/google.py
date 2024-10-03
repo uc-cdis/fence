@@ -25,4 +25,5 @@ class GoogleCallback(DefaultOAuth2Callback):
                 config.get("BASE_URL", "")
                 + "/link/google/callback?code={}".format(flask.request.args.get("code"))
             )
+
         return super(GoogleCallback, self).get()

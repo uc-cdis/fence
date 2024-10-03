@@ -1,6 +1,8 @@
 import re
 import time
 import json
+import boto3
+from botocore.client import Config
 from urllib.parse import urlparse, ParseResult, urlunparse
 from datetime import datetime, timedelta
 
@@ -8,9 +10,9 @@ from sqlalchemy.sql.functions import user
 from cached_property import cached_property
 import gen3cirrus
 from gen3cirrus import GoogleCloudManager
+from gen3cirrus import AwsService
 from cdislogging import get_logger
 from cdispyutils.config import get_value
-from cdispyutils.hmac4 import generate_aws_presigned_url
 import flask
 from flask import current_app
 import requests
@@ -28,7 +30,6 @@ from fence.auth import (
     login_required,
     set_current_token,
     validate_request,
-    JWTError,
 )
 from fence.config import config
 from fence.errors import (
@@ -49,6 +50,7 @@ from fence.resources.google.utils import (
 from fence.resources.ga4gh.passports import sync_gen3_users_authz_from_ga4gh_passports
 from fence.resources.audit.utils import enable_audit_logging
 from fence.utils import get_valid_expiration_from_request
+from fence.metrics import metrics
 
 from . import multipart_upload
 from ...models import AssumeRoleCacheAWS, query_for_user, query_for_user_by_id
@@ -77,6 +79,7 @@ def get_signed_url_for_file(
     ga4gh_passports=None,
     db_session=None,
     bucket=None,
+    drs="False",
 ):
     requested_protocol = requested_protocol or flask.request.args.get("protocol", None)
     r_pays_project = flask.request.args.get("userProject", None)
@@ -164,12 +167,33 @@ def get_signed_url_for_file(
         user_sub=flask.g.audit_data.get("sub", ""),
         client_id=_get_client_id(),
         requested_protocol=requested_protocol,
+        action=action,
+        drs=drs,
     )
 
     return {"url": signed_url}
 
 
-def _log_signed_url_data_info(indexed_file, user_sub, client_id, requested_protocol):
+def get_bucket_from_urls(urls, protocol):
+    """
+    Return the bucket name from the first of the provided URLs that starts with the given protocol (usually `gs`, `s3`, `az`...)
+    """
+    bucket = ""
+    for url in urls:
+        if "://" in url:
+            # Extract the protocol and the rest of the URL
+            bucket_protocol, rest_of_url = url.split("://", 1)
+
+            if bucket_protocol == protocol:
+                # Extract bucket name
+                bucket = f"{bucket_protocol}://{rest_of_url.split('/')[0]}"
+                break
+    return bucket
+
+
+def _log_signed_url_data_info(
+    indexed_file, user_sub, client_id, requested_protocol, action, drs="False"
+):
     size_in_kibibytes = (indexed_file.index_document.get("size") or 0) / 1024
     acl = indexed_file.index_document.get("acl")
     authz = indexed_file.index_document.get("authz")
@@ -180,21 +204,23 @@ def _log_signed_url_data_info(indexed_file, user_sub, client_id, requested_proto
         protocol = indexed_file.indexed_file_locations[0].protocol
 
     # figure out which bucket was used based on the protocol
-    bucket = ""
-    for url in indexed_file.index_document.get("urls", []):
-        bucket_name = None
-        if "://" in url:
-            # Extract the protocol and the rest of the URL
-            bucket_protocol, rest_of_url = url.split("://", 1)
-
-            if bucket_protocol == protocol:
-                # Extract bucket name
-                bucket = f"{bucket_protocol}://{rest_of_url.split('/')[0]}"
-                break
+    bucket = get_bucket_from_urls(indexed_file.index_document.get("urls", []), protocol)
 
     logger.info(
-        f"Signed URL Generated. size_in_kibibytes={size_in_kibibytes} "
+        f"Signed URL Generated. action={action} size_in_kibibytes={size_in_kibibytes} "
         f"acl={acl} authz={authz} bucket={bucket} user_sub={user_sub} client_id={client_id}"
+    )
+
+    metrics.add_signed_url_event(
+        action,
+        protocol,
+        acl,
+        authz,
+        bucket,
+        user_sub,
+        client_id,
+        drs,
+        size_in_kibibytes,
     )
 
 
@@ -207,6 +233,7 @@ def _get_client_id():
         pass
 
     return client_id
+
 
 def prepare_presigned_url_audit_log(protocol, indexed_file):
     """
@@ -232,7 +259,12 @@ class BlankIndex(object):
     """
 
     def __init__(
-        self, uploader=None, file_name=None, logger_=None, guid=None, authz=None
+        self,
+        uploader=None,
+        file_name=None,
+        logger_=None,
+        guid=None,
+        authz=None,
     ):
         self.logger = logger_ or logger
         self.indexd = (
@@ -253,8 +285,9 @@ class BlankIndex(object):
         self.file_name = file_name
         self.authz = authz
 
-        # if a guid is not provided, this will create a blank record for you
-        self.guid = guid or self.index_document["did"]
+        self.guid = guid
+        # .index_document is a cached property with code below, it creates/retrieves the actual record and this line updates the stored GUID to the returned record
+        self.guid = self.index_document["did"]
 
     @cached_property
     def index_document(self):
@@ -266,6 +299,20 @@ class BlankIndex(object):
                 response from indexd (the contents of the record), containing ``guid``
                 and ``url``
         """
+
+        if self.guid:
+            index_url = self.indexd.rstrip("/") + "/index/" + self.guid
+            indexd_response = requests.get(index_url)
+            if indexd_response.status_code == 200:
+                document = indexd_response.json()
+                self.logger.info(f"Record with {self.guid} id found in Indexd.")
+                return document
+            else:
+                raise NotFound(f"No indexed document found with id {self.guid}")
+
+        return self._create_blank_record()
+
+    def _create_blank_record(self):
         index_url = self.indexd.rstrip("/") + "/index/blank/"
         params = {"uploader": self.uploader, "file_name": self.file_name}
 
@@ -350,7 +397,7 @@ class BlankIndex(object):
     @staticmethod
     def init_multipart_upload(key, expires_in=None, bucket=None):
         """
-        Initilize multipart upload given key
+        Initialize multipart upload given key
 
         Args:
             key(str): object key
@@ -395,7 +442,7 @@ class BlankIndex(object):
 
         Args:
             key(str): object key of `guid/filename`
-            uploadID(str): uploadId of the current upload.
+            uploadId(str): uploadId of the current upload.
             partNumber(int): the part number
 
         Returns:
@@ -1015,6 +1062,8 @@ class S3IndexedFileLocation(IndexedFileLocation):
         bucket_name = self.bucket_name()
         bucket = s3_buckets.get(bucket_name)
 
+        object_id = self.parsed_url.path.strip("/")
+
         if bucket and bucket.get("endpoint_url"):
             http_url = bucket["endpoint_url"].strip("/") + "/{}/{}".format(
                 self.parsed_url.netloc, self.parsed_url.path.strip("/")
@@ -1046,18 +1095,40 @@ class S3IndexedFileLocation(IndexedFileLocation):
             region = flask.current_app.boto.get_bucket_region(
                 self.parsed_url.netloc, credential
             )
+        endpoint_url = bucket.get("endpoint_url", None)
+        s3client = boto3.client(
+            "s3",
+            aws_access_key_id=credential["aws_access_key_id"],
+            aws_secret_access_key=credential["aws_secret_access_key"],
+            aws_session_token=credential.get("aws_session_token", None),
+            region_name=region,
+            endpoint_url=endpoint_url,
+            config=Config(signature_version="s3v4"),
+        )
 
+        cirrus_aws = AwsService(s3client)
         auth_info = _get_auth_info_for_id_or_from_request(user=authorized_user)
 
-        url = generate_aws_presigned_url(
-            http_url,
-            ACTION_DICT["s3"][action],
-            credential,
-            "s3",
-            region,
-            expires_in,
-            auth_info,
-        )
+        action = ACTION_DICT["s3"][action]
+
+        # get presigned url for upload
+        if action == "PUT":
+            url = cirrus_aws.upload_presigned_url(
+                bucket_name, object_id, expires_in, None
+            )
+        # get presigned url for download
+        else:
+            if bucket.get("requester_pays") is True:
+                # need to add extra parameter to signing url for header
+                # https://github.com/boto/boto3/issues/3685
+                auth_info["x-amz-request-payer"] = "requester"
+                url = cirrus_aws.requester_pays_download_presigned_url(
+                    bucket_name, object_id, expires_in, auth_info
+                )
+            else:
+                url = cirrus_aws.download_presigned_url(
+                    bucket_name, object_id, expires_in, auth_info
+                )
 
         return url
 
@@ -1069,7 +1140,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             expires(int): expiration time
 
         Returns:
-            UploadId(str)
+            uploadId(str)
         """
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
@@ -1087,18 +1158,19 @@ class S3IndexedFileLocation(IndexedFileLocation):
         Generate presigned url for uploading object part given uploadId and part number
 
         Args:
-            uploadId(str): uploadID of the multipart upload
+            uploadId(str): uploadId of the multipart upload
             partNumber(int): part number
             expires(int): expiration time
 
         Returns:
             presigned_url(str)
         """
+        bucket_name = self.bucket_name()
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
         credential = S3IndexedFileLocation.get_credential_to_access_bucket(
-            self.bucket_name(), aws_creds, expires_in
+            bucket_name, aws_creds, expires_in
         )
 
         region = self.get_bucket_region()
@@ -1108,7 +1180,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             )
 
         return multipart_upload.generate_presigned_url_for_uploading_part(
-            self.parsed_url.netloc,
+            bucket_name,
             self.parsed_url.path.strip("/"),
             credential,
             uploadId,

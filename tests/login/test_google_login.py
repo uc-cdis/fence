@@ -27,9 +27,8 @@ def test_google_login_http_headers_are_less_than_4k_for_user_with_many_projects(
         },
     )
     client.set_cookie(
-        domain="localhost",
-        key=config["SESSION_COOKIE_NAME"],
-        value=test_session_jwt,
+        config["SESSION_COOKIE_NAME"],
+        test_session_jwt,
         httponly=True,
         samesite="Lax",
     )

@@ -7,7 +7,7 @@ from cdislogging import get_logger
 
 from fence.errors import BlacklistingError
 import fence.jwt.blacklist
-
+import jwt
 
 logger = get_logger(__name__)
 
@@ -18,20 +18,20 @@ class RevocationEndpoint(authlib.oauth2.rfc7009.RevocationEndpoint):
     server should handle requests for token revocation.
     """
 
-    def query_token(self, token, token_type_hint, client):
+    def query_token(self, token, token_type_hint):
         """
         Look up a token.
 
         Since all tokens are JWT, just return the token.
         """
-        return token
+        return JWTToken(token)
 
-    def revoke_token(self, token):
+    def revoke_token(self, token, request):
         """
         Revoke a token.
         """
         try:
-            fence.jwt.blacklist.blacklist_encoded_token(token)
+            fence.jwt.blacklist.blacklist_encoded_token(token.encoded_string)
         except BlacklistingError as err:
             logger.info(
                 "Token provided for revocation is not valid. "
@@ -109,3 +109,25 @@ class RevocationEndpoint(authlib.oauth2.rfc7009.RevocationEndpoint):
         finally:
             body = {"error": message} if message != "" else {}
         return (status, body, headers)
+
+
+class JWTToken(object):
+    def __init__(self, token):
+        self.encoded_string = token
+        self.client_id = jwt.decode(
+            token, algorithms=["RS256"], options={"verify_signature": False}
+        ).get("azp")
+
+    def check_client(self, client):
+        """
+        Check if token is issued by the same client
+        Expected function by Authlib
+
+        Args:
+            client: oidc client
+
+        Returns:
+            boolean value whether client_id matches
+        """
+
+        return self.client_id == client.client_id

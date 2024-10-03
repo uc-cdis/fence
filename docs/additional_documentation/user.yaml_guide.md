@@ -29,13 +29,13 @@ In a fully deployed Gen3 Commons using [Cloud Automation](https://github.com/uc-
 }
 ```
 
-A template, ready-to-use `user.yaml` file can be found [here](base_user.yaml).
+A template, ready-to-use `user.yaml` file can be found [here](../base_user.yaml).
 
 When updating your `user.yaml` file, you should use the [`gen3users` CLI](https://github.com/uc-cdis/gen3users#gen3users) to validate it before use.
 
 ## Format
 
-Note that the `user.yaml` example below is minimal, as the goal is only to describe its structure. For a working `user.yaml` file that contains everything needed to get started, refer to the [base user.yaml](base_user.yaml) instead.
+Note that the `user.yaml` example below is minimal, as the goal is only to describe its structure. For a working `user.yaml` file that contains everything needed to get started, refer to the [base user.yaml](../base_user.yaml) instead.
 
 ```
 authz:

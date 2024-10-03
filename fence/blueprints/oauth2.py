@@ -32,9 +32,14 @@ from fence.oidc.server import server
 from fence.utils import clear_cookies
 from fence.user import get_current_user
 from fence.config import config
-
+from authlib.oauth2.rfc6749.errors import (
+    InvalidScopeError,
+)
+from fence.utils import validate_scopes
+from cdislogging import get_logger
 
 blueprint = flask.Blueprint("oauth2", __name__)
+logger = get_logger(__name__)
 
 
 @blueprint.route("/authorize", methods=["GET", "POST"])
@@ -114,13 +119,20 @@ def authorize(*args, **kwargs):
         return flask.redirect(login_url)
 
     try:
-        grant = server.validate_consent_request(end_user=user)
+        grant = server.get_consent_grant(end_user=user)
     except OAuth2Error as e:
         raise Unauthorized("Failed to authorize: {}".format(str(e)))
 
     client_id = grant.client.client_id
     with flask.current_app.db.session as session:
         client = session.query(Client).filter_by(client_id=client_id).first()
+
+    # Need to do scope check here now due to our design of putting allowed_scope on client
+    # Authlib now put allowed scope on OIDC server side which doesn't work with our design without modification to the lib
+    # Doing the scope check here because both client and grant is available here
+    # Either Get or Post request
+    request_scopes = flask.request.args.get("scope") or flask.request.form.get("scope")
+    validate_scopes(request_scopes, client)
 
     # TODO: any way to get from grant?
     confirm = flask.request.form.get("confirm") or flask.request.args.get("confirm")

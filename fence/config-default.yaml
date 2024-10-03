@@ -62,6 +62,7 @@ MOCK_STORAGE: true
 # WARNING: ONLY set to true when fence will be deployed in such a way that it will
 #          ONLY receive traffic from internal clients and can safely use HTTP.
 AUTHLIB_INSECURE_TRANSPORT: true
+
 # enable Prometheus Metrics for observability purposes
 #
 # WARNING: Any counters, gauges, histograms, etc. should be carefully
@@ -138,6 +139,9 @@ OPENID_CONNECT:
   # If this fence instance is a client of another fence, fill this cfg out.
   # REMOVE if not needed
   fence:
+    # Custom name to display for consent screens. If not provided, will use `fence`.
+    # If the other fence is using NIH Login, you should make name: `NIH Login`
+    name: ''
     # this api_base_url should be the root url for the OTHER fence
     # something like: https://example.com
     api_base_url: ''
@@ -155,9 +159,6 @@ OPENID_CONNECT:
     authorize_url: '{{api_base_url}}/oauth2/authorize'
     access_token_url: '{{api_base_url}}/oauth2/token'
     refresh_token_url: '{{api_base_url}}/oauth2/token'
-    # Custom name to display for consent screens. If not provided, will use `fence`.
-    # If the other fence is using NIH Login, you should make name: `NIH Login`
-    name: ''
     # if mock is true, will fake a successful login response for login
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
@@ -386,16 +387,9 @@ ENABLED_IDENTITY_PROVIDERS: {}
 
 
 # //////////////////////////////////////////////////////////////////////////////////////
-# LIBRARY CONFIGURATION (authlib & flask)
+# LIBRARY CONFIGURATION (flask)
 #   - Already contains reasonable defaults
 # //////////////////////////////////////////////////////////////////////////////////////
-# authlib-specific configs for OIDC flow and JWTs
-# NOTE: the OAUTH2_JWT_KEY cfg gets set automatically by fence if keys are setup
-#       correctly
-OAUTH2_JWT_ALG: 'RS256'
-OAUTH2_JWT_ENABLED: true
-OAUTH2_JWT_ISS: '{{BASE_URL}}'
-OAUTH2_PROVIDER_ERROR_URI: '/api/oauth2/errors'
 
 # used for flask, "path mounted under by the application / web server"
 # since we deploy as microservices, fence is typically under {{base}}/user
@@ -682,6 +676,10 @@ S3_BUCKETS: {}
 #     cred: 'CRED1'
 #     region: 'us-east-1'
 #     role-arn: 'arn:aws:iam::role1'
+#   bucket5:
+#     cred: 'CRED3'
+#     region: 'us-east-1'
+#     requester_pays: true # to indicate this is a requester pay enabled S3 bucket
 GS_BUCKETS: {}
 # NOTE: Remove the {} and supply buckets if needed. Example in comments below
 #   bucket1:
@@ -691,7 +689,7 @@ GS_BUCKETS: {}
 #   bucket3:
 #     region: 'us-east-1'
 
-# When using the Cleversafe storageclient, whether or not to send verify=true 
+# When using the Cleversafe storageclient, whether or not to send verify=true
 # for requests
 VERIFY_CLEVERSAFE_CERT: true
 
