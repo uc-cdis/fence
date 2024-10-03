@@ -173,19 +173,14 @@ class Oauth2ClientBase(object):
             user_auth_info = {}
 
             for field in fields:
-                # Field missing from claims
-                if not claims.get(field):
-                    self.logger.exception(
-                        f"Can't get {field} from claims: {claims}"
-                    )
-                    return {"error": f"Can't get {field} from claims"}
+                if claims.get(field):
 
-                # Field is email, but isn't verified and we aren't assuming all emails are verified
-                if field == "email" and not (claims.get("email_verified") or self.settings.get("assume_emails_verified")):
-                    return {"error": "Email is not verified"}
+                    # Field is email, but isn't verified and we aren't assuming all emails are verified
+                    if field == "email" and not (claims.get("email_verified") or self.settings.get("assume_emails_verified")):
+                        return {"error": "Email is not verified"}
 
-                # We got the field, so append it to our dictionary
-                user_auth_info[field] = claims[field]
+                    # We got the field, so append it to our dictionary
+                    user_auth_info[field] = claims[field]
 
             # Append the mfa field
             user_auth_info["mfa"] = self.has_mfa_claim(claims)
