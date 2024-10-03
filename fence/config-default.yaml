@@ -110,7 +110,11 @@ OPENID_CONNECT:
       token_endpoint: ''
       jwks_uri: ''
     user_id_field: ''  # optional (default "sub"); claims field to get the user_id from
+    id_from_idp_field: ''  # optional (default "sub"); claims field to get the id_from_idp from
     email_field: ''  # optional (default "email"); claims field to get the user email from
+    # If your IDP doesn't support the email_verified claim, set this to True to
+    # accept the email address claim anyway
+    assume_emails_verified: False
     scope: ''  # optional (default "openid")
     multifactor_auth_claim_info: # optional, include if you're using arborist to enforce mfa on a per-file level
       claim: '' # claims field that indicates mfa, either the acr or acm claim.
