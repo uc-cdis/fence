@@ -170,7 +170,7 @@ class Oauth2ClientBase(object):
 
             fields = {user_id_field, user_email_field, id_from_idp_field}
 
-            return_dict = {}
+            user_auth_info = {}
 
             for field in fields:
                 # Field missing from claims
@@ -185,18 +185,18 @@ class Oauth2ClientBase(object):
                     return {"error": "Email is not verified"}
 
                 # We got the field, so append it to our dictionary
-                return_dict[field] = claims[field]
+                user_auth_info[field] = claims[field]
 
             # Append the mfa field
-            return_dict["mfa"] = self.has_mfa_claim(claims)
+            user_auth_info["mfa"] = self.has_mfa_claim(claims)
 
             # Debug
             self.logger.debug(
-                f"Oauth2ClientBase get_auth_info returning {return_dict}"
+                f"Oauth2ClientBase get_auth_info returning {user_auth_info}"
             )
 
             # Return what we have assembled
-            return return_dict
+            return user_auth_info
 
         except Exception as e:
             self.logger.exception(f"Can't get user info from {self.idp}: {e}")
