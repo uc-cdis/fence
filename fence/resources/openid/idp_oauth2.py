@@ -168,7 +168,7 @@ class Oauth2ClientBase(object):
             jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
             claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
 
-            fields = set([user_id_field, user_email_field, id_from_idp_field])
+            fields = {user_id_field, user_email_field, id_from_idp_field}
 
             return_dict = {}
 
