@@ -28,8 +28,10 @@ def get_error_response(error: Exception):
         )
     )
 
-
-    #raise error
+    # TODO: Issue: Error messages are obfuscated, the line below needs be
+    #  uncommented when troubleshooting errors.
+    #  Breaks tests if not commented out / removed. We need a fix for this.
+    # raise error
 
     # don't include internal details in the public error message
     # to do this, only include error messages for known http status codes

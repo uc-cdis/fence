@@ -94,7 +94,7 @@ DB_MIGRATION_POSTGRES_LOCK_KEY: 100
 #   - WARNING: Be careful changing the *_ALLOWED_SCOPES as you can break basic
 #              and optional functionality
 # //////////////////////////////////////////////////////////////////////////////////////
-CHECK_GROUPS: false
+
 OPENID_CONNECT:
   # any OIDC IDP that does not differ from the generic implementation can be
   # configured without code changes
@@ -116,6 +116,21 @@ OPENID_CONNECT:
     multifactor_auth_claim_info: # optional, include if you're using arborist to enforce mfa on a per-file level
       claim: '' # claims field that indicates mfa, either the acr or acm claim.
       values: [ "" ] # possible values that indicate mfa was used. At least one value configured here is required to be in the token
+    # is_authz_groups_sync_enabled: A configuration flag that determines whether the application should
+    # verify and synchronize user group memberships between the identity provider (IdP)
+    # and the local authorization system (Arborist). When enabled, the system retrieves
+    # the user's group information from their token issued by the IdP and compares it against
+    # the groups defined in the local system. Based on the comparison, the user is added to
+    # or removed from relevant groups in the local system to ensure their group memberships
+    # remain up-to-date. If this flag is disabled, no group synchronization occurs
+    is_authz_groups_sync_enabled: true
+    authz_groups_sync:
+      # This defines the prefix used to identify authorization groups.
+      group_prefix: "some_prefix"
+    # This flag indicates whether the audience (aud) claim in the JWT should be verified during token validation.
+    verify_aud: true
+    # This specifies the expected audience (aud) value for the JWT, ensuring that the token is intended for use with the 'fence' service.
+    audience: fence
   # These Google values must be obtained from Google's Cloud Console
   # Follow: https://developers.google.com/identity/protocols/OpenIDConnect
   #

@@ -45,7 +45,7 @@ class AccessTokenUpdater(object):
 
         self.visa_types = config.get("USERSYNC", {}).get("visa_types", {})
 
-        #introduce list on self which contains all clients that need update
+        # introduce list on self which contains all clients that need update
         self.oidc_clients_requiring_token_refresh = []
 
         # keep this as a special case, because RAS will not set group information configuration.
@@ -54,7 +54,6 @@ class AccessTokenUpdater(object):
         if "ras" not in oidc:
             self.logger.error("RAS client not configured")
         else:
-            #instead of setting self.ras_client add the RASClient to self.oidc_clients_requiring_token_refresh
             ras_client = RASClient(
                 oidc["ras"],
                 HTTP_PROXY=config.get("HTTP_PROXY"),
@@ -62,20 +61,17 @@ class AccessTokenUpdater(object):
             )
             self.oidc_clients_requiring_token_refresh.append(ras_client)
 
-        #initialise a client for each OIDC client in oidc, which does has group information set to true and add them
+        # Initialise a client for each OIDC client in oidc, which does has gis_authz_groups_sync_enabled set to true and add them
         # to oidc_clients_requiring_token_refresh
-        if config["CHECK_GROUPS"]:
-            for oidc_name in oidc:
-                if "groups" in oidc.get(oidc_name):
-                    groups = oidc.get(oidc_name).get("groups")
-                    if groups.get("read_group_information", False):
-                        oidc_client = OIDCClient(
-                            settings=oidc[oidc_name],
-                            HTTP_PROXY=config.get("HTTP_PROXY"),
-                            logger=logger,
-                            idp=oidc_name
-                        )
-                        self.oidc_clients_requiring_token_refresh.append(oidc_client)
+        for oidc_name in oidc:
+            if oidc.get(oidc_name).get("is_authz_groups_sync_enabled", False):
+                oidc_client = OIDCClient(
+                    settings=oidc[oidc_name],
+                    HTTP_PROXY=config.get("HTTP_PROXY"),
+                    logger=logger,
+                    idp=oidc_name,
+                )
+                self.oidc_clients_requiring_token_refresh.append(oidc_client)
 
     async def update_tokens(self, db_session):
         """
@@ -89,7 +85,7 @@ class AccessTokenUpdater(object):
 
         """
         start_time = time.time()
-        #Change this line to reflect we are refreshing tokens, not just visas
+        # Change this line to reflect we are refreshing tokens, not just visas
         self.logger.info("Initializing Visa Update and Token refreshing Cronjob . . .")
         self.logger.info("Total concurrency size: {}".format(self.concurrency))
         self.logger.info("Total thread pool size: {}".format(self.thread_pool_size))
@@ -181,13 +177,13 @@ class AccessTokenUpdater(object):
                         pkey_cache=self.pkey_cache,
                         db_session=db_session,
                     )
+
                 else:
                     self.logger.debug(
                         f"Updater {name} NOT updating authorization for "
                         f"user {user.username} because no client was found for IdP: {user.identity_provider}"
                     )
 
-                # Only mark the task as done if processing succeeded
                 updater_queue.task_done()
 
             except Exception as exc:
@@ -195,19 +191,20 @@ class AccessTokenUpdater(object):
                     f"Updater {name} could not update authorization "
                     f"for {user.username if user else 'unknown user'}. Error: {exc}. Continuing."
                 )
-                # Still mark the task as done even if there was an exception
+                # Ensure task is marked done if exception occurs
                 updater_queue.task_done()
 
     def _pick_client(self, user):
         """
         Select OIDC client based on identity provider.
         """
-        # change this logic to return any client which is in self.oidc_clients_requiring_token_refresh (check against "name")
         self.logger.info(f"Selecting client for user {user.username}")
         client = None
         for oidc_client in self.oidc_clients_requiring_token_refresh:
             if getattr(user.identity_provider, "name") == oidc_client.idp:
-                self.logger.info(f"Picked client: {oidc_client.idp} for user {user.username}")
+                self.logger.info(
+                    f"Picked client: {oidc_client.idp} for user {user.username}"
+                )
                 client = oidc_client
                 break
         if not client:

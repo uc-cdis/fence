@@ -12,6 +12,7 @@ from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
 from fence.errors import UserError
 from fence.metrics import metrics
+
 logger = get_logger(__name__)
 
 
@@ -96,8 +97,11 @@ class DefaultOAuth2Callback(Resource):
             "OPENID_CONNECT"
         ].get(self.idp_name, {})
         self.app = app
-        self.check_groups = config.get("CHECK_GROUPS", False)
-        self.app = app if app is not None else flask.current_app
+        # this attribute is only applicable to some OAuth clients
+        # (e.g., not all clients need read_authz_groups_from_tokens)
+        self.is_read_authz_groups_from_tokens_enabled = getattr(
+            self.client, "read_authz_groups_from_tokens", False
+        )
 
     def get(self):
         # Check if user granted access
@@ -145,9 +149,15 @@ class DefaultOAuth2Callback(Resource):
         if expires is None:
             expires = int(time.time()) + config["REFRESH_TOKEN_EXPIRES_IN"]
 
-        # # Store refresh token in db
-        if self.check_groups:
-            self.client.store_refresh_token(flask.g.user,refresh_token,expires)
+        # Store refresh token in db
+        if self.is_read_authz_groups_from_tokens_enabled:
+            # Ensure flask.g.user exists to avoid a potential AttributeError
+            if getattr(flask.g, "user", None):
+                self.client.store_refresh_token(flask.g.user, refresh_token, expires)
+            else:
+                self.logger.error(
+                    "User information is missing from flask.g; cannot store refresh token."
+                )
 
         self.post_login(
             user=flask.g.user,
@@ -157,22 +167,50 @@ class DefaultOAuth2Callback(Resource):
 
         return resp
 
-    # see if the refresh token is a JWT. if it is decode to get the exp. we do not care about signatures, the
-    # reason is that the refresh token is checked by the IDP, not us, thus we don't have the key in most circumstances
-    # Also check exp from introspect results
     def extract_exp(self, refresh_token):
+        """
+        Extract the expiration time (exp) from a refresh token.
+
+        This function attempts to extract the `exp` (expiration time) from a given refresh token using
+        three methods:
+
+        1. Using PyJWT to decode the token (without signature verification).
+        2. Introspecting the token (if supported by the identity provider).
+        3. Manually base64 decoding the token's payload (if it's a JWT).
+
+        Disclaimer:
+        ------------
+        This function assumes that the refresh token is valid and does not perform any JWT validation.
+        For any JWT coming from an OpenID Connect (OIDC) provider, validation should be done using the
+        public keys provided by the IdP (from the JWKS endpoint) before using this function to extract
+        the expiration time (`exp`). Without validation, the token's integrity and authenticity cannot
+        be guaranteed, which may expose your system to security risks.
+
+        Ensure validation is handled prior to calling this function, especially in any public or
+        production-facing contexts.
+
+        Parameters:
+        ------------
+        refresh_token: str
+            The JWT refresh token to extract the expiration from.
+
+        Returns:
+        ---------
+        int or None:
+            The expiration time (exp) in seconds since the epoch, or None if extraction fails.
+        """
+
         # Method 1: PyJWT
         try:
             # Skipping keys since we're not verifying the signature
             decoded_refresh_token = jwt.decode(
                 refresh_token,
-                options=
-                {
+                options={
                     "verify_aud": False,
                     "verify_at_hash": False,
-                    "verify_signature": False
+                    "verify_signature": False,
                 },
-                algorithms=["RS256", "HS512"]
+                algorithms=["RS256", "HS512"],
             )
             exp = decoded_refresh_token.get("exp")
 
@@ -194,9 +232,9 @@ class DefaultOAuth2Callback(Resource):
         # Method 3: Manual base64 decoding
         try:
             # Assuming the token is a JWT (header.payload.signature)
-            payload_encoded = refresh_token.split('.')[1]
+            payload_encoded = refresh_token.split(".")[1]
             # Add necessary padding for base64 decoding
-            payload_encoded += '=' * (4 - len(payload_encoded) % 4)
+            payload_encoded += "=" * (4 - len(payload_encoded) % 4)
             payload_decoded = base64.urlsafe_b64decode(payload_encoded)
             payload_json = json.loads(payload_decoded)
             exp = payload_json.get("exp")
@@ -212,16 +250,16 @@ class DefaultOAuth2Callback(Resource):
     def introspect_token(self, token):
 
         try:
-            introspect_endpoint = self.client.get_value_from_discovery_doc("introspection_endpoint", "")
+            introspect_endpoint = self.client.get_value_from_discovery_doc(
+                "introspection_endpoint", ""
+            )
 
             # Headers and payload for the introspection request
-            headers = {
-                "Content-Type": "application/x-www-form-urlencoded"
-            }
+            headers = {"Content-Type": "application/x-www-form-urlencoded"}
             data = {
                 "token": token,
-                "client_id": self.client.settings.get("client_id"),
-                "client_secret": self.client.settings.get("client_secret")
+                "client_id": self.client.client_id,
+                "client_secret": self.client.client_secret,
             }
 
             response = requests.post(introspect_endpoint, headers=headers, data=data)
@@ -247,8 +285,12 @@ class DefaultOAuth2Callback(Resource):
             client_id=flask.session.get("client_id"),
         )
 
-        if self.check_groups:
-            self.client.update_user_authorization(user=user,pkey_cache=None,db_session=None,idp_name=self.idp_name)
+        # this attribute is only applicable to some OAuth clients
+        # (e.g., not all clients need read_authz_groups_from_tokens)
+        if self.is_read_authz_groups_from_tokens_enabled:
+            self.client.update_user_authorization(
+                user=user, pkey_cache=None, db_session=None, idp_name=self.idp_name
+            )
 
         if token_result:
             username = token_result.get(self.username_field)
