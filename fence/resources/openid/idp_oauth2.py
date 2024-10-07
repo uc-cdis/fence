@@ -122,7 +122,7 @@ class Oauth2ClientBase(object):
 
         except JWTClaimsError as e:
             self.logger.error(f"Claim error: {e}")
-            raise  JWTClaimsError("Invalid audience")
+            raise JWTClaimsError("Invalid audience")
         except JWTError as e:
             self.logger.error(e)
 
