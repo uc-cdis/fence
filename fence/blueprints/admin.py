@@ -133,6 +133,20 @@ def delete_user(username):
     return response
 
 
+@blueprint.route("/users/<username>/soft", methods=["DELETE"])
+@blueprint.route("/user/<username>/soft", methods=["DELETE"])
+@admin_login_required
+@debug_log
+def soft_delete_user(username):
+    """
+    Soft-remove the user by marking it as active=False.
+
+    Returns json object
+    """
+    response = jsonify(admin.soft_delete_user(current_app.scoped_session(), username))
+    return response
+
+
 @blueprint.route("/users/<username>/groups", methods=["GET"])
 @blueprint.route("/user/<username>/groups", methods=["GET"])
 @admin_login_required
