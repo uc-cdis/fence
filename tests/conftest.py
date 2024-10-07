@@ -479,6 +479,28 @@ def app(kid, rsa_private_key, rsa_public_key):
 
     mocker.unmock_functions()
 
+@pytest.fixture
+def mock_app():
+    return MagicMock()
+
+@pytest.fixture
+def mock_user():
+    return MagicMock()
+
+@pytest.fixture
+def mock_db_session():
+    """Mock the database session."""
+    db_session = MagicMock()
+    return db_session
+
+@pytest.fixture
+def expired_mock_user():
+    """Mock a user object with upstream refresh tokens."""
+    user = MagicMock()
+    user.upstream_refresh_tokens = [
+        MagicMock(refresh_token="expired_token", expires=0),  # Expired token
+    ]
+    return user
 
 @pytest.fixture(scope="function")
 def auth_client(request):
