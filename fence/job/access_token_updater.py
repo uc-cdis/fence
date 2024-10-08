@@ -2,17 +2,18 @@ import asyncio
 import datetime
 import time
 
+from boto3 import client
 from cdislogging import get_logger
 
 from fence.config import config
 from fence.models import User
 from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
-
+from fence.resources.openid.idp_oauth2 import Oauth2ClientBase as OIDCClient
 
 logger = get_logger(__name__, log_level="debug")
 
 
-class Visa_Token_Update(object):
+class AccessTokenUpdater(object):
     def __init__(
         self,
         chunk_size=None,
@@ -44,17 +45,36 @@ class Visa_Token_Update(object):
 
         self.visa_types = config.get("USERSYNC", {}).get("visa_types", {})
 
+        # introduce list on self which contains all clients that need update
+        self.oidc_clients_requiring_token_refresh = []
+
+        # keep this as a special case, because RAS will not set group information configuration.
         # Initialize visa clients:
         oidc = config.get("OPENID_CONNECT", {})
         if "ras" not in oidc:
             self.logger.error("RAS client not configured")
-            self.ras_client = None
         else:
-            self.ras_client = RASClient(
+            ras_client = RASClient(
                 oidc["ras"],
                 HTTP_PROXY=config.get("HTTP_PROXY"),
                 logger=logger,
             )
+            self.oidc_clients_requiring_token_refresh.append(ras_client)
+
+        # Initialise a client for each OIDC client in oidc, which does has group information set to true and add them
+        # to oidc_clients_requiring_token_refresh
+        if config["ENABLE_AUTHZ_GROUPS_FROM_OIDC"]:
+            for oidc_name in oidc:
+                if "groups" in oidc.get(oidc_name):
+                    groups = oidc.get(oidc_name).get("groups", {})
+                    if groups.get("read_authz_groups_from_tokens", False):
+                        oidc_client = OIDCClient(
+                            settings=oidc[oidc_name],
+                            HTTP_PROXY=config.get("HTTP_PROXY"),
+                            logger=logger,
+                            idp=oidc_name,
+                        )
+                        self.oidc_clients_requiring_token_refresh.append(oidc_client)
 
     async def update_tokens(self, db_session):
         """
@@ -68,7 +88,8 @@ class Visa_Token_Update(object):
 
         """
         start_time = time.time()
-        self.logger.info("Initializing Visa Update Cronjob . . .")
+        # Change this line to reflect we are refreshing tokens, not just visas
+        self.logger.info("Initializing Visa Update and Token refreshing Cronjob . . .")
         self.logger.info("Total concurrency size: {}".format(self.concurrency))
         self.logger.info("Total thread pool size: {}".format(self.thread_pool_size))
         self.logger.info("Total buffer size: {}".format(self.buffer_size))
@@ -139,13 +160,12 @@ class Visa_Token_Update(object):
             queue.task_done()
 
     async def updater(self, name, updater_queue, db_session):
-        """
-        Update visas in the updater_queue.
-        Note that only visas which pass validation will be saved.
-        """
         while True:
-            user = await updater_queue.get()
             try:
+                user = await updater_queue.get()
+                if user is None:  # Use None to signal termination
+                    break
+
                 client = self._pick_client(user)
                 if client:
                     self.logger.info(
@@ -160,30 +180,38 @@ class Visa_Token_Update(object):
                         pkey_cache=self.pkey_cache,
                         db_session=db_session,
                     )
+
                 else:
                     self.logger.debug(
                         f"Updater {name} NOT updating authorization for "
                         f"user {user.username} because no client was found for IdP: {user.identity_provider}"
                     )
+
+                updater_queue.task_done()
+
             except Exception as exc:
                 self.logger.error(
                     f"Updater {name} could not update authorization "
-                    f"for {user.username}. Error: {exc}. Continuing."
+                    f"for {user.username if user else 'unknown user'}. Error: {exc}. Continuing."
                 )
-                pass
-
-            updater_queue.task_done()
+                # Ensure task is marked done if exception occurs
+                updater_queue.task_done()
 
     def _pick_client(self, user):
         """
-        Pick oidc client according to the identity provider
+        Select OIDC client based on identity provider.
         """
+        self.logger.info(f"Selecting client for user {user.username}")
         client = None
-        if (
-            user.identity_provider
-            and getattr(user.identity_provider, "name") == self.ras_client.idp
-        ):
-            client = self.ras_client
+        for oidc_client in self.oidc_clients_requiring_token_refresh:
+            if getattr(user.identity_provider, "name") == oidc_client.idp:
+                self.logger.info(
+                    f"Picked client: {oidc_client.idp} for user {user.username}"
+                )
+                client = oidc_client
+                break
+        if not client:
+            self.logger.info(f"No client found for user {user.username}")
         return client
 
     def _pick_client_from_visa(self, visa):

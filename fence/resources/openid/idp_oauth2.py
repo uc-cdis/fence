@@ -1,12 +1,18 @@
+import flask
 from authlib.integrations.requests_client import OAuth2Session
 from cached_property import cached_property
 from flask import current_app
 from jose import jwt
+from jose.exceptions import JWTError, JWTClaimsError
 import requests
 import time
-
+import datetime
+import backoff
+from fence.utils import DEFAULT_BACKOFF_SETTINGS
 from fence.errors import AuthError
 from fence.models import UpstreamRefreshToken
+from fence.config import config
+from gen3authz.client.arborist.client import ArboristClient
 
 
 class Oauth2ClientBase(object):
@@ -15,7 +21,13 @@ class Oauth2ClientBase(object):
     """
 
     def __init__(
-        self, settings, logger, idp, scope=None, discovery_url=None, HTTP_PROXY=None
+        self,
+        settings,
+        logger,
+        idp,
+        scope=None,
+        discovery_url=None,
+        HTTP_PROXY=None,
     ):
         self.logger = logger
         self.settings = settings
@@ -25,6 +37,7 @@ class Oauth2ClientBase(object):
             scope=scope or settings.get("scope") or "openid",
             redirect_uri=settings["redirect_url"],
         )
+
         self.discovery_url = (
             discovery_url
             or settings.get("discovery_url")
@@ -33,11 +46,26 @@ class Oauth2ClientBase(object):
         )
         self.idp = idp  # display name for use in logs and error messages
         self.HTTP_PROXY = HTTP_PROXY
+        self.groups = self.settings.get("groups", None)
+        self.read_authz_groups_from_tokens = False
+        self.groups_from_idp = []
+        self.verify_aud = self.settings.get("verify_aud", False)
+        self.audience = self.settings.get("audience", self.settings.get("client_id"))
+
+        self.arborist = ArboristClient(
+            arborist_base_url=config["ARBORIST"],
+            logger=logger,
+        )
 
         if not self.discovery_url and not settings.get("discovery"):
             self.logger.warning(
                 f"OAuth2 Client for {self.idp} does not have a valid 'discovery_url'. "
                 f"Some calls for this client may fail if they rely on the OIDC Discovery page. Use 'discovery' to configure clients without a discovery page."
+            )
+
+        if self.groups:
+            self.read_authz_groups_from_tokens = self.groups.get(
+                "read_authz_groups_from_tokens", False
             )
 
     @cached_property
@@ -53,6 +81,7 @@ class Oauth2ClientBase(object):
         return None
 
     def get_token(self, token_endpoint, code):
+
         return self.session.fetch_token(
             url=token_endpoint, code=code, proxies=self.get_proxies()
         )
@@ -63,6 +92,7 @@ class Oauth2ClientBase(object):
         Return None if there is an error while retrieving keys from the api
         """
         resp = requests.get(url=jwks_uri, proxies=self.get_proxies())
+
         if resp.status_code != requests.codes.ok:
             self.logger.error(
                 "{} ERROR: Can not retrieve jwt keys from IdP's API {}".format(
@@ -72,19 +102,57 @@ class Oauth2ClientBase(object):
             return None
         return resp.json()["keys"]
 
+    def decode_token(self, token_id, keys):
+        """
+        Decode a given JWT (JSON Web Token) using the provided keys and validate the audience, if enabled.
+
+        Parameters:
+        - token_id (str): The JWT token to decode.
+        - keys (list): The set of keys used for decoding the token, typically retrieved from the IdP (Identity Provider).
+
+        Returns:
+        - dict: The decoded token containing claims (such as user identity, groups, etc.) if the token is successfully validated.
+
+        Raises:
+        - JWTClaimsError: If the token's claims (such as audience) do not match the expected values.
+        - JWTError: If there is a problem with the JWT token structure or verification.
+
+        Notes:
+        - This function verifies the audience (`aud`) claim if `verify_aud` is set.
+        - The function expects the token to be signed using the RS256 algorithm.
+        """
+        try:
+            decoded_token = jwt.decode(
+                token_id,
+                keys,
+                options={"verify_aud": self.verify_aud, "verify_at_hash": False},
+                algorithms=["RS256"],
+                audience=self.audience,
+            )
+
+            return decoded_token
+
+        except JWTClaimsError as e:
+            self.logger.error(f"Claim error: {e}")
+            raise JWTClaimsError(f"Invalid audience: {e}")
+        except JWTError as e:
+            self.logger.error(f"JWT error: {e}")
+            raise JWTError(f"JWT error occurred: {e}")
+
     def get_jwt_claims_identity(self, token_endpoint, jwks_endpoint, code):
         """
         Get jwt identity claims
         """
+
         token = self.get_token(token_endpoint, code)
+
         keys = self.get_jwt_keys(jwks_endpoint)
 
-        return jwt.decode(
-            token["id_token"],
-            keys,
-            options={"verify_aud": False, "verify_at_hash": False},
-            algorithms=["RS256"],
-        )
+        refresh_token = token.get("refresh_token", None)
+
+        # validate audience and hash. also ensure that the algorithm is correctly derived from the token.
+        # hash verification has not been implemented yet
+        return self.decode_token(token["id_token"], keys), refresh_token
 
     def get_value_from_discovery_doc(self, key, default_value):
         """
@@ -161,10 +229,20 @@ class Oauth2ClientBase(object):
         user OR "error" field with details of the error.
         """
         user_id_field = self.settings.get("user_id_field", "sub")
+
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
             jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
-            claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
+            claims, refresh_token = self.get_jwt_claims_identity(
+                token_endpoint, jwks_endpoint, code
+            )
+
+            groups = None
+            group_prefix = None
+
+            if self.read_authz_groups_from_tokens:
+                groups = claims.get("groups")
+                group_prefix = self.settings.get("groups").get("group_prefix")
 
             if claims.get(user_id_field):
                 if user_id_field == "email" and not claims.get("email_verified"):
@@ -172,6 +250,11 @@ class Oauth2ClientBase(object):
                 return {
                     user_id_field: claims[user_id_field],
                     "mfa": self.has_mfa_claim(claims),
+                    "refresh_token": refresh_token,
+                    "iat": claims.get("iat"),
+                    "exp": claims.get("exp"),
+                    "groups": groups,
+                    "group_prefix": group_prefix,
                 }
             else:
                 self.logger.exception(
@@ -187,14 +270,13 @@ class Oauth2ClientBase(object):
         """
         Get access_token using a refresh_token and store new refresh in upstream_refresh_token table.
         """
+        ###this function is not correct. use self.session.fetch_access_token, validate the token for audience and then return the validated token. Still store the refresh token. it will be needed for periodic re-fetching of information.
         refresh_token = None
         expires = None
-
         # get refresh_token and expiration from db
         for row in sorted(user.upstream_refresh_tokens, key=lambda row: row.expires):
             refresh_token = row.refresh_token
             expires = row.expires
-
             if time.time() > expires:
                 # reset to check for next token
                 refresh_token = None
@@ -274,3 +356,111 @@ class Oauth2ClientBase(object):
         current_db_session = db_session.object_session(upstream_refresh_token)
         current_db_session.add(upstream_refresh_token)
         db_session.commit()
+
+    @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
+    def update_user_authorization(self, user, pkey_cache, db_session=None, **kwargs):
+        """
+        Update the user's authorization by refreshing their access token and synchronizing
+        their group memberships with Arborist.
+
+        This method refreshes the user's access token using an identity provider (IdP),
+        retrieves and decodes the token, and optionally synchronizes the user's group
+        memberships between the IdP and Arborist if the `groups` configuration is enabled.
+
+        Args:
+            user (User): The user object, which contains details like username and identity provider.
+            pkey_cache (dict): A cache of public keys used for verifying JWT signatures.
+            db_session (SQLAlchemy Session, optional): A database session object. If not provided,
+                it defaults to the scoped session of the current application context.
+            **kwargs: Additional keyword arguments.
+
+        Raises:
+            Exception: If there is an issue with retrieving the access token, decoding the token,
+            or synchronizing the user's groups.
+
+        Workflow:
+        1. Retrieves the token endpoint and JWKS URI from the identity provider's discovery document.
+        2. Uses the user's refresh token to get a new access token and persists it in the database.
+        3. Decodes the ID token using the JWKS (JSON Web Key Set) retrieved from the IdP.
+        4. If group synchronization is enabled:
+           a. Retrieves the list of groups from Arborist.
+           b. Retrieves the user's groups from the IdP.
+           c. Adds the user to groups in Arborist that match the groups from the IdP.
+           d. Removes the user from groups in Arborist that they are no longer part of in the IdP.
+
+        Logging:
+        - Logs the group membership synchronization activities (adding/removing users from groups).
+        - Logs any issues encountered while refreshing the token or during group synchronization.
+
+        Warnings:
+        - If groups are not received from the IdP but group synchronization is enabled, logs a warning.
+
+        """
+        db_session = db_session or current_app.scoped_session()
+
+        expires_at = None
+
+        try:
+            token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
+
+            # this get_access_token also persists the refresh token in the db
+            token = self.get_access_token(user, token_endpoint, db_session)
+            jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
+            keys = self.get_jwt_keys(jwks_endpoint)
+            expires_at = token["expires_at"]
+            decoded_token_id = self.decode_token(token_id=token["id_token"], keys=keys)
+
+        except Exception as e:
+            err_msg = "Could not refresh token"
+            self.logger.exception("{}: {}".format(err_msg, e))
+            raise
+        if self.groups:
+            if self.read_authz_groups_from_tokens:
+                group_prefix = self.groups.get("group_prefix", "")
+
+                # grab all groups defined in arborist
+                arborist_groups = self.arborist.list_groups().get("groups")
+
+                # grab all groups defined in idp
+                groups_from_idp = decoded_token_id.get("groups")
+
+                exp = datetime.datetime.fromtimestamp(
+                    expires_at, tz=datetime.timezone.utc
+                )
+
+                # if group name is in the list from arborist:
+                if groups_from_idp:
+                    groups_from_idp = [
+                        group.removeprefix(group_prefix).lstrip("/")
+                        for group in groups_from_idp
+                    ]
+
+                    idp_group_names = set(groups_from_idp)
+
+                    # Add user to all matching groups from IDP
+                    for arborist_group in arborist_groups:
+                        if arborist_group["name"] in idp_group_names:
+                            self.logger.info(
+                                f"Adding {user.username} to group: {arborist_group['name']}"
+                            )
+                            self.arborist.add_user_to_group(
+                                username=user.username,
+                                group_name=arborist_group["name"],
+                                expires_at=exp,
+                            )
+
+                    # Remove user from groups in Arborist that they are not part of in IDP
+                    for arborist_group in arborist_groups:
+                        if arborist_group["name"] not in idp_group_names:
+                            if user.username in arborist_group.get("users", []):
+                                self.logger.info(
+                                    f"Removing {user.username} from group: {arborist_group['name']}"
+                                )
+                                self.arborist.remove_user_from_group(
+                                    username=user.username,
+                                    group_name=arborist_group["name"],
+                                )
+                else:
+                    self.logger.warning(
+                        f"Check-groups feature is enabled, however did receive groups from idp for user: {user.username}"
+                    )
