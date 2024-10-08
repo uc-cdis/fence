@@ -1,6 +1,8 @@
 import re
 import time
 import json
+import boto3
+from botocore.client import Config
 from urllib.parse import urlparse, ParseResult, urlunparse
 from datetime import datetime, timedelta
 
@@ -8,9 +10,9 @@ from sqlalchemy.sql.functions import user
 from cached_property import cached_property
 import gen3cirrus
 from gen3cirrus import GoogleCloudManager
+from gen3cirrus import AwsService
 from cdislogging import get_logger
 from cdispyutils.config import get_value
-from cdispyutils.hmac4 import generate_aws_presigned_url
 import flask
 from flask import current_app
 import requests
@@ -28,7 +30,6 @@ from fence.auth import (
     login_required,
     set_current_token,
     validate_request,
-    JWTError,
 )
 from fence.config import config
 from fence.errors import (
@@ -396,7 +397,7 @@ class BlankIndex(object):
     @staticmethod
     def init_multipart_upload(key, expires_in=None, bucket=None):
         """
-        Initilize multipart upload given key
+        Initialize multipart upload given key
 
         Args:
             key(str): object key
@@ -441,7 +442,7 @@ class BlankIndex(object):
 
         Args:
             key(str): object key of `guid/filename`
-            uploadID(str): uploadId of the current upload.
+            uploadId(str): uploadId of the current upload.
             partNumber(int): the part number
 
         Returns:
@@ -1061,6 +1062,8 @@ class S3IndexedFileLocation(IndexedFileLocation):
         bucket_name = self.bucket_name()
         bucket = s3_buckets.get(bucket_name)
 
+        object_id = self.parsed_url.path.strip("/")
+
         if bucket and bucket.get("endpoint_url"):
             http_url = bucket["endpoint_url"].strip("/") + "/{}/{}".format(
                 self.parsed_url.netloc, self.parsed_url.path.strip("/")
@@ -1092,18 +1095,40 @@ class S3IndexedFileLocation(IndexedFileLocation):
             region = flask.current_app.boto.get_bucket_region(
                 self.parsed_url.netloc, credential
             )
+        endpoint_url = bucket.get("endpoint_url", None)
+        s3client = boto3.client(
+            "s3",
+            aws_access_key_id=credential["aws_access_key_id"],
+            aws_secret_access_key=credential["aws_secret_access_key"],
+            aws_session_token=credential.get("aws_session_token", None),
+            region_name=region,
+            endpoint_url=endpoint_url,
+            config=Config(signature_version="s3v4"),
+        )
 
+        cirrus_aws = AwsService(s3client)
         auth_info = _get_auth_info_for_id_or_from_request(user=authorized_user)
 
-        url = generate_aws_presigned_url(
-            http_url,
-            ACTION_DICT["s3"][action],
-            credential,
-            "s3",
-            region,
-            expires_in,
-            auth_info,
-        )
+        action = ACTION_DICT["s3"][action]
+
+        # get presigned url for upload
+        if action == "PUT":
+            url = cirrus_aws.upload_presigned_url(
+                bucket_name, object_id, expires_in, None
+            )
+        # get presigned url for download
+        else:
+            if bucket.get("requester_pays") is True:
+                # need to add extra parameter to signing url for header
+                # https://github.com/boto/boto3/issues/3685
+                auth_info["x-amz-request-payer"] = "requester"
+                url = cirrus_aws.requester_pays_download_presigned_url(
+                    bucket_name, object_id, expires_in, auth_info
+                )
+            else:
+                url = cirrus_aws.download_presigned_url(
+                    bucket_name, object_id, expires_in, auth_info
+                )
 
         return url
 
@@ -1115,7 +1140,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             expires(int): expiration time
 
         Returns:
-            UploadId(str)
+            uploadId(str)
         """
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
@@ -1133,18 +1158,19 @@ class S3IndexedFileLocation(IndexedFileLocation):
         Generate presigned url for uploading object part given uploadId and part number
 
         Args:
-            uploadId(str): uploadID of the multipart upload
+            uploadId(str): uploadId of the multipart upload
             partNumber(int): part number
             expires(int): expiration time
 
         Returns:
             presigned_url(str)
         """
+        bucket_name = self.bucket_name()
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
         credential = S3IndexedFileLocation.get_credential_to_access_bucket(
-            self.bucket_name(), aws_creds, expires_in
+            bucket_name, aws_creds, expires_in
         )
 
         region = self.get_bucket_region()
@@ -1154,7 +1180,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             )
 
         return multipart_upload.generate_presigned_url_for_uploading_part(
-            self.parsed_url.netloc,
+            bucket_name,
             self.parsed_url.path.strip("/"),
             credential,
             uploadId,
