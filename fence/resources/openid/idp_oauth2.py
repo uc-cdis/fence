@@ -1,4 +1,3 @@
-import flask
 from authlib.integrations.requests_client import OAuth2Session
 from cached_property import cached_property
 from flask import current_app
@@ -11,7 +10,6 @@ import backoff
 from fence.utils import DEFAULT_BACKOFF_SETTINGS
 from fence.errors import AuthError
 from fence.models import UpstreamRefreshToken
-from fence.config import config
 from gen3authz.client.arborist.client import ArboristClient
 
 
@@ -28,6 +26,7 @@ class Oauth2ClientBase(object):
         scope=None,
         discovery_url=None,
         HTTP_PROXY=None,
+        app=None,
     ):
         self.logger = logger
         self.settings = settings
@@ -51,11 +50,6 @@ class Oauth2ClientBase(object):
         self.audience = self.settings.get("audience", self.settings.get("client_id"))
         self.client_id = self.settings.get("client_id", "")
         self.client_secret = self.settings.get("client_secret", "")
-
-        self.arborist = ArboristClient(
-            arborist_base_url=config["ARBORIST"],
-            logger=logger,
-        )
 
         if not self.discovery_url and not settings.get("discovery"):
             self.logger.warning(
@@ -437,7 +431,7 @@ class Oauth2ClientBase(object):
             )
 
             # grab all groups defined in arborist
-            arborist_groups = self.arborist.list_groups().get("groups")
+            arborist_groups = current_app.arborist.list_groups().get("groups")
 
             # grab all groups defined in idp
             groups_from_idp = decoded_token_id.get("groups")
@@ -459,7 +453,7 @@ class Oauth2ClientBase(object):
                         self.logger.info(
                             f"Adding {user.username} to group: {arborist_group['name']}"
                         )
-                        self.arborist.add_user_to_group(
+                        current_app.arborist.add_user_to_group(
                             username=user.username,
                             group_name=arborist_group["name"],
                             expires_at=exp,
@@ -472,7 +466,7 @@ class Oauth2ClientBase(object):
                             self.logger.info(
                                 f"Removing {user.username} from group: {arborist_group['name']}"
                             )
-                            self.arborist.remove_user_from_group(
+                            current_app.arborist.remove_user_from_group(
                                 username=user.username,
                                 group_name=arborist_group["name"],
                             )

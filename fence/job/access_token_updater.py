@@ -2,7 +2,6 @@ import asyncio
 import datetime
 import time
 
-from boto3 import client
 from cdislogging import get_logger
 
 from fence.config import config
