@@ -11,6 +11,7 @@ from fence.utils import DEFAULT_BACKOFF_SETTINGS
 from fence.errors import AuthError
 from fence.models import UpstreamRefreshToken
 from gen3authz.client.arborist.client import ArboristClient
+from fence.config import config
 
 
 class Oauth2ClientBase(object):
@@ -26,7 +27,6 @@ class Oauth2ClientBase(object):
         scope=None,
         discovery_url=None,
         HTTP_PROXY=None,
-        app=None,
     ):
         self.logger = logger
         self.settings = settings
@@ -59,6 +59,11 @@ class Oauth2ClientBase(object):
 
         self.read_authz_groups_from_tokens = self.settings.get(
             "is_authz_groups_sync_enabled", False
+        )
+
+        self.arborist = ArboristClient(
+            arborist_base_url=config["ARBORIST"],
+            logger=logger,
         )
 
     @cached_property
@@ -431,7 +436,7 @@ class Oauth2ClientBase(object):
             )
 
             # grab all groups defined in arborist
-            arborist_groups = current_app.arborist.list_groups().get("groups")
+            arborist_groups = self.arborist.list_groups().get("groups")
 
             # grab all groups defined in idp
             groups_from_idp = decoded_token_id.get("groups")
@@ -453,7 +458,7 @@ class Oauth2ClientBase(object):
                         self.logger.info(
                             f"Adding {user.username} to group: {arborist_group['name']}"
                         )
-                        current_app.arborist.add_user_to_group(
+                        self.arborist.add_user_to_group(
                             username=user.username,
                             group_name=arborist_group["name"],
                             expires_at=exp,
@@ -466,7 +471,7 @@ class Oauth2ClientBase(object):
                             self.logger.info(
                                 f"Removing {user.username} from group: {arborist_group['name']}"
                             )
-                            current_app.arborist.remove_user_from_group(
+                            self.arborist.remove_user_from_group(
                                 username=user.username,
                                 group_name=arborist_group["name"],
                             )
