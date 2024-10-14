@@ -12,6 +12,7 @@ from fence.models import (
     UserGoogleAccount,
     UserGoogleAccountToProxyGroup,
     query_for_user,
+    IdentityProvider,
 )
 from fence.resources import group as gp, project as pj, user as us, userdatamodel as udm
 from flask import current_app as capp
@@ -99,7 +100,7 @@ def create_user(
     email,
     display_name=None,
     phone_number=None,
-    ipd_name=None,
+    idp_name=None,
     tags=None,
 ):
     """
@@ -134,8 +135,18 @@ def create_user(
         usr = User(username=username, active=True, is_admin=is_admin, email=email_add)
         usr.display_name = display_name
         usr.phone_number = phone_number
-        usr.ipd_name = ipd_name
-        usr.tags = tags
+
+        if idp_name:
+            idp = (
+                current_session.query(IdentityProvider)
+                .filter(IdentityProvider.name == idp_name)
+                .first()
+            )
+            if not idp:
+                idp = IdentityProvider(name=idp_name)
+            usr.identity_provider = idp
+        if tags:
+            usr.tags.extend(tags)
         current_session.add(usr)
         return us.get_user_info(current_session, username)
 
