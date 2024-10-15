@@ -156,6 +156,7 @@ def create_user(
 
         logger.debug(f"Adding user {username}...")
         current_session.add(usr)
+        current_session.commit()
         logger.debug(f"Success adding user {username}. Returning...")
         return us.get_user_info(current_session, username)
 
