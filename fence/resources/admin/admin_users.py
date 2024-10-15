@@ -112,6 +112,7 @@ def create_user(
         raise UserError(("Error: Please provide a username"))
     try:
         usr = us.get_user(current_session, username)
+        logger.debug(f"User already exists for: {username}")
         raise UserError(
             (
                 "Error: user already exist. If this is not a"
@@ -119,10 +120,12 @@ def create_user(
             )
         )
     except NotFound:
+        logger.debug(f"User not found for: {username}. Checking again ignoring case...")
         user_list = [
             user["name"].upper() for user in get_all_users(current_session)["users"]
         ]
         if username.upper() in user_list:
+            logger.debug(f"User already exists for: {username}")
             raise UserError(
                 (
                     "Error: user with a name with the same combination/order "
@@ -130,6 +133,7 @@ def create_user(
                     " or modify the new one. Contact us in case of doubt"
                 )
             )
+        logger.debug(f"User does not yet exist for: {username}. Creating a new one...")
         is_admin = role == "admin"
         email_add = email
         usr = User(username=username, active=True, is_admin=is_admin, email=email_add)
@@ -137,6 +141,7 @@ def create_user(
         usr.phone_number = phone_number
 
         if idp_name:
+            logger.debug(f"User {username} idp set to {idp_name}")
             idp = (
                 current_session.query(IdentityProvider)
                 .filter(IdentityProvider.name == idp_name)
@@ -146,8 +151,12 @@ def create_user(
                 idp = IdentityProvider(name=idp_name)
             usr.identity_provider = idp
         if tags:
+            logger.debug(f"Setting {len(tags)} tags for user {username}...")
             usr.tags.extend(tags)
+
+        logger.debug(f"Adding user {username}...")
         current_session.add(usr)
+        logger.debug(f"Success adding user {username}. Returning...")
         return us.get_user_info(current_session, username)
 
 
