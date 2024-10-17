@@ -19,6 +19,7 @@ from fence.models import User, IdentityProvider, query_for_user
 from fence.user import get_current_user
 from fence.utils import clear_cookies
 from fence.config import config
+from fence.authz.auth import check_arborist_auth
 
 logger = get_logger(__name__)
 
@@ -275,25 +276,9 @@ def get_user_from_claims(claims):
     )
 
 
-def admin_required(f):
-    """
-    Require user to be an admin user.
-    """
-
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        if not flask.g.user:
-            raise Unauthorized("Require login")
-        if flask.g.user.is_admin is not True:
-            raise Unauthorized("Require admin user")
-        return f(*args, **kwargs)
-
-    return wrapper
-
-
 def admin_login_required(function):
-    """Compose the login required and admin required decorators."""
-    return login_required({"admin"})(admin_required(function))
+    """Use the check_arborist_auth decorator checking on admin authorization."""
+    return check_arborist_auth(["/services/fence/admin"], "*")(function)
 
 
 def _update_users_email(user, email):
