@@ -1,7 +1,7 @@
 ARG AZLINUX_BASE_VERSION=master
 
 # Base stage with python-build-base
-FROM quay.io/cdis/python-build-base:${AZLINUX_BASE_VERSION} as base
+FROM quay.io/cdis/python-build-base:${AZLINUX_BASE_VERSION} AS base
 
 # Comment this in, and comment out the line above, if quay is down
 # FROM 707767160287.dkr.ecr.us-east-1.amazonaws.com/gen3/python-build-base:${AZLINUX_BASE_VERSION} as base
@@ -24,7 +24,7 @@ RUN groupadd -g 1000 gen3 && \
 
 
 # Builder stage
-FROM base as builder
+FROM base AS builder
 
 USER gen3
 
