@@ -13,6 +13,7 @@ from fence.models import (
     UserGoogleAccountToProxyGroup,
     query_for_user,
     IdentityProvider,
+    Tag,
 )
 from fence.resources import group as gp, project as pj, user as us, userdatamodel as udm
 from flask import current_app as capp
@@ -152,7 +153,9 @@ def create_user(
             usr.identity_provider = idp
         if tags:
             logger.debug(f"Setting {len(tags)} tags for user {username}...")
-            usr.tags.extend(tags)
+            for key, value in tags.items():
+                tag = Tag(key=key, value=value)
+                usr.tags.append(tag)
 
         logger.debug(f"Adding user {username}...")
         current_session.add(usr)
