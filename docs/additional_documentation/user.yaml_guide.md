@@ -16,7 +16,7 @@
 
 The `user.yaml` file is one way to get authorization information into Gen3. It is ingested via [Fence's `usersync` script](usersync.md). The format of this file is tightly coupled with the notions of resource, role and policy as defined by Gen3's policy engine, [Arborist](https://github.com/uc-cdis/arborist#arborist).
 
-For Gen3 Data Commons that do not use Arborist or that use the Google Data Access method of [Google Service Account Registration](https://github.com/uc-cdis/fence/blob/master/docs/google_architecture.md#google-account-linking-and-service-account-registration), refer to the [Deprecated format](#deprecated-format) section.
+For Gen3 Data Commons that do not use Arborist or that use the Google Data Access method of [Google Service Account Registration](https://github.com/uc-cdis/fence/blob/master/docs/additional_documentation/google_architecture.md#google-account-linking-and-service-account-registration), refer to the [Deprecated format](#deprecated-format) section.
 
 In a fully deployed Gen3 Commons using [Cloud Automation](https://github.com/uc-cdis/cloud-automation), the `user.yaml` file is usually hosted in S3 and configured via the `global.useryaml_s3path` setting of the Gen3 Data Commons manifest:
 ```
