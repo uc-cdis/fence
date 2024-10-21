@@ -367,6 +367,7 @@ def soft_delete_user(current_session, username):
     logger.debug("Soft-delete user.")
     usr = us.get_user(current_session, username)
     usr.active = False
+    current_session.commit()
     return us.get_user_info(current_session, usr.username)
 
 
