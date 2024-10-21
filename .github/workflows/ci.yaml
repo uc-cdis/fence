@@ -19,7 +19,6 @@ jobs:
        python-version: '3.9'
        test-script: 'tests/ci_commands_script.sh'
        run-coveralls: true
-       use-cache: false
   ci:
     name: Build Image and Push
     # TODO Uncomment after PXP-9212
