@@ -28,6 +28,7 @@ __all__ = [
     "update_user",
     "add_user_to_projects",
     "delete_user",
+    "soft_delete_user",
     "add_user_to_groups",
     "connect_user_to_group",
     "remove_user_from_groups",
