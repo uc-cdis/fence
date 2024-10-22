@@ -78,7 +78,7 @@ def create_user():
 
     Returns a json object
     """
-    username = request.get_json().get("name", None)
+    username = request.get_json().get("username", None)
     role = request.get_json().get("role", None)
     email = request.get_json().get("email", None)
     display_name = request.get_json().get("display_name", None)
