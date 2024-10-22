@@ -78,7 +78,7 @@ def create_user():
 
     Returns a json object
     """
-    username = request.get_json().get("name", None)
+    username = request.get_json().get("username", None)
     role = request.get_json().get("role", None)
     email = request.get_json().get("email", None)
     display_name = request.get_json().get("display_name", None)
@@ -110,11 +110,13 @@ def update_user(username):
 
     Returns a json object
     """
-    name = request.get_json().get("name", None)
+    new_username = request.get_json().get("username", None)
     role = request.get_json().get("role", None)
     email = request.get_json().get("email", None)
     return jsonify(
-        admin.update_user(current_app.scoped_session(), username, role, email, name)
+        admin.update_user(
+            current_app.scoped_session(), username, role, email, new_username
+        )
     )
 
 

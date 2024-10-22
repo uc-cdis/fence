@@ -78,7 +78,7 @@ def get_all_users(current_session):
     users_names = []
     for user in users:
         new_user = {}
-        new_user["name"] = user.username
+        new_user["username"] = user.username
         if user.is_admin:
             new_user["role"] = "admin"
         else:
@@ -124,7 +124,7 @@ def create_user(
     except NotFound:
         logger.debug(f"User not found for: {username}. Checking again ignoring case...")
         user_list = [
-            user["name"].upper() for user in get_all_users(current_session)["users"]
+            user["username"].upper() for user in get_all_users(current_session)["users"]
         ]
         if username.upper() in user_list:
             logger.debug(f"User already exists for: {username}")
@@ -168,7 +168,7 @@ def create_user(
 def update_user(current_session, username, role, email, new_name):
     usr = us.get_user(current_session, username)
     user_list = [
-        user["name"].upper() for user in get_all_users(current_session)["users"]
+        user["username"].upper() for user in get_all_users(current_session)["users"]
     ]
     if (
         new_name
