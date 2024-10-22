@@ -123,10 +123,10 @@ class RASOauth2Client(Oauth2ClientBase):
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
             jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
-
             token = self.get_token(token_endpoint, code)
             keys = self.get_jwt_keys(jwks_endpoint)
             userinfo = self.get_userinfo(token)
+            self.logger.debug(f"Userinfo: {userinfo}")
 
             claims = jose_jwt.decode(
                 token["id_token"],
