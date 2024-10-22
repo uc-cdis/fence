@@ -28,6 +28,7 @@ __all__ = [
     "update_user",
     "add_user_to_projects",
     "delete_user",
+    "soft_delete_user",
     "add_user_to_groups",
     "connect_user_to_group",
     "remove_user_from_groups",
@@ -357,6 +358,17 @@ def delete_google_proxy_group(
             "database, along with associated user Google accounts.".format(gpg_email)
         )
         logger.info("Done with Google deletions.")
+
+
+def soft_delete_user(current_session, username):
+    """
+    Soft-remove the user by marking it as active=False.
+    """
+    logger.debug("Soft-delete user.")
+    usr = us.get_user(current_session, username)
+    usr.active = False
+    current_session.commit()
+    return us.get_user_info(current_session, usr.username)
 
 
 def delete_user(current_session, username):
