@@ -249,7 +249,7 @@ def test_get_user(
     assert r.status_code == 200
     # should at least have the users added from above (may have more from other tests)
     assert len(r.json["users"]) >= 4
-    usernames = [user["name"] for user in r.json["users"]]
+    usernames = [user["username"] for user in r.json["users"]]
     assert "test_a" in usernames
     assert "test_b" in usernames
     assert "test_amazing_user_with_an_fancy_but_extremely_long_name" in usernames
@@ -274,7 +274,11 @@ def test_post_user(client, admin_user, encoded_admin_jwt, db_session):
             "Content-Type": "application/json",
         },
         data=json.dumps(
-            {"name": "new_test_user", "role": "user", "email": "new_test_user@fake.com"}
+            {
+                "username": "new_test_user",
+                "role": "user",
+                "email": "new_test_user@fake.com",
+            }
         ),
     )
     assert r.status_code == 200
@@ -284,10 +288,12 @@ def test_post_user(client, admin_user, encoded_admin_jwt, db_session):
     assert r.json["email"] == "new_test_user@fake.com"
     assert r.json["project_access"] == {}
     assert r.json["groups"] == []
+    assert r.json["active"] == True
     new_test_user = db_session.query(User).filter_by(username="new_test_user").one()
     assert new_test_user.username == "new_test_user"
     assert new_test_user.is_admin == False
     assert new_test_user.email == "new_test_user@fake.com"
+    assert new_test_user.active == True
 
 
 def test_post_user_no_fields_defined(client, admin_user, encoded_admin_jwt, db_session):
@@ -341,7 +347,7 @@ def test_post_user_only_username_defined(
             "Authorization": "Bearer " + encoded_admin_jwt,
             "Content-Type": "application/json",
         },
-        data=json.dumps({"name": "new_test_user"}),
+        data=json.dumps({"username": "new_test_user"}),
     )
     assert r.status_code == 200
     assert r.json["username"] == "new_test_user"
@@ -366,7 +372,7 @@ def test_post_user_already_exists(
             "Authorization": "Bearer " + encoded_admin_jwt,
             "Content-Type": "application/json",
         },
-        data=json.dumps({"name": "test_a"}),
+        data=json.dumps({"username": "test_a"}),
     )
     assert r.status_code == 400
 
@@ -392,7 +398,7 @@ def test_put_user_username(
         },
         data=json.dumps(
             {
-                "name": "test_a_updated",
+                "username": "test_a_updated",
                 "role": "admin",
                 "email": "test_a_updated@fake.com",
             }
@@ -422,7 +428,7 @@ def test_put_user_username_nonexistent(
             "Authorization": "Bearer " + encoded_admin_jwt,
             "Content-Type": "application/json",
         },
-        data=json.dumps({"name": "test_nonexistent_updated"}),
+        data=json.dumps({"username": "test_nonexistent_updated"}),
     )
     assert r.status_code == 404
     assert (
@@ -442,7 +448,7 @@ def test_put_user_username_already_exists(
             "Authorization": "Bearer " + encoded_admin_jwt,
             "Content-Type": "application/json",
         },
-        data=json.dumps({"name": "test_b"}),
+        data=json.dumps({"username": "test_b"}),
     )
     assert r.status_code == 400
     assert db_session.query(User).filter_by(username="test_a").one()
@@ -455,7 +461,7 @@ def test_put_user_username_try_delete_username(
     """PUT /users/<username>: [update_user] try to delete username"""
     """
     This probably shouldn't be allowed. Conveniently, the code flow ends up
-    the same as though the user had not tried to update 'name' at all,
+    the same as though the user had not tried to update 'username' at all,
     since they pass in None. Right now, this just returns a 200 without
     updating anything or sending any message to the user. So the test has
     been written to ensure this behavior, but maybe it should be noted that
@@ -467,7 +473,7 @@ def test_put_user_username_try_delete_username(
             "Authorization": "Bearer " + encoded_admin_jwt,
             "Content-Type": "application/json",
         },
-        data=json.dumps({"name": None}),
+        data=json.dumps({"username": None}),
     )
     assert r.status_code == 200
     user = db_session.query(User).filter_by(username="test_a").one()

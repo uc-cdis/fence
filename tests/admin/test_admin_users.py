@@ -17,7 +17,7 @@ def test_get_user(db_session, awg_users):
     assert "test_group_1" in info["groups"]
     assert "test_group_2" in info["groups"]
     assert info["message"] == ""
-    assert info["email"] == None
+    assert info["email"] is None
     assert info["certificates_uploaded"] == []
     assert info["resources_granted"] == []
     assert info["project_access"]["phs_project_1"] == ["read"]
@@ -34,6 +34,7 @@ def test_create_user(db_session, oauth_client):
     assert user.phone_number is None
     assert user.identity_provider is None
     assert len(user.tags) == 0
+    assert user.active == True
 
 
 def test_create_user_with_all_fields_set(db_session, oauth_client):
@@ -133,7 +134,7 @@ def test_create_already_existing_user(db_session, awg_users):
 
 def test_get_all_users(db_session, awg_users):
     user_list = adm.get_all_users(db_session)
-    user_name_list = [item["name"] for item in user_list["users"]]
+    user_name_list = [item["username"] for item in user_list["users"]]
     assert "awg_user" in user_name_list
     assert "awg_user_2" in user_name_list
 
