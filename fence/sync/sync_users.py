@@ -100,30 +100,24 @@ def _read_file(filepath, encrypted=True, key=None, logger=None):
         Generator[file-like class]: file like object for the file
     """
     if encrypted:
-        has_crypt = sp.call(["which", "mcrypt"])
+        has_crypt = sp.call(["which", "openssl"])
         if has_crypt != 0:
             if logger:
-                logger.error("Need to install mcrypt to decrypt files from dbgap")
+                logger.error("Need to install openssl to decrypt files from dbgap")
             # TODO (rudyardrichter, 2019-01-08): raise error and move exit out to script
             exit(1)
         p = sp.Popen(
             [
-                "mcrypt",
-                "-a",
-                "enigma",
-                "-o",
-                "scrypt",
-                "-m",
-                "stream",
-                "--bare",
-                "--key",
-                key,
-                "--force",
+                "openssl",
+                "enc",
+                "-aes-256-cbc",  # Encryption algorithm
+                "-d",  # Decrypt mode, remove for encryption
+                "-k", key,  # Use the provided key for decryption
             ],
-            stdin=open(filepath, "r"),
-            stdout=sp.PIPE,
-            stderr=open(os.devnull, "w"),
-            universal_newlines=True,
+            stdin=open(filepath, "r"),  # Reading the input file through stdin
+            stdout=sp.PIPE,  # Capture the output in a pipe
+            stderr=open(os.devnull, "w"),  # Suppress error output
+            universal_newlines=True,  # For proper handling of text input/output
         )
         try:
             yield StringIO(p.communicate()[0])
