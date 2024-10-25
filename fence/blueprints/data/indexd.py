@@ -1061,6 +1061,11 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
         bucket_name = self.bucket_name()
         bucket = s3_buckets.get(bucket_name)
+        # special handling for the case that bucket name may have "*" in its name
+        # in this case, use indexd url to determine bucket name
+        real_bucket_name = bucket_name
+        if "*" in real_bucket_name:
+            real_bucket_name = self.parsed_url.netloc
 
         object_id = self.parsed_url.path.strip("/")
 
@@ -1114,7 +1119,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         # get presigned url for upload
         if action == "PUT":
             url = cirrus_aws.upload_presigned_url(
-                bucket_name, object_id, expires_in, None
+                real_bucket_name, object_id, expires_in, None
             )
         # get presigned url for download
         else:
@@ -1123,11 +1128,11 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 # https://github.com/boto/boto3/issues/3685
                 auth_info["x-amz-request-payer"] = "requester"
                 url = cirrus_aws.requester_pays_download_presigned_url(
-                    bucket_name, object_id, expires_in, auth_info
+                    real_bucket_name, object_id, expires_in, auth_info
                 )
             else:
                 url = cirrus_aws.download_presigned_url(
-                    bucket_name, object_id, expires_in, auth_info
+                    real_bucket_name, object_id, expires_in, auth_info
                 )
 
         return url
