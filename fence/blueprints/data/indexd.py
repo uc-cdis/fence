@@ -1064,7 +1064,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         # special handling for the case that bucket name may have "*" in its name
         # in this case, use indexd url to determine bucket name
         real_bucket_name = bucket_name
-        if "*" in real_bucket_name:
+        if real_bucket_name and "*" in real_bucket_name:
             real_bucket_name = self.parsed_url.netloc
 
         object_id = self.parsed_url.path.strip("/")
