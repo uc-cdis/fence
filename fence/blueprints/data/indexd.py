@@ -1061,10 +1061,10 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
         bucket_name = self.bucket_name()
         bucket = s3_buckets.get(bucket_name)
-        # special handling for the case that bucket names from fence config may have "*" in it
+        # special handling for bucket names from fence config may contain not allowed characters (e.g.: wildcards)
         # in this case, use indexd url to determine bucket name
         real_bucket_name = bucket_name
-        if real_bucket_name and "*" in real_bucket_name:
+        if real_bucket_name and not re.match("^[a-z0-9-.]{3,63}$", real_bucket_name):
             real_bucket_name = self.parsed_url.netloc
 
         object_id = self.parsed_url.path.strip("/")
