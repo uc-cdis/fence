@@ -1061,7 +1061,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
         bucket_name = self.bucket_name()
         bucket = s3_buckets.get(bucket_name)
-        # special handling for the case that bucket name may have "*" in its name
+        # special handling for the case that bucket names from fence config may have "*" in it
         # in this case, use indexd url to determine bucket name
         real_bucket_name = bucket_name
         if real_bucket_name and "*" in real_bucket_name:
