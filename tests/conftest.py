@@ -34,6 +34,7 @@ import pytest
 import requests
 from sqlalchemy.ext.compiler import compiles
 
+
 # Set FENCE_CONFIG_PATH *before* loading the configuration
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
 os.environ["FENCE_CONFIG_PATH"] = os.path.join(CURRENT_DIR, "test-fence-config.yaml")
@@ -1594,6 +1595,36 @@ def google_signed_url():
         "sFpqXsQI8IQi1493mw%3D"
     )
     return manager
+
+
+@pytest.fixture(scope="function")
+def aws_signed_url():
+    """
+    Mock signed urls coming from AWS using a side effect function
+    """
+
+    def presigned_url_side_effect(*args, **kwargs):
+        additional_qs = ""
+        if args[3] and isinstance(args[3], dict):
+            for k in args[3]:
+                additional_qs += f"{k}={args[3][k]}&"
+        return f"https://{args[0]}/{args[1]}/?X-Amz-Expires={args[2]}&{additional_qs}"
+
+    manager = MagicMock(side_effect=presigned_url_side_effect)
+
+    down = patch(
+        "fence.blueprints.data.indexd.gen3cirrus.aws.services.AwsService.download_presigned_url",
+        manager,
+    ).start()
+    up = patch(
+        "fence.blueprints.data.indexd.gen3cirrus.aws.services.AwsService.upload_presigned_url",
+        manager,
+    ).start()
+
+    yield manager
+
+    down.stop()
+    up.stop()
 
 
 @pytest.fixture(scope="function")
