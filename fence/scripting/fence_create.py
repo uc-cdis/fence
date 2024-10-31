@@ -1814,12 +1814,16 @@ def access_token_polling_job(
     thread_pool_size (int): number of Docker container CPU used for jwt verifcation
     buffer_size (int): max size of queue
     """
+    # Instantiating a new client here because the existing
+    # client uses authz_provider
+    arborist = ArboristClient(arborist_base_url=config["ARBORIST"], logger=logger)
     driver = get_SQLAlchemyDriver(db)
     job = AccessTokenUpdater(
         chunk_size=int(chunk_size) if chunk_size else None,
         concurrency=int(concurrency) if concurrency else None,
         thread_pool_size=int(thread_pool_size) if thread_pool_size else None,
         buffer_size=int(buffer_size) if buffer_size else None,
+        arborist=arborist,
     )
     with driver.session as db_session:
         loop = asyncio.get_event_loop()

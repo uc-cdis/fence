@@ -116,9 +116,12 @@ OPENID_CONNECT:
     multifactor_auth_claim_info: # optional, include if you're using arborist to enforce mfa on a per-file level
       claim: '' # claims field that indicates mfa, either the acr or acm claim.
       values: [ "" ] # possible values that indicate mfa was used. At least one value configured here is required to be in the token
+    # When true, it allows refresh tokens to be stored even if is_authz_groups_sync_enabled is set false.
+    # When false, the system will only store refresh tokens if is_authz_groups_sync_enabled is enabled
+    persist_refresh_token: false
     # is_authz_groups_sync_enabled: A configuration flag that determines whether the application should
     # verify and synchronize user group memberships between the identity provider (IdP)
-    # and the local authorization system (Arborist). When enabled, the system retrieves
+    # and the local authorization system (Arborist). When enabled, the refresh token is stored, the system retrieves
     # the user's group information from their token issued by the IdP and compares it against
     # the groups defined in the local system. Based on the comparison, the user is added to
     # or removed from relevant groups in the local system to ensure their group memberships

@@ -149,6 +149,9 @@ OPENID_CONNECT:
     # use `discovery` to configure IDPs that do not expose a discovery
     # endpoint. One of `discovery_url` or `discovery` should be configured
     discovery_url: 'http://localhost/realms/generic3/.well-known/openid-configuration'
+    # When true, it allows refresh tokens to be stored even if is_authz_groups_sync_enabled is set false.
+    # When false, the system will only store refresh tokens if is_authz_groups_sync_enabled is enabled
+    persist_refresh_token: false
     # is_authz_groups_sync_enabled: A configuration flag that determines whether the application should
     # verify and synchronize user group memberships between the identity provider (IdP)
     # and the local authorization system (Arborist). When enabled, the system retrieves

@@ -71,7 +71,12 @@ def access_token_updater_config(mock_oidc_clients):
         },
     ):
         updater = AccessTokenUpdater()
-        updater.oidc_clients_requiring_token_refresh = mock_oidc_clients
+
+        # Ensure this is a dictionary rather than a list
+        updater.oidc_clients_requiring_token_refresh = {
+            client.idp: client for client in mock_oidc_clients
+        }
+
         return updater
 
 

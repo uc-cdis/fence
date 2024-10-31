@@ -3,11 +3,13 @@ import datetime
 import time
 
 from cdislogging import get_logger
+from flask import current_app
 
 from fence.config import config
 from fence.models import User
 from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
 from fence.resources.openid.idp_oauth2 import Oauth2ClientBase as OIDCClient
+
 
 logger = get_logger(__name__, log_level="debug")
 
@@ -20,6 +22,7 @@ class AccessTokenUpdater(object):
         thread_pool_size=None,
         buffer_size=None,
         logger=logger,
+        arborist=None,
     ):
         """
         args:
@@ -44,12 +47,18 @@ class AccessTokenUpdater(object):
 
         self.visa_types = config.get("USERSYNC", {}).get("visa_types", {})
 
-        # introduce list on self which contains all clients that need update
-        self.oidc_clients_requiring_token_refresh = []
+        # Dict on self which contains all clients that need update
+        self.oidc_clients_requiring_token_refresh = {}
 
         # keep this as a special case, because RAS will not set group information configuration.
         # Initialize visa clients:
         oidc = config.get("OPENID_CONNECT", {})
+
+        if not isinstance(oidc, dict):
+            raise TypeError(
+                "Expected 'OPENID_CONNECT' configuration to be a dictionary."
+            )
+
         if "ras" not in oidc:
             self.logger.error("RAS client not configured")
         else:
@@ -58,19 +67,22 @@ class AccessTokenUpdater(object):
                 HTTP_PROXY=config.get("HTTP_PROXY"),
                 logger=logger,
             )
-            self.oidc_clients_requiring_token_refresh.append(ras_client)
+            self.oidc_clients_requiring_token_refresh["ras"] = ras_client
 
-        # Initialise a client for each OIDC client in oidc, which does has gis_authz_groups_sync_enabled set to true and add them
+        self.arborist = arborist
+
+        # Initialise a client for each OIDC client in oidc, which does have gis_authz_groups_sync_enabled set to true and add them
         # to oidc_clients_requiring_token_refresh
-        for oidc_name in oidc:
-            if oidc.get(oidc_name).get("is_authz_groups_sync_enabled", False):
+        for oidc_name, settings in oidc.items():
+            if settings.get("is_authz_groups_sync_enabled", False):
                 oidc_client = OIDCClient(
-                    settings=oidc[oidc_name],
+                    settings=settings,
                     HTTP_PROXY=config.get("HTTP_PROXY"),
                     logger=logger,
                     idp=oidc_name,
+                    arborist=arborist,
                 )
-                self.oidc_clients_requiring_token_refresh.append(oidc_client)
+                self.oidc_clients_requiring_token_refresh[oidc_name] = oidc_client
 
     async def update_tokens(self, db_session):
         """
@@ -197,16 +209,13 @@ class AccessTokenUpdater(object):
         """
         Select OIDC client based on identity provider.
         """
-        self.logger.info(f"Selecting client for user {user.username}")
-        client = None
-        for oidc_client in self.oidc_clients_requiring_token_refresh:
-            if getattr(user.identity_provider, "name") == oidc_client.idp:
-                self.logger.info(
-                    f"Picked client: {oidc_client.idp} for user {user.username}"
-                )
-                client = oidc_client
-                break
-        if not client:
+
+        client = self.oidc_clients_requiring_token_refresh.get(
+            getattr(user.identity_provider, "name"), None
+        )
+        if client:
+            self.logger.info(f"Picked client: {client.idp} for user {user.username}")
+        else:
             self.logger.info(f"No client found for user {user.username}")
         return client
 

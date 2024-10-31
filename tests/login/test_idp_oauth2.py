@@ -389,7 +389,8 @@ def test_jwt_audience_verification_fails(
                 "kty": "RSA",
                 "kid": "test-key-id",
                 "use": "sig",
-                "n": "mock-n-value",  # Simulate RSA public key values
+                # Simulate RSA public key values
+                "n": "mock-n-value",
                 "e": "mock-e-value",
             }
         ]
