@@ -459,7 +459,7 @@ AWS_CREDENTIALS:
 # NOTE: the region is optonal for s3_buckets, however it should be specified to avoid a
 # call to GetBucketLocation which you make lack the AWS ACLs for.
 S3_BUCKETS:
-  bucket1:
+  .*1:
     cred: 'CRED1'
   bucket2:
     cred: 'CRED2'
