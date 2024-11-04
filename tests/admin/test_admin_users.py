@@ -37,6 +37,11 @@ def test_create_user(db_session, oauth_client):
 
 
 def test_create_user_with_all_fields_set(db_session, oauth_client):
+    """
+    Tests adm.create_user() by creating a new User record and then
+    checking if all values are found in the expected fields of
+    the User after it is fetched again through a query.
+    """
     adm.create_user(
         db_session,
         "insert_user",
