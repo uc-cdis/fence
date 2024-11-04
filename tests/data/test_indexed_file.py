@@ -3,13 +3,17 @@ Test fence.blueprints.data.indexd.IndexedFile
 """
 import json
 from unittest import mock
-from mock import patch
+from mock import patch, MagicMock
 
 import gen3cirrus
 import pytest
 
 import fence.blueprints.data.indexd as indexd
-from fence.blueprints.data.indexd import IndexedFile, GoogleStorageIndexedFileLocation
+from fence.blueprints.data.indexd import (
+    IndexedFile,
+    GoogleStorageIndexedFileLocation,
+    S3IndexedFileLocation,
+)
 from fence.models import (
     AssumeRoleCacheGCP,
     GoogleServiceAccountKey,
@@ -357,6 +361,40 @@ def test_internal_get_signed_url(
                             r_pays_project=None,
                             file_name="some file",
                         )
+
+
+@patch("fence.blueprints.data.indexd.get_value")
+def test_get_signed_url_s3_bucket_name(mock_get_value, s3_indexed_file_location, app):
+    # Mock config with buckets for s3_buckets.get(bucket_name)
+    mock_get_value.side_effect = lambda config, key, error: {
+        "AWS_CREDENTIALS": {"aws_access_key_id": "mock_key"},
+        "S3_BUCKETS": {
+            "invalid_bucket*name": {"endpoint_url": "https://custom.endpoint.com"},
+            "validbucketname-alreadyvalid": {
+                "endpoint_url": "https://custom.endpoint2.com"
+            },
+        },
+    }.get(key, error)
+
+    with patch("fence.blueprints.data.indexd.flask.current_app", return_value=app):
+        # patch get_credential_to_access_bucket() ensure get_signed_url can proceed without actually accessing AWS credentials
+        with patch.object(
+            S3IndexedFileLocation, "get_credential_to_access_bucket"
+        ) as mock_get_credential:
+            mock_get_credential.return_value = {
+                "aws_access_key_id": "mock_key",
+                "aws_secret_access_key": "mock_secret",  # pragma: allowlist secret
+            }
+
+            result_url = s3_indexed_file_location.get_signed_url(
+                "download", expires_in=3600
+            )
+
+            # Check that real_bucket_name fell back to parsed_url.netloc, or otherwise used the already valid bucket
+            if s3_indexed_file_location.bucket_name() == "invalid_bucket*name":
+                assert "validbucketname-netloc" in result_url
+            else:
+                assert "validbucketname-alreadyvalid" in result_url
 
 
 @pytest.mark.parametrize("supported_action", ["download"], indirect=True)
