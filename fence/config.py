@@ -20,13 +20,7 @@ class FenceConfig(Config):
     def post_process(self):
         # backwards compatibility if no new YAML cfg provided
         # these cfg use to be in settings.py so we need to make sure they gets defaulted
-        default_config = yaml_load(
-            open(
-                os.path.join(
-                    os.path.dirname(os.path.abspath(__file__)), "config-default.yaml"
-                )
-            )
-        )
+        default_config = yaml_load(open(DEFAULT_CFG_PATH))
 
         defaults = [
             "APPLICATION_ROOT",
@@ -49,7 +43,6 @@ class FenceConfig(Config):
             "WHITE_LISTED_GOOGLE_PARENT_ORGS",
             "CLIENT_CREDENTIALS_ON_DOWNLOAD_ENABLED",
             "DATA_UPLOAD_BUCKET",
-            "ALLOW_NEW_USER_ON_LOGIN",
         ]
         for default in defaults:
             self.force_default_if_none(default, default_cfg=default_config)
