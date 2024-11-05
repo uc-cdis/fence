@@ -27,7 +27,7 @@ from tests import utils
 
 @pytest.fixture(autouse=True)
 def mock_arborist(mock_arborist_requests):
-    mock_arborist_requests()
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
 
 
 # TODO: Not yet tested: PUT,DELETE /users/<username>/projects
