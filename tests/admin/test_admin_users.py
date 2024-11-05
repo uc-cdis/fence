@@ -30,6 +30,40 @@ def test_create_user(db_session, oauth_client):
     assert user.username == "insert_user"
     assert user.is_admin == True
     assert user.email == "insert_user@fake.com"
+    assert user.display_name is None
+    assert user.phone_number is None
+    assert user.identity_provider is None
+    assert len(user.tags) == 0
+
+
+def test_create_user_with_all_fields_set(db_session, oauth_client):
+    """
+    Tests adm.create_user() by creating a new User record and then
+    checking if all values are found in the expected fields of
+    the User after it is fetched again through a query.
+    """
+    adm.create_user(
+        db_session,
+        "insert_user",
+        None,
+        "insert_user@fake.com",
+        "Dummy Name",
+        "+310000",
+        "fakeIDP",
+        {"key1": "value1", "key2": "value2"},
+    )
+    user = db_session.query(User).filter(User.username == "insert_user").first()
+    assert user.username == "insert_user"
+    assert user.is_admin == False
+    assert user.email == "insert_user@fake.com"
+    assert user.display_name == "Dummy Name"
+    assert user.phone_number == "+310000"
+    assert user.identity_provider.name == "fakeIDP"
+    assert len(user.tags) == 2
+    assert user.tags[0].key == "key1"
+    assert user.tags[0].value == "value1"
+    assert user.tags[1].key == "key2"
+    assert user.tags[1].value == "value2"
 
 
 def test_delete_user(db_session, awg_users, cloud_manager):
