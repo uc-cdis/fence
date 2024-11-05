@@ -100,6 +100,13 @@ def login_user(
 
     user = query_for_user(session=current_app.scoped_session(), username=username)
     if user:
+        if user.active is False:
+            # Abort login if user.active is False (user.active is None or True are both
+            # considered active in this case):
+            raise Unauthorized(
+                "User is known but not authorized/activated in the system"
+            )
+
         _update_users_email(user, email)
         _update_users_id_from_idp(user, id_from_idp)
         _update_users_last_auth(user)
@@ -111,7 +118,11 @@ def login_user(
             set_flask_session_values(user)
             return
     else:
-        # we need a new user
+        if not config["ALLOW_NEW_USER_ON_LOGIN"]:
+            # do not create new active users automatically
+            raise Unauthorized("New user is not yet authorized/activated in the system")
+
+        # add the new user
         user = User(username=username)
 
         if email:
