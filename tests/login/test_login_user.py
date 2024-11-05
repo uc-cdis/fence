@@ -48,7 +48,9 @@ def test_login_failure_for_user_already_in_db_but_inactive(db_session):
     test_user = User(username=email, is_admin=False, active=False)
     db_session.add(test_user)
     db_session.commit()
-    with pytest.raises(Unauthorized):
+    with pytest.raises(
+        Unauthorized, match="User is known but not authorized/activated in the system"
+    ):
         login_user(email, provider, email=email, id_from_idp=id_from_idp)
 
 
@@ -114,7 +116,9 @@ def test_login_new_user_not_allowed(db_session, monkeypatch):
     email = "testuser@gmail.com"
     provider = "Test Provider"
     id_from_idp = "Provider_ID_0001"
-    with pytest.raises(Unauthorized):
+    with pytest.raises(
+        Unauthorized, match="New user is not yet authorized/activated in the system"
+    ):
         login_user(email, provider, email=email, id_from_idp=id_from_idp)
 
 
