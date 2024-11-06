@@ -691,6 +691,52 @@ def assert_google_proxy_group_data_deleted(db_session):
     assert len(gbag) == 1
 
 
+def test_soft_delete_user_username(
+    client,
+    encoded_admin_jwt,
+    db_session,
+    load_non_google_user_data,
+):
+    """
+    Test soft-delete user endpoint by checking that the result is an
+    deactivated user.
+    """
+    username = "test_user_d"
+    user = db_session.query(User).filter_by(username=username).one()
+    assert user.username == username
+    assert user.active is None
+    # now soft-delete and assert "active" changed to False:
+    r = client.delete(
+        f"/admin/users/{username}/soft",
+        headers={"Authorization": "Bearer " + encoded_admin_jwt},
+    )
+    assert r.status_code == 200
+    assert r.json["username"] == username
+    assert r.json["active"] == False
+    user = db_session.query(User).filter_by(username=username).one()
+    assert user.username == username
+    assert user.active == False
+
+
+def test_soft_delete_user_user_not_found(
+    client,
+    encoded_admin_jwt,
+    db_session,
+):
+    """
+    Test soft-delete user endpoint returns error when user is not found.
+    """
+    username = "non_existing_user"
+    user = db_session.query(User).filter_by(username=username).first()
+    assert user is None
+    # now call soft-delete and assert it fails:
+    r = client.delete(
+        f"/admin/users/{username}/soft",
+        headers={"Authorization": "Bearer " + encoded_admin_jwt},
+    )
+    assert r.status_code == 404
+
+
 def test_delete_user_username(
     app,
     client,
