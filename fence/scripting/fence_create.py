@@ -1816,7 +1816,10 @@ def access_token_polling_job(
     """
     # Instantiating a new client here because the existing
     # client uses authz_provider
-    arborist = ArboristClient(arborist_base_url=config["ARBORIST"], logger=logger)
+    arborist = ArboristClient(
+        arborist_base_url=config["ARBORIST"],
+        logger=get_logger("user_syncer.arborist_client"),
+    )
     driver = get_SQLAlchemyDriver(db)
     job = AccessTokenUpdater(
         chunk_size=int(chunk_size) if chunk_size else None,

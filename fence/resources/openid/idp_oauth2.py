@@ -46,9 +46,7 @@ class Oauth2ClientBase(object):
         # display name for use in logs and error messages
         self.idp = idp
         self.HTTP_PROXY = HTTP_PROXY
-        self.groups_from_idp = []
-        self.client_id = self.settings.get("client_id", "")
-        self.client_secret = self.settings.get("client_secret", "")
+        self.authz_groups_from_idp = []
 
         if not self.discovery_url and not settings.get("discovery"):
             self.logger.warning(
@@ -285,11 +283,6 @@ class Oauth2ClientBase(object):
                     group_prefix = self.settings.get("authz_groups_sync", {}).get(
                         "group_prefix", ""
                     )
-                except (AttributeError, TypeError) as e:
-                    self.logger.error(
-                        f"Error: is_authz_groups_sync_enabled is enabled, required values not configured: {e}"
-                    )
-                    raise Exception(e)
                 except KeyError as e:
                     self.logger.error(
                         f"Error: is_authz_groups_sync_enabled is enabled, however groups not found in claims: {e}"
@@ -411,15 +404,15 @@ class Oauth2ClientBase(object):
         current_db_session.add(upstream_refresh_token)
         db_session.commit()
 
-    def get_groups_from_token(self, decoded_token_id, group_prefix=""):
+    def get_groups_from_token(self, decoded_id_token, group_prefix=""):
         """Retrieve and format groups from the decoded token."""
-        groups_from_idp = decoded_token_id.get("groups", [])
-        if groups_from_idp:
-            groups_from_idp = [
+        authz_groups_from_idp = decoded_id_token.get("groups", [])
+        if authz_groups_from_idp:
+            authz_groups_from_idp = [
                 group.removeprefix(group_prefix).lstrip("/")
-                for group in groups_from_idp
+                for group in authz_groups_from_idp
             ]
-        return groups_from_idp
+        return authz_groups_from_idp
 
     @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
     def update_user_authorization(self, user, pkey_cache, db_session=None, **kwargs):
@@ -497,18 +490,20 @@ class Oauth2ClientBase(object):
             arborist_groups = self.arborist.list_groups().get("groups")
 
             # groups defined in idp
-            groups_from_idp = self.get_groups_from_token(decoded_token_id, group_prefix)
+            authz_groups_from_idp = self.get_groups_from_token(
+                decoded_token_id, group_prefix
+            )
 
             exp = datetime.datetime.fromtimestamp(expires_at, tz=datetime.timezone.utc)
 
             # if group name is in the list from arborist:
-            if groups_from_idp:
-                groups_from_idp = [
+            if authz_groups_from_idp:
+                authz_groups_from_idp = [
                     group.removeprefix(group_prefix).lstrip("/")
-                    for group in groups_from_idp
+                    for group in authz_groups_from_idp
                 ]
 
-                idp_group_names = set(groups_from_idp)
+                idp_group_names = set(authz_groups_from_idp)
 
                 # Add user to all matching groups from IDP
                 for arborist_group in arborist_groups:

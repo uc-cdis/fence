@@ -151,6 +151,13 @@ class FenceConfig(Config):
                     f"IdP '{idp_id}' is using multifactor_auth_claim_info '{mfa_info['claim']}', which is neither AMR or ACR. Unable to determine if a user used MFA. Fence will continue and assume they have not used MFA."
                 )
 
+            groups_sync_enabled = idp.get("is_authz_groups_sync_enabled", False)
+            # when is_authz_groups_sync_enabled, then you must provide authz_groups_sync, with group prefix
+            if groups_sync_enabled and not idp.get("authz_groups_sync"):
+                error = f"Error: is_authz_groups_sync_enabled is enabled, required values not configured, for idp: {idp_id}"
+                logger.error(error)
+                raise Exception(error)
+
         self._validate_parent_child_studies(self._configs["dbGaP"])
 
     @staticmethod

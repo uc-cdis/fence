@@ -71,7 +71,7 @@ class DefaultOAuth2Callback(Resource):
         username_field="email",
         email_field="email",
         id_from_idp_field="sub",
-        app=None,
+        app=flask.current_app,
     ):
         """
         Construct a resource for a login callback endpoint
@@ -261,7 +261,24 @@ class DefaultOAuth2Callback(Resource):
         return None
 
     def introspect_token(self, token):
+        """Introspects an access token to determine its validity and retrieve associated metadata.
 
+        This method sends a POST request to the introspection endpoint specified in the OpenID
+        discovery document. The request includes the provided token and client credentials,
+        allowing verification of the token's validity and retrieval of any additional metadata
+        (e.g., token expiry, scopes, or user information).
+
+        Args:
+            token (str): The access token to be introspected.
+
+        Returns:
+            dict or None: A dictionary containing the token's introspection data if the request
+            is successful and the response status code is 200. If the introspection fails or an
+            exception occurs, returns None.
+
+        Raises:
+            Exception: Logs an error message if an error occurs during the introspection process.
+        """
         try:
             introspect_endpoint = self.client.get_value_from_discovery_doc(
                 "introspection_endpoint", ""
@@ -271,8 +288,8 @@ class DefaultOAuth2Callback(Resource):
             headers = {"Content-Type": "application/x-www-form-urlencoded"}
             data = {
                 "token": token,
-                "client_id": self.client.client_id,
-                "client_secret": self.client.client_secret,
+                "client_id": self.client.settings.get("client_id"),
+                "client_secret": self.client.settings.get("client_secret"),
             }
 
             response = requests.post(introspect_endpoint, headers=headers, data=data)

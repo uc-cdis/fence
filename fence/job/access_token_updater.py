@@ -71,7 +71,7 @@ class AccessTokenUpdater(object):
 
         self.arborist = arborist
 
-        # Initialise a client for each OIDC client in oidc, which does have gis_authz_groups_sync_enabled set to true and add them
+        # Initialise a client for each OIDC client in oidc, which does have is_authz_groups_sync_enabled set to true and add them
         # to oidc_clients_requiring_token_refresh
         for oidc_name, settings in oidc.items():
             if settings.get("is_authz_groups_sync_enabled", False):
