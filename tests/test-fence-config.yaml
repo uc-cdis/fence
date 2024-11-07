@@ -148,7 +148,7 @@ OPENID_CONNECT:
     redirect_url: '{{BASE_URL}}/login/generic3/login'  # replace IDP name
     # use `discovery` to configure IDPs that do not expose a discovery
     # endpoint. One of `discovery_url` or `discovery` should be configured
-    discovery_url: 'http://localhost/realms/generic3/.well-known/openid-configuration'
+    discovery_url: 'https://localhost/.well-known/openid-configuration'
     # When true, it allows refresh tokens to be stored even if is_authz_groups_sync_enabled is set false.
     # When false, the system will only store refresh tokens if is_authz_groups_sync_enabled is enabled
     persist_refresh_token: false
@@ -159,12 +159,12 @@ OPENID_CONNECT:
     # the groups defined in the local system. Based on the comparison, the user is added to
     # or removed from relevant groups in the local system to ensure their group memberships
     # remain up-to-date. If this flag is disabled, no group synchronization occurs
-    is_authz_groups_sync_enabled: true
+    is_authz_groups_sync_enabled: false
     authz_groups_sync:
       # This defines the prefix used to identify authorization groups.
       group_prefix: /covid
     # This flag indicates whether the audience (aud) claim in the JWT should be verified during token validation.
-    verify_aud: true
+    verify_aud: false
     # This specifies the expected audience (aud) value for the JWT, ensuring that the token is intended for use with the 'fence' service.
     audience: fence
 

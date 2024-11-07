@@ -288,8 +288,8 @@ class DefaultOAuth2Callback(Resource):
             headers = {"Content-Type": "application/x-www-form-urlencoded"}
             data = {
                 "token": token,
-                "client_id": self.client.settings.get("client_id"),
-                "client_secret": self.client.settings.get("client_secret"),
+                "client_id": flask.session.get("client_id"),
+                "client_secret": flask.session.get("client_secret"),
             }
 
             response = requests.post(introspect_endpoint, headers=headers, data=data)

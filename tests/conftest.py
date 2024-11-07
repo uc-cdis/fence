@@ -76,6 +76,7 @@ LOGIN_IDPS = [
     "cilogon",
     "generic1",
     "generic2",
+    "generic3",
 ]
 
 
@@ -396,7 +397,12 @@ def mock_arborist_requests(request):
         defaults = {
             "arborist/health": {"GET": ("", 200)},
             "arborist/auth/mapping": {"POST": ({}, "200")},
-            "arborist/group": {"GET": ({"groups":[{"name": "data_uploaders", "users": ["test_user"]}]}, 200)}
+            "arborist/group": {
+                "GET": (
+                    {"groups": [{"name": "data_uploaders", "users": ["test_user"]}]},
+                    200,
+                )
+            },
         }
         defaults.update(urls_to_responses)
         urls_to_responses = defaults
@@ -479,19 +485,23 @@ def app(kid, rsa_private_key, rsa_public_key):
 
     mocker.unmock_functions()
 
+
 @pytest.fixture
 def mock_app():
     return MagicMock()
 
+
 @pytest.fixture
 def mock_user():
     return MagicMock()
+
 
 @pytest.fixture
 def mock_db_session():
     """Mock the database session."""
     db_session = MagicMock()
     return db_session
+
 
 @pytest.fixture
 def expired_mock_user():
@@ -501,6 +511,7 @@ def expired_mock_user():
         MagicMock(refresh_token="expired_token", expires=0),  # Expired token
     ]
     return user
+
 
 @pytest.fixture(scope="function")
 def auth_client(request):
