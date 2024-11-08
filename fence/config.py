@@ -18,13 +18,7 @@ class FenceConfig(Config):
     def post_process(self):
         # backwards compatibility if no new YAML cfg provided
         # these cfg use to be in settings.py so we need to make sure they gets defaulted
-        default_config = yaml_load(
-            open(
-                os.path.join(
-                    os.path.dirname(os.path.abspath(__file__)), "config-default.yaml"
-                )
-            )
-        )
+        default_config = yaml_load(open(DEFAULT_CFG_PATH))
 
         defaults = [
             "APPLICATION_ROOT",
