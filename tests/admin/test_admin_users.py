@@ -109,7 +109,7 @@ def test_soft_delete_user(db_session, awg_users):
     user = db_session.query(User).filter(User.username == username).first()
     assert user != None
     assert user.username == username
-    assert user.active is None
+    assert user.active == True
     adm.soft_delete_user(db_session, username)
     user = db_session.query(User).filter(User.username == username).first()
     assert user != None
