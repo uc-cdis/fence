@@ -704,7 +704,7 @@ def test_soft_delete_user_username(
     username = "test_user_d"
     user = db_session.query(User).filter_by(username=username).one()
     assert user.username == username
-    assert user.active is None
+    assert user.active == True
     # now soft-delete and assert "active" changed to False:
     r = client.delete(
         f"/admin/users/{username}/soft",
