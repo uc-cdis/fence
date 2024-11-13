@@ -1,56 +1,49 @@
-# To run: docker run --rm -d -v /path/to/fence-config.yaml:/var/www/fence/fence-config.yaml --name=fence -p 80:80 fence
-# To check running container do: docker exec -it fence /bin/bash
+# To build: docker build -t fence:latest .
+# To run interactive:
+#   docker run -v ~/.gen3/fence/fence-config.yaml:/var/www/fence/fence-config.yaml -v ./keys/:/fence/keys/ fence:latest
+# To check running container do: docker exec -it CONTAINER bash
 
-FROM quay.io/cdis/python:python3.9-buster-2.0.0
+ARG AZLINUX_BASE_VERSION=feat_python-nginx
+
+# ------ Base stage ------
+FROM quay.io/cdis/python-nginx-al:${AZLINUX_BASE_VERSION} AS base
+
+# Comment this in, and comment out the line above, if quay is down
+# FROM 707767160287.dkr.ecr.us-east-1.amazonaws.com/gen3/python-nginx-al:${AZLINUX_BASE_VERSION} as base
 
 ENV appname=fence
 
-RUN pip install --upgrade pip
-RUN pip install --upgrade poetry
-RUN apt-get update \
-    && apt-get install -y --no-install-recommends curl bash git \
-    && apt-get -y install vim \
-    libmcrypt4 mcrypt \
-    && apt-get clean \
-    && rm -rf /var/lib/apt/lists/
+WORKDIR /${appname}
 
-RUN mkdir -p /var/www/$appname \
-    && mkdir -p /var/www/.cache/Python-Eggs/ \
-    && mkdir /run/nginx/ \
-    && ln -sf /dev/stdout /var/log/nginx/access.log \
-    && ln -sf /dev/stderr /var/log/nginx/error.log \
-    && chown nginx -R /var/www/.cache/Python-Eggs/ \
-    && chown nginx /var/www/$appname
+RUN chown -R gen3:gen3 /${appname}
 
-# aws cli v2 - needed for storing files in s3 during usersync k8s job
-RUN curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip" \
-    && unzip awscliv2.zip \
-    && ./aws/install \
-    && /bin/rm -rf awscliv2.zip ./aws
+# ------ Builder stage ------
+FROM base AS builder
 
-WORKDIR /$appname
+# Install just the deps without the code as it's own step to avoid redoing this on code changes
+COPY poetry.lock pyproject.toml /${appname}/
+RUN poetry install -vv --only main --no-interaction
 
-# copy ONLY poetry artifact, install the dependencies but not fence
-# this will make sure than the dependencies is cached
-COPY poetry.lock pyproject.toml /$appname/
-RUN poetry config virtualenvs.create false \
-    && poetry install -vv --no-root --no-dev --no-interaction \
-    && poetry show -v
+# Move app files into working directory
+COPY --chown=gen3:gen3 . /$appname
+COPY --chown=gen3:gen3 ./deployment/wsgi/wsgi.py /$appname/wsgi.py
 
-# copy source code ONLY after installing dependencies
-COPY . /$appname
-COPY ./deployment/uwsgi/uwsgi.ini /etc/uwsgi/uwsgi.ini
-COPY ./deployment/uwsgi/wsgi.py /$appname/wsgi.py
-COPY clear_prometheus_multiproc /$appname/clear_prometheus_multiproc
+# Do the install again incase the app itself needs install
+RUN poetry install -vv --only main --no-interaction
 
-# install fence
-RUN poetry config virtualenvs.create false \
-    && poetry install -vv --no-dev --no-interaction \
-    && poetry show -v
+ENV PATH="$(poetry env info --path)/bin:$PATH"
 
-RUN COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >$appname/version_data.py \
-    && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >>$appname/version_data.py
+# Setup version info
+RUN git config --global --add safe.directory /${appname} && COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" > /$appname/version_data.py \
+    && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >> /$appname/version_data.py
 
-WORKDIR /var/www/$appname
+# install tar
+# RUN yum install tar -y
+# do we need to untar jwt-keys?
 
-CMD ["sh","-c","bash /fence/dockerrun.bash && /dockerrun.sh"]
+# ------ Final stage ------
+FROM base
+
+COPY --chown=gen3:gen3 --from=builder /$appname /$appname
+
+CMD ["poetry", "run", "gunicorn", "-c", "deployment/wsgi/gunicorn.conf.py"]
