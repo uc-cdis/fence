@@ -2424,17 +2424,18 @@ zstd = ["zstandard (>=0.18.0)"]
 
 [[package]]
 name = "userdatamodel"
-version = "2.4.3"
-description = ""
+version = "3.0.1"
+description = "PDC data model for user management"
 optional = false
-python-versions = "*"
+python-versions = "<4.0,>=3.9"
 files = [
-    {file = "userdatamodel-2.4.3.tar.gz", hash = "sha256:760e41bc7f29bc16b3a9964956b52a3386db971a64dc3c873d362e135adda5b9"},
+    {file = "userdatamodel-3.0.1-py3-none-any.whl", hash = "sha256:28e34acf1998e81b32b8e35ac61d950cc48c88ef3545ac45939be0116f20d3d5"},
+    {file = "userdatamodel-3.0.1.tar.gz", hash = "sha256:775fa5d11a32c44d11322945a817ae265b7787c90ea05fefcd1742839cca111a"},
 ]
 
 [package.dependencies]
-cdislogging = "*"
-sqlalchemy = ">=1.3.3"
+cdislogging = ">=1,<2"
+sqlalchemy = ">=1.3.0"
 
 [[package]]
 name = "werkzeug"
@@ -2582,4 +2583,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.0"
 python-versions = ">=3.9,<4.0.0"
-content-hash = "655105408255f1d68d57e3517f8d961b68d1389fe93aed82d1c1daed7042c444"
+content-hash = "cfbc8d55dad030a712faa8c311773f99bf60401c614cf93f91e7880b6df568ba"
