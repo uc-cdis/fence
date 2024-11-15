@@ -19,30 +19,13 @@ jobs:
        python-version: '3.9'
        test-script: 'tests/ci_commands_script.sh'
        run-coveralls: true
-
-  BuildImageAndPush:
+  ci:
     name: Build Image and Push
-    needs: Security
-    # https://github.com/uc-cdis/.github/blob/master/.github/workflows/image_build_push.yaml
+    # TODO Uncomment after PXP-9212
+    # needs: Security
     uses: uc-cdis/.github/.github/workflows/image_build_push.yaml@master
     secrets:
       ECR_AWS_ACCESS_KEY_ID: ${{ secrets.ECR_AWS_ACCESS_KEY_ID }}
       ECR_AWS_SECRET_ACCESS_KEY: ${{ secrets.ECR_AWS_SECRET_ACCESS_KEY }}
       QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
       QUAY_ROBOT_TOKEN: ${{ secrets.QUAY_ROBOT_TOKEN }}
-
-  # I did not test that this works
-#   BuildMcryptImageAndPush:
-#     name: Build Image and Push
-#     needs: Security
-#     # https://github.com/uc-cdis/.github/blob/master/.github/workflows/image_build_push.yaml
-#     uses: uc-cdis/.github/.github/workflows/image_build_push.yaml@master
-#     secrets:
-#       ECR_AWS_ACCESS_KEY_ID: ${{ secrets.ECR_AWS_ACCESS_KEY_ID }}
-#       ECR_AWS_SECRET_ACCESS_KEY: ${{ secrets.ECR_AWS_SECRET_ACCESS_KEY }}
-#       QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
-#       QUAY_ROBOT_TOKEN: ${{ secrets.QUAY_ROBOT_TOKEN }}
-#       # we can either use the repo name or
-# #      OVERRIDE_REPO_NAME: fenceMcrypt
-#       OVERRIDE_TAG_NAME: "mcrypt_$(echo ${GITHUB_REF#refs/*/} | tr / _)"
-#       DOCKERFILE_LOCATION: "./DockerfileMcrypt"
