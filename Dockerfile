@@ -20,6 +20,13 @@ RUN chown -R gen3:gen3 /${appname}
 # ------ Builder stage ------
 FROM base AS builder
 
+# Install ccrypt to decrypt dbgap telmetry files
+RUN dnf upgrade && \
+    dnf install -y \
+    libxcrypt-compat-4.4.33 \
+    libpq-15.0 && \
+    rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt-1.11-1.x86_64.rpm
+
 # Install just the deps without the code as it's own step to avoid redoing this on code changes
 COPY poetry.lock pyproject.toml /${appname}/
 RUN poetry install -vv --only main --no-interaction
