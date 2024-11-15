@@ -29,8 +29,7 @@ FROM base AS builder
 
 RUN dnf upgrade -y && \
     dnf install -y \
-    libxcrypt-compat-4.4.33 \
-    libpq-15.0 && \
+    libxcrypt-compat-4.4.33 && \
     curl -o /tmp/ccrypt.rpm -L https://ccrypt.sourceforge.net/download/1.11/ccrypt-1.11-1.x86_64.rpm && \
     rpm -i /tmp/ccrypt.rpm && \
     rm -f /tmp/ccrypt.rpm && \
