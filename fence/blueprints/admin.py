@@ -84,7 +84,6 @@ def create_user():
     Returns a json object
     """
     username = request.get_json().get("username", None)
-    role = request.get_json().get("role", None)
     email = request.get_json().get("email", None)
     display_name = request.get_json().get("display_name", None)
     phone_number = request.get_json().get("phone_number", None)
@@ -95,7 +94,6 @@ def create_user():
         admin.create_user(
             current_app.scoped_session(),
             username,
-            role,
             email,
             display_name,
             phone_number,

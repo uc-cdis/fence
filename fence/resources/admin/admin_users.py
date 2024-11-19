@@ -98,7 +98,6 @@ def get_user_groups(current_session, username):
 def create_user(
     current_session,
     username,
-    role,
     email,
     display_name=None,
     phone_number=None,
@@ -136,9 +135,8 @@ def create_user(
                 )
             )
         logger.debug(f"User does not yet exist for: {username}. Creating a new one...")
-        is_admin = role == "admin"
         email_add = email
-        usr = User(username=username, active=True, is_admin=is_admin, email=email_add)
+        usr = User(username=username, active=True, email=email_add)
         usr.display_name = display_name
         usr.phone_number = phone_number
 
