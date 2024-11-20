@@ -1771,15 +1771,11 @@ components:
       type: object
       required:
         - username
-        - role
         - email
       properties:
         username:
           type: string
           description: 'This value is deprecated in favor of name.'
-        role:
-          type: string
-          description: 'Set to "admin" if the user should be given admin rights. Any other value is not parsed or used, and results in user being a normal/regular user.'
         email:
           type: string
           description: 'The email of the end-user'
