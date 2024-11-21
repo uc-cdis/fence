@@ -39,6 +39,7 @@ from fence.errors import (
     NotSupported,
     Unauthorized,
     UnavailableError,
+    UserError,
 )
 from fence.resources.google.utils import (
     get_or_create_primary_service_account_key,
@@ -630,6 +631,35 @@ class IndexedFile(object):
                 )
             except IndexError:
                 raise NotFound("Can't find any file locations.")
+
+        # can request to make a new URL using `create`
+        if (
+            action == "upload"
+            and not self.index_document.get("urls")
+            and "create" in flask.request.args
+        ):
+            if not "file_name" in flask.request.args:
+                raise UserError("missing `file_name` argument")
+            if protocol != "s3":
+                raise NotSupported(
+                    "protocol {} is not supported for these settings".format(protocol)
+                )
+            s3_buckets = get_value(
+                config, "S3_BUCKETS", InternalError("buckets not configured")
+            )
+            try:
+                bucket = next(iter(s3_buckets.keys()))
+            except StopIteration:
+                raise InternalError("buckets not configured")
+            file_name = flask.request.args.get("file_name")
+            url = "s3://{}/{}/{}".format(bucket, self.file_id, file_name)
+            location = S3IndexedFileLocation(url)
+            return location.get_signed_url(
+                action,
+                expires_in,
+                public_data=self.public,
+                force_signed_url=force_signed_url,
+            )
 
         for file_location in self.indexed_file_locations:
             # allow file location to be https, even if they specific http
