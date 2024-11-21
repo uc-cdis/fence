@@ -883,6 +883,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         # try to retrieve from local in-memory cache
         rv, expires_at = cls._assume_role_cache.get(role_arn, (None, 0))
         if expires_at > expiry:
+            print("Getting cached AWS roles from memory")
             return rv
 
         # try to retrieve from database cache
@@ -900,6 +901,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
                         aws_session_token=cache.aws_session_token,
                     )
                     cls._assume_role_cache[role_arn] = rv, cache.expires_at
+                    print("Getting cached AWS roles from DB")
                     return rv
 
         # retrieve from AWS, with additional ASSUME_ROLE_CACHE_SECONDS buffer for cache
@@ -919,6 +921,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         cred = get_value(
             assumed_role, "Credentials", InternalError("fail to assume role")
         )
+        print("Cached roles not in mem or DB, getting roles from AWS")
         rv = {
             "aws_access_key_id": get_value(
                 cred,
@@ -941,6 +944,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         ).timestamp()
 
         # stores back to cache
+        print("Caching roles back to mem and DB")
         cls._assume_role_cache[role_arn] = rv, expires_at
         if hasattr(flask.current_app, "db"):  # we don't have db in startup
             with flask.current_app.db.session as session:
