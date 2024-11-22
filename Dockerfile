@@ -22,19 +22,25 @@ FROM base AS builder
 
 # Install ccrypt to decrypt dbgap telmetry files
 RUN if [ "$TARGETARCH" = "amd64" ]; then \
+        echo "Upgrading dnf"; \
         dnf upgrade -y && \
+        echo "Installing Packages"; \
         dnf install -y \
-        libxcrypt-compat-4.4.33 \
-        libpq-15.0 && \
-        rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt_1.11-1_amd64.deb \
+            libxcrypt-compat-4.4.33 \
+            libpq-15.0 && \
+        echo "Installing RPM"; \
+        rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt_1.11-1_amd64.deb; \
     fi
 
-RUN if [ "$TARGETARCH" = "arm54" ]; then \
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+    echo "Upgrading dnf"; \
     dnf upgrade -y && \
+    echo "Installing Packages"; \
     dnf install -y \
-    libxcrypt-compat-4.4.33 \
-    libpq-15.0 && \
-    rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt-1.11-1.x86_64.rpm \
+        libxcrypt-compat-4.4.33 \
+        libpq-15.0 && \
+    echo "Installing RPM"; \
+    rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt-1.11-1.x86_64.rpm; \
 fi
 
 # Install just the deps without the code as it's own step to avoid redoing this on code changes
