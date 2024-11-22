@@ -21,11 +21,21 @@ RUN chown -R gen3:gen3 /${appname}
 FROM base AS builder
 
 # Install ccrypt to decrypt dbgap telmetry files
-RUN dnf upgrade && \
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+        dnf upgrade && \
+        dnf install -y \
+        libxcrypt-compat-4.4.33 \
+        libpq-15.0 && \
+        rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt-1.11-1.x86_64.rpm \
+    fi
+
+RUN if [ "$TARGETARCH" = "arm54" ]; then \
+    dnf upgrade && \
     dnf install -y \
     libxcrypt-compat-4.4.33 \
     libpq-15.0 && \
-    rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt-1.11-1.x86_64.rpm
+    rpm -i https://rpmfind.net/linux/mageia/distrib/cauldron/armv7hl/media/core/release/ccrypt-1.11-1.mga9.armv7hl.rpm \
+fi
 
 # Install just the deps without the code as it's own step to avoid redoing this on code changes
 COPY poetry.lock pyproject.toml /${appname}/
