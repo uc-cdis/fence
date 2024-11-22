@@ -22,14 +22,16 @@ FROM base AS builder
 
 # Install just the deps without the code as it's own step to avoid redoing this on code changes
 COPY poetry.lock pyproject.toml /${appname}/
-RUN poetry install -vv --only main --no-interaction
+RUN poetry lock -vv --no-update \
+    && poetry install -vv --only main --no-interaction
 
 # Move app files into working directory
 COPY --chown=gen3:gen3 . /$appname
 COPY --chown=gen3:gen3 ./deployment/wsgi/wsgi.py /$appname/wsgi.py
 
 # Do the install again incase the app itself needs install
-RUN poetry install -vv --only main --no-interaction
+RUN poetry lock -vv --no-update \
+    && poetry install -vv --only main --no-interaction
 
 ENV PATH="$(poetry env info --path)/bin:$PATH"
 
