@@ -42,7 +42,6 @@ jobs:
       ECR_AWS_SECRET_ACCESS_KEY: ${{ secrets.ECR_AWS_SECRET_ACCESS_KEY }}
       QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
       QUAY_ROBOT_TOKEN: ${{ secrets.QUAY_ROBOT_TOKEN }}
-      # we can either use the repo name or
-#      OVERRIDE_REPO_NAME: fenceMcrypt
+    with:
       OVERRIDE_TAG_NAME: "mcrypt_$(echo ${GITHUB_REF#refs/*/} | tr / _)"
       DOCKERFILE_LOCATION: "./DockerfileMcrypt"
