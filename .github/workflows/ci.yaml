@@ -10,7 +10,7 @@ jobs:
   Security:
     name: Security Pipeline
     uses: uc-cdis/.github/.github/workflows/securitypipeline.yaml@master
-    secrets: inherit
+    secrets: inherit  # pragma: allowlist secret
 
   UnitTest:
     name: Python Unit Test with Postgres
