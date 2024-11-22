@@ -22,7 +22,7 @@ FROM base AS builder
 
 # Install ccrypt to decrypt dbgap telmetry files
 RUN if [ "$TARGETARCH" = "amd64" ]; then \
-        dnf upgrade && \
+        dnf upgrade -y && \
         dnf install -y \
         libxcrypt-compat-4.4.33 \
         libpq-15.0 && \
@@ -30,7 +30,7 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
     fi
 
 RUN if [ "$TARGETARCH" = "arm54" ]; then \
-    dnf upgrade && \
+    dnf upgrade -y && \
     dnf install -y \
     libxcrypt-compat-4.4.33 \
     libpq-15.0 && \
