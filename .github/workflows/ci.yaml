@@ -16,9 +16,9 @@ jobs:
     name: Python Unit Test with Postgres
     uses: uc-cdis/.github/.github/workflows/python_unit_test.yaml@master
     with:
-       python-version: '3.9'
-       test-script: 'tests/ci_commands_script.sh'
-       run-coveralls: true
+      python-version: '3.9'
+      test-script: 'tests/ci_commands_script.sh'
+      run-coveralls: true
 
   BuildImageAndPush:
     name: Build Image and Push
