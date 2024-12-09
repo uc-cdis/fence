@@ -16,7 +16,6 @@ ENV appname=fence
 WORKDIR /${appname}
 
 RUN chown -R gen3:gen3 /${appname}
-RUN yum install -y tar
 
 # ------ Builder stage ------
 FROM base AS builder
@@ -41,8 +40,12 @@ RUN git config --global --add safe.directory /${appname} && COMMIT=`git rev-pars
     && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >> /$appname/version_data.py
 
 # install tar
-# RUN yum install tar -y
+RUN yum install tar -y
 # do we need to untar jwt-keys?
+
+#Set python with python3
+RUN echo 'alias python="python3"' >> ~/.bashrc && source ~/.bashrc;
+
 
 # ------ Final stage ------
 FROM base
