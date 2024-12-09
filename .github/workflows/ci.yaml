@@ -31,7 +31,6 @@ jobs:
       QUAY_USERNAME: ${{ secrets.QUAY_USERNAME }}
       QUAY_ROBOT_TOKEN: ${{ secrets.QUAY_ROBOT_TOKEN }}
 
-  # I did not test that this works
   BuildMcryptImageAndPush:
     name: Build Image and Push Mcrypt Image
     needs: Security

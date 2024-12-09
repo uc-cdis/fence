@@ -16,6 +16,7 @@ ENV appname=fence
 WORKDIR /${appname}
 
 RUN chown -R gen3:gen3 /${appname}
+RUN yum install -y tar
 
 # ------ Builder stage ------
 FROM base AS builder
