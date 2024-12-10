@@ -29,7 +29,7 @@ from tests import conftest
 
 @pytest.fixture(autouse=True)
 def mock_arborist(mock_arborist_requests):
-    mock_arborist_requests()
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
 
 
 # TODO: Not yet tested: PUT,DELETE /users/<username>/projects
@@ -186,6 +186,18 @@ def test_get_user_username(
     )
     assert r.status_code == 200
     assert r.json["username"] == "test_a"
+
+
+def test_get_user_username_no_admin_auth(
+    client, encoded_admin_jwt, mock_arborist_requests
+):
+    """GET /users/<username>: [get_user]: rainy path where arborist authorization check fails"""
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": False}, 200)}})
+    r = client.get(
+        "/admin/users/test_a", headers={"Authorization": "Bearer " + encoded_admin_jwt}
+    )
+    assert r.status_code == 403
+    assert "user does not have privileges to access this endpoint" in r.text
 
 
 def test_get_user_long_username(
