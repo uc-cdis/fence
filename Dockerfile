@@ -39,16 +39,17 @@ ENV PATH="$(poetry env info --path)/bin:$PATH"
 RUN git config --global --add safe.directory /${appname} && COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" > /$appname/version_data.py \
     && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >> /$appname/version_data.py
 
+
+
+# ------ Final stage ------
+FROM base
+
 # install tar
 RUN yum install tar -y
 # do we need to untar jwt-keys?
 
 #Set python with python3
 RUN echo 'alias python="python3"' >> ~/.bashrc && source ~/.bashrc;
-
-
-# ------ Final stage ------
-FROM base
 
 COPY --chown=gen3:gen3 --from=builder /$appname /$appname
 
