@@ -119,7 +119,7 @@ def login_user(
             return
     else:
         if not config["ALLOW_NEW_USER_ON_LOGIN"]:
-            logger.debug(f"ALLOW_NEW_USER_ON_LOGIN is set to {ALLOW_NEW_USER_ON_LOGIN}")
+            logger.debug(f"ALLOW_NEW_USER_ON_LOGIN is set to {config["ALLOW_NEW_USER_ON_LOGIN}"]}")
             # do not create new active users automatically
             raise Unauthorized("New user is not yet authorized/activated in the system")
 
