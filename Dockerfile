@@ -53,4 +53,4 @@ RUN echo 'alias python="python3"' >> ~/.bashrc && source ~/.bashrc;
 
 COPY --chown=gen3:gen3 --from=builder /$appname /$appname
 
-ENTRYPOINT ["poetry", "run", "gunicorn", "-c", "deployment/wsgi/gunicorn.conf.py"]
+CMD ["poetry", "run", "gunicorn", "-c", "deployment/wsgi/gunicorn.conf.py"]
