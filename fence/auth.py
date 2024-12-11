@@ -119,7 +119,7 @@ def login_user(
             return
     else:
         if not config["ALLOW_NEW_USER_ON_LOGIN"]:
-            raise Unauthorized(config["ALLOW_NEW_USER_ON_LOGIN"])
+            raise Unauthorized(config.get("ALLOW_NEW_USER_ON_LOGIN", False))
             # do not create new active users automatically
             raise Unauthorized("New user is not yet authorized/activated in the system")
 
