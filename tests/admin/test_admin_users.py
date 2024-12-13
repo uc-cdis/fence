@@ -25,10 +25,10 @@ def test_get_user(db_session, awg_users):
 
 
 def test_create_user(db_session, oauth_client):
-    adm.create_user(db_session, "insert_user", "admin", "insert_user@fake.com")
+    adm.create_user(db_session, "insert_user", "insert_user@fake.com")
     user = db_session.query(User).filter(User.username == "insert_user").first()
     assert user.username == "insert_user"
-    assert user.is_admin == True
+    assert user.is_admin == False  # DEPRECATED field.
     assert user.email == "insert_user@fake.com"
     assert user.display_name is None
     assert user.phone_number is None
@@ -46,7 +46,6 @@ def test_create_user_with_all_fields_set(db_session, oauth_client):
     adm.create_user(
         db_session,
         "insert_user",
-        None,
         "insert_user@fake.com",
         "Dummy Name",
         "+310000",
