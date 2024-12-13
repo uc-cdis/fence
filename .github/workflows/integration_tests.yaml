@@ -9,9 +9,11 @@ concurrency:
 jobs:
   integration_tests:
     name: Integration tests
-    uses: uc-cdis/.github/.github/workflows/integration_tests.yaml@master
+    uses: uc-cdis/.github/.github/workflows/integration_tests.yaml@chore/use_custom_branch_for_integration_tests
     with:
       SERVICE_TO_TEST: fence
+      CLOUD_AUTO_BRANCH: chore/fence_deploy_azlinux
+      TEST_REPO_BRANCH: chore/custom_cloud_auto_branch
     secrets:
       CI_AWS_ACCESS_KEY_ID: ${{ secrets.CI_AWS_ACCESS_KEY_ID }}
       CI_AWS_SECRET_ACCESS_KEY: ${{ secrets.CI_AWS_SECRET_ACCESS_KEY }}
