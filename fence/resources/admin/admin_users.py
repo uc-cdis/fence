@@ -28,6 +28,7 @@ __all__ = [
     "update_user",
     "add_user_to_projects",
     "delete_user",
+    "soft_delete_user",
     "add_user_to_groups",
     "connect_user_to_group",
     "remove_user_from_groups",
@@ -77,7 +78,7 @@ def get_all_users(current_session):
     users_names = []
     for user in users:
         new_user = {}
-        new_user["name"] = user.username
+        new_user["username"] = user.username
         if user.is_admin:
             new_user["role"] = "admin"
         else:
@@ -97,7 +98,6 @@ def get_user_groups(current_session, username):
 def create_user(
     current_session,
     username,
-    role,
     email,
     display_name=None,
     phone_number=None,
@@ -123,7 +123,7 @@ def create_user(
     except NotFound:
         logger.debug(f"User not found for: {username}. Checking again ignoring case...")
         user_list = [
-            user["name"].upper() for user in get_all_users(current_session)["users"]
+            user["username"].upper() for user in get_all_users(current_session)["users"]
         ]
         if username.upper() in user_list:
             logger.debug(f"User already exists for: {username}")
@@ -135,9 +135,8 @@ def create_user(
                 )
             )
         logger.debug(f"User does not yet exist for: {username}. Creating a new one...")
-        is_admin = role == "admin"
         email_add = email
-        usr = User(username=username, active=True, is_admin=is_admin, email=email_add)
+        usr = User(username=username, active=True, email=email_add)
         usr.display_name = display_name
         usr.phone_number = phone_number
 
@@ -167,7 +166,7 @@ def create_user(
 def update_user(current_session, username, role, email, new_name):
     usr = us.get_user(current_session, username)
     user_list = [
-        user["name"].upper() for user in get_all_users(current_session)["users"]
+        user["username"].upper() for user in get_all_users(current_session)["users"]
     ]
     if (
         new_name
@@ -357,6 +356,17 @@ def delete_google_proxy_group(
             "database, along with associated user Google accounts.".format(gpg_email)
         )
         logger.info("Done with Google deletions.")
+
+
+def soft_delete_user(current_session, username):
+    """
+    Soft-remove the user by marking it as active=False.
+    """
+    logger.debug(f"Soft-delete user '{username}'")
+    usr = us.get_user(current_session, username)
+    usr.active = False
+    current_session.commit()
+    return us.get_user_info(current_session, usr.username)
 
 
 def delete_user(current_session, username):
