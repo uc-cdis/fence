@@ -20,10 +20,12 @@ jobs:
       test-script: 'tests/ci_commands_script.sh'
       run-coveralls: true
 
-  ci:
+  BuildImageAndPush:
     name: Build Image and Push
-    # TODO Uncomment after PXP-9212
-    # needs: Security
+    needs: Security
+    with:
+      BUILD_PLATFORMS: "linux/amd64"
+    # https://github.com/uc-cdis/.github/blob/master/.github/workflows/image_build_push.yaml
     uses: uc-cdis/.github/.github/workflows/image_build_push.yaml@master
     secrets:
       ECR_AWS_ACCESS_KEY_ID: ${{ secrets.ECR_AWS_ACCESS_KEY_ID }}
