@@ -71,4 +71,4 @@ FROM base
 
 COPY --chown=gen3:gen3 --from=builder /$appname /$appname
 
-CMD ["poetry", "run", "gunicorn", "-c", "deployment/wsgi/gunicorn.conf.py"]
+CMD ["/bin/bash", "-c", "/fence/dockerrun.bash"]
