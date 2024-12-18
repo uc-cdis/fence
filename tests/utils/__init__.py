@@ -287,7 +287,7 @@ def unauthorized_context_claims(user_name, user_id):
     iat, exp = iat_and_exp()
     return {
         "aud": [iss],
-        "sub": user_id,
+        "sub": str(user_id),
         "pur": "access",
         "iss": iss,
         "iat": iat,
@@ -320,7 +320,7 @@ def authorized_download_context_claims(user_name, user_id):
     iat, exp = iat_and_exp()
     return {
         "aud": [iss],
-        "sub": user_id,
+        "sub": str(user_id),
         "iss": iss,
         "iat": iat,
         "exp": exp,
@@ -353,7 +353,7 @@ def authorized_service_account_management_claims(user_name, user_id, client_id):
     iat, exp = iat_and_exp()
     return {
         "aud": [iss],
-        "sub": user_id,
+        "sub": str(user_id),
         "iss": iss,
         "iat": iat,
         "exp": exp,
@@ -403,7 +403,7 @@ def authorized_download_credentials_context_claims(
     iat, exp = iat_and_exp()
     return {
         "aud": [iss],
-        "sub": user_id,
+        "sub": str(user_id),
         "iss": iss,
         "iat": iat,
         "exp": exp,
@@ -436,7 +436,7 @@ def authorized_upload_context_claims(user_name, user_id):
     iat, exp = iat_and_exp()
     return {
         "aud": [iss],
-        "sub": user_id,
+        "sub": str(user_id),
         "iss": iss,
         "pur": "access",
         "iat": iat,
