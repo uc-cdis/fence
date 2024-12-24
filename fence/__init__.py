@@ -21,10 +21,13 @@ logger = get_logger(__name__, log_level="debug")
 from fence.config import config
 from fence.settings import CONFIG_SEARCH_FOLDERS
 
-config.load(
-    config_path=os.environ.get("FENCE_CONFIG_PATH"),
-    search_folders=CONFIG_SEARCH_FOLDERS,
-)
+try:
+    config.load(
+        config_path=os.environ.get("FENCE_CONFIG_PATH"),
+        search_folders=CONFIG_SEARCH_FOLDERS,
+    )
+except Exception as e:
+    print("fence configuration load error " + str(e))
 
 from fence.auth import logout, build_redirect_url
 from fence.metrics import metrics
