@@ -38,7 +38,7 @@ from fence.jwt.token import (
     generate_signed_refresh_token,
     issued_and_expiration_times,
 )
-from fence.job.access_token_updater import AccessTokenUpdater
+from fence.job.access_token_updater import TokenAndAuthUpdater
 from fence.models import (
     Client,
     GoogleServiceAccount,
@@ -1821,7 +1821,7 @@ def access_token_polling_job(
         logger=get_logger("user_syncer.arborist_client"),
     )
     driver = get_SQLAlchemyDriver(db)
-    job = AccessTokenUpdater(
+    job = TokenAndAuthUpdater(
         chunk_size=int(chunk_size) if chunk_size else None,
         concurrency=int(concurrency) if concurrency else None,
         thread_pool_size=int(thread_pool_size) if thread_pool_size else None,

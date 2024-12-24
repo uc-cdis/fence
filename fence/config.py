@@ -139,6 +139,10 @@ class FenceConfig(Config):
             )
 
         for idp_id, idp in self._configs.get("OPENID_CONNECT", {}).items():
+            if not isinstance(idp, dict):
+                raise TypeError(
+                    "Expected 'OPENID_CONNECT' configuration to be a dictionary."
+                )
             mfa_info = idp.get("multifactor_auth_claim_info")
             if mfa_info and mfa_info["claim"] not in ["amr", "acr"]:
                 logger.warning(

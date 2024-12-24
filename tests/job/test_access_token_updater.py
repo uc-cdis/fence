@@ -4,7 +4,7 @@ from unittest.mock import AsyncMock, patch, MagicMock
 from fence.models import User
 from fence.resources.openid.idp_oauth2 import Oauth2ClientBase as OIDCClient
 from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
-from fence.job.access_token_updater import AccessTokenUpdater
+from fence.job.access_token_updater import TokenAndAuthUpdater
 
 
 @pytest.fixture(scope="session", autouse=True)
@@ -59,7 +59,7 @@ def mock_oidc_clients():
 
 @pytest.fixture
 def access_token_updater_config(mock_oidc_clients):
-    """Fixture to instantiate AccessTokenUpdater with mocked OIDC clients."""
+    """Fixture to instantiate TokenAndAuthUpdater with mocked OIDC clients."""
     with patch(
         "fence.config",
         {
@@ -70,7 +70,7 @@ def access_token_updater_config(mock_oidc_clients):
             "ENABLE_AUTHZ_GROUPS_FROM_OIDC": True,
         },
     ):
-        updater = AccessTokenUpdater()
+        updater = TokenAndAuthUpdater()
 
         # Ensure this is a dictionary rather than a list
         updater.oidc_clients_requiring_token_refresh = {

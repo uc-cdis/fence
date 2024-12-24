@@ -1,3 +1,5 @@
+from email.policy import default
+
 from authlib.integrations.requests_client import OAuth2Session
 from boto3 import client
 from cached_property import cached_property
@@ -93,38 +95,6 @@ class Oauth2ClientBase(object):
             )
             return None
         return resp.json()["keys"]
-
-    def get_raw_token_claims(self, token_id):
-        """Extracts unvalidated claims from a JWT (JSON Web Token).
-
-        This function decodes a JWT and extracts claims without verifying
-        the token's signature or audience. It is intended for cases where
-        access to the raw, unvalidated token claims is sufficient.
-
-        Args:
-            token_id (str): The JWT token from which to extract claims.
-
-        Returns:
-            dict: A dictionary of token claims if decoding is successful.
-
-        Raises:
-            JWTError: If there is an error decoding the token without validation.
-
-        Notes:
-            This function does not perform any validation of the token. It should
-            only be used in contexts where validation is not critical or is handled
-            elsewhere in the application.
-        """
-        try:
-            # Decode without verification
-            unvalidated_claims = jwt.decode(
-                token_id, options={"verify_signature": False}
-            )
-            self.logger.info("Raw token claims extracted successfully.")
-            return unvalidated_claims
-        except JWTError as e:
-            self.logger.error(f"Error extracting claims: {e}")
-            raise JWTError("Unable to decode the token without validation.")
 
     def decode_and_validate_token(self, token_id, keys, audience, verify_aud=True):
         """Decodes and validates a JWT (JSON Web Token) using provided keys and audience.
@@ -279,7 +249,8 @@ class Oauth2ClientBase(object):
 
             if self.read_authz_groups_from_tokens:
                 try:
-                    groups = claims.get("groups")
+                    group_claim_field = self.settings.get("group_claim_field", "groups")
+                    groups = claims.get(group_claim_field)
                     group_prefix = self.settings.get("authz_groups_sync", {}).get(
                         "group_prefix", ""
                     )
@@ -315,15 +286,15 @@ class Oauth2ClientBase(object):
         """
         Get access_token using a refresh_token and store new refresh in upstream_refresh_token table.
         """
-        # this function is not correct. use self.session.fetch_access_token,
-        # validate the token for audience and then return the validated token.
-        # Still store the refresh token. it will be needed for periodic re-fetching of information.
         refresh_token = None
         expires = None
-        # get refresh_token and expiration from db
+
+        # Get the refresh_token and expiration from the database
         for row in sorted(user.upstream_refresh_tokens, key=lambda row: row.expires):
             refresh_token = row.refresh_token
             expires = row.expires
+
+            # Check if the token is expired
             if time.time() > expires:
                 # reset to check for next token
                 refresh_token = None
@@ -336,21 +307,29 @@ class Oauth2ClientBase(object):
         if not refresh_token:
             raise AuthError("User doesn't have a valid, non-expired refresh token")
 
-        token_response = self.session.refresh_token(
-            url=token_endpoint,
-            proxies=self.get_proxies(),
-            refresh_token=refresh_token,
-        )
-        refresh_token = token_response["refresh_token"]
+        try:
+            token_response = self.session.refresh_token(
+                url=token_endpoint,
+                proxies=self.get_proxies(),
+                refresh_token=refresh_token,
+            )
 
-        self.store_refresh_token(
-            user,
-            refresh_token=refresh_token,
-            expires=expires,
-            db_session=db_session,
-        )
+            refresh_token = token_response["refresh_token"]
+            # Fetching the expires at from token_response.
+            # Defaulting to 1 hour if not available.
+            expires_at = token_response.get("expires_at", time.time() + 3600)
 
-        return token_response
+            self.store_refresh_token(
+                user,
+                refresh_token=refresh_token,
+                expires=expires_at,
+                db_session=db_session,
+            )
+
+            return token_response
+        except Exception as e:
+            self.logger.exception(f"Error refreshing token for user {user.id}: {e}")
+            raise AuthError("Failed to refresh access token.")
 
     def has_mfa_claim(self, decoded_id_token):
         """
@@ -405,8 +384,24 @@ class Oauth2ClientBase(object):
         db_session.commit()
 
     def get_groups_from_token(self, decoded_id_token, group_prefix=""):
-        """Retrieve and format groups from the decoded token."""
-        authz_groups_from_idp = decoded_id_token.get("groups", [])
+        """
+        Retrieve and format groups from the decoded token based on a configurable field name.
+
+        Args:
+            decoded_id_token (dict): The decoded token containing claims.
+            group_prefix (str): The prefix to strip from group names.
+
+        Returns:
+            list: A list of formatted group names.
+
+        Variables:
+            group_claim_field (str): The field name in the token that contains the group information.
+            authz_groups_from_idp (list): The list of groups retrieved from the token, potentially empty.
+        """
+        # Retrieve the configured field name for groups, defaulting to 'groups'
+        group_claim_field = self.settings.get("group_claim_field", "groups")
+        authz_groups_from_idp = decoded_id_token.get(group_claim_field, [])
+
         if authz_groups_from_idp:
             authz_groups_from_idp = [
                 group.removeprefix(group_prefix).lstrip("/")
@@ -455,9 +450,6 @@ class Oauth2ClientBase(object):
         """
         db_session = db_session or current_app.scoped_session()
 
-        # Initialize the failure flag for group removal
-        removal_failed = False
-
         expires_at = None
 
         try:
@@ -505,48 +497,26 @@ class Oauth2ClientBase(object):
 
                 idp_group_names = set(authz_groups_from_idp)
 
+                # Expiration for group membership. Default 7 days
+                group_membership_duration = self.settings.get(
+                    "group_membership_expiration_duration", 3600 * 24 * 7
+                )
+                group_membership_expires_at = datetime.datetime.now(
+                    tz=datetime.timezone.utc
+                ) + datetime.timedelta(seconds=group_membership_duration)
+
                 # Add user to all matching groups from IDP
                 for arborist_group in arborist_groups:
                     if arborist_group["name"] in idp_group_names:
                         self.logger.info(
-                            f"Adding {user.username} to group: {arborist_group['name']}, sub: {user.id} exp: {exp}"
+                            f"Adding {user.username} to group: {arborist_group['name']}, sub: {user.id} exp: {group_membership_expires_at}"
                         )
                         self.arborist.add_user_to_group(
                             username=user.username,
                             group_name=arborist_group["name"],
-                            expires_at=exp,
+                            expires_at=group_membership_expires_at,
                         )
-
-                # Remove user from groups in Arborist that they are not part of in IDP
-                for arborist_group in arborist_groups:
-                    if arborist_group["name"] not in idp_group_names:
-                        if user.username in arborist_group.get("users", []):
-                            try:
-                                self.remove_user_from_arborist_group(
-                                    user.username, arborist_group["name"]
-                                )
-                            except Exception as e:
-                                self.logger.error(
-                                    f"Failed to remove {user.username} from group {arborist_group['name']}: {e}"
-                                )
-                                removal_failed = (
-                                    # Set the failure flag if any removal fails
-                                    True
-                                )
-
             else:
                 self.logger.warning(
                     f"is_authz_groups_sync_enabled feature is enabled, but did not receive groups from idp {self.idp} for user: {user.username}"
                 )
-
-        # Raise an exception if any group removal failed
-        if removal_failed:
-            raise Exception("One or more group removals failed.")
-
-    def remove_user_from_arborist_group(self, username, group_name):
-        """
-        Attempt to remove a user from an Arborist group, catching any errors to allow
-        processing of remaining groups. Logs errors and re-raises them after all removals are attempted.
-        """
-        self.logger.info(f"Removing {username} from group: {group_name}")
-        self.arborist.remove_user_from_group(username=username, group_name=group_name)

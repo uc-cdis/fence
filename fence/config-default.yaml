@@ -45,7 +45,7 @@ ENCRYPTION_KEY: ''
 # //////////////////////////////////////////////////////////////////////////////////////
 # flask's debug setting
 # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
-DEBUG: true
+DEBUG: false
 # if true, will automatically login a user with username "test"
 # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
 MOCK_AUTH: false
@@ -127,6 +127,10 @@ OPENID_CONNECT:
     # or removed from relevant groups in the local system to ensure their group memberships
     # remain up-to-date. If this flag is disabled, no group synchronization occurs
     is_authz_groups_sync_enabled: true
+    # Key used to retrieve group information from the token
+    group_claim_field: "groups"
+    # IdP group membership expiration (seconds).
+    group_membership_expiration_duration: 604800
     authz_groups_sync:
       # This defines the prefix used to identify authorization groups.
       group_prefix: "some_prefix"

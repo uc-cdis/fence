@@ -104,11 +104,9 @@ class DefaultOAuth2Callback(Resource):
 
         self.app = app
 
-        # This block of code probably need to be made more concise
-        if "persist_refresh_token" in config["OPENID_CONNECT"].get(self.idp_name, {}):
-            self.persist_refresh_token = config["OPENID_CONNECT"][self.idp_name][
-                "persist_refresh_token"
-            ]
+        self.persist_refresh_token = (
+            config["OPENID_CONNECT"].get(self.idp_name, {}).get("persist_refresh_token")
+        )
 
         if "is_authz_groups_sync_enabled" in config["OPENID_CONNECT"].get(
             self.idp_name, {}
@@ -163,6 +161,7 @@ class DefaultOAuth2Callback(Resource):
         # default to now + REFRESH_TOKEN_EXPIRES_IN
         if expires is None:
             expires = int(time.time()) + config["REFRESH_TOKEN_EXPIRES_IN"]
+            logger.info(self, f"Refresh token not in JWT, using default: {expires}")
 
         # Store refresh token in db
         should_persist_token = (

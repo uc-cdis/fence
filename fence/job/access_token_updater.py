@@ -14,7 +14,7 @@ from fence.resources.openid.idp_oauth2 import Oauth2ClientBase as OIDCClient
 logger = get_logger(__name__, log_level="debug")
 
 
-class AccessTokenUpdater(object):
+class TokenAndAuthUpdater(object):
     def __init__(
         self,
         chunk_size=None,
@@ -51,13 +51,7 @@ class AccessTokenUpdater(object):
         self.oidc_clients_requiring_token_refresh = {}
 
         # keep this as a special case, because RAS will not set group information configuration.
-        # Initialize visa clients:
         oidc = config.get("OPENID_CONNECT", {})
-
-        if not isinstance(oidc, dict):
-            raise TypeError(
-                "Expected 'OPENID_CONNECT' configuration to be a dictionary."
-            )
 
         if "ras" not in oidc:
             self.logger.error("RAS client not configured")
@@ -96,7 +90,6 @@ class AccessTokenUpdater(object):
 
         """
         start_time = time.time()
-        # Change this line to reflect we are refreshing tokens, not just visas
         self.logger.info("Initializing Visa Update and Token refreshing Cronjob . . .")
         self.logger.info("Total concurrency size: {}".format(self.concurrency))
         self.logger.info("Total thread pool size: {}".format(self.thread_pool_size))
