@@ -431,7 +431,7 @@ def get_SQLAlchemyDriver(db_conn_url):
 DEFAULT_BACKOFF_SETTINGS = {
     "on_backoff": log_backoff_retry,
     "on_giveup": log_backoff_giveup,
-    "max_tries": config.get("DEFAULT_BACKOFF_SETTINGS_MAX_TRIES", 3),
+    "max_tries": config["DEFAULT_BACKOFF_SETTINGS_MAX_TRIES"],
     "giveup": exception_do_not_retry,
 }
 
