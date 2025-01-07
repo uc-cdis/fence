@@ -489,7 +489,7 @@ def test_sync_with_google_errors(syncer, monkeypatch):
     syncer._update_arborist = MagicMock()
     syncer._update_authz_in_arborist = MagicMock()
 
-    with patch("fence.sync.sync_users.bulk_update_google_groups") as mock_bulk_update:
+    with patch("fence.sync.sync_users.update_google_groups_for_users") as mock_bulk_update:
         mock_bulk_update.side_effect = GoogleUpdateException("Something's Wrong!")
         with pytest.raises(GoogleUpdateException):
             syncer.sync()

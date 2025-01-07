@@ -12,6 +12,8 @@ from fence.models import (
     UserGoogleAccount,
     UserGoogleAccountToProxyGroup,
     query_for_user,
+    IdentityProvider,
+    Tag,
 )
 from fence.resources import group as gp, project as pj, user as us, userdatamodel as udm
 from flask import current_app as capp
@@ -26,6 +28,7 @@ __all__ = [
     "update_user",
     "add_user_to_projects",
     "delete_user",
+    "soft_delete_user",
     "add_user_to_groups",
     "connect_user_to_group",
     "remove_user_from_groups",
@@ -75,7 +78,7 @@ def get_all_users(current_session):
     users_names = []
     for user in users:
         new_user = {}
-        new_user["name"] = user.username
+        new_user["username"] = user.username
         if user.is_admin:
             new_user["role"] = "admin"
         else:
@@ -92,7 +95,15 @@ def get_user_groups(current_session, username):
     return {"groups": user_groups_info}
 
 
-def create_user(current_session, username, role, email):
+def create_user(
+    current_session,
+    username,
+    email,
+    display_name=None,
+    phone_number=None,
+    idp_name=None,
+    tags=None,
+):
     """
     Create a user for all the projects or groups in the list.
     If the user already exists, to avoid unadvertedly changing it, we suggest update
@@ -102,6 +113,7 @@ def create_user(current_session, username, role, email):
         raise UserError(("Error: Please provide a username"))
     try:
         usr = us.get_user(current_session, username)
+        logger.debug(f"User already exists for: {username}")
         raise UserError(
             (
                 "Error: user already exist. If this is not a"
@@ -109,10 +121,12 @@ def create_user(current_session, username, role, email):
             )
         )
     except NotFound:
+        logger.debug(f"User not found for: {username}. Checking again ignoring case...")
         user_list = [
-            user["name"].upper() for user in get_all_users(current_session)["users"]
+            user["username"].upper() for user in get_all_users(current_session)["users"]
         ]
         if username.upper() in user_list:
+            logger.debug(f"User already exists for: {username}")
             raise UserError(
                 (
                     "Error: user with a name with the same combination/order "
@@ -120,17 +134,39 @@ def create_user(current_session, username, role, email):
                     " or modify the new one. Contact us in case of doubt"
                 )
             )
-        is_admin = role == "admin"
+        logger.debug(f"User does not yet exist for: {username}. Creating a new one...")
         email_add = email
-        usr = User(username=username, active=True, is_admin=is_admin, email=email_add)
+        usr = User(username=username, active=True, email=email_add)
+        usr.display_name = display_name
+        usr.phone_number = phone_number
+
+        if idp_name:
+            logger.debug(f"User {username} idp set to {idp_name}")
+            idp = (
+                current_session.query(IdentityProvider)
+                .filter(IdentityProvider.name == idp_name)
+                .first()
+            )
+            if not idp:
+                idp = IdentityProvider(name=idp_name)
+            usr.identity_provider = idp
+        if tags:
+            logger.debug(f"Setting {len(tags)} tags for user {username}...")
+            for key, value in tags.items():
+                tag = Tag(key=key, value=value)
+                usr.tags.append(tag)
+
+        logger.debug(f"Adding user {username}...")
         current_session.add(usr)
+        current_session.commit()
+        logger.debug(f"Success adding user {username}. Returning...")
         return us.get_user_info(current_session, username)
 
 
 def update_user(current_session, username, role, email, new_name):
     usr = us.get_user(current_session, username)
     user_list = [
-        user["name"].upper() for user in get_all_users(current_session)["users"]
+        user["username"].upper() for user in get_all_users(current_session)["users"]
     ]
     if (
         new_name
@@ -320,6 +356,17 @@ def delete_google_proxy_group(
             "database, along with associated user Google accounts.".format(gpg_email)
         )
         logger.info("Done with Google deletions.")
+
+
+def soft_delete_user(current_session, username):
+    """
+    Soft-remove the user by marking it as active=False.
+    """
+    logger.debug(f"Soft-delete user '{username}'")
+    usr = us.get_user(current_session, username)
+    usr.active = False
+    current_session.commit()
+    return us.get_user_info(current_session, usr.username)
 
 
 def delete_user(current_session, username):

@@ -223,12 +223,6 @@ def valid_google_project_patcher():
     get_users_from_members_mock = MagicMock()
     patches.append(
         patch(
-            "fence.resources.google.access_utils.get_users_from_google_members",
-            get_users_from_members_mock,
-        )
-    )
-    patches.append(
-        patch(
             "fence.resources.google.validity.get_users_from_google_members",
             get_users_from_members_mock,
         )

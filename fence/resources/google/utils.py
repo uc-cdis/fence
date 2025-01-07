@@ -580,21 +580,33 @@ def _update_service_account_db_entry(
     return service_account_db_entry
 
 
-def get_or_create_proxy_group_id(expires=None, user_id=None, username=None):
+def get_or_create_proxy_group_id(expires=None, user_id=None, username=None, session=None, storage_manager=None):
     """
     If no username returned from token or database, create a new proxy group
     for the given user. Also, add the access privileges.
 
+    Args:
+        user_id: Fence user ID of the user
+        username: username for the user
+        session: a sqlalchemy session
+        storage_manager: StorageManager for the backend to create proxy groups, usually google.
     Returns:
         int: id of (possibly newly created) proxy group associated with user
     """
-    proxy_group_id = _get_proxy_group_id(user_id=user_id, username=username)
+    db_session = session or current_app.scoped_session()
+    manager = storage_manager or flask.current_app.storage_manager
+
+    logger.info(f"Proxy Group: {user_id}, {username}")
+    proxy_group_id = _get_proxy_group_id(user_id=user_id, username=username, session=db_session)
+    logger.info(f"{proxy_group_id}")
     if not proxy_group_id:
         try:
-            user_by_id = query_for_user_by_id(current_app.scoped_session(), user_id)
+            user_by_id = query_for_user_by_id(db_session, user_id)
+            logger.info(f"user_by_id: {user_by_id}")
             user_by_username = query_for_user(
-                session=current_app.scoped_session(), username=username
+                session=db_session, username=username
             )
+            logger.info(f"user_by_username: {user_by_username}")
         except Exception:
             user_by_id = None
             user_by_username = None
@@ -614,10 +626,10 @@ def get_or_create_proxy_group_id(expires=None, user_id=None, username=None):
                 f"username={username}, nor was there a current_token"
             )
 
-        proxy_group_id = _create_proxy_group(user_id, username).id
+        proxy_group_id = _create_proxy_group(user_id, username, session=db_session).id
 
         privileges = (
-            current_app.scoped_session()
+            db_session
             .query(AccessPrivilege)
             .filter(AccessPrivilege.user_id == user_id)
         )
@@ -627,25 +639,25 @@ def get_or_create_proxy_group_id(expires=None, user_id=None, username=None):
 
             for sa in storage_accesses:
                 if sa.provider.name == STORAGE_ACCESS_PROVIDER_NAME:
-                    flask.current_app.storage_manager.logger.info(
+                    manager.logger.info(
                         "grant {} access {} to {} in {}".format(
                             username, p.privilege, p.project_id, p.auth_provider
                         )
                     )
 
-                    flask.current_app.storage_manager.grant_access(
+                    manager.grant_access(
                         provider=(sa.provider.name),
                         username=username,
                         project=p.project,
                         access=p.privilege,
-                        session=current_app.scoped_session(),
+                        session=db_session,
                         expires=expires,
                     )
 
     return proxy_group_id
 
 
-def _get_proxy_group_id(user_id=None, username=None):
+def _get_proxy_group_id(user_id=None, username=None, session=None):
     """
     Get users proxy group id from the current token, if possible.
     Otherwise, check the database for it.
@@ -659,9 +671,9 @@ def _get_proxy_group_id(user_id=None, username=None):
         user_id = user_id or current_token["sub"]
 
         try:
-            user = query_for_user_by_id(current_app.scoped_session(), user_id)
+            user = query_for_user_by_id(session, user_id)
             if not user:
-                user = query_for_user(current_app.scoped_session(), username)
+                user = query_for_user(session, username)
         except Exception:
             user = None
 
@@ -671,7 +683,7 @@ def _get_proxy_group_id(user_id=None, username=None):
     return proxy_group_id
 
 
-def _create_proxy_group(user_id, username):
+def _create_proxy_group(user_id, username, session):
     """
     Create a proxy group for the given user
 
@@ -694,11 +706,11 @@ def _create_proxy_group(user_id, username):
     )
 
     # link proxy group to user
-    user = current_app.scoped_session().query(User).filter_by(id=user_id).first()
+    user = session.query(User).filter_by(id=user_id).first()
     user.google_proxy_group_id = proxy_group.id
 
-    current_app.scoped_session().add(proxy_group)
-    current_app.scoped_session().commit()
+    session.add(proxy_group)
+    session.commit()
 
     logger.info(
         "Created proxy group {} for user {} with id {}.".format(

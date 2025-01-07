@@ -38,8 +38,9 @@ from fence.models import (
     IdentityProvider,
     get_project_to_authz_mapping,
 )
+from fence.resources.google.utils import get_or_create_proxy_group_id
 from fence.resources.storage import StorageManager
-from fence.resources.google.access_utils import bulk_update_google_groups
+from fence.resources.google.access_utils import update_google_groups_for_users
 from fence.resources.google.access_utils import GoogleUpdateException
 from fence.sync import utils
 from fence.sync.passport_sync.ras_sync import RASVisa
@@ -931,7 +932,7 @@ class UserSyncer(object):
 
         if config["GOOGLE_BULK_UPDATES"]:
             self.logger.info("Doing bulk Google update...")
-            bulk_update_google_groups(google_bulk_mapping)
+            update_google_groups_for_users(google_bulk_mapping)
             self.logger.info("Bulk Google update done!")
 
         sess.commit()
@@ -950,7 +951,7 @@ class UserSyncer(object):
                     }
                 }
 
-            user_info (dict): a dictionary of {username: user_info{}}
+            user_info (dict): a dictionary of attributes for a user.
             sess: a sqlalchemy session
 
         Return:
@@ -961,9 +962,16 @@ class UserSyncer(object):
                 f"sync to storage backend requires an expiration. you provided: {expires}"
             )
 
-        google_bulk_mapping = None
+        google_group_user_mapping = None
         if config["GOOGLE_BULK_UPDATES"]:
-            google_bulk_mapping = {}
+            google_group_user_mapping = {}
+            get_or_create_proxy_group_id(
+                expires=expires,
+                user_id=user_info['user_id'],
+                username=user_info['username'],
+                session=sess,
+                storage_manager=self.storage_manager
+            )
 
         # TODO: eventually it'd be nice to remove this step but it's required
         #       so that grant_from_storage can determine what storage backends
@@ -979,28 +987,27 @@ class UserSyncer(object):
             for project, _ in projects.items():
                 syncing_user_project_list.add((username.lower(), project))
 
-        user_info_lowercase = {
-            username.lower(): info for username, info in user_info.items()
-        }
 
         to_add = set(syncing_user_project_list)
 
-        # when updating users we want to maintain case sesitivity in the username so
+        # when updating users we want to maintain case sensitivity in the username so
         # pass the original, non-lowered user_info dict
-        self._upsert_userinfo(sess, user_info)
+        self._upsert_userinfo(sess, {
+            user_info['username'].lower(): user_info
+        })
 
         self._grant_from_storage(
             to_add,
             user_project_lowercase,
             sess,
-            google_bulk_mapping=google_bulk_mapping,
+            google_bulk_mapping=google_group_user_mapping,
             expires=expires,
         )
 
         if config["GOOGLE_BULK_UPDATES"]:
-            self.logger.info("Doing bulk Google update...")
-            bulk_update_google_groups(google_bulk_mapping)
-            self.logger.info("Bulk Google update done!")
+            self.logger.info("Updating user's google groups ...")
+            update_google_groups_for_users(google_group_user_mapping)
+            self.logger.info("Google groups update done!!")
 
         sess.commit()
 
@@ -1230,8 +1237,9 @@ class UserSyncer(object):
                     {username: {phsid: {'read-storage','write-storage'}}}
 
         Return:
-            None
+            dict of the users' storage usernames to their user_projects and the respective storage access.
         """
+        storage_user_to_sa_and_user_project = defaultdict()
         for username, project_auth_id in to_add:
             project = self._projects[project_auth_id]
             for sa in project.storage_access:
@@ -1251,7 +1259,7 @@ class UserSyncer(object):
                         username, access, project_auth_id, sa.provider.name
                     )
                 )
-                self.storage_manager.grant_access(
+                storage_username = self.storage_manager.grant_access(
                     provider=sa.provider.name,
                     username=username,
                     project=project,
@@ -1260,6 +1268,9 @@ class UserSyncer(object):
                     google_bulk_mapping=google_bulk_mapping,
                     expires=expires,
                 )
+
+                storage_user_to_sa_and_user_project[storage_username] = (sa, project)
+        return storage_user_to_sa_and_user_project
 
     def _init_projects(self, user_project, sess):
         """
@@ -2449,7 +2460,6 @@ class UserSyncer(object):
             raise
 
         user_projects = dict()
-        user_info = dict()
         projects = {}
         info = {}
         parsed_visas = []
@@ -2475,8 +2485,9 @@ class UserSyncer(object):
             projects = {**projects, **project}
             parsed_visas.append(visa)
 
+        info['user_id'] = user.id
+        info['username'] = user.username
         user_projects[user.username] = projects
-        user_info[user.username] = info
 
         user_projects = self.parse_projects(user_projects)
 
@@ -2501,7 +2512,7 @@ class UserSyncer(object):
         if user_projects:
             self.logger.info("Sync to storage backend [sync_single_user_visas]")
             self.sync_to_storage_backend(
-                user_projects, user_info, sess, expires=expires
+                user_projects, info, sess, expires=expires
             )
         else:
             self.logger.info("No users for syncing")
