@@ -40,7 +40,7 @@ RUN if [ "$TARGETARCH" = "arm64" ]; then \
         libxcrypt-compat-4.4.33 \
         libpq-15.0 && \
     echo "Installing RPM"; \
-    rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt-1.11-1.x86_64.rpm; \
+    rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt-1.11-1.src.rpm; \
 fi
 
 # Install just the deps without the code as it's own step to avoid redoing this on code changes
@@ -69,7 +69,7 @@ FROM base
 
 # install tar
 RUN yum install tar -y
-# do we need to untar jwt-keys? 
+# do we need to untar jwt-keys?
 
 COPY --chown=gen3:gen3 --from=builder /$appname /$appname
 
