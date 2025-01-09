@@ -982,7 +982,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 return self.parsed_url.netloc
         return None
 
-    def bucket_config(self, input_bucket_name=""):
+    def bucket_config(self, bucket_name=None):
         """
         Args:
             bucket_name (Optional[str]): the name of the bucket, if omitted, default to use bucket_name()
@@ -994,11 +994,12 @@ class S3IndexedFileLocation(IndexedFileLocation):
             "S3_BUCKETS",
             InternalError("S3_BUCKETS not configured"),
         )
-        if input_bucket_name == "":
-            input_bucket_name = self.bucket_name()
-        for bucket in s3_buckets:
-            if re.match("^" + bucket + "$", input_bucket_name):
-                return s3_buckets.get(bucket)
+        if not bucket_name:
+            bucket_name = self.bucket_name()
+        if bucket_name:
+            for bucket in s3_buckets:
+                if re.match("^" + bucket + "$", bucket_name):
+                    return s3_buckets.get(bucket)
         return None
 
     def file_name(self):
