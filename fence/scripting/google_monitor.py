@@ -13,6 +13,7 @@ from gen3cirrus.google_cloud.errors import GoogleAPIError
 
 from cdislogging import get_logger
 
+import fence.config
 from fence.resources.google.validity import (
     GoogleProjectValidity,
     GoogleServiceAccountValidity,
@@ -514,7 +515,7 @@ def _send_emails_informing_service_account_removal(
                 for reason in removal_reasons:
                     content += "\n\t\t\t - {}".format(reason)
 
-    return utils.send_email(from_email, to_emails, subject, content, domain)
+    return fence.config.send_email(from_email, to_emails, subject, content, domain)
 
 
 def _get_users_without_access(db, auth_ids, user_emails, check_linking):
@@ -609,7 +610,7 @@ def email_user_without_access(user_email, projects, google_project_id):
     text = config["PROBLEM_USER_EMAIL_NOTIFICATION"]["content"]
     content = text.format(google_project_id, ",".join(projects))
 
-    return utils.send_email(from_email, to_emails, subject, content, domain)
+    return fence.config.send_email(from_email, to_emails, subject, content, domain)
 
 
 def email_users_without_access(
