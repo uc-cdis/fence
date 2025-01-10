@@ -51,10 +51,10 @@ from fence.models import (
     ServiceAccountToGoogleBucketAccessGroup,
     query_for_user,
     GA4GHVisaV1,
-    get_client_expires_at,
+    get_client_expires_at, create_client,
 )
 from fence.scripting.google_monitor import email_users_without_access, validation_check
-from fence.config import config, create_client
+from fence.config import config
 from fence.sync.sync_users import UserSyncer
 from fence.utils import (
     get_valid_expiration,
