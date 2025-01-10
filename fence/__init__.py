@@ -20,12 +20,6 @@ logger = get_logger(__name__, log_level="debug")
 # Load the configuration *before* importing modules that rely on it
 from fence.config import config, get_SQLAlchemyDriver
 from fence.settings import CONFIG_SEARCH_FOLDERS
-
-config.load(
-    config_path=os.environ.get("FENCE_CONFIG_PATH"),
-    search_folders=CONFIG_SEARCH_FOLDERS,
-)
-
 from fence.auth import logout, build_redirect_url
 from fence.metrics import metrics
 from fence.blueprints.data.indexd import S3IndexedFileLocation

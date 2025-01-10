@@ -10,6 +10,7 @@ from cdislogging import get_logger
 
 from fence.errors import NotFound
 from fence.utils import log_backoff_retry, log_backoff_giveup, exception_do_not_retry, logger
+from fence.settings import CONFIG_SEARCH_FOLDERS
 
 logger = get_logger(__name__)
 
@@ -173,6 +174,10 @@ class FenceConfig(Config):
 
 
 config = FenceConfig(DEFAULT_CFG_PATH)
+config.load(
+    config_path=os.environ.get("FENCE_CONFIG_PATH"),
+    search_folders=CONFIG_SEARCH_FOLDERS,
+)
 
 # Default settings to control usage of backoff library.
 DEFAULT_BACKOFF_SETTINGS = {
