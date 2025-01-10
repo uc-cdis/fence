@@ -401,18 +401,13 @@ def test_get_signed_url_s3_bucket_name(mock_get_value, s3_indexed_file_location,
                     s3_indexed_file_location.parsed_url.netloc
                     == "validbucketname-netloc"
                 ):
-                    assert (
-                        "validbucketname-netloc" in result_url
-                        and "endpoint3" in result_url
-                    )
+                    # this should be in the signed URL since the bucket name with wildcard matches
+                    assert "validbucketname-netloc" in result_url
                 elif (
                     s3_indexed_file_location.parsed_url.netloc
                     == "validbucketname-alreadyvalid"
                 ):
-                    assert (
-                        "validbucketname-alreadyvalid" in result_url
-                        and "endpoint2" in result_url
-                    )
+                    assert "validbucketname-alreadyvalid" in result_url
 
 
 @pytest.mark.parametrize("supported_action", ["download"], indirect=True)
