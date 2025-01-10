@@ -15,7 +15,6 @@ from cdislogging import get_logger
 import flask
 
 from fence.errors import NotFound, UserError
-from fence.config import config
 from authlib.oauth2.rfc6749.util import scope_to_list
 from authlib.oauth2.rfc6749.errors import InvalidScopeError
 
@@ -293,16 +292,6 @@ def exception_do_not_retry(error):
         return True
 
     return False
-
-
-def get_SQLAlchemyDriver(db_conn_url):
-    from userdatamodel.driver import SQLAlchemyDriver
-
-    # override userdatamodel's `setup_db` function which creates tables
-    # and runs database migrations, because Alembic handles that now.
-    # TODO move userdatamodel code to Fence and remove dependencies to it
-    SQLAlchemyDriver.setup_db = lambda _: None
-    return SQLAlchemyDriver(db_conn_url)
 
 
 def validate_scopes(request_scopes, client):

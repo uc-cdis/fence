@@ -12,7 +12,6 @@ from gen3config import Config
 
 from cdislogging import get_logger
 
-from fence import get_SQLAlchemyDriver
 from fence.utils import log_backoff_retry, log_backoff_giveup, exception_do_not_retry, generate_client_credentials, \
     logger
 from fence.models import Client, User, query_for_user
@@ -253,3 +252,13 @@ def create_client(
         s.commit()
 
     return client_id, client_secret
+
+
+def get_SQLAlchemyDriver(db_conn_url):
+    from userdatamodel.driver import SQLAlchemyDriver
+
+    # override userdatamodel's `setup_db` function which creates tables
+    # and runs database migrations, because Alembic handles that now.
+    # TODO move userdatamodel code to Fence and remove dependencies to it
+    SQLAlchemyDriver.setup_db = lambda _: None
+    return SQLAlchemyDriver(db_conn_url)

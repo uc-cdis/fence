@@ -15,7 +15,7 @@ import sqlalchemy as sa
 from sqlalchemy.dialects import postgresql
 
 from bin.old_migration_script import migrate
-from fence.utils import get_SQLAlchemyDriver
+from fence import get_SQLAlchemyDriver
 
 # revision identifiers, used by Alembic.
 revision = "e4c7b0ab68d3"

@@ -34,7 +34,7 @@ from fence.models import (
 )
 from fence.resources.google import STORAGE_ACCESS_PROVIDER_NAME
 from fence.errors import NotSupported, NotFound
-from fence.utils import get_SQLAlchemyDriver
+from fence import get_SQLAlchemyDriver
 
 from cdislogging import get_logger
 
