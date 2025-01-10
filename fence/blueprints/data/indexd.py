@@ -967,6 +967,11 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 )
         return rv
 
+    def _create_bucket_name_regex(self, bucket):
+        if bucket.endswith("*"):
+            return f"^{bucket[:-1] + '.*'}$"
+        return f"^{bucket}$"
+
     def bucket_name(self):
         """
         Return:
@@ -978,7 +983,10 @@ class S3IndexedFileLocation(IndexedFileLocation):
             InternalError("S3_BUCKETS not configured"),
         )
         for bucket in s3_buckets:
-            if re.match("^" + bucket + "$", self.parsed_url.netloc):
+            print(self.parsed_url.netloc)
+            if re.match(
+                self._create_bucket_name_regex(bucket=bucket), self.parsed_url.netloc
+            ):
                 return self.parsed_url.netloc
         return None
 
@@ -998,7 +1006,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
             bucket_name = self.bucket_name()
         if bucket_name:
             for bucket in s3_buckets:
-                if re.match("^" + bucket + "$", bucket_name):
+                if re.match(self._create_bucket_name_regex(bucket=bucket), bucket_name):
                     return s3_buckets.get(bucket)
         return None
 
@@ -1076,8 +1084,11 @@ class S3IndexedFileLocation(IndexedFileLocation):
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
 
+        # breakpoint()
         bucket_name = self.bucket_name()
-        bucket_config = self.bucket_config(bucket_name)
+        bucket_config = self.bucket_config(bucket_name=bucket_name)
+        if not bucket_config:
+            raise InternalError(f"cannot get config for bucket {bucket_name}")
         object_id = self.parsed_url.path.strip("/")
 
         if bucket_config and bucket_config.get("endpoint_url"):
