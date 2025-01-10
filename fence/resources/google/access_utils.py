@@ -15,7 +15,7 @@ from gen3cirrus import GoogleCloudManager
 import fence
 from cdislogging import get_logger
 
-from fence.config import config
+from fence.config import config, DEFAULT_BACKOFF_SETTINGS
 from fence.errors import NotFound, NotSupported
 from fence.models import (
     User,
@@ -31,7 +31,7 @@ from fence.resources.google.utils import (
     get_monitoring_service_account_email,
     is_google_managed_service_account,
 )
-from fence.utils import get_valid_expiration_from_request, DEFAULT_BACKOFF_SETTINGS
+from fence.utils import get_valid_expiration_from_request
 
 logger = get_logger(__name__)
 

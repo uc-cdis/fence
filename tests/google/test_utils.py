@@ -6,7 +6,7 @@ from fence.resources.google.utils import (
     give_service_account_billing_access_if_necessary,
     GoogleCloudManager,
 )
-from fence.utils import DEFAULT_BACKOFF_SETTINGS
+from fence.config import DEFAULT_BACKOFF_SETTINGS
 
 
 def test_give_service_account_billing_access_if_necessary_fails(cloud_manager):

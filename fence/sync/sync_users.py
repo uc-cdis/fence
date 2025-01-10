@@ -26,7 +26,7 @@ from paramiko.proxy import ProxyCommand
 from sqlalchemy.exc import IntegrityError
 from sqlalchemy import func
 
-from fence.config import config
+from fence.config import config, DEFAULT_BACKOFF_SETTINGS
 from fence.models import (
     AccessPrivilege,
     AuthorizationProvider,
@@ -44,7 +44,7 @@ from fence.resources.google.access_utils import update_google_groups_for_users
 from fence.resources.google.access_utils import GoogleUpdateException
 from fence.sync import utils
 from fence.sync.passport_sync.ras_sync import RASVisa
-from fence.utils import get_SQLAlchemyDriver, DEFAULT_BACKOFF_SETTINGS
+from fence.utils import get_SQLAlchemyDriver
 
 
 def _format_policy_id(path, privilege):
