@@ -44,7 +44,7 @@ ENCRYPTION_KEY: ''
 # //////////////////////////////////////////////////////////////////////////////////////
 # flask's debug setting
 # WARNING: DO NOT ENABLE IN PRODUCTION
-DEBUG: true
+DEBUG: false
 # if true, will automatically login a user with username "test"
 MOCK_AUTH: true
 # if true, will only fake a successful login response from Google in /login/google
@@ -141,6 +141,36 @@ OPENID_CONNECT:
     redirect_url: '{{BASE_URL}}/login/generic2/login'
     discovery:
       authorization_endpoint: 'https://generic2/authorization_endpoint'
+  generic3:
+    name: 'generic3'  # optional; display name for this IDP
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/generic3/login'  # replace IDP name
+    # use `discovery` to configure IDPs that do not expose a discovery
+    # endpoint. One of `discovery_url` or `discovery` should be configured
+    discovery_url: 'https://localhost/.well-known/openid-configuration'
+    # When true, it allows refresh tokens to be stored even if is_authz_groups_sync_enabled is set false.
+    # When false, the system will only store refresh tokens if is_authz_groups_sync_enabled is enabled
+    persist_refresh_token: false
+    # is_authz_groups_sync_enabled: A configuration flag that determines whether the application should
+    # verify and synchronize user group memberships between the identity provider (IdP)
+    # and the local authorization system (Arborist). When enabled, the system retrieves
+    # the user's group information from their token issued by the IdP and compares it against
+    # the groups defined in the local system. Based on the comparison, the user is added to
+    # or removed from relevant groups in the local system to ensure their group memberships
+    # remain up-to-date. If this flag is disabled, no group synchronization occurs
+    is_authz_groups_sync_enabled: false
+    # Key used to retrieve group information from the token
+    group_claim_field: "groups"
+    # IdP group membership expiration (seconds).
+    group_membership_expiration_duration: 604800
+    authz_groups_sync:
+      # This defines the prefix used to identify authorization groups.
+      group_prefix: /covid
+    # This flag indicates whether the audience (aud) claim in the JWT should be verified during token validation.
+    verify_aud: false
+    # This specifies the expected audience (aud) value for the JWT, ensuring that the token is intended for use with the 'fence' service.
+    audience: fence
 
 # these are the *possible* scopes a client can be given, NOT scopes that are
 # given to all clients. You can be more restrictive during client creation
