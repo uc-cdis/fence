@@ -2,10 +2,11 @@ from addict import Dict
 from flask import url_for
 import json
 import jwt
+from mock import patch, MagicMock, PropertyMock
 import pytest
-
+import requests
 from unittest.mock import Mock, patch
-
+import mock
 from fence.config import config
 from fence.models import (
     Bucket,
@@ -22,12 +23,13 @@ from fence.models import (
     UserToGroup,
 )
 import fence.resources.admin as adm
+from fence.errors import UserError
 from tests import utils
-
+from tests import conftest
 
 @pytest.fixture(autouse=True)
 def mock_arborist(mock_arborist_requests):
-    mock_arborist_requests()
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
 
 
 # TODO: Not yet tested: PUT,DELETE /users/<username>/projects
@@ -110,14 +112,12 @@ def load_non_google_user_data(db_session, test_user_d):
     client = Client(
         client_id=userd_dict["client_id"],
         user_id=userd_dict["user_id"],
-        issued_at=420,
-        expires_at=42020,
-        redirect_uri="dclient.com",
-        grant_type="dgrant",
-        response_type="dresponse",
-        scope="dscope",
+        client_id_issued_at=420,
+        client_secret_expires_at=42020,
+        redirect_uris="dclient.com",
+        response_types="dresponse",
         name="dclientname",
-        _allowed_scopes="dallscopes",
+        allowed_scopes="dallscopes",
     )
     grp = Group(id=userd_dict["group_id"])
     usr_grp = UserToGroup(
@@ -188,6 +188,18 @@ def test_get_user_username(
     assert r.json["username"] == "test_a"
 
 
+def test_get_user_username_no_admin_auth(
+    client, encoded_admin_jwt, mock_arborist_requests
+):
+    """GET /users/<username>: [get_user]: rainy path where arborist authorization check fails"""
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": False}, 200)}})
+    r = client.get(
+        "/admin/users/test_a", headers={"Authorization": "Bearer " + encoded_admin_jwt}
+    )
+    assert r.status_code == 403
+    assert "user does not have privileges to access this endpoint" in r.text
+
+
 def test_get_user_long_username(
     client, admin_user, encoded_admin_jwt, db_session, test_user_long
 ):
@@ -250,6 +262,106 @@ def test_get_user_noauth(client, db_session):
     """GET /user: [get_all_users] but without authorization (access token)"""
     r = client.get("/admin/user")
     assert r.status_code == 401
+
+# GET /list_policies test
+
+def test_list_policies(mock_arborist_requests, client, admin_user, encoded_admin_jwt):
+    mock_arborist_requests({"arborist/policy/": {"GET": ({"policies":
+                [{
+                "id":"test_admin",
+                "description":"",
+                "resource_paths":["/test_gateway"],
+                "role_ids":["test_user"]
+                }]}, 200) } } )
+    r = client.get(
+
+        "/admin/list_policies",
+
+        headers={
+
+            "Authorization": "Bearer " + encoded_admin_jwt,
+
+            "Content-Type": "application/json",
+
+        }
+
+    )
+    assert r is not None
+    res = r.json
+    policy = res["policies"][0]
+    assert policy["id"] == "test_admin"
+    assert policy["role_ids"][0] == "test_user"
+    assert policy["resource_paths"][0] == "/test_gateway"
+
+def test_list_policies_expand(mock_arborist_requests, client, admin_user, encoded_admin_jwt):
+    mock_arborist_requests({"arborist/policy/?expand": {"GET": ({
+        "policies": [{
+        "id":"test_admin",
+        "description":"",
+        "resource_paths":["/test_gateway"],
+        "roles":[{
+                "id":"test_user",
+                "description":"",
+                "permissions":[{
+                    "id":"test_access",
+                    "description":"",
+                    "action":{
+                        "service":"",
+                        "method":""
+                    },
+                    "constraints":{
+                    }
+                }
+                ]
+            }
+            ]
+        }
+    ]
+    }, 200) } })
+    r = client.get(
+
+        "/admin/list_policies?expand=True",
+
+        headers={
+
+            "Authorization": "Bearer " + encoded_admin_jwt,
+
+            "Content-Type": "application/json",
+
+        }
+
+    )
+    res = r.json
+    policy = res["policies"][0]
+    assert policy["id"] == "test_admin"
+    assert policy["resource_paths"][0] == "/test_gateway"
+    role = policy["roles"][0]
+    assert role["id"] == "test_user"
+    permissions = role["permissions"][0]
+    assert permissions["id"] == "test_access"
+    assert permissions["action"]["service"] == ""
+
+def test_list_policies_invalid(mock_arborist_requests, client, admin_user, encoded_admin_jwt):
+    mock_arborist_requests({"arborist/policy/": {"GET": ({"policies":
+        [{
+        "id":"test_admin",
+        "description":"",
+        "resource_paths":["/test_gateway"],
+        "role_ids":["test_user"]
+        }]}, 200) } } )
+    r = client.get("/admin/list_policies?expand=invalid",
+        headers={
+
+            "Authorization": "Bearer " + encoded_admin_jwt,
+
+            "Content-Type": "application/json",
+
+        }
+    )
+    assert r is not None
+    assert r.status_code == 400
+
+
 
 
 # POST /user tests
@@ -676,6 +788,7 @@ def assert_google_proxy_group_data_deleted(db_session):
 
 
 def test_delete_user_username(
+    app,
     client,
     admin_user,
     encoded_admin_jwt,

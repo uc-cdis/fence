@@ -68,6 +68,7 @@ MOCK_STORAGE: true
 # WARNING: ONLY set to true when fence will be deployed in such a way that it will
 #          ONLY receive traffic from internal clients and can safely use HTTP.
 AUTHLIB_INSECURE_TRANSPORT: true
+
 # enable Prometheus Metrics for observability purposes
 #
 # WARNING: Any counters, gauges, histograms, etc. should be carefully
@@ -117,6 +118,9 @@ OPENID_CONNECT:
     user_id_field: ''  # optional (default "sub"); claims field to get the user_id from
     email_field: ''  # optional (default "email"); claims field to get the user email from
     scope: ''  # optional (default "openid")
+    multifactor_auth_claim_info: # optional, include if you're using arborist to enforce mfa on a per-file level
+      claim: '' # claims field that indicates mfa, either the acr or acm claim.
+      values: [ "" ] # possible values that indicate mfa was used. At least one value configured here is required to be in the token
   # These Google values must be obtained from Google's Cloud Console
   # Follow: https://developers.google.com/identity/protocols/OpenIDConnect
   #
@@ -141,6 +145,9 @@ OPENID_CONNECT:
   # If this fence instance is a client of another fence, fill this cfg out.
   # REMOVE if not needed
   fence:
+    # Custom name to display for consent screens. If not provided, will use `fence`.
+    # If the other fence is using NIH Login, you should make name: `NIH Login`
+    name: ''
     # this api_base_url should be the root url for the OTHER fence
     # something like: https://example.com
     api_base_url: ''
@@ -158,9 +165,6 @@ OPENID_CONNECT:
     authorize_url: '{{api_base_url}}/oauth2/authorize'
     access_token_url: '{{api_base_url}}/oauth2/token'
     refresh_token_url: '{{api_base_url}}/oauth2/token'
-    # Custom name to display for consent screens. If not provided, will use `fence`.
-    # If the other fence is using NIH Login, you should make name: `NIH Login`
-    name: ''
     # if mock is true, will fake a successful login response for login
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
@@ -187,6 +191,9 @@ OPENID_CONNECT:
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/ras/callback'
     scope: 'openid email profile ga4gh_passport_v1'
+#    multifactor_auth_claim_info:
+#      claim: 'acr'
+#      values: [ 'https://stsstg.nih.gov/assurance/aal/2' ]
     # if mock is true, will fake a successful login response for login
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
@@ -213,6 +220,9 @@ OPENID_CONNECT:
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
     mock_default_user: 'test@example.com'
+    #    multifactor_auth_claim_info:
+    #      claim: 'amr'
+    #      values: [ "mfa", "otp", "rsa", "ngcmfa", "wiaormfa" ]
   # For information on configuring an Okta tenant as an OIDC IdP refer to Okta documentation at:
   # https://developer.okta.com/docs/reference/api/oidc/#2-okta-as-the-identity-platform-for-your-app-or-api
   okta:
@@ -221,6 +231,9 @@ OPENID_CONNECT:
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/okta/login/'
     scope: 'openid email'
+    #    multifactor_auth_claim_info:
+    #      claim: 'amr'
+    #      values: [ "mfa", "otp", "sms" ]
   cognito:
     # You must create a user pool in order to have a discovery url
     discovery_url: 'https://cognito-idp.{REGION}.amazonaws.com/{USER-POOL-ID}/.well-known/openid-configuration'
@@ -247,6 +260,9 @@ OPENID_CONNECT:
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
     mock_default_user: 'http://cilogon.org/serverT/users/64703'
+    #    multifactor_auth_claim_info:
+    #      claim: 'acr'
+    #      values: [ "https://refeds.org/profile/mfa" ]
   synapse:
     discovery_url: ''
     client_id: ''
@@ -377,16 +393,9 @@ ENABLED_IDENTITY_PROVIDERS: {}
 
 
 # //////////////////////////////////////////////////////////////////////////////////////
-# LIBRARY CONFIGURATION (authlib & flask)
+# LIBRARY CONFIGURATION (flask)
 #   - Already contains reasonable defaults
 # //////////////////////////////////////////////////////////////////////////////////////
-# authlib-specific configs for OIDC flow and JWTs
-# NOTE: the OAUTH2_JWT_KEY cfg gets set automatically by fence if keys are setup
-#       correctly
-OAUTH2_JWT_ALG: 'RS256'
-OAUTH2_JWT_ENABLED: true
-OAUTH2_JWT_ISS: '{{BASE_URL}}'
-OAUTH2_PROVIDER_ERROR_URI: '/api/oauth2/errors'
 
 # used for flask, "path mounted under by the application / web server"
 # since we deploy as microservices, fence is typically under {{base}}/user
@@ -501,6 +510,16 @@ DEFAULT_BACKOFF_SETTINGS_MAX_TRIES: 3
 SUPPORT_EMAIL_FOR_ERRORS: null
 
 # //////////////////////////////////////////////////////////////////////////////////////
+# USER ACTIVATION
+# //////////////////////////////////////////////////////////////////////////////////////
+# If you want new users (read: users that login for the first time) to automatically be
+# allowed through and added to the Fence DB, set this to true. Otherwise, set this to false.
+# Setting it to false will ensure the user will only be able to login after the user
+# is added to the Fence DB via a separate process. This two-step process allows for
+# a separate onboarding and user "approval" process, instead of the default automatic approval.
+ALLOW_NEW_USER_ON_LOGIN: true
+
+# //////////////////////////////////////////////////////////////////////////////////////
 # SHIBBOLETH
 #   - Support using `shibboleth` in LOGIN_OPTIONS
 #   - Contains defaults for using NIH's Login.
@@ -541,6 +560,25 @@ dbGaP:
     #
     # NOTE: when this is "false" the above would become "phs000123"
     parse_consent_code: true
+    # When a dbGaP study authorizes access to child studies through a parent study ID,
+    # you can use this mapping. When a user gets access to the first ID, they automatically
+    # get access to the list of projects to the right.
+    #
+    # There's usually a note in the "Authorized Access" section of the dbGaP study page
+    # (https://www.ncbi.nlm.nih.gov/projects/gap/cgi-bin/study.cgi?study_id=phs001843.v1.p2)
+    # along the lines of:
+    # Note: The data for this study is collected as a substudy of
+    #       phs001194.v3.p2. dbGaP Authorized Access requests for
+    #       this data should be made for study phs001194.v3.p2 and
+    #       not phs001843.v1.p2
+    #
+    # There are also other dbGaP APIs that expose this parent/child mapping.
+    # Example: https://dbgap.ncbi.nlm.nih.gov/ss/dbgapssws.cgi?request=Study&phs=000571&v=6
+    #
+    # If `parse_consent_code` is true, then a user will be given access to the exact
+    # same consent codes in the child studies
+    parent_to_child_studies_mapping: {}
+      # 'phs001194': ['phs000571', 'phs001843']
     # A consent of "c999" can indicate access to that study's "exchange area data"
     # and when a user has access to one study's exchange area data, they
     # have access to the parent study's "common exchange area data" that is not study
@@ -657,6 +695,10 @@ S3_BUCKETS: {}
 #     cred: 'CRED1'
 #     region: 'us-east-1'
 #     role-arn: 'arn:aws:iam::role1'
+#   bucket5:
+#     cred: 'CRED3'
+#     region: 'us-east-1'
+#     requester_pays: true # to indicate this is a requester pay enabled S3 bucket
 GS_BUCKETS: {}
 # NOTE: Remove the {} and supply buckets if needed. Example in comments below
 #   bucket1:
@@ -665,6 +707,10 @@ GS_BUCKETS: {}
 #     region: 'us-east-1'
 #   bucket3:
 #     region: 'us-east-1'
+
+# When using the Cleversafe storageclient, whether or not to send verify=true
+# for requests
+VERIFY_CLEVERSAFE_CERT: true
 
 # Names of the S3 buckets to which data files can be uploaded. They should be
 # configured in `S3_BUCKETS`.
@@ -999,3 +1045,10 @@ USERSYNC:
   visa_types:
     ras: ['https://ras.nih.gov/visas/v1', 'https://ras.nih.gov/visas/v1.1']
 RAS_USERINFO_ENDPOINT: '/openid/connect/v1.1/userinfo'
+
+# //////////////////////////////////////////////////////////////////////////////////////
+# CLIENT CREDENTIALS
+# //////////////////////////////////////////////////////////////////////////////////////
+# set to true to enable client credentials on download/{guid} and
+# /ga4gh/drs/v1/objects/{guid}/access/{access_id}
+CLIENT_CREDENTIALS_ON_DOWNLOAD_ENABLED: false

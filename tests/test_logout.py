@@ -1,9 +1,16 @@
 import mock
 import urllib.request, urllib.parse, urllib.error
 
+import pytest
+
 from fence.auth import build_redirect_url
 from fence.config import config
 from fence.resources.storage.cdis_jwt import create_session_token
+
+
+@pytest.fixture(autouse=True)
+def mock_arborist(mock_arborist_requests):
+    mock_arborist_requests()
 
 
 def test_redirect_url():
@@ -71,9 +78,10 @@ def test_logout_fence(app, client, user_with_fence_provider, monkeypatch):
     with mock.patch("fence.allowed_login_redirects", return_value={"some_site.com"}):
         # manually set cookie for initial session
         client.set_cookie(
-            "localhost",
-            config["SESSION_COOKIE_NAME"],
-            test_session_jwt,
+            key=config["SESSION_COOKIE_NAME"],
+            value=test_session_jwt,
+            # domain is used in client.get_cookie, it defaults to locahost anyway
+            domain="localhost",
             httponly=True,
             samesite="Lax",
         )

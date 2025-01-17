@@ -9,6 +9,7 @@ import pytest
 from azure.core.exceptions import ResourceNotFoundError
 import fence
 from fence import app_init, _check_azure_storage
+from fence.config import FenceConfig
 from tests import test_settings
 from tests.conftest import FakeBlobServiceClient
 
@@ -58,7 +59,7 @@ def test_check_azure_storage_resource_not_found_error():
 
 def test_app_config():
     """
-    Test app_init call using the 'test-fence-config.yaml'
+    Test app_init call using the "test-fence-config.yaml"
     This includes the check to verify underlying storage
     """
 
@@ -80,7 +81,6 @@ def test_app_config():
         {"patch_name": "fence.app_sessions"},
         {"patch_name": "fence.app_register_blueprints"},
         {"patch_name": "fence.oidc.oidc_server.OIDCServer.init_app"},
-        {"patch_name": "fence._setup_prometheus"},
         {
             "patch_name": "fence.resources.storage.StorageManager.__init__",
             "return_value": None,
@@ -118,3 +118,22 @@ def test_app_config():
 
     for patcher in patchers:
         patcher.stop()
+
+
+def test_app_config_parent_child_study_mapping(monkeypatch):
+    invalid_dbgap_configs = [
+        {
+            "parent_to_child_studies_mapping": {
+                "phs001194": ["phs000571", "phs001843"],
+                "phs001193": ["phs000572", "phs001844"],
+            }
+        },
+        {
+            "parent_to_child_studies_mapping": {
+                "phs001194": ["phs0015623"],
+                "phs001192": ["phs0001", "phs002"],
+            }
+        },
+    ]
+    with pytest.raises(Exception):
+        FenceConfig._validate_parent_child_studies(invalid_dbgap_configs)

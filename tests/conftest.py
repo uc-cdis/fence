@@ -28,12 +28,12 @@ from authutils.testing.fixtures import (
 )
 from cryptography.fernet import Fernet
 import bcrypt
-from cdisutilstest.code.storage_client_mock import get_client
 import jwt
 from mock import patch, MagicMock, PropertyMock
 import pytest
 import requests
 from sqlalchemy.ext.compiler import compiles
+
 
 # Set FENCE_CONFIG_PATH *before* loading the configuration
 CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
@@ -53,6 +53,7 @@ from tests import test_settings
 from tests import utils
 from tests.utils import TEST_RAS_USERNAME, TEST_RAS_SUB
 from tests.utils.oauth2.client import OAuth2TestClient
+from tests.storageclient.storage_client_mock import get_client
 
 
 # Allow authlib to use HTTP for local testing.
@@ -86,6 +87,7 @@ def mock_get_bucket_location(self, bucket, config):
 def claims_refresh():
     new_claims = tests.utils.default_claims()
     new_claims["pur"] = "refresh"
+    new_claims["azp"] = "test-client"
     return new_claims
 
 
@@ -377,7 +379,7 @@ def no_app_context_no_public_keys():
 @pytest.fixture(scope="function")
 def mock_arborist_requests(request):
     """
-    This fixture returns a function which you call to mock out arborist endopints.
+    This fixture returns a function which you call to mock out arborist endpoints.
     Give it an argument in this format:
         {
             "arborist/health": {
@@ -391,7 +393,10 @@ def mock_arborist_requests(request):
 
     def do_patch(urls_to_responses=None):
         urls_to_responses = urls_to_responses or {}
-        defaults = {"arborist/health": {"GET": ("", 200)}}
+        defaults = {
+            "arborist/health": {"GET": ("", 200)},
+            "arborist/auth/mapping": {"POST": ({}, "200")}
+        }
         defaults.update(urls_to_responses)
         urls_to_responses = defaults
 
@@ -471,7 +476,6 @@ def app(kid, rsa_private_key, rsa_public_key):
 
     yield fence.app
 
-    alembic_main(["--raiseerr", "downgrade", "base"])
     mocker.unmock_functions()
 
 
@@ -539,12 +543,21 @@ def db(app, request):
         connection = app.db.engine.connect()
         connection.begin()
         for table in reversed(models.Base.metadata.sorted_tables):
-            connection.execute(table.delete())
+            # Delete table only if it exists
+            if app.db.engine.dialect.has_table(connection, table):
+                connection.execute(table.delete())
         connection.close()
 
     request.addfinalizer(drop_all)
 
     return app.db
+
+
+@pytest.fixture
+def prometheus_metrics_before(client):
+    resp = client.get("/metrics")
+    assert resp.status_code == 200, "Could not get prometheus metrics initial state"
+    yield resp.text
 
 
 @fence.app.route("/protected")
@@ -961,6 +974,7 @@ def indexd_client_with_arborist(app, request):
             "mocker": mocker,
             # only gs or s3 for location, ignore specifiers after the _
             "indexed_file_location": protocol.split("_")[0],
+            "record": record,
         }
 
         return output
@@ -1355,7 +1369,7 @@ def oauth_client_B(app, request, db_session):
 
 
 @pytest.fixture(scope="function")
-def oauth_client_public(app, db_session, oauth_user):
+def oauth_client_public(app, db_session, oauth_user, get_all_shib_idps_patcher):
     """
     Create a public OAuth2 client.
     """
@@ -1425,7 +1439,7 @@ def oauth_test_client_B(client, oauth_client_B):
 
 
 @pytest.fixture(scope="function")
-def oauth_test_client_public(client, oauth_client_public):
+def oauth_test_client_public(client, oauth_client_public, get_all_shib_idps_patcher):
     return OAuth2TestClient(client, oauth_client_public, confidential=False)
 
 
@@ -1568,7 +1582,8 @@ def cloud_manager():
 def google_signed_url():
     manager = MagicMock()
     patch(
-        "fence.blueprints.data.indexd.cirrus.google_cloud.utils.get_signed_url", manager
+        "fence.blueprints.data.indexd.gen3cirrus.google_cloud.utils.get_signed_url",
+        manager,
     ).start()
 
     # Note: example outpu/format from google's docs, will not actually work
@@ -1580,6 +1595,36 @@ def google_signed_url():
         "sFpqXsQI8IQi1493mw%3D"
     )
     return manager
+
+
+@pytest.fixture(scope="function")
+def aws_signed_url():
+    """
+    Mock signed urls coming from AWS using a side effect function
+    """
+
+    def presigned_url_side_effect(*args, **kwargs):
+        additional_qs = ""
+        if args[3] and isinstance(args[3], dict):
+            for k in args[3]:
+                additional_qs += f"{k}={args[3][k]}&"
+        return f"https://{args[0]}/{args[1]}/?X-Amz-Expires={args[2]}&{additional_qs}"
+
+    manager = MagicMock(side_effect=presigned_url_side_effect)
+
+    down = patch(
+        "fence.blueprints.data.indexd.gen3cirrus.aws.services.AwsService.download_presigned_url",
+        manager,
+    ).start()
+    up = patch(
+        "fence.blueprints.data.indexd.gen3cirrus.aws.services.AwsService.upload_presigned_url",
+        manager,
+    ).start()
+
+    yield manager
+
+    down.stop()
+    up.stop()
 
 
 @pytest.fixture(scope="function")
@@ -1728,3 +1773,37 @@ def get_all_shib_idps_patcher():
     yield mock
 
     get_all_shib_idps_patch.stop()
+
+
+@pytest.fixture(scope="function")
+def mock_authn_user_flask_context(app):
+    """
+    Mock g and session to simulate a simple user who has authenticated.
+
+    This is primarily to ensure that tests which mock the start of authN where sessions get set can still
+    test the callbacks (where metrics logging rely on session data).
+    """
+    from flask import g
+    from flask import session
+
+    g_before = copy.deepcopy(g)
+    session_before = copy.deepcopy(session)
+
+    user_mock = MagicMock()
+    user_mock.id = 1
+
+    user_mocker = MagicMock()
+    user_mocker.return_value = user_mock
+    g.user = user_mocker
+
+    session = MagicMock()
+    session.return_value = {
+        "fence_idp": "google",
+        "shib_idp": "shib_idp_foobar",
+        "client_id": "client_id_foobar",
+    }
+
+    yield
+
+    g = g_before
+    session = session_before

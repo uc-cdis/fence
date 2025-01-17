@@ -7,8 +7,11 @@ from unittest.mock import MagicMock, patch
 from yaml import safe_load as yaml_load
 
 from cdislogging import get_logger
-from cirrus import GoogleCloudManager
-from cdisutilstest.code.storage_client_mock import get_client, StorageClientMocker
+from gen3cirrus import GoogleCloudManager
+from tests.storageclient.storage_client_mock import (
+    get_client,
+    StorageClientMocker,
+)
 import pytest
 from userdatamodel import Base
 from userdatamodel.models import *
@@ -99,51 +102,6 @@ def syncer(db_session, request, rsa_private_key, kid):
     storage_credentials = {str(backend_name): {"backend": backend}}
     provider = [{"name": backend_name, "backend": backend}]
 
-    users = [
-        {
-            "username": "TESTUSERB",
-            "is_admin": True,
-            "email": "userA@gmail.com",
-            "idp_name": "ras",
-        },
-        {
-            "username": "USER_1",
-            "is_admin": True,
-            "email": "user1@gmail.com",
-            "idp_name": "ras",
-        },
-        {
-            "username": "test_user1@gmail.com",
-            "is_admin": False,
-            "email": "test_user1@gmail.com",
-            "idp_name": "ras",
-        },
-        {
-            "username": "deleted_user@gmail.com",
-            "is_admin": True,
-            "email": "deleted_user@gmail.com",
-            "idp_name": "ras",
-        },
-        {
-            "username": "TESTUSERD",
-            "is_admin": True,
-            "email": "userD@gmail.com",
-            "idp_name": "ras",
-        },
-        {
-            "username": "expired_visa_user",
-            "is_admin": False,
-            "email": "expired@expired.com",
-            "idp_name": "ras",
-        },
-        {
-            "username": "invalid_visa_user",
-            "is_admin": False,
-            "email": "invalid@invalid.com",
-            "idp_name": "ras",
-        },
-    ]
-
     projects = [
         {
             "auth_id": "TCGA-PCAWG",
@@ -220,6 +178,8 @@ def syncer(db_session, request, rsa_private_key, kid):
     syncer_obj.arborist_client._user_url = "/user"
 
     syncer_obj._create_arborist_resources = MagicMock()
+
+    syncer_obj.arborist_client.revoke_all_policies_for_user = MagicMock()
 
     for element in provider:
         udm.create_provider(db_session, element["name"], backend=element["backend"])

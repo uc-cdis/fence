@@ -190,8 +190,8 @@ class UserSessionInterface(SessionInterface):
         token = session.get_updated_token(app)
         if token:
             response.set_cookie(
-                app.config["SESSION_COOKIE_NAME"],
-                token,
+                key=app.config["SESSION_COOKIE_NAME"],
+                value=token,
                 expires=self.get_expiration_time(app, session),
                 httponly=True,
                 domain=domain,
@@ -204,13 +204,13 @@ class UserSessionInterface(SessionInterface):
             except Unauthorized:
                 user = None
 
-            user_sess_id = _get_user_id_from_session(session)
+            user_sess_id = _get_auth_info_from_session(session)
 
             # user_id == '' in session means no login has occured, which is
             # okay if user is hitting with just an access_token
             if user_sess_id != "" and not user:
                 response.set_cookie(
-                    config["ACCESS_TOKEN_COOKIE_NAME"],
+                    key=config["ACCESS_TOKEN_COOKIE_NAME"],
                     expires=0,
                     httponly=True,
                     domain=domain,
@@ -221,7 +221,7 @@ class UserSessionInterface(SessionInterface):
             # clear access token if not
             elif user_sess_id != "" and user.id != user_sess_id:
                 response.set_cookie(
-                    config["ACCESS_TOKEN_COOKIE_NAME"],
+                    key=config["ACCESS_TOKEN_COOKIE_NAME"],
                     expires=0,
                     httponly=True,
                     domain=domain,
@@ -250,14 +250,14 @@ class UserSessionInterface(SessionInterface):
             #       expiration it just won't be stored in the cookie
             #       anymore
             response.set_cookie(
-                app.config["SESSION_COOKIE_NAME"],
+                key=app.config["SESSION_COOKIE_NAME"],
                 expires=0,
                 httponly=True,
                 domain=domain,
                 secure=secure,
             )
             response.set_cookie(
-                config["ACCESS_TOKEN_COOKIE_NAME"],
+                key=config["ACCESS_TOKEN_COOKIE_NAME"],
                 expires=0,
                 httponly=True,
                 domain=domain,
@@ -288,8 +288,8 @@ def _get_valid_access_token(app, session, request):
         return None
 
     # check that the current user is the one from the session and access_token
-    user_sess_id = _get_user_id_from_session(session)
-    token_user_id = _get_user_id_from_access_token(valid_access_token)
+    user_sess_id = _get_auth_info_from_session(session)
+    token_user_id = _get_auth_info_from_access_token(valid_access_token)
 
     if user.id != user_sess_id and user.username != user_sess_id:
         return None
@@ -337,8 +337,8 @@ def _create_access_token_cookie(app, session, response, user):
 
     domain = app.session_interface.get_cookie_domain(app)
     response.set_cookie(
-        config["ACCESS_TOKEN_COOKIE_NAME"],
-        access_token,
+        key=config["ACCESS_TOKEN_COOKIE_NAME"],
+        value=access_token,
         expires=expiration,
         httponly=True,
         domain=domain,
@@ -349,7 +349,7 @@ def _create_access_token_cookie(app, session, response, user):
     return response
 
 
-def _get_user_id_from_session(session):
+def _get_auth_info_from_session(session):
     """
     Get user's identifier from the session. It could be their id or username
     since both are unique.
@@ -365,7 +365,7 @@ def _get_user_id_from_session(session):
     return user_sess_id
 
 
-def _get_user_id_from_access_token(access_token):
+def _get_auth_info_from_access_token(access_token):
     """
     Get user's identifier from the access token claims
     """

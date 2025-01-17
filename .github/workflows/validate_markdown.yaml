@@ -1,0 +1,16 @@
+name: Markdown validation
+
+on:
+  pull_request:
+    types:
+    - opened
+    - reopened
+    - synchronize
+    paths:
+    - .github/workflows/validate_markdown.yaml
+    - "**.md"
+
+jobs:
+  markdown_validation:
+    name: Markdown validation
+    uses: uc-cdis/.github/.github/workflows/validate_markdown.yaml@master

@@ -6,7 +6,7 @@ Usersync is a script that parses user access information from multiple sources (
 
 ## Usersync flow
 
-![Usersync Flow](images/usersync.png)
+![Usersync Flow](../images/usersync.png)
 
 > The access from the user.yaml file and the dbGaP authorization files is combined (see example below), but the user.yaml file overrides the user information (such as email) obtained from the dbGaP authorization files.
 
@@ -42,7 +42,6 @@ Add below to manifest.json to global block to copy dbGaP authorization files to 
 +    "dbgap_backup_bucket": "s3://di-planx-test",
 +    "aws_sa_rule_arn": "arn:aws:iam::707767160287:role/devplanetv1-dbgap-bakup-role",
 ```
-More deployment details can be found here: https://github.com/uc-cdis/cdis-wiki/blob/master/ops/DBGAP-backup-deployment.md
 
 ## Usersync result example
 

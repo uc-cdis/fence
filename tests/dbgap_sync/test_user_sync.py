@@ -1,25 +1,24 @@
 import os
 import pytest
-import yaml
 import collections
 
 import asyncio
-import flask
-from unittest.mock import MagicMock
+from unittest.mock import MagicMock, patch
 import mock
+from userdatamodel.user import IdentityProvider
 
 from fence import models
-from fence.sync.sync_users import _format_policy_id
+from fence.resources.google.access_utils import GoogleUpdateException
 from fence.config import config
 from fence.job.visa_update_cronjob import Visa_Token_Update
-from tests.dbgap_sync.conftest import LOCAL_YAML_DIR
+from fence.utils import DEFAULT_BACKOFF_SETTINGS
 
-from tests.utils import TEST_RAS_USERNAME, TEST_RAS_SUB
 from tests.dbgap_sync.conftest import (
     get_test_encoded_decoded_visa_and_exp,
     fake_ras_login,
 )
 from tests.conftest import get_subjects_to_passports
+from fence.models import User
 
 
 def equal_project_access(d1, d2):
@@ -77,29 +76,42 @@ def test_sync_incorrect_user_yaml_file(syncer, monkeypatch, db_session):
 @pytest.mark.parametrize("allow_non_dbgap_whitelist", [False, True])
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
 @pytest.mark.parametrize("parse_consent_code_config", [False, True])
+@pytest.mark.parametrize("parent_to_child_studies_mapping", [False, True])
 def test_sync(
     syncer,
     db_session,
     allow_non_dbgap_whitelist,
     storage_client,
     parse_consent_code_config,
+    parent_to_child_studies_mapping,
     monkeypatch,
 ):
     # patch the sync to use the parameterized config value
-    monkeypatch.setitem(
-        syncer.dbGaP[0], "parse_consent_code", parse_consent_code_config
-    )
-    monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
+    for dbgap_config in syncer.dbGaP:
+        monkeypatch.setitem(
+            dbgap_config, "parse_consent_code", parse_consent_code_config
+        )
     monkeypatch.setitem(
         syncer.dbGaP[2], "allow_non_dbGaP_whitelist", allow_non_dbgap_whitelist
     )
+
+    if parent_to_child_studies_mapping:
+        mapping = {
+            "phs001179": ["phs000179", "phs000178"],
+        }
+        monkeypatch.setitem(
+            syncer.dbGaP[0],
+            "parent_to_child_studies_mapping",
+            mapping,
+        )
+        monkeypatch.setattr(syncer, "parent_to_child_studies_mapping", mapping)
 
     syncer.sync()
 
     users = db_session.query(models.User).all()
 
-    # 5 from user.yaml, 4 from fake dbgap SFTP
-    assert len(users) == 9
+    # 5 from user.yaml, 6 from fake dbgap SFTP
+    assert len(users) == 11
 
     if parse_consent_code_config:
         if allow_non_dbgap_whitelist:
@@ -162,6 +174,33 @@ def test_sync(
                     "phs000178.c1": ["read", "read-storage"],
                 },
             )
+            if parent_to_child_studies_mapping:
+                user = models.query_for_user(
+                    session=db_session, username="TESTPARENTAUTHZ"
+                )
+                assert equal_project_access(
+                    user.project_access,
+                    {
+                        "phs000178.c1": ["read", "read-storage"],
+                        "phs000179.c1": ["read", "read-storage"],
+                        "phs001179.c1": ["read", "read-storage"],
+                    },
+                )
+                user = models.query_for_user(
+                    session=db_session, username="TESTPARENTAUTHZ999"
+                )
+                assert equal_project_access(
+                    user.project_access,
+                    {
+                        "phs000178.c1": ["read", "read-storage"],
+                        "phs000178.c2": ["read", "read-storage"],
+                        "phs000178.c999": ["read", "read-storage"],
+                        "phs000179.c1": ["read", "read-storage"],
+                        "phs000179.c999": ["read", "read-storage"],
+                        "phs001179.c999": ["read", "read-storage"],
+                        "phs001179.c1": ["read", "read-storage"],
+                    },
+                )
     else:
         if allow_non_dbgap_whitelist:
             user = models.query_for_user(session=db_session, username="TESTUSERD")
@@ -225,6 +264,29 @@ def test_sync(
                     "phs000179": ["read", "read-storage"],
                 },
             )
+            if parent_to_child_studies_mapping:
+                user = models.query_for_user(
+                    session=db_session, username="TESTPARENTAUTHZ"
+                )
+                assert equal_project_access(
+                    user.project_access,
+                    {
+                        "phs000178": ["read", "read-storage"],
+                        "phs000179": ["read", "read-storage"],
+                        "phs001179": ["read", "read-storage"],
+                    },
+                )
+                user = models.query_for_user(
+                    session=db_session, username="TESTPARENTAUTHZ999"
+                )
+                assert equal_project_access(
+                    user.project_access,
+                    {
+                        "phs000178": ["read", "read-storage"],
+                        "phs000179": ["read", "read-storage"],
+                        "phs001179": ["read", "read-storage"],
+                    },
+                )
 
     user = models.query_for_user(session=db_session, username="TESTUSERD")
     assert user.display_name == "USER D"
@@ -267,10 +329,10 @@ def test_dbgap_consent_codes(
         "enable_common_exchange_area_access",
         enable_common_exchange_area,
     )
-    monkeypatch.setattr(syncer, "parse_consent_code", parse_consent_code_config)
-    monkeypatch.setitem(
-        syncer.dbGaP[0], "parse_consent_code", parse_consent_code_config
-    )
+    for dbgap_config in syncer.dbGaP:
+        monkeypatch.setitem(
+            dbgap_config, "parse_consent_code", parse_consent_code_config
+        )
 
     monkeypatch.setattr(syncer, "project_mapping", {})
 
@@ -417,6 +479,40 @@ def test_dbgap_consent_codes(
         assert "phs000179" in resource_to_parent_paths
         assert resource_to_parent_paths["phs000179"] == ["/orgA/programs/"]
 
+
+@pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
+def test_sync_with_google_errors(syncer, monkeypatch):
+    """
+    Verifies that errors from the bulk_update_google_groups method, specifically ones relating to Google APIs, do not
+    prevent arborist updates from occuring.
+    """
+    monkeypatch.setitem(config, "GOOGLE_BULK_UPDATES", True)
+    syncer._update_arborist = MagicMock()
+    syncer._update_authz_in_arborist = MagicMock()
+
+    with patch("fence.sync.sync_users.update_google_groups_for_users") as mock_bulk_update:
+        mock_bulk_update.side_effect = GoogleUpdateException("Something's Wrong!")
+        with pytest.raises(GoogleUpdateException):
+            syncer.sync()
+
+    syncer._update_arborist.assert_called()
+    syncer._update_authz_in_arborist.assert_called()
+
+@patch("fence.sync.sync_users.paramiko.SSHClient")
+@patch("os.makedirs")
+@patch("os.path.exists", return_value=False)
+@pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
+def test_sync_with_sftp_connection_errors(mock_path, mock_makedir, mock_ssh_client, syncer, monkeypatch):
+    """
+    Verifies that when there is an sftp connection error connection, that the connection is retried the max amount of
+    tries as configured by DEFAULT_BACKOFF_SETTINGS
+    """
+    monkeypatch.setattr(syncer, "is_sync_from_dbgap_server", True)
+    mock_ssh_client.return_value.__enter__.return_value.connect.side_effect = Exception("Authentication timed out")
+    # usersync System Exits if any exception is raised during download.
+    with pytest.raises(SystemExit):
+        syncer.sync()
+    assert mock_ssh_client.return_value.__enter__.return_value.connect.call_count == DEFAULT_BACKOFF_SETTINGS['max_tries']
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
 def test_sync_from_files(syncer, db_session, storage_client):
@@ -884,8 +980,8 @@ def test_user_sync_with_visa_sync_job(
 
     users_after = db_session.query(models.User).all()
 
-    # 5 from user.yaml, 4 from fake dbgap SFTP
-    assert len(users_after) == 9
+    # 5 from user.yaml, 6 from fake dbgap SFTP
+    assert len(users_after) == 11
 
     for user in users_after:
         if user.username in setup_info["usernames_to_ras_subjects"]:
@@ -950,4 +1046,123 @@ def test_user_sync_with_visa_sync_job(
         in setup_info["subjects_to_encoded_visas"][
             setup_info["usernames_to_ras_subjects"][valid_user.username]
         ]
+    )
+
+
+@pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)
+def test_revoke_all_policies_no_user(db_session, syncer):
+    """
+    Test that function returns even when there's no user
+    """
+    # no arborist user with that username
+    user_that_doesnt_exist = "foobar"
+    syncer.arborist_client.get_user.return_value = None
+
+    syncer._revoke_all_policies_preserve_mfa(user_that_doesnt_exist, "mock_idp")
+
+    # we only care that this doesn't error
+    assert True
+
+@pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)
+def test_revoke_all_policies_preserve_mfa(monkeypatch, db_session, syncer):
+    """
+    Test that the mfa_policy is re-granted to the user after revoking all their policies.
+    """
+    monkeypatch.setitem(
+        config,
+        "OPENID_CONNECT",
+        {
+            "mock_idp": {
+                "multifactor_auth_claim_info": {"claim": "acr", "values": ["mfa"]}
+            }
+        },
+    )
+    user = User(
+        username="mockuser", identity_provider=IdentityProvider(name="mock_idp")
+    )
+    syncer.arborist_client.get_user.return_value = {"policies": ["mfa_policy"]}
+    syncer._revoke_all_policies_preserve_mfa(user.username, user.identity_provider.name)
+    syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
+        user.username
+    )
+    syncer.arborist_client.grant_user_policy.assert_called_with(
+        user.username, "mfa_policy"
+    )
+
+
+@pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)
+def test_revoke_all_policies_preserve_mfa_no_mfa(monkeypatch, db_session, syncer):
+    """
+    Test to ensure the mfa_policy preservation does not occur if the user does not have the mfa resource granted.
+    """
+    monkeypatch.setitem(
+        config,
+        "OPENID_CONNECT",
+        {
+            "mock_idp": {
+                "multifactor_auth_claim_info": {"claim": "acr", "values": ["mfa"]}
+            }
+        },
+    )
+    user = User(
+        username="mockuser", identity_provider=IdentityProvider(name="mock_idp")
+    )
+    syncer.arborist_client.list_resources_for_user.return_value = [
+        "/programs/phs0001111"
+    ]
+    syncer._revoke_all_policies_preserve_mfa(user.username, user.identity_provider.name)
+    syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
+        user.username
+    )
+    syncer.arborist_client.grant_user_policy.assert_not_called()
+
+
+@pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)
+def test_revoke_all_policies_preserve_mfa_no_idp(monkeypatch, db_session, syncer):
+    """
+    Tests for when no IDP is associated with the user
+    """
+    monkeypatch.setitem(
+        config,
+        "OPENID_CONNECT",
+        {
+            "mock_idp": {
+                "multifactor_auth_claim_info": {"claim": "acr", "values": ["mfa"]}
+            }
+        },
+    )
+    user = User(username="mockuser")
+    syncer._revoke_all_policies_preserve_mfa(user.username)
+    syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
+        user.username
+    )
+    syncer.arborist_client.grant_user_policy.assert_not_called()
+    syncer.arborist_client.list_resources_for_user.assert_not_called()
+
+
+@pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)
+def test_revoke_all_policies_preserve_mfa_ensure_revoke_on_error(
+    monkeypatch, db_session, syncer
+):
+    """
+    Tests that arborist_client.revoke_all_policies is still called when an error occurs
+    """
+    monkeypatch.setitem(
+        config,
+        "OPENID_CONNECT",
+        {
+            "mock_idp": {
+                "multifactor_auth_claim_info": {"claim": "acr", "values": ["mfa"]}
+            }
+        },
+    )
+    user = User(
+        username="mockuser", identity_provider=IdentityProvider(name="mock_idp")
+    )
+    syncer.arborist_client.list_resources_for_user.side_effect = Exception(
+        "Unknown error"
+    )
+    syncer._revoke_all_policies_preserve_mfa(user.username, user.identity_provider.name)
+    syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
+        user.username
     )

@@ -1,4 +1,5 @@
 import flask
+from cdislogging import get_logger
 from flask_restful import Resource
 from urllib.parse import urlparse, urlencode, parse_qsl
 
@@ -6,6 +7,9 @@ from fence.auth import login_user
 from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
 from fence.errors import UserError
+from fence.metrics import metrics
+
+logger = get_logger(__name__)
 
 
 class DefaultOAuth2Login(Resource):
@@ -63,6 +67,7 @@ class DefaultOAuth2Callback(Resource):
         username_field="email",
         email_field="email",
         id_from_idp_field="sub",
+        app=flask.current_app,
     ):
         """
         Construct a resource for a login callback endpoint
@@ -84,6 +89,10 @@ class DefaultOAuth2Callback(Resource):
         self.username_field = username_field
         self.email_field = email_field
         self.id_from_idp_field = id_from_idp_field
+        self.is_mfa_enabled = "multifactor_auth_claim_info" in config[
+            "OPENID_CONNECT"
+        ].get(self.idp_name, {})
+        self.app = app
 
     def get(self):
         # Check if user granted access
@@ -109,7 +118,7 @@ class DefaultOAuth2Callback(Resource):
             return flask.redirect(location=final_redirect_url)
 
         code = flask.request.args.get("code")
-        result = self.client.get_user_id(code)
+        result = self.client.get_auth_info(code)
         username = result.get(self.username_field)
         if not username:
             raise UserError(
@@ -125,6 +134,30 @@ class DefaultOAuth2Callback(Resource):
 
     def post_login(self, user=None, token_result=None, **kwargs):
         prepare_login_log(self.idp_name)
+        metrics.add_login_event(
+            user_sub=flask.g.user.id,
+            idp=self.idp_name,
+            fence_idp=flask.session.get("fence_idp"),
+            shib_idp=flask.session.get("shib_idp"),
+            client_id=flask.session.get("client_id"),
+        )
+
+        if token_result:
+            username = token_result.get(self.username_field)
+            if self.is_mfa_enabled:
+                if token_result.get("mfa"):
+                    logger.info(f"Adding mfa_policy for {username}")
+                    self.app.arborist.grant_user_policy(
+                        username=username,
+                        policy_id="mfa_policy",
+                    )
+                    return
+                else:
+                    logger.info(f"Revoking mfa_policy for {username}")
+                    self.app.arborist.revoke_user_policy(
+                        username=username,
+                        policy_id="mfa_policy",
+                    )
 
 
 def prepare_login_log(idp_name):

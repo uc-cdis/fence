@@ -6,7 +6,7 @@ from flask import current_app
 
 from cdislogging import get_logger
 
-from cirrus import GoogleCloudManager
+from gen3cirrus import GoogleCloudManager
 from fence.blueprints.login.redirect import validate_redirect
 from fence.restful import RestfulApi
 from fence.errors import NotFound
@@ -274,7 +274,7 @@ class GoogleCallback(Resource):
         code = flask.request.args.get("code")
 
         if not config.get("MOCK_GOOGLE_AUTH", False):
-            google_response = flask.current_app.google_client.get_user_id(code)
+            google_response = flask.current_app.google_client.get_auth_info(code)
             email = google_response.get("email")
         else:
             # if we're mocking google auth, mock response to include the email

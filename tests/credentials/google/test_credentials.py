@@ -17,7 +17,7 @@ from userdatamodel.user import (
     ProjectToBucket,
     StorageAccess,
 )
-from cdisutilstest.code.storage_client_mock import get_client
+from tests.storageclient.storage_client_mock import get_client
 
 from fence.config import config
 

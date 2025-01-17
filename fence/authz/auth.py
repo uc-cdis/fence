@@ -1,4 +1,5 @@
 from functools import wraps
+import json
 
 import flask
 
@@ -6,9 +7,10 @@ from fence.authz.errors import ArboristError
 from fence.errors import Forbidden, Unauthorized, NotFound
 from fence.jwt.utils import get_jwt_header
 from fence.config import config
+from pcdcutils.gen3 import Gen3RequestManager
 
 
-def check_arborist_auth(resource, method, constraints=None):
+def check_arborist_auth(resource, method, constraints=None, check_signature=False):
     """
     Check with arborist to verify the authz for a request.
 
@@ -47,7 +49,16 @@ def check_arborist_auth(resource, method, constraints=None):
                 methods=method,
                 resources=resource,
             ):
-                raise Forbidden("user does not have privileges to access this endpoint")
+                if check_signature:
+                    g3rm = Gen3RequestManager(headers=flask.request.headers)
+                    if g3rm.is_gen3_signed():
+                        data = flask.request.get_json()
+                        if not g3rm.valid_gen3_signature(json.dumps(data), config):
+                            raise Forbidden("Gen3 signed request is invalid")
+                    else:
+                        raise Forbidden("user does not have privileges to access this endpoint and the signature is not present.")
+                else:
+                    raise Forbidden("user does not have privileges to access this endpoint")
             return f(*f_args, **f_kwargs)
 
         return wrapper
