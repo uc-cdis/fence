@@ -1005,7 +1005,9 @@ class UserSyncer(object):
             to_add,
             user_project_lowercase,
             sess,
-            google_bulk_mapping=google_group_user_mapping,
+            google_bulk_mapping=google_group_user_mapping
+            if not skip_google_updates
+            else None,
             expires=expires,
         )
 
