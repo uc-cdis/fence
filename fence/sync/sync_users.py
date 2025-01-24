@@ -2490,10 +2490,11 @@ class UserSyncer(object):
                     visa.expires,
                     parse_consent_code,
                 )
-            except Exception:
+            except Exception as e:
                 self.logger.warning(
                     f"ignoring unsuccessfully parsed or expired visa: {encoded_visa}"
                 )
+                self.logger.exception("error", exc_info=e)
                 continue
 
             projects = {**projects, **project}
