@@ -255,7 +255,7 @@ class Oauth2ClientBase(object):
 
         except Exception as e:
             self.logger.exception(f"Can't get user info from {self.idp}: {e}")
-            return {"error": f"Can't get user info from {self.idp}"}
+            return {"error": f"Can't get user info from {self.idp}: {e}"}
 
     def get_access_token(self, user, token_endpoint, db_session=None):
         """
