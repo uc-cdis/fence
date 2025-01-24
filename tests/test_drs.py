@@ -80,7 +80,7 @@ def test_get_presigned_url_with_access_id(
         + jwt.encode(
             context_claims,
             key=rsa_private_key,
-            headers={"kid": kid},
+            headers={"kid": "kid"},
             algorithm="RS256",
         )
     }
