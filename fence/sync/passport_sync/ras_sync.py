@@ -36,7 +36,7 @@ class RASVisa(DefaultVisa):
         self.logger.info(f"decoded_visa: {decoded_visa}")
         self.logger.info(f"expires: {expires}")
         if 0 < expires:
-            self.logger("expires is in the future, proceeding")
+            self.logger.info("expires is in the future, proceeding")
             for permission in ras_dbgap_permissions:
                 phsid = permission.get("phs_id", "")
                 consent_group = permission.get("consent_group", "")
