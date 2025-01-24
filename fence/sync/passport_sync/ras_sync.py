@@ -33,7 +33,7 @@ class RASVisa(DefaultVisa):
         project = {}
         info = {}
         info["tags"] = {}
-
+        self.logger.info(f"decoded_visa: {decoded_visa}")
         if time.time() < expires:
             for permission in ras_dbgap_permissions:
                 phsid = permission.get("phs_id", "")
