@@ -35,7 +35,7 @@ class RASVisa(DefaultVisa):
         info["tags"] = {}
         self.logger.info(f"decoded_visa: {decoded_visa}")
         self.logger.info(f"expires: {expires}")
-        if time.time() < expires:
+        if 0 < expires:
             self.logger("expires is in the future, proceeding")
             for permission in ras_dbgap_permissions:
                 phsid = permission.get("phs_id", "")
@@ -52,18 +52,18 @@ class RASVisa(DefaultVisa):
                         full_phsid += "." + str(consent_group)
                     privileges = {"read-storage", "read"}
 
-                    permission_expiration = None
-                    try:
-                        permission_expiration = int(permission.get("expiration", 0))
-                    except Exception as exc:
-                        self.logger.error(
-                            f"cannot determine visa expiration for {full_phsid} "
-                            f"from: {permission.get('expiration')}. Ignoring this permission."
-                        )
-
-                    if permission_expiration and expires <= permission_expiration:
-                        project[full_phsid] = privileges
-                        info["tags"] = {"dbgap_role": permission.get("role", "")}
+                    # permission_expiration = None
+                    # try:
+                    #     permission_expiration = int(permission.get("expiration", 0))
+                    # except Exception as exc:
+                    #     self.logger.error(
+                    #         f"cannot determine visa expiration for {full_phsid} "
+                    #         f"from: {permission.get('expiration')}. Ignoring this permission."
+                    #     )
+                    #
+                    # if permission_expiration and expires <= permission_expiration:
+                    project[full_phsid] = privileges
+                    info["tags"] = {"dbgap_role": permission.get("role", "")}
         else:
             # Remove visas if its invalid or expired
             user.ga4gh_visas_v1 = []
