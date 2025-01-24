@@ -2498,12 +2498,13 @@ class UserSyncer(object):
 
             projects = {**projects, **project}
             parsed_visas.append(visa)
-
+        logger.info(f"from visa: {project} \t {info}")
         info["user_id"] = user.id
         info["username"] = user.username
         user_projects[user.username] = projects
 
         user_projects = self.parse_projects(user_projects)
+        logger.info(f"parsed projects: {user_projects}")
 
         if parse_consent_code and enable_common_exchange_area_access:
             self.logger.info(
