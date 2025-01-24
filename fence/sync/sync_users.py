@@ -46,6 +46,8 @@ from fence.sync import utils
 from fence.sync.passport_sync.ras_sync import RASVisa
 from fence.utils import get_SQLAlchemyDriver, DEFAULT_BACKOFF_SETTINGS
 
+logger = get_logger(__name__)
+
 
 def _format_policy_id(path, privilege):
     resource = ".".join(name for name in path.split("/") if name)
@@ -1478,6 +1480,7 @@ class UserSyncer(object):
         dbgap_config,
         sess,
     ):
+        logger.info(user_projects)
         user_projects_to_modify = copy.deepcopy(user_projects)
         for username in user_projects.keys():
             for project in user_projects[username].keys():
@@ -1529,8 +1532,8 @@ class UserSyncer(object):
                     user_projects_to_modify,
                     dbgap_config,
                 )
-        for user in user_projects_to_modify.keys():
-            user_projects[user] = user_projects_to_modify[user]
+        # for user in user_projects_to_modify.keys():
+        #     user_projects[user] = user_projects_to_modify[user]
 
     def sync(self):
         if self.session:
