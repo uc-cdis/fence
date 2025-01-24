@@ -69,6 +69,7 @@ def test_get_presigned_url_with_access_id(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+        app,
 ):
     access_id = indexd_client["indexed_file_location"]
     test_guid = "1"
@@ -80,7 +81,7 @@ def test_get_presigned_url_with_access_id(
         + jwt.encode(
             context_claims,
             key=rsa_private_key,
-            headers={"kid": "kid"},
+            headers={"kid": kid},
             algorithm="RS256",
         )
     }
@@ -93,6 +94,8 @@ def test_get_presigned_url_with_access_id(
         logging.warning("Failed to get presigned url with access id")
         log_info = res.__dict__ | {"kid": kid, "cc": context_claims}
         logging.error(log_info)
+        logging.error("keys: ")
+        logging.error(str(list(list(app.jwt_public_keys.items())[0][1].items())))
     assert res.status_code == 200
 
 
