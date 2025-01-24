@@ -35,12 +35,7 @@ def get_error_response(error: Exception):
         )
     )
 
-    # Decide whether to re-raise errors or handle gracefully based on the debug flag
-    debug_mode = config.get("DEBUG", False)
-
-    if debug_mode:
-        # Re-raise the error in debug mode for troubleshooting
-        raise error
+    # raise error
 
     # Prepare user-facing message
     message = details.get("message")

@@ -138,6 +138,8 @@ OPENID_CONNECT:
     verify_aud: true
     # This specifies the expected audience (aud) value for the JWT, ensuring that the token is intended for use with the 'fence' service.
     audience: fence
+    # default refresh token expiration duration
+    default_refresh_token_exp: 3600
   # These Google values must be obtained from Google's Cloud Console
   # Follow: https://developers.google.com/identity/protocols/OpenIDConnect
   #

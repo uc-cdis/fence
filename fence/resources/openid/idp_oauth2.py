@@ -1,18 +1,19 @@
-from email.policy import default
-
 from authlib.integrations.requests_client import OAuth2Session
-from boto3 import client
 from cached_property import cached_property
 from flask import current_app
-from jose import jwt
+
 from jose.exceptions import JWTError, JWTClaimsError
 import requests
 import time
 import datetime
 import backoff
+import jwt
 from fence.utils import DEFAULT_BACKOFF_SETTINGS
 from fence.errors import AuthError
 from fence.models import UpstreamRefreshToken
+
+from fence.jwt.validate import validate_jwt
+from authutils.token.keys import get_public_key_for_token
 
 
 class Oauth2ClientBase(object):
@@ -96,49 +97,6 @@ class Oauth2ClientBase(object):
             return None
         return resp.json()["keys"]
 
-    def decode_and_validate_token(self, token_id, keys, audience, verify_aud=True):
-        """Decodes and validates a JWT (JSON Web Token) using provided keys and audience.
-
-        This function decodes a JWT and validates its signature and audience claim,
-        if required. It is typically used for tokens that require validation to
-        ensure integrity and authenticity.
-
-        Args:
-            token_id (str): The JWT token to decode.
-            keys (list): A list of keys to use for decoding the token, usually
-                provided by the Identity Provider (IdP).
-            audience (str): The expected audience (`aud`) claim to verify within the token.
-            verify_aud (bool, optional): Flag to enable or disable audience verification.
-                Defaults to True.
-
-        Returns:
-            dict: A dictionary of validated token claims if decoding and validation are successful.
-
-        Raises:
-            JWTClaimsError: If the token's claims, such as audience, do not match the expected values.
-            JWTError: If there is an error with the JWT structure or verification.
-
-        Notes:
-            - This function assumes the token is signed using the RS256 algorithm.
-            - Audience verification (`aud`) is performed if `verify_aud` is set to True.
-        """
-        try:
-            validated_claims = jwt.decode(
-                token_id,
-                keys,
-                options={"verify_aud": verify_aud, "verify_at_hash": False},
-                algorithms=["RS256"],
-                audience=audience,
-            )
-            self.logger.info("Token decoded and validated successfully.")
-            return validated_claims
-        except JWTClaimsError as e:
-            self.logger.error(f"Claim error: {e}")
-            raise JWTClaimsError(f"Invalid audience: {e}")
-        except JWTError as e:
-            self.logger.error(f"JWT error: {e}")
-            raise JWTError(f"JWT error occurred: {e}")
-
     def get_jwt_claims_identity(self, token_endpoint, jwks_endpoint, code):
         """
         Get jwt identity claims
@@ -146,20 +104,37 @@ class Oauth2ClientBase(object):
 
         token = self.get_token(token_endpoint, code)
 
-        keys = self.get_jwt_keys(jwks_endpoint)
-
         refresh_token = token.get("refresh_token", None)
+
+        # Extract issuer from the token without signature verification
+        try:
+            decoded_token = jwt.decode(
+                token["id_token"],
+                options={"verify_signature": False},
+                algorithms=["RS256"],
+                key="",
+            )
+            issuer = decoded_token.get("iss")
+        except JWTError as e:
+            raise JWTError(f"Invalid token: {e}")
 
         # validate audience and hash. also ensure that the algorithm is correctly derived from the token.
         # hash verification has not been implemented yet
         verify_aud = self.settings.get("verify_aud", False)
         audience = self.settings.get("audience", self.settings.get("client_id"))
-        return (
-            self.decode_and_validate_token(
-                token["id_token"], keys, audience, verify_aud
-            ),
-            refresh_token,
+
+        decoded_token = validate_jwt(
+            encoded_token=token["id_token"],
+            aud=audience,
+            scope=None,
+            issuers=[issuer],
+            purpose=None,
+            require_purpose=False,
+            options={"verify_aud": verify_aud, "verify_hash": False},
+            attempt_refresh=True,
         )
+
+        return decoded_token, refresh_token
 
     def get_value_from_discovery_doc(self, key, default_value):
         """
@@ -316,8 +291,11 @@ class Oauth2ClientBase(object):
 
             refresh_token = token_response["refresh_token"]
             # Fetching the expires at from token_response.
-            # Defaulting to 1 hour if not available.
-            expires_at = token_response.get("expires_at", time.time() + 3600)
+            # Defaulting to config settings.
+            default_refresh_token_exp = self.settings.get("default_refresh_token_exp")
+            expires_at = token_response.get(
+                "expires_at", time.time() + default_refresh_token_exp
+            )
 
             self.store_refresh_token(
                 user,
@@ -382,6 +360,9 @@ class Oauth2ClientBase(object):
         current_db_session = db_session.object_session(upstream_refresh_token)
         current_db_session.add(upstream_refresh_token)
         db_session.commit()
+        self.logger.info(
+            f"Refresh token has been persisted for user: {user} , with expiration of {expires}"
+        )
 
     def get_groups_from_token(self, decoded_id_token, group_prefix=""):
         """
@@ -457,22 +438,28 @@ class Oauth2ClientBase(object):
 
             # this get_access_token also persists the refresh token in the db
             token = self.get_access_token(user, token_endpoint, db_session)
-            jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
-            keys = self.get_jwt_keys(jwks_endpoint)
-            expires_at = token["expires_at"]
+
             verify_aud = self.settings.get("verify_aud", False)
             audience = self.settings.get("audience", self.settings.get("client_id"))
-            decoded_token_id = self.decode_and_validate_token(
-                token_id=token["id_token"],
-                keys=keys,
-                audience=audience,
-                verify_aud=verify_aud,
+
+            key = get_public_key_for_token(
+                token["id_token"], attempt_refresh=True, pkey_cache={}
             )
+
+            decoded_token_id = jwt.decode(
+                token["id_token"],
+                key=key,
+                options={"verify_aud": verify_aud, "verify_at_hash": False},
+                algorithms=["RS256"],
+                audience=audience,
+            )
+            self.logger.info("Token decoded and validated successfully.")
 
         except Exception as e:
             err_msg = "Could not refresh token"
             self.logger.exception("{}: {}".format(err_msg, e))
             raise
+
         if self.read_authz_groups_from_tokens:
             group_prefix = self.settings.get("authz_groups_sync", {}).get(
                 "group_prefix", ""
@@ -485,8 +472,6 @@ class Oauth2ClientBase(object):
             authz_groups_from_idp = self.get_groups_from_token(
                 decoded_token_id, group_prefix
             )
-
-            exp = datetime.datetime.fromtimestamp(expires_at, tz=datetime.timezone.utc)
 
             # if group name is in the list from arborist:
             if authz_groups_from_idp:
@@ -501,9 +486,21 @@ class Oauth2ClientBase(object):
                 group_membership_duration = self.settings.get(
                     "group_membership_expiration_duration", 3600 * 24 * 7
                 )
-                group_membership_expires_at = datetime.datetime.now(
+
+                # Get the refresh token expiration from the token response
+                refresh_token_expires_at = datetime.datetime.fromtimestamp(
+                    token.get("expires_at", time.time()), tz=datetime.timezone.utc
+                )
+
+                # Calculate the configured group membership expiration
+                configured_expires_at = datetime.datetime.now(
                     tz=datetime.timezone.utc
                 ) + datetime.timedelta(seconds=group_membership_duration)
+
+                # Ensure group membership does not exceed refresh token expiration
+                group_membership_expires_at = min(
+                    refresh_token_expires_at, configured_expires_at
+                )
 
                 # Add user to all matching groups from IDP
                 for arborist_group in arborist_groups:

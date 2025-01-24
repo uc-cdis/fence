@@ -155,6 +155,9 @@ class DefaultOAuth2Callback(Resource):
 
         resp = _login(username, self.idp_name, email=email, id_from_idp=id_from_idp)
 
+        if not flask.g.user:
+            raise UserError("Authentication failed: flask.g.user is missing.")
+
         expires = self.extract_exp(refresh_token)
 
         # if the access token is not a JWT, or does not carry exp,
@@ -231,17 +234,7 @@ class DefaultOAuth2Callback(Resource):
         except Exception as e:
             logger.info(f"Refresh token expiry: Method (PyJWT) failed: {e}")
 
-        # Method 2: Introspection
-        try:
-            introspection_response = self.introspect_token(refresh_token)
-            exp = introspection_response.get("exp")
-
-            if exp is not None:
-                return exp
-        except Exception as e:
-            logger.info(f"Refresh token expiry: Method Introspection failed: {e}")
-
-        # Method 3: Manual base64 decoding
+        # Method 2: Manual base64 decoding
         try:
             # Assuming the token is a JWT (header.payload.signature)
             payload_encoded = refresh_token.split(".")[1]
@@ -259,50 +252,6 @@ class DefaultOAuth2Callback(Resource):
         # If all methods fail, return None
         return None
 
-    def introspect_token(self, token):
-        """Introspects an access token to determine its validity and retrieve associated metadata.
-
-        This method sends a POST request to the introspection endpoint specified in the OpenID
-        discovery document. The request includes the provided token and client credentials,
-        allowing verification of the token's validity and retrieval of any additional metadata
-        (e.g., token expiry, scopes, or user information).
-
-        Args:
-            token (str): The access token to be introspected.
-
-        Returns:
-            dict or None: A dictionary containing the token's introspection data if the request
-            is successful and the response status code is 200. If the introspection fails or an
-            exception occurs, returns None.
-
-        Raises:
-            Exception: Logs an error message if an error occurs during the introspection process.
-        """
-        try:
-            introspect_endpoint = self.client.get_value_from_discovery_doc(
-                "introspection_endpoint", ""
-            )
-
-            # Headers and payload for the introspection request
-            headers = {"Content-Type": "application/x-www-form-urlencoded"}
-            data = {
-                "token": token,
-                "client_id": flask.session.get("client_id"),
-                "client_secret": flask.session.get("client_secret"),
-            }
-
-            response = requests.post(introspect_endpoint, headers=headers, data=data)
-
-            if response.status_code == 200:
-                return response.json()
-            else:
-                logger.info(f"Error introspecting token: {response.status_code}")
-                return None
-
-        except Exception as e:
-            logger.info(f"Error introspecting token: {e}")
-            return None
-
     def post_login(self, user=None, token_result=None, **kwargs):
         prepare_login_log(self.idp_name)
 
@@ -314,8 +263,6 @@ class DefaultOAuth2Callback(Resource):
             client_id=flask.session.get("client_id"),
         )
 
-        # this attribute is only applicable to some OAuth clients
-        # (e.g., not all clients need is_read_authz_groups_from_tokens_enabled)
         if self.read_authz_groups_from_tokens:
             self.client.update_user_authorization(
                 user=user, pkey_cache=None, db_session=None, idp_name=self.idp_name

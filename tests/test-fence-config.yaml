@@ -171,6 +171,8 @@ OPENID_CONNECT:
     verify_aud: false
     # This specifies the expected audience (aud) value for the JWT, ensuring that the token is intended for use with the 'fence' service.
     audience: fence
+    # default refresh token expiration duration
+    default_refresh_token_exp: 3600
 
 # these are the *possible* scopes a client can be given, NOT scopes that are
 # given to all clients. You can be more restrictive during client creation
