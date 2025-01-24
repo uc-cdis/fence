@@ -1480,7 +1480,7 @@ class UserSyncer(object):
         dbgap_config,
         sess,
     ):
-        logger.info(user_projects)
+        logger.info(f"process_user_projects: {user_projects}")
         user_projects_to_modify = copy.deepcopy(user_projects)
         for username in user_projects.keys():
             for project in user_projects[username].keys():
