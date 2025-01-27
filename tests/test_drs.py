@@ -1,3 +1,5 @@
+import logging
+
 import flask
 import httpx
 import hashlib
@@ -67,15 +69,17 @@ def test_get_presigned_url_with_access_id(
     primary_google_service_account,
     cloud_manager,
     google_signed_url,
+        app,
 ):
     access_id = indexd_client["indexed_file_location"]
     test_guid = "1"
+    context_claims = utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id
+            )
     user = {
         "Authorization": "Bearer "
         + jwt.encode(
-            utils.authorized_download_context_claims(
-                user_client.username, user_client.user_id
-            ),
+            context_claims,
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
@@ -86,6 +90,12 @@ def test_get_presigned_url_with_access_id(
         "/ga4gh/drs/v1/objects/" + test_guid + "/access/" + access_id,
         headers=user,
     )
+    if res.status_code != 200:
+        logging.warning("Failed to get presigned url with access id")
+        log_info = res.__dict__ | {"kid": kid, "cc": context_claims}
+        logging.error(log_info)
+        logging.error("keys: ")
+        logging.error(str(list(list(app.jwt_public_keys.items())[0][1].items())))
     assert res.status_code == 200
 
 

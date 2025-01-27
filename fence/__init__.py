@@ -395,12 +395,12 @@ def _load_keys(app, root_dir):
         root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
     app.keypairs = keys.load_keypairs(os.path.join(root_dir, "keys"))
-
-    app.jwt_public_keys = {
+    pub_keys = {
         config["BASE_URL"]: OrderedDict(
             [(str(keypair.kid), str(keypair.public_key)) for keypair in app.keypairs]
         )
     }
+    app.jwt_public_keys = pub_keys
 
 
 def _setup_oidc_clients(app):

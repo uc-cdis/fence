@@ -143,16 +143,19 @@ def get_signed_url_for_file(
     )
 
     prepare_presigned_url_audit_log(requested_protocol, indexed_file)
-    signed_url, authorized_user_from_passport = indexed_file.get_signed_url(
-        requested_protocol,
-        action,
-        expires_in,
-        force_signed_url=force_signed_url,
-        r_pays_project=r_pays_project,
-        file_name=file_name,
-        users_from_passports=users_from_passports,
-        bucket=bucket,
-    )
+    try:
+        signed_url, authorized_user_from_passport = indexed_file.get_signed_url(
+            requested_protocol,
+            action,
+            expires_in,
+            force_signed_url=force_signed_url,
+            r_pays_project=r_pays_project,
+            file_name=file_name,
+            users_from_passports=users_from_passports,
+            bucket=bucket,
+        )
+    except Exception as e:
+        logger.error(str(e))
 
     # a single user from the list was authorized so update the audit log to reflect that
     # users info
@@ -574,7 +577,9 @@ class IndexedFile(object):
                 )
             # don't check the authorization if the file is public
             # (downloading public files with no auth is fine)
-            if not self.public_acl and not self.check_legacy_authorization(action):
+            not_a_public_acl = not self.public_acl
+            legacy_auth_failed = not self.check_legacy_authorization(action)
+            if not_a_public_acl and legacy_auth_failed:
                 raise Unauthorized(
                     f"You don't have access permission on this file: {self.file_id}"
                 )
