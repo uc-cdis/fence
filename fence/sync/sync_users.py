@@ -100,7 +100,7 @@ def _read_file(filepath, encrypted=True, key=None, logger=None):
         Generator[file-like class]: file like object for the file
     """
     if encrypted:
-        has_crypt = sp.call(["which", "mcrypt"])
+        has_crypt = sp.call(["which", "ccdecrypt"])
         if has_crypt != 0:
             if logger:
                 logger.error("Need to install mcrypt to decrypt files from dbgap")
@@ -108,22 +108,12 @@ def _read_file(filepath, encrypted=True, key=None, logger=None):
             exit(1)
         p = sp.Popen(
             [
-                "mcrypt",
-                "-a",
-                "enigma",
-                "-o",
-                "scrypt",
-                "-m",
-                "stream",
-                "--bare",
-                "--key",
+                "ccdecrypt",
+                "-u",
+                "-K",
                 key,
-                "--force",
-            ],
-            stdin=open(filepath, "r"),
-            stdout=sp.PIPE,
-            stderr=open(os.devnull, "w"),
-            universal_newlines=True,
+                filepath,
+            ]
         )
         try:
             yield StringIO(p.communicate()[0])
