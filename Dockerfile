@@ -68,7 +68,7 @@ RUN git config --global --add safe.directory /${appname} && COMMIT=`git rev-pars
 FROM base
 
 # install tar
-RUN yum install tar -y
+RUN yum install -y tar xz 
 # do we need to untar jwt-keys?
 
 COPY --chown=gen3:gen3 --from=builder /$appname /$appname
