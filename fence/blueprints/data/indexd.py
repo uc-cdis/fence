@@ -969,6 +969,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
     def _create_bucket_name_regex(self, bucket):
         if bucket.endswith("*"):
+            # translate last '*' into regexp
             return f"^{bucket[:-1] + '.*'}$"
         return f"^{bucket}$"
 
@@ -983,7 +984,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
             InternalError("S3_BUCKETS not configured"),
         )
         for bucket in s3_buckets:
-            print(self.parsed_url.netloc)
             if re.match(
                 self._create_bucket_name_regex(bucket=bucket), self.parsed_url.netloc
             ):
