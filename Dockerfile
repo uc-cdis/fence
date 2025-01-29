@@ -56,8 +56,6 @@ COPY --chown=gen3:gen3 ./deployment/wsgi/wsgi.py /$appname/wsgi.py
 RUN poetry lock -vv --no-update \
     && poetry install -vv --only main --no-interaction
 
-ENV PATH="$(poetry env info --path)/bin:$PATH"
-
 # Setup version info
 RUN git config --global --add safe.directory /${appname} && COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" > /$appname/version_data.py \
     && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >> /$appname/version_data.py
@@ -68,7 +66,7 @@ RUN git config --global --add safe.directory /${appname} && COMMIT=`git rev-pars
 FROM base
 
 # install tar
-RUN yum install -y tar xz 
+RUN yum install -y tar xz
 # do we need to untar jwt-keys?
 
 COPY --chown=gen3:gen3 --from=builder /$appname /$appname
