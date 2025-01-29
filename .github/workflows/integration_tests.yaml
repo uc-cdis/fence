@@ -9,8 +9,8 @@ concurrency:
 jobs:
   integration_tests:
     name: Integration tests
-        # uses: uc-cdis/.github/.github/workflows/integration_tests.yaml@master
-        uses: uc-cdis/gen3-code-vigil/.github/workflows/shared_integration_tests.yaml@chore/custom_cloud_auto_branch
+    # uses: uc-cdis/.github/.github/workflows/integration_tests.yaml@master
+    uses: uc-cdis/gen3-code-vigil/.github/workflows/shared_integration_tests.yaml@chore/custom_cloud_auto_branch
     with:
       SERVICE_TO_TEST: fence
       TEST_REPO_BRANCH: chore/custom_cloud_auto_branch
