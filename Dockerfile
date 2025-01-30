@@ -65,6 +65,8 @@ RUN git config --global --add safe.directory /${appname} && COMMIT=`git rev-pars
 # ------ Final stage ------
 FROM base
 
+ENV PATH="/${appname}/.venv/bin:$PATH"
+
 # install tar
 RUN yum install -y tar xz
 # do we need to untar jwt-keys?
