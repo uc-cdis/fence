@@ -216,23 +216,25 @@ def test_get_auth_info_granted_access(
         }
 
         # Log mock setups
-        print(
+        logger.debug(
             f"Mock token endpoint: {mock_get_value_from_discovery_doc('token_endpoint', '')}"
         )
-        print(f"Mock jwks_uri: {mock_get_value_from_discovery_doc('jwks_uri', '')}")
-        print(f"Mock fetch_token response: {mock_fetch_token.return_value}")
-        print(f"Mock JWT decode response: {mock_jwt_decode.return_value}")
+        logger.debug(
+            f"Mock jwks_uri: {mock_get_value_from_discovery_doc('jwks_uri', '')}"
+        )
+        logger.debug(f"Mock fetch_token response: {mock_fetch_token.return_value}")
+        logger.debug(f"Mock JWT decode response: {mock_jwt_decode.return_value}")
 
         # Call the method
         code = "mock_code"
         auth_info = oauth2_client.get_auth_info(code)
-        print(f"Mock auth_info: {auth_info}")
+        logger.debug(f"Mock auth_info: {auth_info}")
 
         # Debug: Check if decode was called
-        print(f"JWT decode call count: {mock_jwt_decode.call_count}")
-        print(f"Returned auth_info: {auth_info}")
-        print(f"JWT decode call args: {mock_jwt_decode.call_args_list}")
-        print(f"Fetch token response: {mock_fetch_token.return_value}")
+        logger.debug(f"JWT decode call count: {mock_jwt_decode.call_count}")
+        logger.debug(f"Returned auth_info: {auth_info}")
+        logger.debug(f"JWT decode call args: {mock_jwt_decode.call_args_list}")
+        logger.debug(f"Fetch token response: {mock_fetch_token.return_value}")
 
         # Assertions
         assert "sub" in auth_info, f"Expected 'sub' in auth_info, got {auth_info}"
@@ -273,14 +275,14 @@ def test_get_access_token_expired(expired_mock_user, mock_db_session):
 
     # Simulate the token expiration and user not having access
     with pytest.raises(AuthError) as excinfo:
-        print("get_access_token about to be called")
+        logger.debug("get_access_token about to be called")
         oauth2_client.get_access_token(
             expired_mock_user,
             token_endpoint="https://token.endpoint",
             db_session=mock_db_session,
         )
 
-    print(f"Raised exception message: {excinfo.value}")
+    logger.debug(f"Raised exception message: {excinfo.value}")
 
     assert "User doesn't have a valid, non-expired refresh token" in str(excinfo.value)
 
@@ -449,7 +451,7 @@ def test_jwt_audience_verification_fails(
     # Verify jwt.decode was called with the mock id_token
     mock_jwt_decode.assert_called_with(
         "mock-id-token",  # The mock token
-        key="",
+        key=mock_jwks_response,
         options={"verify_signature": False},
         algorithms=["RS256"],
     )

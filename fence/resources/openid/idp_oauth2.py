@@ -106,13 +106,15 @@ class Oauth2ClientBase(object):
 
         refresh_token = token.get("refresh_token", None)
 
+        keys = self.get_jwt_keys(jwks_endpoint)
+
         # Extract issuer from the token without signature verification
         try:
             decoded_token = jwt.decode(
                 token["id_token"],
                 options={"verify_signature": False},
                 algorithms=["RS256"],
-                key="",
+                key=keys,
             )
             issuer = decoded_token.get("iss")
         except JWTError as e:
