@@ -3,7 +3,7 @@
 #   docker run -v ~/.gen3/fence/fence-config.yaml:/var/www/fence/fence-config.yaml -v ./keys/:/fence/keys/ fence:latest
 # To check running container do: docker exec -it CONTAINER bash
 
-ARG AZLINUX_BASE_VERSION=feat_python-nginx
+ARG AZLINUX_BASE_VERSION=master
 
 # ------ Base stage ------
 FROM quay.io/cdis/python-nginx-al:${AZLINUX_BASE_VERSION} AS base
@@ -33,8 +33,6 @@ COPY --chown=gen3:gen3 ./deployment/wsgi/wsgi.py /$appname/wsgi.py
 RUN poetry lock -vv --no-update \
     && poetry install -vv --only main --no-interaction
 
-ENV PATH="$(poetry env info --path)/bin:$PATH"
-
 # Setup version info
 RUN git config --global --add safe.directory /${appname} && COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" > /$appname/version_data.py \
     && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >> /$appname/version_data.py
@@ -44,8 +42,10 @@ RUN git config --global --add safe.directory /${appname} && COMMIT=`git rev-pars
 # ------ Final stage ------
 FROM base
 
+ENV PATH="/${appname}/.venv/bin:$PATH"
+
 # install tar
-RUN yum install tar -y
+RUN yum install -y tar xz
 # do we need to untar jwt-keys?
 
 #Set python with python3
@@ -53,4 +53,4 @@ RUN echo 'alias python="python3"' >> ~/.bashrc && source ~/.bashrc;
 
 COPY --chown=gen3:gen3 --from=builder /$appname /$appname
 
-CMD ["poetry", "run", "gunicorn", "-c", "deployment/wsgi/gunicorn.conf.py"]
+CMD ["/bin/bash", "-c", "/fence/dockerrun.bash"]

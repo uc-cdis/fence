@@ -36,13 +36,11 @@ RUN poetry config virtualenvs.create false
 # copy ONLY poetry artifact, install the dependencies but not fence
 # this will make sure than the dependencies is cached
 COPY poetry.lock pyproject.toml /$appname/
-RUN pwd
-
 RUN sed -i 's/psycopg2-binary = "<3"/psycopg2 = "<3"/g' /$appname/pyproject.toml
 
 RUN poetry lock -vv --no-update
 
-RUN poetry install -vv --no-root --no-dev --no-interaction
+RUN poetry install -vv --no-root --without dev --no-interaction
 RUN poetry show -v
 
 # copy source code ONLY after installing dependencies
@@ -58,7 +56,7 @@ COPY clear_prometheus_multiproc /$appname/clear_prometheus_multiproc
 
 # install fence
 RUN poetry lock -vv --no-update \
-    && poetry install -vv --no-dev --no-interaction \
+    && poetry install -vv --without dev --no-interaction \
     && poetry show -v
 
 RUN COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" >$appname/version_data.py \
