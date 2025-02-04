@@ -392,7 +392,7 @@ class UserSyncer(object):
         """
         proxy = None
         if server.get("proxy", "") != "":
-            command = "ssh -i ~/.ssh/id_rsa {user}@{proxy} nc {host} {port}".format(
+            command = "ssh -oHostKeyAlgorithms=+ssh-rsa -i ~/.ssh/id_rsa {user}@{proxy} nc {host} {port}".format(
                 user=server.get("proxy_user", ""),
                 proxy=server.get("proxy", ""),
                 host=server.get("host", ""),
