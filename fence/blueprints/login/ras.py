@@ -74,6 +74,7 @@ class RASCallback(DefaultOAuth2Callback):
                 logger.error("{}: {}".format(e, err_msg))
                 raise
 
+            logger.debug(f"passport: {passport}")
             # now sync authz updates
             users_from_passports = fence.resources.ga4gh.passports.sync_gen3_users_authz_from_ga4gh_passports(
                 [passport],
