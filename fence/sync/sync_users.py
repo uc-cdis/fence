@@ -659,9 +659,13 @@ class UserSyncer(object):
                         tags["pi"] = row["downloader for names"]
 
                     user_info[username] = {
-                        "email": row.get("email") or user_info[username].get('email') or "",
+                        "email": row.get("email")
+                        or user_info[username].get("email")
+                        or "",
                         "display_name": display_name,
-                        "phone_number": row.get("phone") or user_info[username].get('phone_number') or "",
+                        "phone_number": row.get("phone")
+                        or user_info[username].get("phone_number")
+                        or "",
                         "tags": tags,
                     }
 
@@ -937,7 +941,9 @@ class UserSyncer(object):
 
         sess.commit()
 
-    def sync_to_storage_backend(self, user_project, user_info, sess, expires):
+    def sync_to_storage_backend(
+        self, user_project, user_info, sess, expires, skip_google_updates=False
+    ):
         """
         sync user access control to storage backend with given expiration
 
@@ -953,7 +959,9 @@ class UserSyncer(object):
 
             user_info (dict): a dictionary of attributes for a user.
             sess: a sqlalchemy session
-
+            expires (int): time at which synced Arborist policies and
+                   inclusion in any GBAG are set to expire
+            skip_google_updates (bool): True if google group updates should be skipped. False if otherwise.
         Return:
             None
         """
@@ -967,10 +975,10 @@ class UserSyncer(object):
             google_group_user_mapping = {}
             get_or_create_proxy_group_id(
                 expires=expires,
-                user_id=user_info['user_id'],
-                username=user_info['username'],
+                user_id=user_info["user_id"],
+                username=user_info["username"],
                 session=sess,
-                storage_manager=self.storage_manager
+                storage_manager=self.storage_manager,
             )
 
         # TODO: eventually it'd be nice to remove this step but it's required
@@ -987,27 +995,24 @@ class UserSyncer(object):
             for project, _ in projects.items():
                 syncing_user_project_list.add((username.lower(), project))
 
-
         to_add = set(syncing_user_project_list)
 
         # when updating users we want to maintain case sensitivity in the username so
         # pass the original, non-lowered user_info dict
-        self._upsert_userinfo(sess, {
-            user_info['username'].lower(): user_info
-        })
+        self._upsert_userinfo(sess, {user_info["username"].lower(): user_info})
+        if not skip_google_updates:
+            self._grant_from_storage(
+                to_add,
+                user_project_lowercase,
+                sess,
+                google_bulk_mapping=google_group_user_mapping,
+                expires=expires,
+            )
 
-        self._grant_from_storage(
-            to_add,
-            user_project_lowercase,
-            sess,
-            google_bulk_mapping=google_group_user_mapping,
-            expires=expires,
-        )
-
-        if config["GOOGLE_BULK_UPDATES"]:
-            self.logger.info("Updating user's google groups ...")
-            update_google_groups_for_users(google_group_user_mapping)
-            self.logger.info("Google groups update done!!")
+            if config["GOOGLE_BULK_UPDATES"]:
+                self.logger.info("Updating user's google groups ...")
+                update_google_groups_for_users(google_group_user_mapping)
+                self.logger.info("Google groups update done!!")
 
         sess.commit()
 
@@ -1473,6 +1478,7 @@ class UserSyncer(object):
         dbgap_config,
         sess,
     ):
+        user_projects_to_modify = copy.deepcopy(user_projects)
         for username in user_projects.keys():
             for project in user_projects[username].keys():
                 phsid = project.split(".")
@@ -1509,7 +1515,7 @@ class UserSyncer(object):
                             privileges,
                             username,
                             sess,
-                            user_projects,
+                            user_projects_to_modify,
                             dbgap_config,
                         )
 
@@ -1520,9 +1526,11 @@ class UserSyncer(object):
                     privileges,
                     username,
                     sess,
-                    user_projects,
+                    user_projects_to_modify,
                     dbgap_config,
                 )
+        for user in user_projects_to_modify.keys():
+            user_projects[user] = user_projects_to_modify[user]
 
     def sync(self):
         if self.session:
@@ -2421,7 +2429,9 @@ class UserSyncer(object):
 
         return sync_client
 
-    def sync_single_user_visas(self, user, ga4gh_visas, sess=None, expires=None):
+    def sync_single_user_visas(
+        self, user, ga4gh_visas, sess=None, expires=None, skip_google_updates=False
+    ):
         """
         Sync a single user's visas during login or DRS/data access
 
@@ -2436,6 +2446,7 @@ class UserSyncer(object):
             sess (sqlalchemy.orm.session.Session): database session
             expires (int): time at which synced Arborist policies and
                            inclusion in any GBAG are set to expire
+            skip_google_updates (bool): True if google group updates should be skipped. False if otherwise.
 
         Return:
             list of successfully parsed visas
@@ -2485,8 +2496,8 @@ class UserSyncer(object):
             projects = {**projects, **project}
             parsed_visas.append(visa)
 
-        info['user_id'] = user.id
-        info['username'] = user.username
+        info["user_id"] = user.id
+        info["username"] = user.username
         user_projects[user.username] = projects
 
         user_projects = self.parse_projects(user_projects)
@@ -2512,7 +2523,11 @@ class UserSyncer(object):
         if user_projects:
             self.logger.info("Sync to storage backend [sync_single_user_visas]")
             self.sync_to_storage_backend(
-                user_projects, info, sess, expires=expires
+                user_projects,
+                info,
+                sess,
+                expires=expires,
+                skip_google_updates=skip_google_updates,
             )
         else:
             self.logger.info("No users for syncing")
