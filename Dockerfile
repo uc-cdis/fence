@@ -20,29 +20,6 @@ RUN chown -R gen3:gen3 /${appname}
 # ------ Builder stage ------
 FROM base AS builder
 
-# Install ccrypt to decrypt dbgap telmetry files
-RUN if [ "$TARGETARCH" = "amd64" ]; then \
-        echo "Upgrading dnf"; \
-        dnf upgrade -y && \
-        echo "Installing Packages"; \
-        dnf install -y \
-            libxcrypt-compat-4.4.33 \
-            libpq-15.0 && \
-        echo "Installing RPM"; \
-        rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt_1.11-1_amd64.deb; \
-    fi
-
-RUN if [ "$TARGETARCH" = "arm64" ]; then \
-    echo "Upgrading dnf"; \
-    dnf upgrade -y && \
-    echo "Installing Packages"; \
-    dnf install -y \
-        libxcrypt-compat-4.4.33 \
-        libpq-15.0 && \
-    echo "Installing RPM"; \
-    rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt-1.11-1.src.rpm; \
-fi
-
 # Install just the deps without the code as it's own step to avoid redoing this on code changes
 COPY poetry.lock pyproject.toml /${appname}/
 RUN poetry lock -vv --no-update \
@@ -66,6 +43,31 @@ RUN git config --global --add safe.directory /${appname} && COMMIT=`git rev-pars
 FROM base
 
 ENV PATH="/${appname}/.venv/bin:$PATH"
+
+
+# Install ccrypt to decrypt dbgap telmetry files
+RUN if [ "$TARGETARCH" = "amd64" ]; then \
+        echo "Upgrading dnf"; \
+        dnf upgrade -y && \
+        echo "Installing Packages"; \
+        dnf install -y \
+            libxcrypt-compat-4.4.33 \
+            libpq-15.0 && \
+        echo "Installing RPM"; \
+        rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt_1.11-1_amd64.deb; \
+    fi
+
+RUN if [ "$TARGETARCH" = "arm64" ]; then \
+    echo "Upgrading dnf"; \
+    dnf upgrade -y && \
+    echo "Installing Packages"; \
+    dnf install -y \
+        libxcrypt-compat-4.4.33 \
+        libpq-15.0 && \
+    echo "Installing RPM"; \
+    rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt-1.11-1.src.rpm; \
+fi
+
 
 # install tar
 RUN yum install -y tar xz
