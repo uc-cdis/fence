@@ -92,6 +92,7 @@ class Oauth2ClientBase(object):
         using their discovery url.
         """
         if self.discovery_url:
+            self.logger.debug(f"Using {self.discovery_url} to get discovery doc")
             return_value = default_value
             if self.discovery_doc.status_code == requests.codes.ok:
                 return_value = self.discovery_doc.json().get(key)
@@ -125,6 +126,7 @@ class Oauth2ClientBase(object):
                 )
         # no `discovery_url`, try to use `discovery` config instead
         else:
+            self.logger.debug(f"Using discovery from fence settings")
             return_value = self.settings.get("discovery", {}).get(key, default_value)
 
         if not return_value:
