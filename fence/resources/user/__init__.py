@@ -153,7 +153,7 @@ def get_user_info(current_session, username):
         "resources_granted": [],
         "groups": groups,
         "message": "",
-        "docs_to_be_reviewed": project_schema.dump(get_doc_to_be_reviewed(current_session))
+        "docs_to_be_reviewed": project_schema.dump(udm.get_doc_to_review(current_session, user.username)),
     }
 
     if "fence_idp" in flask.session:
