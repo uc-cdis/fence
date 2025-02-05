@@ -43,7 +43,7 @@ RUN git config --global --add safe.directory /${appname} && COMMIT=`git rev-pars
 FROM base
 
 ENV PATH="/${appname}/.venv/bin:$PATH"
-
+RUN echo "Running with Arch $TARGETARCH"
 
 # Install ccrypt to decrypt dbgap telmetry files
 RUN if [ "$TARGETARCH" = "amd64" ]; then \
@@ -53,25 +53,29 @@ RUN if [ "$TARGETARCH" = "amd64" ]; then \
         dnf install -y \
             libxcrypt-compat-4.4.33 \
             libpq-15.0 && \
+            gcc && \
+            tar xz && \
         echo "Installing RPM"; \
         rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt_1.11-1_amd64.deb; \
+        cd /root/rpmbuild/SOURCES/ccrypt-1.11 && \
+        tar -zxf ccrypt-1.11.tar.gz && cd ccrypt-1.11 && ./configure && make && make check \
     fi
 
 RUN if [ "$TARGETARCH" = "arm64" ]; then \
-    echo "Upgrading dnf"; \
-    dnf upgrade -y && \
-    echo "Installing Packages"; \
-    dnf install -y \
-        libxcrypt-compat-4.4.33 \
-        libpq-15.0 && \
-    echo "Installing RPM"; \
-    rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt-1.11-1.src.rpm; \
-fi
+        echo "Upgrading dnf"; \
+        dnf upgrade -y && \
+        echo "Installing Packages"; \
+        dnf install -y \
+            libxcrypt-compat-4.4.33 \
+            libpq-15.0 && \
+            gcc && \
+            tar xz && \
+        echo "Installing RPM"; \
+        rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt-1.11-1.src.rpm; \
+        cd /root/rpmbuild/SOURCES/ccrypt-1.11 && \
+        tar -zxf ccrypt-1.11.tar.gz && cd ccrypt-1.11 && ./configure && make && make check \
+    fi
 
-
-# install tar
-RUN yum install -y tar xz
-# do we need to untar jwt-keys?
 
 COPY --chown=gen3:gen3 --from=builder /$appname /$appname
 
