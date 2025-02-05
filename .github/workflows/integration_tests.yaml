@@ -13,6 +13,7 @@ jobs:
     with:
       SERVICE_TO_TEST: fence
       CLOUD_AUTO_BRANCH: chore/fallback_fence_usersync_image
+      TEST_REPO_BRANCH: chore/mcrypt_fence_in_manifest
     secrets:
       CI_AWS_ACCESS_KEY_ID: ${{ secrets.CI_AWS_ACCESS_KEY_ID }}
       CI_AWS_SECRET_ACCESS_KEY: ${{ secrets.CI_AWS_SECRET_ACCESS_KEY }}
