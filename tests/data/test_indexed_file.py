@@ -373,6 +373,7 @@ def test_get_signed_url_s3_bucket_name(mock_get_value, s3_indexed_file_location,
             "validbucketname-alreadyvalid": {
                 "endpoint_url": "https://custom.endpoint2.com"
             },
+            "validbucketname*": {"endpoint_url": "https://custom.endpoint3.com"},
         },
     }.get(key, error)
 
@@ -386,15 +387,27 @@ def test_get_signed_url_s3_bucket_name(mock_get_value, s3_indexed_file_location,
                 "aws_secret_access_key": "mock_secret",  # pragma: allowlist secret
             }
 
-            result_url = s3_indexed_file_location.get_signed_url(
-                "download", expires_in=3600
-            )
-
-            # Check that real_bucket_name fell back to parsed_url.netloc, or otherwise used the already valid bucket
-            if s3_indexed_file_location.bucket_name() == "invalid_bucket*name":
-                assert "validbucketname-netloc" in result_url
+            # this is the test case for having an invalid S3 bucket name in URL, which should not happen
+            if s3_indexed_file_location.parsed_url.netloc == "invalid_bucket*name":
+                assert s3_indexed_file_location.bucket_name() is None
+                assert s3_indexed_file_location.bucket_config() is None
+                with pytest.raises(InternalError):
+                    s3_indexed_file_location.get_signed_url("download", expires_in=3600)
             else:
-                assert "validbucketname-alreadyvalid" in result_url
+                result_url = s3_indexed_file_location.get_signed_url(
+                    "download", expires_in=3600
+                )
+                if (
+                    s3_indexed_file_location.parsed_url.netloc
+                    == "validbucketname-netloc"
+                ):
+                    # this should be in the signed URL since the bucket name with wildcard matches
+                    assert "validbucketname-netloc" in result_url
+                elif (
+                    s3_indexed_file_location.parsed_url.netloc
+                    == "validbucketname-alreadyvalid"
+                ):
+                    assert "validbucketname-alreadyvalid" in result_url
 
 
 @pytest.mark.parametrize("supported_action", ["download"], indirect=True)

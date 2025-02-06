@@ -967,10 +967,16 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 )
         return rv
 
+    def _create_bucket_name_regex(self, bucket):
+        if bucket.endswith("*"):
+            # translate last '*' into regexp
+            return f"^{bucket[:-1] + '.*'}$"
+        return f"^{bucket}$"
+
     def bucket_name(self):
         """
         Return:
-            Optional[str]: bucket name or None if not in config
+            Optional[str]: the real bucket name or None if not in config
         """
         s3_buckets = get_value(
             flask.current_app.config,
@@ -978,8 +984,30 @@ class S3IndexedFileLocation(IndexedFileLocation):
             InternalError("S3_BUCKETS not configured"),
         )
         for bucket in s3_buckets:
-            if re.match("^" + bucket + "$", self.parsed_url.netloc):
-                return bucket
+            if re.match(
+                self._create_bucket_name_regex(bucket=bucket), self.parsed_url.netloc
+            ):
+                return self.parsed_url.netloc
+        return None
+
+    def bucket_config(self, bucket_name=None):
+        """
+        Args:
+            bucket_name (Optional[str]): the name of the bucket, if omitted, default to use bucket_name()
+        Return:
+            Optional[dict]: the bucket config from Fence config or None if not in config
+        """
+        s3_buckets = get_value(
+            flask.current_app.config,
+            "S3_BUCKETS",
+            InternalError("S3_BUCKETS not configured"),
+        )
+        if not bucket_name:
+            bucket_name = self.bucket_name()
+        if bucket_name:
+            for bucket in s3_buckets:
+                if re.match(self._create_bucket_name_regex(bucket=bucket), bucket_name):
+                    return s3_buckets.get(bucket)
         return None
 
     def file_name(self):
@@ -998,13 +1026,13 @@ class S3IndexedFileLocation(IndexedFileLocation):
         if len(aws_creds) == 0 and len(s3_buckets) > 0:
             raise InternalError("credential for buckets is not configured")
 
-        bucket_cred = s3_buckets.get(bucket_name)
-        if bucket_cred is None:
+        bucket_config = s3_buckets.get(bucket_name)
+        if bucket_config is None:
             logger.debug(f"Bucket '{bucket_name}' not found in S3_BUCKETS config")
             raise InternalError("permission denied for bucket")
 
         cred_key = get_value(
-            bucket_cred, "cred", InternalError("credential of that bucket is missing")
+            bucket_config, "cred", InternalError("credential of that bucket is missing")
         )
 
         # this is a special case to support public buckets where we do *not* want to
@@ -1012,7 +1040,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
         if cred_key == "*":
             return {"aws_access_key_id": "*"}
 
-        if "role-arn" not in bucket_cred:
+        if "role-arn" not in bucket_config:
             return get_value(
                 aws_creds,
                 cred_key,
@@ -1025,7 +1053,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
                 InternalError("aws credential of that bucket is not found"),
             )
             return S3IndexedFileLocation.assume_role(
-                bucket_cred, expires_in, aws_creds_config, boto
+                bucket_config, expires_in, aws_creds_config, boto
             )
 
     def get_bucket_region(self):
@@ -1035,14 +1063,14 @@ class S3IndexedFileLocation(IndexedFileLocation):
         if len(s3_buckets) == 0:
             return None
 
-        bucket_cred = s3_buckets.get(self.bucket_name())
-        if bucket_cred is None:
+        bucket_config = self.bucket_config()
+        if bucket_config is None:
             return None
 
-        if "region" not in bucket_cred:
+        if "region" not in bucket_config:
             return None
-        else:
-            return bucket_cred["region"]
+
+        return bucket_config["region"]
 
     def get_signed_url(
         self,
@@ -1055,22 +1083,16 @@ class S3IndexedFileLocation(IndexedFileLocation):
         aws_creds = get_value(
             config, "AWS_CREDENTIALS", InternalError("credentials not configured")
         )
-        s3_buckets = get_value(
-            config, "S3_BUCKETS", InternalError("S3_BUCKETS not configured")
-        )
 
+        # breakpoint()
         bucket_name = self.bucket_name()
-        bucket = s3_buckets.get(bucket_name)
-        # special handling for bucket names from fence config may contain not allowed characters (e.g.: wildcards)
-        # in this case, use indexd url to determine bucket name
-        real_bucket_name = bucket_name
-        if real_bucket_name and not re.match("^[a-z0-9-.]{3,63}$", real_bucket_name):
-            real_bucket_name = self.parsed_url.netloc
-
+        bucket_config = self.bucket_config(bucket_name=bucket_name)
+        if not bucket_config:
+            raise InternalError(f"cannot get config for bucket {bucket_name}")
         object_id = self.parsed_url.path.strip("/")
 
-        if bucket and bucket.get("endpoint_url"):
-            http_url = bucket["endpoint_url"].strip("/") + "/{}/{}".format(
+        if bucket_config and bucket_config.get("endpoint_url"):
+            http_url = bucket_config["endpoint_url"].strip("/") + "/{}/{}".format(
                 self.parsed_url.netloc, self.parsed_url.path.strip("/")
             )
         else:
@@ -1096,11 +1118,11 @@ class S3IndexedFileLocation(IndexedFileLocation):
             return http_url
 
         region = self.get_bucket_region()
-        if not region and not bucket.get("endpoint_url"):
+        if not region and not bucket_config.get("endpoint_url"):
             region = flask.current_app.boto.get_bucket_region(
                 self.parsed_url.netloc, credential
             )
-        endpoint_url = bucket.get("endpoint_url", None)
+        endpoint_url = bucket_config.get("endpoint_url", None)
         s3client = boto3.client(
             "s3",
             aws_access_key_id=credential["aws_access_key_id"],
@@ -1119,20 +1141,20 @@ class S3IndexedFileLocation(IndexedFileLocation):
         # get presigned url for upload
         if action == "PUT":
             url = cirrus_aws.upload_presigned_url(
-                real_bucket_name, object_id, expires_in, None
+                bucket_name, object_id, expires_in, None
             )
         # get presigned url for download
         else:
-            if bucket.get("requester_pays") is True:
+            if bucket_config.get("requester_pays") is True:
                 # need to add extra parameter to signing url for header
                 # https://github.com/boto/boto3/issues/3685
                 auth_info["x-amz-request-payer"] = "requester"
                 url = cirrus_aws.requester_pays_download_presigned_url(
-                    real_bucket_name, object_id, expires_in, auth_info
+                    bucket_name, object_id, expires_in, auth_info
                 )
             else:
                 url = cirrus_aws.download_presigned_url(
-                    real_bucket_name, object_id, expires_in, auth_info
+                    bucket_name, object_id, expires_in, auth_info
                 )
 
         return url
