@@ -298,7 +298,9 @@ class RASOauth2Client(Oauth2ClientBase):
         db_session = db_session or current_app.scoped_session()
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
-
+            self.logger.info(
+                f"Using token_endpoint {token_endpoint} from discovery doc"
+            )
             # this get_access_token also persists the refresh token in the db
             token = self.get_access_token(user, token_endpoint, db_session)
             userinfo = self.get_userinfo(token)
