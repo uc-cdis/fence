@@ -139,7 +139,7 @@ def test_google_link_session(app, client, encoded_creds_jwt):
     )
 
     assert flask.session.get("google_link") is True
-    assert flask.session.get("user_id") == user_id
+    assert flask.session.get("user_id") == str(user_id)
     assert flask.session.get("google_proxy_group_id") == proxy_group_id
     assert flask.session.get("redirect") == redirect
 
