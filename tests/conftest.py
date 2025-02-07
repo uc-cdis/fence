@@ -9,6 +9,7 @@ import json
 import os
 import copy
 import time
+from pathlib import Path
 import flask
 from datetime import datetime
 import mock
@@ -437,7 +438,13 @@ def app(kid, rsa_private_key, rsa_public_key):
     mocker = Mocker()
     mocker.mock_functions()
 
-    root_dir = os.path.dirname(os.path.realpath(__file__))
+    # root_dir = os.path.dirname(os.path.realpath(__file__))
+    current_path = Path(__file__).resolve()
+    root_dir = current_path.parent.parent
+    os.chdir(root_dir)
+    x = str(root_dir)
+    test_dir = os.path.join(x, "tests")
+    test_config = os.path.join(test_dir, "test-fence-config.yaml")
 
     # delete the record operation from the data blueprint, because right now it calls a
     # whole bunch of stuff on the arborist client to do some setup for the uploader role
@@ -449,12 +456,12 @@ def app(kid, rsa_private_key, rsa_public_key):
     app_init(
         fence.app,
         test_settings,
-        root_dir=root_dir,
-        config_path=os.path.join(root_dir, "test-fence-config.yaml"),
+        root_dir=test_dir,
+        config_path=test_config,
     )
 
     # migrate the database to the latest version
-    os.environ["TEST_CONFIG_PATH"] = os.path.join(root_dir, "test-fence-config.yaml")
+    os.environ["TEST_CONFIG_PATH"] = os.path.join(test_dir, "test-fence-config.yaml")
     alembic_main(["--raiseerr", "upgrade", "head"])
 
     # We want to set up the keys so that the test application can load keys

@@ -81,7 +81,7 @@ def test_get_presigned_url_with_access_id(
         + jwt.encode(
             context_claims,
             key=rsa_private_key,
-            headers={"kid": kid},
+            headers={"kid": "kid"},
             algorithm="RS256",
         )
     }
@@ -92,7 +92,7 @@ def test_get_presigned_url_with_access_id(
     )
     if res.status_code != 200:
         logging.warning("Failed to get presigned url with access id")
-        log_info = res.__dict__ | {"kid": kid, "cc": context_claims}
+        log_info = res.status_code | {"kid": kid, "cc": context_claims}
         logging.error(log_info)
         logging.error("keys: ")
         logging.error(str(list(list(app.jwt_public_keys.items())[0][1].items())))

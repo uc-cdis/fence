@@ -1,3 +1,5 @@
+import logging
+
 import authutils.errors
 import authutils.token.keys
 import authutils.token.validate
@@ -109,6 +111,8 @@ def validate_jwt(
         ).get("iss")
     except jwt.InvalidTokenError as e:
         raise JWTError(e)
+    logging.error("token info: ")
+    logging.error(jwt.get_unverified_header(encoded_token))
     attempt_refresh = attempt_refresh and (token_iss != iss)
     public_key = public_key or authutils.token.keys.get_public_key_for_token(
         encoded_token, attempt_refresh=attempt_refresh, pkey_cache=pkey_cache

@@ -2,7 +2,6 @@
 import json
 
 import pytest
-from gen3authz.client.arborist.errors import ArboristError
 
 from fence.models import UserGoogleAccount
 
@@ -77,6 +76,8 @@ def test_userinfo_arborist_authz(
         "/user",
         headers={"Authorization": "Bearer " + encoded_creds_jwt["jwt"]},
     ).json
+    print(f"client: {client}")
+    print("testtesttesttest")
 
     actual_authz = resp.get("authz", {})
     actual_resources = resp.get("resources", [])

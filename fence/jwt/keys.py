@@ -11,10 +11,9 @@ Attributes:
         return default private key for the app
 """
 
-import datetime
+import logging
 import os
 
-import base64
 from cryptography.hazmat.backends import default_backend
 from cryptography.hazmat.primitives import serialization
 import dateutil.parser
@@ -78,6 +77,10 @@ def load_keypairs(keys_dir):
     keypairs = [
         Keypair.from_directory(d) for d in keypair_directories if os.path.isdir(d)
     ]
+    print("AAAAA")
+    print(keypairs)
+    logging.info("AAAA")
+    logging.info(keypairs)
 
     if not keypairs:
         raise EnvironmentError(

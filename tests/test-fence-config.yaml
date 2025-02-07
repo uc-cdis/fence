@@ -28,7 +28,7 @@ BASE_URL: 'http://localhost/user'
 # postgres db to connect to
 # connection url format:
 #     postgresql://[user[:password]@][netloc][:port][/dbname]
-DB: 'postgresql://postgres:postgres@localhost:5432/postgres'
+DB: 'postgresql://postgres:postgres@localhost:5432/fence_test'
 
 # A URL-safe base64-encoded 32-byte key for encrypting keys in db
 # in python you can use the following script to generate one:
