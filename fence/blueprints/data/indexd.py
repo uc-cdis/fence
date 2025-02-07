@@ -155,6 +155,7 @@ def get_signed_url_for_file(
             bucket=bucket,
         )
     except Exception as e:
+        logger.error("signed url error: ")
         logger.error(str(e))
 
     # a single user from the list was authorized so update the audit log to reflect that
