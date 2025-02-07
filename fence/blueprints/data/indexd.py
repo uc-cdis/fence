@@ -369,7 +369,7 @@ class BlankIndex(object):
 
         # check if azure, and default to S3
 
-        if False:
+        if protocol == "az":
             try:
                 container = flask.current_app.config["AZ_BLOB_CONTAINER_URL"]
             except KeyError:
