@@ -515,8 +515,8 @@ def put_gen3_usernames_for_passport_into_cache(
     )
 
     logger.debug(
-        f"Cached users {user_ids_from_passports} for provided passport in "
-        f"database cache and placed in in-memory cache. "
+        f"Cached {user_ids_from_passports} passport in "
+        f"database. "
         f"Expires: {expires_at}"
     )
 
