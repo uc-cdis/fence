@@ -1000,19 +1000,19 @@ class UserSyncer(object):
         # when updating users we want to maintain case sensitivity in the username so
         # pass the original, non-lowered user_info dict
         self._upsert_userinfo(sess, {user_info["username"].lower(): user_info})
+        if not skip_google_updates:
+            self._grant_from_storage(
+                to_add,
+                user_project_lowercase,
+                sess,
+                google_bulk_mapping=google_group_user_mapping,
+                expires=expires,
+            )
 
-        self._grant_from_storage(
-            to_add,
-            user_project_lowercase,
-            sess,
-            google_bulk_mapping=google_group_user_mapping,
-            expires=expires,
-        )
-
-        if config["GOOGLE_BULK_UPDATES"] and not skip_google_updates:
-            self.logger.info("Updating user's google groups ...")
-            update_google_groups_for_users(google_group_user_mapping)
-            self.logger.info("Google groups update done!!")
+            if config["GOOGLE_BULK_UPDATES"]:
+                self.logger.info("Updating user's google groups ...")
+                update_google_groups_for_users(google_group_user_mapping)
+                self.logger.info("Google groups update done!!")
 
         sess.commit()
 
@@ -2521,7 +2521,6 @@ class UserSyncer(object):
             )
 
         if user_projects:
-            self.logger.info("Sync to storage backend [sync_single_user_visas]")
             self.sync_to_storage_backend(
                 user_projects,
                 info,
