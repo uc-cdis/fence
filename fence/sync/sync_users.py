@@ -2505,7 +2505,6 @@ class UserSyncer(object):
             )
 
         if user_projects:
-            self.logger.info("Sync to storage backend [sync_single_user_visas]")
             self.sync_to_storage_backend(
                 user_projects,
                 info,
