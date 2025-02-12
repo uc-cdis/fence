@@ -102,6 +102,7 @@ ENV/
 .mypy_cache/
 
 # jwt keys
+keys
 tests/resources/keys/*.pem
 
 .DS_Store
