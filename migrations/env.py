@@ -27,8 +27,9 @@ logger = logging.getLogger("fence.alembic")
 
 target_metadata = Base.metadata
 
+test_config_path = os.environ.get("TEST_CONFIG_PATH")
 fence_config.load(
-    config_path=os.environ.get("TEST_CONFIG_PATH"),  # for tests
+    config_path=test_config_path,  # for tests
     search_folders=CONFIG_SEARCH_FOLDERS,  # for deployments
 )
 config.set_main_option("sqlalchemy.url", str(fence_config["DB"]))
