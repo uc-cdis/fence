@@ -3,7 +3,7 @@
 Define pytest fixtures.
 TODO (rudyardrichter, 2018-11-06): clean up/consolidate indexd response mocks
 """
-
+import logging
 from collections import OrderedDict
 import json
 import os
@@ -18,6 +18,7 @@ import string
 
 from addict import Dict
 from alembic.config import main as alembic_main
+# these imports are required for the session to work correctly
 from authutils.testing.fixtures import (
     _hazmat_rsa_private_key,
     _hazmat_rsa_private_key_2,
@@ -438,6 +439,8 @@ def app(kid, rsa_private_key, rsa_public_key):
     mocker.mock_functions()
 
     root_dir = os.path.dirname(os.path.realpath(__file__))
+    logging.info("root dir: ", root_dir)
+    test_config_path = os.path.join(root_dir, "test-fence-config.yaml")
 
     # delete the record operation from the data blueprint, because right now it calls a
     # whole bunch of stuff on the arborist client to do some setup for the uploader role
@@ -450,7 +453,7 @@ def app(kid, rsa_private_key, rsa_public_key):
         fence.app,
         test_settings,
         root_dir=root_dir,
-        config_path=os.path.join(root_dir, "test-fence-config.yaml"),
+        config_path=test_config_path,
     )
 
     # migrate the database to the latest version

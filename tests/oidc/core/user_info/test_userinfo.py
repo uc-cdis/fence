@@ -2,7 +2,6 @@
 import json
 
 import pytest
-from gen3authz.client.arborist.errors import ArboristError
 
 from fence.models import UserGoogleAccount
 

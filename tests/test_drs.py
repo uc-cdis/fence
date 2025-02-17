@@ -70,12 +70,12 @@ def test_get_presigned_url_with_access_id(
 ):
     access_id = indexd_client["indexed_file_location"]
     test_guid = "1"
+    context_claims = utils.authorized_download_context_claims(
+                user_client.username, user_client.user_id)
     user = {
         "Authorization": "Bearer "
         + jwt.encode(
-            utils.authorized_download_context_claims(
-                user_client.username, user_client.user_id
-            ),
+            context_claims,
             key=rsa_private_key,
             headers={"kid": kid},
             algorithm="RS256",
