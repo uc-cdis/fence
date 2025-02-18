@@ -148,13 +148,26 @@ class Keypair(object):
         prv_filepath = os.path.join(keys_dir, "jwt_private_key.pem")
 
         if not os.path.isfile(pub_filepath):
-            raise EnvironmentError(
-                "missing public key file; expected file to exist: " + pub_filepath
-            )
+            # Generate public key from private key
+            with open(prv_filepath, "r") as f:
+                private_key_file = f.read()
+                private_key = serialization.load_pem_private_key(
+                    bytes(private_key_file, "utf-8"),
+                    password=None,
+                    backend=default_backend(),
+                )
+                public_key = private_key.public_key()
+                public_key = public_key.public_bytes(
+                    encoding=serialization.Encoding.PEM,
+                    format=serialization.PublicFormat.SubjectPublicKeyInfo,
+                )
+                public_key = public_key.decode("utf-8")
+                with open(pub_filepath, "w") as f:
+                    f.write(public_key)
 
         if not os.path.isfile(prv_filepath):
             raise EnvironmentError(
-                "missing public key file; expected file to exist: " + prv_filepath
+                "missing private key file; expected file to exist: " + prv_filepath
             )
 
         with open(pub_filepath, "r") as f:
