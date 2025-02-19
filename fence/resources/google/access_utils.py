@@ -66,7 +66,7 @@ def update_google_groups_for_users(google_single_user_mapping):
                 google_update_failures = True
                 user_current_groups = []
 
-            logger.info(f"User's current groups: {user_current_groups}")
+            logger.info(f"User {user_email}'s current groups: {user_current_groups}")
 
             # Determine which groups to add the user to and which to remove them from
             current_groups = set(user_current_groups)
@@ -107,13 +107,16 @@ def update_google_groups_for_users(google_single_user_mapping):
                 f"FAILED TO UPDATE GOOGLE GROUPS FOR USER {user_email} (see previous errors)."
             )
 
+
 @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
 def _get_members_from_google_group(gcm, group):
     return gcm.get_group_members(group)
 
+
 @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
 def _get_groups_for_user(gcm, user):
     return gcm.get_groups_for_user(user)
+
 
 @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
 def _add_member_to_google_group(gcm, add_member_to_group, group):
