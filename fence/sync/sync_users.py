@@ -100,30 +100,14 @@ def _read_file(filepath, encrypted=True, key=None, logger=None):
         Generator[file-like class]: file like object for the file
     """
     if encrypted:
-        has_crypt = sp.call(["which", "mcrypt"])
-        if has_crypt != 0:
-            if logger:
-                logger.error("Need to install mcrypt to decrypt files from dbgap")
-            # TODO (rudyardrichter, 2019-01-08): raise error and move exit out to script
-            exit(1)
         p = sp.Popen(
             [
-                "mcrypt",
-                "-a",
-                "enigma",
-                "-o",
-                "scrypt",
-                "-m",
-                "stream",
-                "--bare",
-                "--key",
+                "ccdecrypt",
+                "-u",
+                "-K",
                 key,
-                "--force",
-            ],
-            stdin=open(filepath, "r"),
-            stdout=sp.PIPE,
-            stderr=open(os.devnull, "w"),
-            universal_newlines=True,
+                filepath,
+            ]
         )
         try:
             yield StringIO(p.communicate()[0])
@@ -402,7 +386,7 @@ class UserSyncer(object):
         """
         proxy = None
         if server.get("proxy", "") != "":
-            command = "ssh -i ~/.ssh/id_rsa {user}@{proxy} nc {host} {port}".format(
+            command = "ssh -oHostKeyAlgorithms=+ssh-rsa -i ~/.ssh/id_rsa {user}@{proxy} nc {host} {port}".format(
                 user=server.get("proxy_user", ""),
                 proxy=server.get("proxy", ""),
                 host=server.get("host", ""),
