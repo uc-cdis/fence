@@ -168,7 +168,8 @@ class FenceConfig(Config):
     # the variable DEFAULT_BACKOFF_SETTINGS is migrated here
     @staticmethod
     def _some(predicate, iterable, found_nothing_value=None):
-        """ Returns the first element that satisfies the predicate, else fail value
+        """
+         Returns the first element that satisfies the predicate, else fail value
             Expects predicate to be a boolean lambda and iterable to be a collection
         """
         for item in iterable:
