@@ -51,17 +51,16 @@ from fence.models import (
     ServiceAccountToGoogleBucketAccessGroup,
     query_for_user,
     GA4GHVisaV1,
-    get_client_expires_at,
+    get_client_expires_at, create_client,
 )
 from fence.scripting.google_monitor import email_users_without_access, validation_check
 from fence.config import config
 from fence.sync.sync_users import UserSyncer
 from fence.utils import (
-    create_client,
     get_valid_expiration,
     generate_client_credentials,
-    get_SQLAlchemyDriver,
 )
+from fence import get_SQLAlchemyDriver
 from sqlalchemy.orm.attributes import flag_modified
 from gen3authz.client.arborist.client import ArboristClient
 

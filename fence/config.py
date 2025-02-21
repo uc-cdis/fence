@@ -1,4 +1,5 @@
 import os
+import requests
 from yaml import safe_load as yaml_load
 import urllib.parse
 
@@ -6,6 +7,10 @@ import gen3cirrus
 from gen3config import Config
 
 from cdislogging import get_logger
+
+from fence.errors import NotFound
+from fence.utils import log_backoff_retry, log_backoff_giveup, exception_do_not_retry, logger
+from fence.settings import CONFIG_SEARCH_FOLDERS
 
 logger = get_logger(__name__)
 
@@ -170,3 +175,71 @@ class FenceConfig(Config):
 
 
 config = FenceConfig(DEFAULT_CFG_PATH)
+config.load(
+    config_path=os.environ.get("FENCE_CONFIG_PATH"),
+    search_folders=CONFIG_SEARCH_FOLDERS,
+)
+
+# Default settings to control usage of backoff library.
+DEFAULT_BACKOFF_SETTINGS = {
+    "on_backoff": log_backoff_retry,
+    "on_giveup": log_backoff_giveup,
+    "max_tries": config["DEFAULT_BACKOFF_SETTINGS_MAX_TRIES"],
+    "giveup": exception_do_not_retry,
+}
+
+
+def get_SQLAlchemyDriver(db_conn_url):
+    from userdatamodel.driver import SQLAlchemyDriver
+
+    # override userdatamodel's `setup_db` function which creates tables
+    # and runs database migrations, because Alembic handles that now.
+    # TODO move userdatamodel code to Fence and remove dependencies to it
+    SQLAlchemyDriver.setup_db = lambda _: None
+    return SQLAlchemyDriver(db_conn_url)
+
+
+def send_email(from_email, to_emails, subject, text, smtp_domain):
+    """
+    Send email to group of emails using mail gun api.
+
+    https://app.mailgun.com/
+
+    Args:
+        from_email(str): from email
+        to_emails(list): list of emails to receive the messages
+        text(str): the text message
+        smtp_domain(dict): smtp domain server
+
+            {
+                "smtp_hostname": "smtp.mailgun.org",
+                "default_login": "postmaster@mailgun.planx-pla.net",
+                "api_url": "https://api.mailgun.net/v3/mailgun.planx-pla.net",
+                "smtp_password": "password", # pragma: allowlist secret
+                "api_key": "api key" # pragma: allowlist secret
+            }
+
+    Returns:
+        Http response
+
+    Exceptions:
+        KeyError
+
+    """
+    if smtp_domain not in config["GUN_MAIL"] or not config["GUN_MAIL"].get(
+        smtp_domain
+    ).get("smtp_password"):
+        raise NotFound(
+            "SMTP Domain '{}' does not exist in configuration for GUN_MAIL or "
+            "smtp_password was not provided. "
+            "Cannot send email.".format(smtp_domain)
+        )
+
+    api_key = config["GUN_MAIL"][smtp_domain].get("api_key", "")
+    email_url = config["GUN_MAIL"][smtp_domain].get("api_url", "") + "/messages"
+
+    return requests.post(
+        email_url,
+        auth=("api", api_key),
+        data={"from": from_email, "to": to_emails, "subject": subject, "text": text},
+    )

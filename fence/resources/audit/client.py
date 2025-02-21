@@ -4,10 +4,9 @@ import json
 import requests
 import traceback
 
-from fence.config import config
+from fence.config import config, DEFAULT_BACKOFF_SETTINGS
 from fence.errors import InternalError
 from fence.resources.audit.utils import is_audit_enabled
-from fence.utils import DEFAULT_BACKOFF_SETTINGS
 
 
 class AuditServiceClient:

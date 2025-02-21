@@ -57,9 +57,10 @@ from userdatamodel.models import (
     UserToGroup,
 )
 
-from fence import logger
-from fence.config import config
+from fence import logger, get_SQLAlchemyDriver
+from fence.config import config, logger
 from fence.errors import UserError
+from fence.utils import generate_client_credentials
 
 
 def query_for_user(session, username):
@@ -825,3 +826,69 @@ def populate_iss_sub_pair_to_user_table(target, connection, **kw):
         else:
             transaction.commit()
             logger.info("Population was successful")
+
+
+def create_client(
+    DB,
+    username=None,
+    urls=[],
+    name="",
+    description="",
+    auto_approve=False,
+    is_admin=False,
+    grant_types=None,
+    confidential=True,
+    arborist=None,
+    policies=None,
+    allowed_scopes=None,
+    expires_in=None,
+):
+    client_id, client_secret, hashed_secret = generate_client_credentials(confidential)
+    if arborist is not None:
+        arborist.create_client(client_id, policies)
+    driver = get_SQLAlchemyDriver(DB)
+    auth_method = "client_secret_basic" if confidential else "none"
+
+    allowed_scopes = allowed_scopes or config["CLIENT_ALLOWED_SCOPES"]
+    if not set(allowed_scopes).issubset(set(config["CLIENT_ALLOWED_SCOPES"])):
+        raise ValueError(
+            "Each allowed scope must be one of: {}".format(
+                config["CLIENT_ALLOWED_SCOPES"]
+            )
+        )
+
+    if "openid" not in allowed_scopes:
+        allowed_scopes.append("openid")
+        logger.warning('Adding required "openid" scope to list of allowed scopes.')
+
+    with driver.session as s:
+        user = None
+        if username:
+            user = query_for_user(session=s, username=username)
+            if not user:
+                user = User(username=username, is_admin=is_admin)
+                s.add(user)
+
+        if s.query(Client).filter(Client.name == name).first():
+            if arborist is not None:
+                arborist.delete_client(client_id)
+            raise Exception("client {} already exists".format(name))
+
+        client = Client(
+            client_id=client_id,
+            client_secret=hashed_secret,
+            user=user,
+            redirect_uris=urls,
+            allowed_scopes=" ".join(allowed_scopes),
+            description=description,
+            name=name,
+            auto_approve=auto_approve,
+            grant_types=grant_types,
+            is_confidential=confidential,
+            token_endpoint_auth_method=auth_method,
+            expires_in=expires_in,
+        )
+        s.add(client)
+        s.commit()
+
+    return client_id, client_secret
