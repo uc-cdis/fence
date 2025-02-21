@@ -1,3 +1,9 @@
+"""
+This file is for functions that are generalized enough to be used in varied places that need not be related.
+Functions placed here are/should be low level in terms of composition, and thus references to other modules
+in this project should be used sparingly.
+"""
+
 import bcrypt
 import collections
 from functools import wraps
@@ -6,20 +12,20 @@ import json
 from random import SystemRandom
 import re
 import string
-import requests
 from urllib.parse import urlencode
 from urllib.parse import parse_qs, urlsplit, urlunsplit
 import sys
 
 from cdislogging import get_logger
 import flask
-from werkzeug.datastructures import ImmutableMultiDict
+from userdatamodel.user import User
 
-from fence.models import Client, User, query_for_user
-from fence.errors import NotFound, UserError
+from fence.errors import UserError
 from fence.config import config
 from authlib.oauth2.rfc6749.util import scope_to_list
 from authlib.oauth2.rfc6749.errors import InvalidScopeError
+
+from fence.models import query_for_user, Client
 
 rng = SystemRandom()
 alphanumeric = string.ascii_uppercase + string.ascii_lowercase + string.digits
@@ -121,31 +127,6 @@ def create_client(
         s.commit()
 
     return client_id, client_secret
-
-
-def hash_secret(f):
-    @wraps(f)
-    def wrapper(*args, **kwargs):
-        has_secret = "client_secret" in flask.request.form
-        has_client_id = "client_id" in flask.request.form
-        if flask.request.form and has_secret and has_client_id:
-            form = flask.request.form.to_dict()
-            with flask.current_app.db.session as session:
-                client = (
-                    session.query(Client)
-                    .filter(Client.client_id == form["client_id"])
-                    .first()
-                )
-                if client:
-                    form["client_secret"] = bcrypt.hashpw(
-                        form["client_secret"].encode("utf-8"),
-                        client.client_secret.encode("utf-8"),
-                    ).decode("utf-8")
-                flask.request.form = ImmutableMultiDict(form)
-
-        return f(*args, **kwargs)
-
-    return wrapper
 
 
 def wrap_list_required(f):
@@ -252,52 +233,6 @@ def split_url_and_query_params(url):
     query_params = parse_qs(query_string)
     url = urlunsplit((scheme, netloc, path, None, fragment))
     return url, query_params
-
-
-def send_email(from_email, to_emails, subject, text, smtp_domain):
-    """
-    Send email to group of emails using mail gun api.
-
-    https://app.mailgun.com/
-
-    Args:
-        from_email(str): from email
-        to_emails(list): list of emails to receive the messages
-        text(str): the text message
-        smtp_domain(dict): smtp domain server
-
-            {
-                "smtp_hostname": "smtp.mailgun.org",
-                "default_login": "postmaster@mailgun.planx-pla.net",
-                "api_url": "https://api.mailgun.net/v3/mailgun.planx-pla.net",
-                "smtp_password": "password", # pragma: allowlist secret
-                "api_key": "api key" # pragma: allowlist secret
-            }
-
-    Returns:
-        Http response
-
-    Exceptions:
-        KeyError
-
-    """
-    if smtp_domain not in config["GUN_MAIL"] or not config["GUN_MAIL"].get(
-        smtp_domain
-    ).get("smtp_password"):
-        raise NotFound(
-            "SMTP Domain '{}' does not exist in configuration for GUN_MAIL or "
-            "smtp_password was not provided. "
-            "Cannot send email.".format(smtp_domain)
-        )
-
-    api_key = config["GUN_MAIL"][smtp_domain].get("api_key", "")
-    email_url = config["GUN_MAIL"][smtp_domain].get("api_url", "") + "/messages"
-
-    return requests.post(
-        email_url,
-        auth=("api", api_key),
-        data={"from": from_email, "to": to_emails, "subject": subject, "text": text},
-    )
 
 
 def get_valid_expiration_from_request(
@@ -428,6 +363,8 @@ def get_SQLAlchemyDriver(db_conn_url):
 
 
 # Default settings to control usage of backoff library.
+# TODO(fix-it): this variable should be moved to config.py to remove the reliance on the config
+# module. Many files reference this property, so it should be handled in its own PR.
 DEFAULT_BACKOFF_SETTINGS = {
     "on_backoff": log_backoff_retry,
     "on_giveup": log_backoff_giveup,

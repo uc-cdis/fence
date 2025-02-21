@@ -3,7 +3,6 @@
 import argparse
 import os
 import sys
-import logging
 
 from cdislogging import get_logger
 
