@@ -100,30 +100,14 @@ def _read_file(filepath, encrypted=True, key=None, logger=None):
         Generator[file-like class]: file like object for the file
     """
     if encrypted:
-        has_crypt = sp.call(["which", "mcrypt"])
-        if has_crypt != 0:
-            if logger:
-                logger.error("Need to install mcrypt to decrypt files from dbgap")
-            # TODO (rudyardrichter, 2019-01-08): raise error and move exit out to script
-            exit(1)
         p = sp.Popen(
             [
-                "mcrypt",
-                "-a",
-                "enigma",
-                "-o",
-                "scrypt",
-                "-m",
-                "stream",
-                "--bare",
-                "--key",
+                "ccdecrypt",
+                "-u",
+                "-K",
                 key,
-                "--force",
-            ],
-            stdin=open(filepath, "r"),
-            stdout=sp.PIPE,
-            stderr=open(os.devnull, "w"),
-            universal_newlines=True,
+                filepath,
+            ]
         )
         try:
             yield StringIO(p.communicate()[0])
@@ -402,7 +386,7 @@ class UserSyncer(object):
         """
         proxy = None
         if server.get("proxy", "") != "":
-            command = "ssh -i ~/.ssh/id_rsa {user}@{proxy} nc {host} {port}".format(
+            command = "ssh -oHostKeyAlgorithms=+ssh-rsa -i ~/.ssh/id_rsa {user}@{proxy} nc {host} {port}".format(
                 user=server.get("proxy_user", ""),
                 proxy=server.get("proxy", ""),
                 host=server.get("host", ""),
@@ -659,9 +643,13 @@ class UserSyncer(object):
                         tags["pi"] = row["downloader for names"]
 
                     user_info[username] = {
-                        "email": row.get("email") or user_info[username].get('email') or "",
+                        "email": row.get("email")
+                        or user_info[username].get("email")
+                        or "",
                         "display_name": display_name,
-                        "phone_number": row.get("phone") or user_info[username].get('phone_number') or "",
+                        "phone_number": row.get("phone")
+                        or user_info[username].get("phone_number")
+                        or "",
                         "tags": tags,
                     }
 
@@ -937,7 +925,9 @@ class UserSyncer(object):
 
         sess.commit()
 
-    def sync_to_storage_backend(self, user_project, user_info, sess, expires):
+    def sync_to_storage_backend(
+        self, user_project, user_info, sess, expires, skip_google_updates=False
+    ):
         """
         sync user access control to storage backend with given expiration
 
@@ -953,7 +943,9 @@ class UserSyncer(object):
 
             user_info (dict): a dictionary of attributes for a user.
             sess: a sqlalchemy session
-
+            expires (int): time at which synced Arborist policies and
+                   inclusion in any GBAG are set to expire
+            skip_google_updates (bool): True if google group updates should be skipped. False if otherwise.
         Return:
             None
         """
@@ -967,10 +959,10 @@ class UserSyncer(object):
             google_group_user_mapping = {}
             get_or_create_proxy_group_id(
                 expires=expires,
-                user_id=user_info['user_id'],
-                username=user_info['username'],
+                user_id=user_info["user_id"],
+                username=user_info["username"],
                 session=sess,
-                storage_manager=self.storage_manager
+                storage_manager=self.storage_manager,
             )
 
         # TODO: eventually it'd be nice to remove this step but it's required
@@ -987,27 +979,24 @@ class UserSyncer(object):
             for project, _ in projects.items():
                 syncing_user_project_list.add((username.lower(), project))
 
-
         to_add = set(syncing_user_project_list)
 
         # when updating users we want to maintain case sensitivity in the username so
         # pass the original, non-lowered user_info dict
-        self._upsert_userinfo(sess, {
-            user_info['username'].lower(): user_info
-        })
+        self._upsert_userinfo(sess, {user_info["username"].lower(): user_info})
+        if not skip_google_updates:
+            self._grant_from_storage(
+                to_add,
+                user_project_lowercase,
+                sess,
+                google_bulk_mapping=google_group_user_mapping,
+                expires=expires,
+            )
 
-        self._grant_from_storage(
-            to_add,
-            user_project_lowercase,
-            sess,
-            google_bulk_mapping=google_group_user_mapping,
-            expires=expires,
-        )
-
-        if config["GOOGLE_BULK_UPDATES"]:
-            self.logger.info("Updating user's google groups ...")
-            update_google_groups_for_users(google_group_user_mapping)
-            self.logger.info("Google groups update done!!")
+            if config["GOOGLE_BULK_UPDATES"]:
+                self.logger.info("Updating user's google groups ...")
+                update_google_groups_for_users(google_group_user_mapping)
+                self.logger.info("Google groups update done!!")
 
         sess.commit()
 
@@ -1473,6 +1462,7 @@ class UserSyncer(object):
         dbgap_config,
         sess,
     ):
+        user_projects_to_modify = copy.deepcopy(user_projects)
         for username in user_projects.keys():
             for project in user_projects[username].keys():
                 phsid = project.split(".")
@@ -1509,7 +1499,7 @@ class UserSyncer(object):
                             privileges,
                             username,
                             sess,
-                            user_projects,
+                            user_projects_to_modify,
                             dbgap_config,
                         )
 
@@ -1520,9 +1510,11 @@ class UserSyncer(object):
                     privileges,
                     username,
                     sess,
-                    user_projects,
+                    user_projects_to_modify,
                     dbgap_config,
                 )
+        for user in user_projects_to_modify.keys():
+            user_projects[user] = user_projects_to_modify[user]
 
     def sync(self):
         if self.session:
@@ -1892,16 +1884,11 @@ class UserSyncer(object):
         If MFA is enabled for the user's idp, check if they have the /multifactor_auth resource and restore the
         mfa_policy after revoking all policies.
         """
-        user_data_from_arborist = None
-        try:
-            user_data_from_arborist = self.arborist_client.get_user(username)
-        except ArboristError:
-            # user doesn't exist in Arborist, nothing to revoke
-            return
 
         is_mfa_enabled = "multifactor_auth_claim_info" in config["OPENID_CONNECT"].get(
             idp, {}
         )
+
         if not is_mfa_enabled:
             # TODO This should be a diff, not a revocation of all policies.
             self.arborist_client.revoke_all_policies_for_user(username)
@@ -1909,6 +1896,7 @@ class UserSyncer(object):
 
         policies = []
         try:
+            user_data_from_arborist = self.arborist_client.get_user(username)
             policies = user_data_from_arborist["policies"]
         except Exception as e:
             self.logger.error(
@@ -1919,7 +1907,7 @@ class UserSyncer(object):
             self.arborist_client.revoke_all_policies_for_user(username)
 
         if "mfa_policy" in policies:
-            status_code = self.arborist_client.grant_user_policy(username, "mfa_policy")
+            self.arborist_client.grant_user_policy(username, "mfa_policy")
 
     def _update_authz_in_arborist(
         self,
@@ -2421,7 +2409,9 @@ class UserSyncer(object):
 
         return sync_client
 
-    def sync_single_user_visas(self, user, ga4gh_visas, sess=None, expires=None):
+    def sync_single_user_visas(
+        self, user, ga4gh_visas, sess=None, expires=None, skip_google_updates=False
+    ):
         """
         Sync a single user's visas during login or DRS/data access
 
@@ -2436,6 +2426,7 @@ class UserSyncer(object):
             sess (sqlalchemy.orm.session.Session): database session
             expires (int): time at which synced Arborist policies and
                            inclusion in any GBAG are set to expire
+            skip_google_updates (bool): True if google group updates should be skipped. False if otherwise.
 
         Return:
             list of successfully parsed visas
@@ -2485,8 +2476,8 @@ class UserSyncer(object):
             projects = {**projects, **project}
             parsed_visas.append(visa)
 
-        info['user_id'] = user.id
-        info['username'] = user.username
+        info["user_id"] = user.id
+        info["username"] = user.username
         user_projects[user.username] = projects
 
         user_projects = self.parse_projects(user_projects)
@@ -2510,9 +2501,12 @@ class UserSyncer(object):
             )
 
         if user_projects:
-            self.logger.info("Sync to storage backend [sync_single_user_visas]")
             self.sync_to_storage_backend(
-                user_projects, info, sess, expires=expires
+                user_projects,
+                info,
+                sess,
+                expires=expires,
+                skip_google_updates=skip_google_updates,
             )
         else:
             self.logger.info("No users for syncing")

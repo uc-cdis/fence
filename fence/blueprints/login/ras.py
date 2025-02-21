@@ -79,6 +79,7 @@ class RASCallback(DefaultOAuth2Callback):
                 [passport],
                 pkey_cache=PKEY_CACHE,
                 db_session=current_app.scoped_session(),
+                skip_google_updates=True,
             )
             user_ids_from_passports = list(users_from_passports.keys())
 

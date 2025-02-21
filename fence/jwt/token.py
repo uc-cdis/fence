@@ -179,7 +179,7 @@ def generate_signed_session_token(kid, private_key, expires_in, context=None):
     claims = {
         "pur": "session",
         "aud": ["fence", issuer],
-        "sub": context.get("user_id", ""),
+        "sub": str(context.get("user_id", "")),
         "iss": issuer,
         "iat": iat,
         "exp": exp,

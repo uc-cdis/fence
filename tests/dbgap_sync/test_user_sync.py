@@ -142,6 +142,7 @@ def test_sync(
                     "phs000178.c999": ["read", "read-storage"],
                     "phs000179.c1": ["read", "read-storage"],
                     "PROJECT-12345": ["read", "read-storage"],
+                    "test_common_exchange_area": ["read-storage", "read"],
                 },
             )
         else:
@@ -153,6 +154,7 @@ def test_sync(
                     "phs000178.c2": ["read", "read-storage"],
                     "phs000178.c999": ["read", "read-storage"],
                     "phs000179.c1": ["read", "read-storage"],
+                    "test_common_exchange_area": ["read", "read-storage"],
                 },
             )
 
@@ -489,7 +491,9 @@ def test_sync_with_google_errors(syncer, monkeypatch):
     syncer._update_arborist = MagicMock()
     syncer._update_authz_in_arborist = MagicMock()
 
-    with patch("fence.sync.sync_users.update_google_groups_for_users") as mock_bulk_update:
+    with patch(
+        "fence.sync.sync_users.update_google_groups_for_users"
+    ) as mock_bulk_update:
         mock_bulk_update.side_effect = GoogleUpdateException("Something's Wrong!")
         with pytest.raises(GoogleUpdateException):
             syncer.sync()
@@ -497,21 +501,30 @@ def test_sync_with_google_errors(syncer, monkeypatch):
     syncer._update_arborist.assert_called()
     syncer._update_authz_in_arborist.assert_called()
 
+
 @patch("fence.sync.sync_users.paramiko.SSHClient")
 @patch("os.makedirs")
 @patch("os.path.exists", return_value=False)
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
-def test_sync_with_sftp_connection_errors(mock_path, mock_makedir, mock_ssh_client, syncer, monkeypatch):
+def test_sync_with_sftp_connection_errors(
+    mock_path, mock_makedir, mock_ssh_client, syncer, monkeypatch
+):
     """
     Verifies that when there is an sftp connection error connection, that the connection is retried the max amount of
     tries as configured by DEFAULT_BACKOFF_SETTINGS
     """
     monkeypatch.setattr(syncer, "is_sync_from_dbgap_server", True)
-    mock_ssh_client.return_value.__enter__.return_value.connect.side_effect = Exception("Authentication timed out")
+    mock_ssh_client.return_value.__enter__.return_value.connect.side_effect = Exception(
+        "Authentication timed out"
+    )
     # usersync System Exits if any exception is raised during download.
     with pytest.raises(SystemExit):
         syncer.sync()
-    assert mock_ssh_client.return_value.__enter__.return_value.connect.call_count == DEFAULT_BACKOFF_SETTINGS['max_tries']
+    assert (
+        mock_ssh_client.return_value.__enter__.return_value.connect.call_count
+        == DEFAULT_BACKOFF_SETTINGS["max_tries"]
+    )
+
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
 def test_sync_from_files(syncer, db_session, storage_client):
@@ -1061,6 +1074,7 @@ def test_revoke_all_policies_no_user(db_session, syncer):
 
     # we only care that this doesn't error
     assert True
+
 
 @pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)
 def test_revoke_all_policies_preserve_mfa(monkeypatch, db_session, syncer):
