@@ -549,8 +549,18 @@ class UserSyncer(object):
             with _read_file(
                 filepath, encrypted=encrypted, key=dbgap_key, logger=self.logger
             ) as f:
+                print("--------printing f-------")
+                print
+                print(f.read())
+
                 csv = DictReader(f, quotechar='"', skipinitialspace=True)
+
+                print("----csv----")
+                print(csv)
+
                 for row in csv:
+                    print("-----row-----")
+                    print(row)
                     username = row.get("login") or ""
                     if username == "":
                         continue
