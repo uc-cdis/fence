@@ -555,9 +555,6 @@ class UserSyncer(object):
                 filepath, encrypted=encrypted, key=dbgap_key, logger=self.logger
             ) as f:
                 print("--------printing f-------")
-                print
-                print(f.read())
-
                 csv = DictReader(f, quotechar='"', skipinitialspace=True)
 
                 print("----csv----")
