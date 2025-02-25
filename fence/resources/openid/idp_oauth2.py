@@ -456,6 +456,8 @@ class Oauth2ClientBase(object):
                 token["id_token"], attempt_refresh=True, pkey_cache={}
             )
 
+            self.logger.info(token["access_token"])
+
             decoded_token_id = jwt.decode(
                 token["access_token"],
                 key=key,
