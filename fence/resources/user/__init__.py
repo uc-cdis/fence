@@ -147,6 +147,7 @@ def get_user_info(current_session, username):
         "phone_number": user.phone_number,
         "email": user.email,
         "is_admin": user.is_admin,
+        "active": user.active,
         "role": role,
         "project_access": dict(user.project_access),
         "certificates_uploaded": [],

@@ -104,9 +104,8 @@ def login_user(
 
     user = query_for_user(session=current_app.scoped_session(), username=username)
     if user:
-        if user.active is False:
-            # Abort login if user.active is False (user.active is None or True are both
-            # considered active in this case):
+        if user.active == False:
+            # Abort login if user.active == False:
             raise Unauthorized(
                 "User is known but not authorized/activated in the system"
             )

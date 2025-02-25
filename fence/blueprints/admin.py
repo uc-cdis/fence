@@ -68,10 +68,15 @@ def get_user(username):
 @debug_log
 def get_all_users():
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Get the information of all users from our userdatamodel database
 
     Returns a json object.
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     return jsonify(admin.get_all_users(current_app.scoped_session()))
 
 
@@ -112,8 +117,7 @@ def create_user():
 
     Returns a json object
     """
-    username = request.get_json().get("name", None)
-    role = request.get_json().get("role", None)
+    username = request.get_json().get("username", None)
     email = request.get_json().get("email", None)
     display_name = request.get_json().get("display_name", None)
     phone_number = request.get_json().get("phone_number", None)
@@ -124,7 +128,6 @@ def create_user():
         admin.create_user(
             current_app.scoped_session(),
             username,
-            role,
             email,
             display_name,
             phone_number,
@@ -140,15 +143,22 @@ def create_user():
 @debug_log
 def update_user(username):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Create a user on the userdatamodel database
 
     Returns a json object
     """
-    name = request.get_json().get("name", None)
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
+    new_username = request.get_json().get("username", None)
     role = request.get_json().get("role", None)
     email = request.get_json().get("email", None)
     return jsonify(
-        admin.update_user(current_app.scoped_session(), username, role, email, name)
+        admin.update_user(
+            current_app.scoped_session(), username, role, email, new_username
+        )
     )
 
 
@@ -158,12 +168,31 @@ def update_user(username):
 @debug_log
 def delete_user(username):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Remove the user from the userdatamodel database and all associated storage
     solutions.
 
     Returns json object
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     response = jsonify(admin.delete_user(current_app.scoped_session(), username))
+    return response
+
+
+@blueprint.route("/users/<username>/soft", methods=["DELETE"])
+@blueprint.route("/user/<username>/soft", methods=["DELETE"])
+@admin_login_required
+@debug_log
+def soft_delete_user(username):
+    """
+    Soft-remove the user by marking it as active=False.
+
+    Returns json object
+    """
+    response = jsonify(admin.soft_delete_user(current_app.scoped_session(), username))
     return response
 
 
@@ -173,10 +202,15 @@ def delete_user(username):
 @debug_log
 def get_user_groups(username):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Get the information of a user from our userdatamodel database.
 
     Returns a json object
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     return jsonify(admin.get_user_groups(current_app.scoped_session(), username))
 
 
@@ -186,10 +220,15 @@ def get_user_groups(username):
 @debug_log
 def add_user_to_groups(username):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Create a user to group relationship in the database
 
     Returns a json object
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     groups = request.get_json().get("groups", [])
     return jsonify(
         admin.add_user_to_groups(current_app.scoped_session(), username, groups=groups)
@@ -202,10 +241,15 @@ def add_user_to_groups(username):
 @debug_log
 def remove_user_from_groups(username):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Create a user to group relationship in the database
 
     Returns a json object
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     groups = request.get_json().get("groups", [])
     return jsonify(
         admin.remove_user_from_groups(
@@ -220,10 +264,15 @@ def remove_user_from_groups(username):
 @debug_log
 def remove_user_from_projects(username):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Create a user to group relationship in the database
 
     Returns a json object
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     projects = request.get_json().get("projects", [])
     return jsonify(
         admin.remove_user_from_projects(
@@ -238,11 +287,16 @@ def remove_user_from_projects(username):
 @debug_log
 def add_user_to_projects(username):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Create a user to project relationship on the database and add the access to
     the the object store associated with it
 
     Returns a json object
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     projects = request.get_json().get("projects", [])
     return jsonify(
         admin.add_user_to_projects(
@@ -741,10 +795,15 @@ def add_policies_to_client():
 @debug_log
 def get_project(projectname):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Get the information related to a project
     from the userdatamodel database
     Returns a json object
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     return jsonify(admin.get_project_info(current_app.scoped_session(), projectname))
 
 
@@ -753,10 +812,15 @@ def get_project(projectname):
 @debug_log
 def get_all_projects():
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Get the information related to a project
     from the userdatamodel database
     Returns a json object
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     return jsonify(admin.get_all_projects(current_app.scoped_session()))
 
 
@@ -765,9 +829,14 @@ def get_all_projects():
 @debug_log
 def create_project(projectname):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Create a new project on the specified storage
     Returns a json object
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     auth_id = request.get_json().get("auth_id")
     storage_accesses = request.get_json().get("storage_accesses", [])
     response = jsonify(
@@ -783,9 +852,14 @@ def create_project(projectname):
 @debug_log
 def delete_project(projectname):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Remove project. No Buckets should be associated with it.
     Returns a json object.
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     response = jsonify(admin.delete_project(current_app.scoped_session(), projectname))
     return response
 
@@ -795,9 +869,14 @@ def delete_project(projectname):
 @debug_log
 def remove_projects_from_group(groupname):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Create a user to group relationship in the database
     Returns a json object
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     projects = request.get_json().get("projects", [])
     return jsonify(
         admin.remove_projects_from_group(
@@ -810,9 +889,14 @@ def remove_projects_from_group(groupname):
 @admin_login_required
 def add_project_to_groups(projectname):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Create a user to group relationship in the database
     Returns a json object
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     groups = request.get_json().get("groups", [])
     return jsonify(
         admin.add_project_to_groups(
@@ -825,9 +909,14 @@ def add_project_to_groups(projectname):
 @admin_login_required
 def create_bucket_in_project(projectname, bucketname):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Create a bucket in the selected project.
     Returns a json object.
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     providername = request.get_json().get("provider")
     response = jsonify(
         admin.create_bucket_on_project(
@@ -841,11 +930,16 @@ def create_bucket_in_project(projectname, bucketname):
 @admin_login_required
 def delete_bucket_from_project(projectname, bucketname):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Delete a bucket from the selected project, both
     in the userdatamodel database and in the storage client
     associated with that bucket.
     Returns a json object.
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     return jsonify(
         admin.delete_bucket_on_project(
             current_app.scoped_session(), projectname, bucketname
@@ -857,10 +951,15 @@ def delete_bucket_from_project(projectname, bucketname):
 @admin_login_required
 def list_buckets_from_project(projectname):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Retrieve the information regarding the buckets created within a project.
 
     Returns a json object.
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     response = jsonify(
         admin.list_buckets_on_project_by_name(current_app.scoped_session(), projectname)
     )
@@ -874,10 +973,15 @@ def list_buckets_from_project(projectname):
 @admin_login_required
 def get_group_info(groupname):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Retrieve the information regarding the
     buckets created within a project.
     Returns a json object.
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     return jsonify(admin.get_group_info(current_app.scoped_session(), groupname))
 
 
@@ -885,10 +989,15 @@ def get_group_info(groupname):
 @admin_login_required
 def get_all_groups():
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Retrieve the information regarding the
     buckets created within a project.
     Returns a json object.
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     return jsonify(admin.get_all_groups(current_app.scoped_session()))
 
 
@@ -896,10 +1005,15 @@ def get_all_groups():
 @admin_login_required
 def get_group_users(groupname):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Retrieve the information regarding the
     buckets created within a project.
     Returns a json object.
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     return jsonify(admin.get_group_users(current_app.scoped_session(), groupname))
 
 
@@ -907,10 +1021,15 @@ def get_group_users(groupname):
 @admin_login_required
 def create_group():
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Retrieve the information regarding the
     buckets created within a project.
     Returns a json object.
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     groupname = request.get_json().get("name")
     description = request.get_json().get("description")
     grp = admin.create_group(current_app.scoped_session(), groupname, description)
@@ -926,10 +1045,15 @@ def create_group():
 @admin_login_required
 def update_group(groupname):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Retrieve the information regarding the
     buckets created within a project.
     Returns a json object.
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     name = request.get_json().get("name", None)
     description = request.get_json().get("description", None)
     response = jsonify(
@@ -942,10 +1066,15 @@ def update_group(groupname):
 @admin_login_required
 def delete_group(groupname):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Retrieve the information regarding the
     buckets created within a project.
     Returns a json object.
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     response = jsonify(admin.delete_group(current_app.scoped_session(), groupname))
     return response
 
@@ -954,9 +1083,14 @@ def delete_group(groupname):
 @admin_login_required
 def add_projects_to_group(groupname):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Create a user to group relationship in the database
     Returns a json object
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     projects = request.get_json().get("projects", [])
     response = jsonify(
         admin.add_projects_to_group(current_app.scoped_session(), groupname, projects)
@@ -968,9 +1102,14 @@ def add_projects_to_group(groupname):
 @admin_login_required
 def get_group_projects(groupname):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Create a user to group relationship in the database
     Returns a json object
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     values = admin.get_group_projects(current_app.scoped_session(), groupname)
     return jsonify({"projects": values})
 
@@ -983,9 +1122,14 @@ def get_group_projects(groupname):
 @admin_login_required
 def get_cloud_provider(providername):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Retriev the information related to a cloud provider
     Returns a json object.
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     return jsonify(admin.get_provider(current_app.scoped_session(), providername))
 
 
@@ -994,9 +1138,14 @@ def get_cloud_provider(providername):
 @admin_login_required
 def create_cloud_provider(providername):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Create a cloud provider.
     Returns a json object
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     backend_name = request.get_json().get("backend")
     service_name = request.get_json().get("service")
     response = jsonify(
@@ -1015,11 +1164,16 @@ def create_cloud_provider(providername):
 @admin_login_required
 def delete_cloud_provider(providername):
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     Deletes a cloud provider from the userdatamodel
     All projects associated with it should be deassociated
     or removed.
     Returns a json object.
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     response = jsonify(
         admin.delete_provider(current_app.scoped_session(), providername)
     )
@@ -1030,10 +1184,15 @@ def delete_cloud_provider(providername):
 @admin_login_required
 def get_registered_users():
     """
+    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
+
     - List registration info for every user for which there exists registration info.
     - Endpoint accessible to admins only.
     - Response json structure is provisional.
     """
+    logger.warning(
+        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
+    )
     registered_users = (
         current_app.scoped_session()
         .query(User)
