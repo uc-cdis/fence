@@ -113,9 +113,9 @@ def _read_file(filepath, encrypted=True, key=None, logger=None):
             print("--------read_file--------------------------------")
             print(p)
             print(p.communicate())
-            print(p.communicate()[0])
+            yield (p.communicate())
             print("----end read file--------------------------------")
-            yield StringIO(p.communicate()[0])
+            # yield StringIO(p.communicate()[0])
         except UnicodeDecodeError:
             logger.error("Could not decode file. Check the decryption key.")
     else:
