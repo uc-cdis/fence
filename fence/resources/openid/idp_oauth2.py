@@ -284,12 +284,20 @@ class Oauth2ClientBase(object):
         if not refresh_token:
             raise AuthError("User doesn't have a valid, non-expired refresh token")
 
+        verify_aud = self.settings.get("verify_aud", False)
+        audience = self.settings.get("audience", self.settings.get("client_id"))
+
+        refresh_kwargs = {
+            "url": token_endpoint,
+            "proxies": self.get_proxies(),
+            "refresh_token": refresh_token,
+        }
+
+        if verify_aud:
+            refresh_kwargs["audience"] = audience
+
         try:
-            token_response = self.session.refresh_token(
-                url=token_endpoint,
-                proxies=self.get_proxies(),
-                refresh_token=refresh_token,
-            )
+            token_response = self.session.refresh_token(**refresh_kwargs)
 
             refresh_token = token_response["refresh_token"]
             # Fetching the expires at from token_response.
@@ -449,7 +457,7 @@ class Oauth2ClientBase(object):
             )
 
             decoded_token_id = jwt.decode(
-                token["id_token"],
+                token["access_token"],
                 key=key,
                 options={"verify_aud": verify_aud, "verify_at_hash": False},
                 algorithms=["RS256"],
