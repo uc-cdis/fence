@@ -12,7 +12,7 @@ jobs:
     uses: uc-cdis/.github/.github/workflows/integration_tests.yaml@master
     with:
       SERVICE_TO_TEST: fence
-      TEST_REPO_BRANCH: chore/custom_cloud_auto_branch
+      TEST_REPO_BRANCH: chore/fix_usersync_fence_image_during_tests
     secrets:
       CI_AWS_ACCESS_KEY_ID: ${{ secrets.CI_AWS_ACCESS_KEY_ID }}
       CI_AWS_SECRET_ACCESS_KEY: ${{ secrets.CI_AWS_SECRET_ACCESS_KEY }}
