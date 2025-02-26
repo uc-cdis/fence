@@ -125,16 +125,17 @@ class Oauth2ClientBase(object):
         verify_aud = self.settings.get("verify_aud", False)
         audience = self.settings.get("audience", self.settings.get("client_id"))
 
-        decoded_token = validate_jwt(
-            encoded_token=token["id_token"],
-            aud=audience,
-            scope=None,
-            issuers=[issuer],
-            purpose=None,
-            require_purpose=False,
-            options={"verify_aud": verify_aud, "verify_hash": False},
-            attempt_refresh=True,
-        )
+        if verify_aud:
+            decoded_token = validate_jwt(
+                encoded_token=token["access_token"],
+                aud=audience,
+                scope=None,
+                issuers=[issuer],
+                purpose=None,
+                require_purpose=False,
+                options={"verify_aud": verify_aud, "verify_hash": False},
+                attempt_refresh=True,
+            )
 
         return decoded_token, refresh_token
 
