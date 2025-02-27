@@ -107,7 +107,10 @@ def _read_file(filepath, encrypted=True, key=None, logger=None):
                 "-K",
                 key,
                 filepath,
-            ]
+            ],
+            stdout=sp.PIPE,
+            stderr=open(os.devnull, "w"),
+            universal_newlines=True,
         )
         try:
             yield StringIO(p.communicate()[0])
@@ -550,6 +553,7 @@ class UserSyncer(object):
                 filepath, encrypted=encrypted, key=dbgap_key, logger=self.logger
             ) as f:
                 csv = DictReader(f, quotechar='"', skipinitialspace=True)
+
                 for row in csv:
                     username = row.get("login") or ""
                     if username == "":
