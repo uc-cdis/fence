@@ -140,6 +140,16 @@ OPENID_CONNECT:
     audience: fence
     # default refresh token expiration duration
     default_refresh_token_exp: 3600
+    # automatically register users from idp
+    register_idp_user: true
+    # firstname claim field from idp
+    firstname_claim_field: 'firstName'
+    # lastname claim field from idp
+    lastname_claim_field: 'lastName'
+    # organization claim field from idp
+    organization_claim_field: 'org'
+    # default organization
+    default_organization: 'AU BioCommons'
   # These Google values must be obtained from Google's Cloud Console
   # Follow: https://developers.google.com/identity/protocols/OpenIDConnect
   #
@@ -998,6 +1008,7 @@ ASSUME_ROLE_CACHE_SECONDS: 1800
 # will have access to download data.
 REGISTER_USERS_ON: false
 REGISTERED_USERS_GROUP: ''
+REGISTER_IDP_USERS: false
 
 # Number of projects that can be registered to a Google Service Account
 SERVICE_ACCOUNT_LIMIT: 6

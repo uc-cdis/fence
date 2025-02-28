@@ -35,6 +35,8 @@ def get_error_response(error: Exception):
         )
     )
 
+    raise error
+
     # Prepare user-facing message
     message = details.get("message")
     valid_http_status_codes = [

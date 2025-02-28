@@ -125,16 +125,17 @@ class Oauth2ClientBase(object):
         verify_aud = self.settings.get("verify_aud", False)
         audience = self.settings.get("audience", self.settings.get("client_id"))
 
-        decoded_token = validate_jwt(
-            encoded_token=token["access_token"],
-            aud=audience,
-            scope=None,
-            issuers=[issuer],
-            purpose=None,
-            require_purpose=False,
-            options={"verify_aud": verify_aud, "verify_hash": False},
-            attempt_refresh=True,
-        )
+        if verify_aud:
+            decoded_token = validate_jwt(
+                encoded_token=token["access_token"],
+                aud=audience,
+                scope=None,
+                issuers=[issuer],
+                purpose=None,
+                require_purpose=False,
+                options={"verify_aud": verify_aud, "verify_hash": False},
+                attempt_refresh=True,
+            )
 
         return decoded_token, refresh_token
 
@@ -224,6 +225,15 @@ class Oauth2ClientBase(object):
             groups = None
             group_prefix = None
 
+            organization_claim_field = self.settings.get(
+                "organization_claim_field", "org"
+            )
+            firstname_claim_field = self.settings.get(
+                "firstname_claim_field", "firstName"
+            )
+            lastname_claim_field = self.settings.get("lastname_claim_field", "lastName")
+            email_claim_field = self.settings.get("email_claim_field", "email")
+
             if self.read_authz_groups_from_tokens:
                 try:
                     group_claim_field = self.settings.get("group_claim_field", "groups")
@@ -248,6 +258,10 @@ class Oauth2ClientBase(object):
                     "exp": claims.get("exp"),
                     "groups": groups,
                     "group_prefix": group_prefix,
+                    "org": claims.get(organization_claim_field),
+                    "firstname": claims.get(firstname_claim_field),
+                    "lastname": claims.get(lastname_claim_field),
+                    "email": claims.get(email_claim_field),
                 }
             else:
                 self.logger.exception(
@@ -374,12 +388,12 @@ class Oauth2ClientBase(object):
             f"Refresh token has been persisted for user: {user} , with expiration of {expires}"
         )
 
-    def get_groups_from_token(self, decoded_id_token, group_prefix=""):
+    def get_groups_from_token(self, decoded_access_token, group_prefix=""):
         """
         Retrieve and format groups from the decoded token based on a configurable field name.
 
         Args:
-            decoded_id_token (dict): The decoded token containing claims.
+            decoded_access_token (dict): The decoded token containing claims.
             group_prefix (str): The prefix to strip from group names.
 
         Returns:
@@ -391,7 +405,7 @@ class Oauth2ClientBase(object):
         """
         # Retrieve the configured field name for groups, defaulting to 'groups'
         group_claim_field = self.settings.get("group_claim_field", "groups")
-        authz_groups_from_idp = decoded_id_token.get(group_claim_field, [])
+        authz_groups_from_idp = decoded_access_token.get(group_claim_field, [])
 
         if authz_groups_from_idp:
             authz_groups_from_idp = [
@@ -456,9 +470,7 @@ class Oauth2ClientBase(object):
                 token["id_token"], attempt_refresh=True, pkey_cache={}
             )
 
-            self.logger.info(token)
-
-            decoded_token_id = jwt.decode(
+            decoded_access_token = jwt.decode(
                 token["access_token"],
                 key=key,
                 options={"verify_aud": verify_aud, "verify_at_hash": False},
@@ -482,7 +494,7 @@ class Oauth2ClientBase(object):
 
             # groups defined in idp
             authz_groups_from_idp = self.get_groups_from_token(
-                decoded_token_id, group_prefix
+                decoded_access_token, group_prefix
             )
 
             # if group name is in the list from arborist:
