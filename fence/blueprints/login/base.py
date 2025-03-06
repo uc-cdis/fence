@@ -3,7 +3,7 @@ import base64
 import json
 from urllib.parse import urlparse, urlencode, parse_qsl
 import jwt
-import requests
+from flask import current_app
 import flask
 from cdislogging import get_logger
 from flask_restful import Resource
@@ -12,6 +12,7 @@ from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
 from fence.errors import UserError
 from fence.metrics import metrics
+
 
 logger = get_logger(__name__)
 
@@ -71,6 +72,9 @@ class DefaultOAuth2Callback(Resource):
         username_field="email",
         email_field="email",
         id_from_idp_field="sub",
+        firstname_claim_field="given_name",
+        lastname_claim_field="family_name",
+        organization_claim_field="org",
         app=flask.current_app,
     ):
         """
@@ -153,7 +157,13 @@ class DefaultOAuth2Callback(Resource):
         email = result.get(self.email_field)
         id_from_idp = result.get(self.id_from_idp_field)
 
-        resp = _login(username, self.idp_name, email=email, id_from_idp=id_from_idp)
+        resp = _login(
+            username,
+            self.idp_name,
+            email=email,
+            id_from_idp=id_from_idp,
+            token_result=result,
+        )
 
         if not flask.g.user:
             raise UserError("Authentication failed: flask.g.user is missing.")
@@ -297,19 +307,76 @@ def prepare_login_log(idp_name):
     }
 
 
-def _login(username, idp_name, email=None, id_from_idp=None):
+def _login(
+    username,
+    idp_name,
+    email=None,
+    id_from_idp=None,
+    token_result=None,
+):
     """
-    Login user with given username, then redirect if session has a saved
-    redirect.
+    Login user with given username, then automatically register if needed,
+    and finally redirect if session has a saved redirect.
     """
     login_user(username, idp_name, email=email, id_from_idp=id_from_idp)
 
+    register_idp_users = (
+        config["OPENID_CONNECT"]
+        .get(idp_name, {})
+        .get("enable_idp_users_registration", False)
+    )
+
     if config["REGISTER_USERS_ON"]:
-        if not flask.g.user.additional_info.get("registration_info"):
-            return flask.redirect(
-                config["BASE_URL"] + flask.url_for("register.register_user")
-            )
+        user = flask.g.user
+        if not user.additional_info.get("registration_info"):
+            # If enabled, automatically register user from Idp
+            if register_idp_users:
+                firstname = token_result.get("firstname")
+                lastname = token_result.get("lastname")
+                organization = token_result.get("org")
+                email = token_result.get("email")
+                if email is None:
+                    raise UserError("OAuth2 id token is missing email claim")
+                # Log warnings and set defaults if needed
+                if not firstname or not lastname:
+                    logger.warning(
+                        f"User {username} missing name fields. Proceeding with minimal info."
+                    )
+                    firstname = firstname or "Unknown"
+                    lastname = lastname or "User"
+
+                if not organization:
+                    organization = None
+                    logger.info(
+                        f"User {username} missing organization. Defaulting to None."
+                    )
+
+                # Store registration info
+                registration_info = {
+                    "firstname": firstname,
+                    "lastname": lastname,
+                    "org": organization,
+                    "email": email,
+                }
+                user.additional_info = user.additional_info or {}
+                user.additional_info["registration_info"] = registration_info
+
+                # Persist to database
+                current_app.scoped_session().add(user)
+                current_app.scoped_session().commit()
+
+                # Ensure user exists in Arborist and assign to group
+                with current_app.arborist.context():
+                    current_app.arborist.create_user(dict(name=username))
+                    current_app.arborist.add_user_to_group(
+                        username=username,
+                        group_name=config["REGISTERED_USERS_GROUP"],
+                    )
+            else:
+                return flask.redirect(
+                    config["BASE_URL"] + flask.url_for("register.register_user")
+                )
 
     if flask.session.get("redirect"):
         return flask.redirect(flask.session.get("redirect"))
-    return flask.jsonify({"username": username})
+    return flask.jsonify({"username": username, "registered": True})

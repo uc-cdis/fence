@@ -140,6 +140,16 @@ OPENID_CONNECT:
     audience: fence
     # default refresh token expiration duration
     default_refresh_token_exp: 3600
+    # firstname claim field from idp
+    firstname_claim_field: 'firstName'
+    # lastname claim field from idp
+    lastname_claim_field: 'lastName'
+    # organization claim field from idp
+    organization_claim_field: 'org'
+    # default organization
+    default_organization: 'AU BioCommons'
+    # automatically register users from Idp
+    enable_idp_users_registration: true
   # These Google values must be obtained from Google's Cloud Console
   # Follow: https://developers.google.com/identity/protocols/OpenIDConnect
   #

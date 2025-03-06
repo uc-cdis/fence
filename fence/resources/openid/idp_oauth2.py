@@ -108,15 +108,15 @@ class Oauth2ClientBase(object):
 
         keys = self.get_jwt_keys(jwks_endpoint)
 
-        # Extract issuer from the token without signature verification
+        # Extract issuer from the id token without signature verification
         try:
-            decoded_token = jwt.decode(
+            decoded_id_token = jwt.decode(
                 token["id_token"],
                 options={"verify_signature": False},
                 algorithms=["RS256"],
                 key=keys,
             )
-            issuer = decoded_token.get("iss")
+            issuer = decoded_id_token.get("iss")
         except JWTError as e:
             raise JWTError(f"Invalid token: {e}")
 
@@ -125,19 +125,24 @@ class Oauth2ClientBase(object):
         verify_aud = self.settings.get("verify_aud", False)
         audience = self.settings.get("audience", self.settings.get("client_id"))
 
-        if verify_aud:
-            decoded_token = validate_jwt(
-                encoded_token=token["access_token"],
-                aud=audience,
-                scope=None,
-                issuers=[issuer],
-                purpose=None,
-                require_purpose=False,
-                options={"verify_aud": verify_aud, "verify_hash": False},
-                attempt_refresh=True,
-            )
+        decoded_access_token = None
 
-        return decoded_token, refresh_token
+        if self.read_authz_groups_from_tokens:
+            try:
+                decoded_access_token = validate_jwt(
+                    encoded_token=token["access_token"],
+                    aud=audience,
+                    scope=None,
+                    issuers=[issuer],
+                    purpose=None,
+                    require_purpose=False,
+                    options={"verify_aud": verify_aud, "verify_hash": False},
+                    attempt_refresh=True,
+                )
+            except JWTError as e:
+                raise JWTError(f"Invalid token: {e}")
+
+        return decoded_id_token, refresh_token, decoded_access_token
 
     def get_value_from_discovery_doc(self, key, default_value):
         """
@@ -218,17 +223,29 @@ class Oauth2ClientBase(object):
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
             jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
-            claims, refresh_token = self.get_jwt_claims_identity(
+            claims, refresh_token, access_token = self.get_jwt_claims_identity(
                 token_endpoint, jwks_endpoint, code
             )
 
             groups = None
             group_prefix = None
 
+            organization_claim_field = self.settings.get(
+                "organization_claim_field", "org"
+            )
+            firstname_claim_field = self.settings.get(
+                "firstname_claim_field", "given_name"
+            )
+            lastname_claim_field = self.settings.get(
+                "lastname_claim_field", "family_name"
+            )
+            email_claim_field = self.settings.get("email_claim_field", "email")
+
             if self.read_authz_groups_from_tokens:
                 try:
                     group_claim_field = self.settings.get("group_claim_field", "groups")
-                    groups = claims.get(group_claim_field)
+                    # Get groups from access token
+                    groups = access_token.get(group_claim_field)
                     group_prefix = self.settings.get("authz_groups_sync", {}).get(
                         "group_prefix", ""
                     )
@@ -249,6 +266,10 @@ class Oauth2ClientBase(object):
                     "exp": claims.get("exp"),
                     "groups": groups,
                     "group_prefix": group_prefix,
+                    "org": claims.get(organization_claim_field),
+                    "firstname": claims.get(firstname_claim_field),
+                    "lastname": claims.get(lastname_claim_field),
+                    "email": claims.get(email_claim_field),
                 }
             else:
                 self.logger.exception(
@@ -375,12 +396,12 @@ class Oauth2ClientBase(object):
             f"Refresh token has been persisted for user: {user} , with expiration of {expires}"
         )
 
-    def get_groups_from_token(self, decoded_id_token, group_prefix=""):
+    def get_groups_from_token(self, decoded_access_token, group_prefix=""):
         """
         Retrieve and format groups from the decoded token based on a configurable field name.
 
         Args:
-            decoded_id_token (dict): The decoded token containing claims.
+            decoded_access_token (dict): The decoded token containing claims.
             group_prefix (str): The prefix to strip from group names.
 
         Returns:
@@ -392,7 +413,7 @@ class Oauth2ClientBase(object):
         """
         # Retrieve the configured field name for groups, defaulting to 'groups'
         group_claim_field = self.settings.get("group_claim_field", "groups")
-        authz_groups_from_idp = decoded_id_token.get(group_claim_field, [])
+        authz_groups_from_idp = decoded_access_token.get(group_claim_field, [])
 
         if authz_groups_from_idp:
             authz_groups_from_idp = [
@@ -457,9 +478,7 @@ class Oauth2ClientBase(object):
                 token["id_token"], attempt_refresh=True, pkey_cache={}
             )
 
-            self.logger.info(token)
-
-            decoded_token_id = jwt.decode(
+            decoded_access_token = jwt.decode(
                 token["access_token"],
                 key=key,
                 options={"verify_aud": verify_aud, "verify_at_hash": False},
@@ -483,7 +502,7 @@ class Oauth2ClientBase(object):
 
             # groups defined in idp
             authz_groups_from_idp = self.get_groups_from_token(
-                decoded_token_id, group_prefix
+                decoded_access_token, group_prefix
             )
 
             # if group name is in the list from arborist:
