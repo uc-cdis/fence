@@ -108,15 +108,15 @@ class Oauth2ClientBase(object):
 
         keys = self.get_jwt_keys(jwks_endpoint)
 
-        # Extract issuer from the token without signature verification
+        # Extract issuer from the id token without signature verification
         try:
-            decoded_token = jwt.decode(
+            decoded_id_token = jwt.decode(
                 token["id_token"],
                 options={"verify_signature": False},
                 algorithms=["RS256"],
                 key=keys,
             )
-            issuer = decoded_token.get("iss")
+            issuer = decoded_id_token.get("iss")
         except JWTError as e:
             raise JWTError(f"Invalid token: {e}")
 
@@ -125,8 +125,8 @@ class Oauth2ClientBase(object):
         verify_aud = self.settings.get("verify_aud", False)
         audience = self.settings.get("audience", self.settings.get("client_id"))
 
-        if verify_aud:
-            decoded_token = validate_jwt(
+        try:
+            decoded_access_token = validate_jwt(
                 encoded_token=token["access_token"],
                 aud=audience,
                 scope=None,
@@ -136,8 +136,10 @@ class Oauth2ClientBase(object):
                 options={"verify_aud": verify_aud, "verify_hash": False},
                 attempt_refresh=True,
             )
+        except JWTError as e:
+            raise JWTError(f"Invalid token: {e}")
 
-        return decoded_token, refresh_token
+        return decoded_id_token, refresh_token, decoded_access_token
 
     def get_value_from_discovery_doc(self, key, default_value):
         """
@@ -218,7 +220,7 @@ class Oauth2ClientBase(object):
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
             jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
-            claims, refresh_token = self.get_jwt_claims_identity(
+            claims, refresh_token, access_token = self.get_jwt_claims_identity(
                 token_endpoint, jwks_endpoint, code
             )
 
@@ -229,15 +231,18 @@ class Oauth2ClientBase(object):
                 "organization_claim_field", "org"
             )
             firstname_claim_field = self.settings.get(
-                "firstname_claim_field", "firstName"
+                "firstname_claim_field", "given_name"
             )
-            lastname_claim_field = self.settings.get("lastname_claim_field", "lastName")
+            lastname_claim_field = self.settings.get(
+                "lastname_claim_field", "family_name"
+            )
             email_claim_field = self.settings.get("email_claim_field", "email")
 
             if self.read_authz_groups_from_tokens:
                 try:
                     group_claim_field = self.settings.get("group_claim_field", "groups")
-                    groups = claims.get(group_claim_field)
+                    # Get groups from access token
+                    groups = access_token.get(group_claim_field)
                     group_prefix = self.settings.get("authz_groups_sync", {}).get(
                         "group_prefix", ""
                     )

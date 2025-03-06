@@ -329,7 +329,8 @@ def _login(
                 lastname = token_result.get("lastname")
                 organization = token_result.get("org")
                 email = token_result.get("email")
-
+                if email is None:
+                    raise UserError("OAuth2 id token is missing email claim")
                 # Log warnings and set defaults if needed
                 if not firstname or not lastname:
                     logger.warning(
