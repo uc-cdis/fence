@@ -165,9 +165,6 @@ def test_login_redirect_to_registration_page(
 
         response = _login("lisaferf", "mock_idp")
 
-        print("✅ Debug: Response status:", response.status_code)
-        print("✅ Debug: Response location:", response.headers.get("Location"))
-
         assert response.status_code == 302
         assert response.location == "http://localhost/user/register"
         yield

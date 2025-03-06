@@ -125,19 +125,22 @@ class Oauth2ClientBase(object):
         verify_aud = self.settings.get("verify_aud", False)
         audience = self.settings.get("audience", self.settings.get("client_id"))
 
-        try:
-            decoded_access_token = validate_jwt(
-                encoded_token=token["access_token"],
-                aud=audience,
-                scope=None,
-                issuers=[issuer],
-                purpose=None,
-                require_purpose=False,
-                options={"verify_aud": verify_aud, "verify_hash": False},
-                attempt_refresh=True,
-            )
-        except JWTError as e:
-            raise JWTError(f"Invalid token: {e}")
+        decoded_access_token = None
+
+        if self.read_authz_groups_from_tokens:
+            try:
+                decoded_access_token = validate_jwt(
+                    encoded_token=token["access_token"],
+                    aud=audience,
+                    scope=None,
+                    issuers=[issuer],
+                    purpose=None,
+                    require_purpose=False,
+                    options={"verify_aud": verify_aud, "verify_hash": False},
+                    attempt_refresh=True,
+                )
+            except JWTError as e:
+                raise JWTError(f"Invalid token: {e}")
 
         return decoded_id_token, refresh_token, decoded_access_token
 

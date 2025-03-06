@@ -140,8 +140,6 @@ OPENID_CONNECT:
     audience: fence
     # default refresh token expiration duration
     default_refresh_token_exp: 3600
-    # automatically register users from idp
-    register_idp_user: true
     # firstname claim field from idp
     firstname_claim_field: 'firstName'
     # lastname claim field from idp
@@ -1008,6 +1006,7 @@ ASSUME_ROLE_CACHE_SECONDS: 1800
 # will have access to download data.
 REGISTER_USERS_ON: false
 REGISTERED_USERS_GROUP: ''
+# automatically register users from idp
 REGISTER_IDP_USERS: false
 
 # Number of projects that can be registered to a Google Service Account
