@@ -157,9 +157,8 @@ class FenceConfig(Config):
 
         all_parent_studies = set()
         for dbgap_config in configs:
-            parent_studies = dbgap_config.get(
-                "parent_to_child_studies_mapping", {}
-            ).keys()
+            study_mapping = dbgap_config.get("parent_to_child_studies_mapping", {})
+            parent_studies = study_mapping.keys()
             conflicts = parent_studies & all_parent_studies
             if len(conflicts) > 0:
                 raise Exception(
