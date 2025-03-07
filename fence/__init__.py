@@ -18,14 +18,8 @@ from sqlalchemy.orm import scoped_session
 logger = get_logger(__name__, log_level="debug")
 
 # Load the configuration *before* importing modules that rely on it
-from fence.config import config
+from fence.config import config, get_SQLAlchemyDriver
 from fence.settings import CONFIG_SEARCH_FOLDERS
-
-config.load(
-    config_path=os.environ.get("FENCE_CONFIG_PATH"),
-    search_folders=CONFIG_SEARCH_FOLDERS,
-)
-
 from fence.auth import logout, build_redirect_url
 from fence.metrics import metrics
 from fence.blueprints.data.indexd import S3IndexedFileLocation
@@ -48,7 +42,6 @@ from fence.resources.openid.ras_oauth2 import RASOauth2Client
 from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
 from fence.error_handler import get_error_response
-from fence.utils import get_SQLAlchemyDriver
 import fence.blueprints.admin
 import fence.blueprints.data
 import fence.blueprints.login
