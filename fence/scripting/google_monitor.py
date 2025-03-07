@@ -517,7 +517,7 @@ def _send_emails_informing_service_account_removal(
                 for reason in removal_reasons:
                     content += "\n\t\t\t - {}".format(reason)
 
-    return fence.config.send_email(from_email, to_emails, subject, content, domain)
+    return send_email(from_email, to_emails, subject, content, domain)
 
 
 def _get_users_without_access(db, auth_ids, user_emails, check_linking):
@@ -612,7 +612,7 @@ def email_user_without_access(user_email, projects, google_project_id):
     text = config["PROBLEM_USER_EMAIL_NOTIFICATION"]["content"]
     content = text.format(google_project_id, ",".join(projects))
 
-    return fence.config.send_email(from_email, to_emails, subject, content, domain)
+    return send_email(from_email, to_emails, subject, content, domain)
 
 
 def email_users_without_access(
