@@ -582,7 +582,9 @@ def _update_service_account_db_entry(
     return service_account_db_entry
 
 
-def get_or_create_proxy_group_id(expires=None, user_id=None, username=None, session=None, storage_manager=None):
+def get_or_create_proxy_group_id(
+    expires=None, user_id=None, username=None, session=None, storage_manager=None
+):
     """
     If no username returned from token or database, create a new proxy group
     for the given user. Also, add the access privileges.
@@ -598,17 +600,18 @@ def get_or_create_proxy_group_id(expires=None, user_id=None, username=None, sess
     db_session = session or current_app.scoped_session()
     manager = storage_manager or flask.current_app.storage_manager
 
-    logger.info(f"Proxy Group: {user_id}, {username}")
-    proxy_group_id = _get_proxy_group_id(user_id=user_id, username=username, session=db_session)
-    logger.info(f"{proxy_group_id}")
+    logger.info(f"Getting proxy group for: {user_id}, {username}")
+    proxy_group_id = _get_proxy_group_id(
+        user_id=user_id, username=username, session=db_session
+    )
     if not proxy_group_id:
         try:
+            logger.info(
+                f"No proxy group found for {user_id}, {username}... attempting to create one"
+            )
             user_by_id = query_for_user_by_id(db_session, user_id)
             logger.info(f"user_by_id: {user_by_id}")
-            user_by_username = query_for_user(
-                session=db_session, username=username
-            )
-            logger.info(f"user_by_username: {user_by_username}")
+            user_by_username = query_for_user(session=db_session, username=username)
         except Exception:
             user_by_id = None
             user_by_username = None
@@ -630,10 +633,8 @@ def get_or_create_proxy_group_id(expires=None, user_id=None, username=None, sess
 
         proxy_group_id = _create_proxy_group(user_id, username, session=db_session).id
 
-        privileges = (
-            db_session
-            .query(AccessPrivilege)
-            .filter(AccessPrivilege.user_id == user_id)
+        privileges = db_session.query(AccessPrivilege).filter(
+            AccessPrivilege.user_id == user_id
         )
 
         for p in privileges:

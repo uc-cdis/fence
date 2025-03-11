@@ -367,6 +367,7 @@ dbGaP:
       proxy_user: ''
     protocol: 'sftp'
     decrypt_key: ''
+    parent_to_child_studies_mapping: {}
     # parse out the consent from the dbgap accession number such that something
     # like "phs000123.v1.p1.c2" becomes "phs000123.c2".
     #
@@ -377,13 +378,14 @@ dbGaP:
     # have access to the parent study's "common exchange area data" that is not study
     # specific. The following config is whether or not to parse/handle "c999" codes
     # for exchange area data
-    enable_common_exchange_area_access: false
+    enable_common_exchange_area_access: true
     # The below configuration is a mapping from studies to their "common exchange area data"
     # Fence project name a user gets access to when parsing c999 exchange area codes (and
     # subsequently gives access to an arborist resource representing this common area
     # as well)
     study_common_exchange_areas:
       'phs000178': 'test_common_exchange_area'
+      'phs000298': 'test_common_exchange_area_2'
     # A mapping from the dbgap study / Fence project to which authorization namespaces the
     # actual data lives in. For example, `studyX` data may exist in multiple organizations, so
     # we need to know to map authorization to all orgs resources

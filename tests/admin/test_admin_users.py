@@ -17,7 +17,7 @@ def test_get_user(db_session, awg_users):
     assert "test_group_1" in info["groups"]
     assert "test_group_2" in info["groups"]
     assert info["message"] == ""
-    assert info["email"] == None
+    assert info["email"] is None
     assert info["certificates_uploaded"] == []
     assert info["resources_granted"] == []
     assert info["project_access"]["phs_project_1"] == ["read"]
@@ -25,15 +25,16 @@ def test_get_user(db_session, awg_users):
 
 
 def test_create_user(db_session, oauth_client):
-    adm.create_user(db_session, "insert_user", "admin", "insert_user@fake.com")
+    adm.create_user(db_session, "insert_user", "insert_user@fake.com")
     user = db_session.query(User).filter(User.username == "insert_user").first()
     assert user.username == "insert_user"
-    assert user.is_admin == True
+    assert user.is_admin == False  # DEPRECATED field.
     assert user.email == "insert_user@fake.com"
     assert user.display_name is None
     assert user.phone_number is None
     assert user.identity_provider is None
     assert len(user.tags) == 0
+    assert user.active == True
 
 
 def test_create_user_with_all_fields_set(db_session, oauth_client):
@@ -45,7 +46,6 @@ def test_create_user_with_all_fields_set(db_session, oauth_client):
     adm.create_user(
         db_session,
         "insert_user",
-        None,
         "insert_user@fake.com",
         "Dummy Name",
         "+310000",
@@ -98,6 +98,34 @@ def test_delete_user(db_session, awg_users, cloud_manager):
     assert user_groups == []
 
 
+def test_soft_delete_user(db_session, awg_users):
+    """
+    Tests adm.soft_delete_user() by querying an existing User,
+    asserting it is not inactive, and then checking it became inactive
+    after it was soft-deleted.
+    """
+    username = "awg_user"
+    user = db_session.query(User).filter(User.username == username).first()
+    assert user != None
+    assert user.username == username
+    assert user.active == True
+    adm.soft_delete_user(db_session, username)
+    user = db_session.query(User).filter(User.username == username).first()
+    assert user != None
+    assert user.username == username
+    # soft-deleted user should have "active" explicitly set to False now:
+    assert user.active == False
+
+
+def test_soft_delete_user_not_found(db_session, awg_users):
+    """
+    Check that adm.soft_delete_user() fails with NotFound
+    when called for a username that is not found in db.
+    """
+    with pytest.raises(NotFound, match="user non_existing_user not found"):
+        adm.soft_delete_user(db_session, "non_existing_user")
+
+
 def test_update_user_without_conflict(db_session, awg_users, oauth_client):
     user = db_session.query(User).filter(User.username == "awg_user").first()
     assert user != None
@@ -133,7 +161,7 @@ def test_create_already_existing_user(db_session, awg_users):
 
 def test_get_all_users(db_session, awg_users):
     user_list = adm.get_all_users(db_session)
-    user_name_list = [item["name"] for item in user_list["users"]]
+    user_name_list = [item["username"] for item in user_list["users"]]
     assert "awg_user" in user_name_list
     assert "awg_user_2" in user_name_list
 

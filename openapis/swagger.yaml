@@ -387,6 +387,73 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/UserInfo'
+  '/admin/user/{username}':
+    get:
+      tags:
+        - 'admin/user'
+      summary: Return info about a given user
+      description: Admin method to retrieve info about any given user
+      parameters:
+        - name: username
+          required: true
+          in: path
+          description: Username of user to find
+          schema:
+            type: string
+      security:
+        - OAuth2:
+            - user
+      operationId: getUserInfo
+      responses:
+        '200':
+          description: successful operation
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/UserInfo'
+        '404':
+          description: Couldn't find user
+  '/admin/user/{username}/soft':
+    delete:
+      tags:
+        - 'admin/user'
+      summary: Soft-delete user
+      description: Admin method to soft-delete a user, setting the user to inactive
+      security:
+        - OAuth2:
+            - admin
+      operationId: softDeleteUser
+      parameters:
+        - name: username
+          required: true
+          in: path
+          description: Username of user to deactivate
+          schema:
+            type: string
+      responses:
+        '204':
+          description: successful deletion
+        '404':
+          description: Couldn't find user
+  /admin/user:
+    post:
+      tags:
+        - admin/user
+      summary: Add a new user
+      description: Admin method to add a new user
+      security:
+        - OAuth2:
+            - admin
+      operationId: createUser
+      responses:
+        '200':
+          description: New user
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/UserInfo'
+      requestBody:
+        $ref: '#/components/requestBodies/NewUser'
   /logout:
     get:
       tags:
@@ -1683,6 +1750,13 @@ components:
             $ref: '#/components/schemas/APIKeyScopes'
       description: API key scopes
       required: false
+    NewUser:
+      content:
+        application/json:
+          schema:
+            $ref: '#/components/schemas/NewUser'
+      description: New User
+      required: true
   securitySchemes:
     OAuth2:
       type: oauth2
@@ -1693,6 +1767,42 @@ components:
           scopes:
             user: generic user access
   schemas:
+    NewUser:
+      type: object
+      required:
+        - username
+        - email
+      properties:
+        username:
+          type: string
+          description: 'This value is deprecated in favor of name.'
+        email:
+          type: string
+          description: 'The email of the end-user'
+        display_name:
+          type: string
+          description: 'The display name of the end-user.'
+        phone_number:
+          type: string
+          description: 'The phone number of the end-user.'
+        idp_name:
+          type: string
+          description: |
+            Name of the preferred Identity Provider used to autheticate the user. Given instances of Fence
+            may or may not have all of these available (the set of IDPs available is a configuration).
+            * *google* - Google/GSuite
+            * *ras* - NIH's Researcher Auth Service (RAS)
+            * *itrust* - NIH Login / iTrust / eRA Commons
+            * *fence* - Upstream Fence (the idp used depends on the specific configuration, consult the Gen3 Operators)
+            * *orcid* - ORCHID
+            * *microsoft* - Microsoft
+            * *elixir* - Elixir
+            * *synapse* - Synapse
+            * *cognito* - AWS Cognito
+            * More may be added in the future...
+        tags:
+          type: object
+          description: User's tags
     RequestUploadBlank:
       type: object
       required:
@@ -2335,6 +2445,9 @@ components:
         is_admin:
           type: boolean
           description: 'Boolean value stating if end-user is an admin or not'
+        active:
+          type: boolean
+          description: 'Boolean value stating if user is active or not'
         role:
           type: string
           description: ''

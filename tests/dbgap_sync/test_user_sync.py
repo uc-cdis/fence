@@ -143,6 +143,7 @@ def test_sync(
                     "phs000178.c999": ["read", "read-storage"],
                     "phs000179.c1": ["read", "read-storage"],
                     "PROJECT-12345": ["read", "read-storage"],
+                    "test_common_exchange_area": ["read-storage", "read"],
                 },
             )
         else:
@@ -154,6 +155,7 @@ def test_sync(
                     "phs000178.c2": ["read", "read-storage"],
                     "phs000178.c999": ["read", "read-storage"],
                     "phs000179.c1": ["read", "read-storage"],
+                    "test_common_exchange_area": ["read", "read-storage"],
                 },
             )
 
