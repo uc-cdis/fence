@@ -10,7 +10,7 @@ from userdatamodel.user import IdentityProvider
 from fence import models
 from fence.resources.google.access_utils import GoogleUpdateException
 from fence.config import config
-from fence.job.visa_update_cronjob import Visa_Token_Update
+from fence.job.access_token_updater import TokenAndAuthUpdater
 from fence.utils import DEFAULT_BACKOFF_SETTINGS
 
 from tests.dbgap_sync.conftest import (
@@ -1011,7 +1011,7 @@ def test_user_sync_with_visa_sync_job(
 
     # use refresh tokens from users to call access token polling "fence-create update-visa"
     # and sync authorization from visas
-    job = Visa_Token_Update()
+    job = TokenAndAuthUpdater()
     job.pkey_cache = {
         "https://stsstg.nih.gov": {
             kid: rsa_public_key,
