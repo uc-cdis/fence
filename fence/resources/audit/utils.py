@@ -20,7 +20,7 @@ def is_audit_enabled(category=None):
 
 def _clean_authorization_request_url(request_url):
     """
-    Remove sensitive data from a login request URL.
+    Remove sensitive data from login and admin request URLs.
     """
     parsed_url = urlparse(request_url)
     query_params = dict(parse_qsl(parsed_url.query, keep_blank_values=True))
@@ -80,6 +80,17 @@ def create_audit_log_for_request(response):
                     request_url=request_url,
                     **audit_data,
                 )
+        elif endpoint.startswith("/admin/"):
+            request_url = _clean_authorization_request_url(
+                request_url
+            )  # TODO - more than this will be needed for POST requests...
+            flask.current_app.audit_service_client.create_admin_action_log(
+                status_code=response.status_code,
+                request_url=request_url,
+                action="admin_action_" + method,
+                **audit_data,
+            )
+
     except Exception:
         # TODO monitor this somehow
         traceback.print_exc()
