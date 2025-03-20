@@ -12,6 +12,7 @@ from flask import current_app
 from cdislogging import get_logger
 
 from fence.auth import admin_login_required
+from fence.resources.audit.utils import enable_audit_logging
 from fence.resources import admin
 from fence.models import User
 
@@ -45,6 +46,7 @@ def debug_log(function):
 @blueprint.route("/users/<username>", methods=["GET"])
 @blueprint.route("/user/<username>", methods=["GET"])
 @admin_login_required
+@enable_audit_logging
 @debug_log
 def get_user(username):
     """
@@ -58,6 +60,7 @@ def get_user(username):
 @blueprint.route("/users", methods=["GET"])
 @blueprint.route("/user", methods=["GET"])
 @admin_login_required
+@enable_audit_logging
 @debug_log
 def get_all_users():
     """
@@ -76,6 +79,7 @@ def get_all_users():
 @blueprint.route("/users", methods=["POST"])
 @blueprint.route("/user", methods=["POST"])
 @admin_login_required
+@enable_audit_logging
 @debug_log
 def create_user():
     """
@@ -106,6 +110,7 @@ def create_user():
 @blueprint.route("/users/<username>", methods=["PUT"])
 @blueprint.route("/user/<username>", methods=["PUT"])
 @admin_login_required
+@enable_audit_logging
 @debug_log
 def update_user(username):
     """
@@ -131,6 +136,7 @@ def update_user(username):
 @blueprint.route("/users/<username>", methods=["DELETE"])
 @blueprint.route("/user/<username>", methods=["DELETE"])
 @admin_login_required
+@enable_audit_logging
 @debug_log
 def delete_user(username):
     """
@@ -151,6 +157,7 @@ def delete_user(username):
 @blueprint.route("/users/<username>/soft", methods=["DELETE"])
 @blueprint.route("/user/<username>/soft", methods=["DELETE"])
 @admin_login_required
+@enable_audit_logging
 @debug_log
 def soft_delete_user(username):
     """
@@ -165,6 +172,7 @@ def soft_delete_user(username):
 @blueprint.route("/users/<username>/groups", methods=["GET"])
 @blueprint.route("/user/<username>/groups", methods=["GET"])
 @admin_login_required
+@enable_audit_logging
 @debug_log
 def get_user_groups(username):
     """
@@ -183,6 +191,7 @@ def get_user_groups(username):
 @blueprint.route("/users/<username>/groups", methods=["PUT"])
 @blueprint.route("/user/<username>/groups", methods=["PUT"])
 @admin_login_required
+@enable_audit_logging
 @debug_log
 def add_user_to_groups(username):
     """
@@ -204,6 +213,7 @@ def add_user_to_groups(username):
 @blueprint.route("/users/<username>/groups", methods=["DELETE"])
 @blueprint.route("/user/<username>/groups", methods=["DELETE"])
 @admin_login_required
+@enable_audit_logging
 @debug_log
 def remove_user_from_groups(username):
     """
@@ -227,6 +237,7 @@ def remove_user_from_groups(username):
 @blueprint.route("/users/<username>/projects", methods=["DELETE"])
 @blueprint.route("/user/<username>/projects", methods=["DELETE"])
 @admin_login_required
+@enable_audit_logging
 @debug_log
 def remove_user_from_projects(username):
     """
@@ -250,6 +261,7 @@ def remove_user_from_projects(username):
 @blueprint.route("/users/<username>/projects", methods=["PUT"])
 @blueprint.route("/user/<username>/projects", methods=["PUT"])
 @admin_login_required
+@enable_audit_logging
 @debug_log
 def add_user_to_projects(username):
     """
@@ -276,6 +288,7 @@ def add_user_to_projects(username):
 
 @blueprint.route("/projects/<projectname>", methods=["GET"])
 @admin_login_required
+@enable_audit_logging
 @debug_log
 def get_project(projectname):
     """
@@ -293,6 +306,7 @@ def get_project(projectname):
 
 @blueprint.route("/projects", methods=["GET"])
 @admin_login_required
+@enable_audit_logging
 @debug_log
 def get_all_projects():
     """
@@ -310,6 +324,7 @@ def get_all_projects():
 
 @blueprint.route("/projects/<projectname>", methods=["POST"])
 @admin_login_required
+@enable_audit_logging
 @debug_log
 def create_project(projectname):
     """
@@ -333,6 +348,7 @@ def create_project(projectname):
 
 @blueprint.route("/projects/<projectname>", methods=["DELETE"])
 @admin_login_required
+@enable_audit_logging
 @debug_log
 def delete_project(projectname):
     """
@@ -350,6 +366,7 @@ def delete_project(projectname):
 
 @blueprint.route("/groups/<groupname>/projects", methods=["DELETE"])
 @admin_login_required
+@enable_audit_logging
 @debug_log
 def remove_projects_from_group(groupname):
     """
@@ -371,6 +388,7 @@ def remove_projects_from_group(groupname):
 
 @blueprint.route("/projects/<projectname>/groups", methods=["PUT"])
 @admin_login_required
+@enable_audit_logging
 def add_project_to_groups(projectname):
     """
     DEPRECATED: This endpoint is deprecated and will be removed in a future release.
@@ -391,6 +409,7 @@ def add_project_to_groups(projectname):
 
 @blueprint.route("/projects/<projectname>/bucket/<bucketname>", methods=["POST"])
 @admin_login_required
+@enable_audit_logging
 def create_bucket_in_project(projectname, bucketname):
     """
     DEPRECATED: This endpoint is deprecated and will be removed in a future release.
@@ -412,6 +431,7 @@ def create_bucket_in_project(projectname, bucketname):
 
 @blueprint.route("/projects/<projectname>/bucket/<bucketname>", methods=["DELETE"])
 @admin_login_required
+@enable_audit_logging
 def delete_bucket_from_project(projectname, bucketname):
     """
     DEPRECATED: This endpoint is deprecated and will be removed in a future release.
@@ -433,6 +453,7 @@ def delete_bucket_from_project(projectname, bucketname):
 
 @blueprint.route("/projects/<projectname>/bucket", methods=["GET"])
 @admin_login_required
+@enable_audit_logging
 def list_buckets_from_project(projectname):
     """
     DEPRECATED: This endpoint is deprecated and will be removed in a future release.
@@ -455,6 +476,7 @@ def list_buckets_from_project(projectname):
 
 @blueprint.route("/groups/<groupname>", methods=["GET"])
 @admin_login_required
+@enable_audit_logging
 def get_group_info(groupname):
     """
     DEPRECATED: This endpoint is deprecated and will be removed in a future release.
@@ -471,6 +493,7 @@ def get_group_info(groupname):
 
 @blueprint.route("/groups", methods=["GET"])
 @admin_login_required
+@enable_audit_logging
 def get_all_groups():
     """
     DEPRECATED: This endpoint is deprecated and will be removed in a future release.
@@ -487,6 +510,7 @@ def get_all_groups():
 
 @blueprint.route("/groups/<groupname>/users", methods=["GET"])
 @admin_login_required
+@enable_audit_logging
 def get_group_users(groupname):
     """
     DEPRECATED: This endpoint is deprecated and will be removed in a future release.
@@ -503,6 +527,7 @@ def get_group_users(groupname):
 
 @blueprint.route("/groups", methods=["POST"])
 @admin_login_required
+@enable_audit_logging
 def create_group():
     """
     DEPRECATED: This endpoint is deprecated and will be removed in a future release.
@@ -527,6 +552,7 @@ def create_group():
 
 @blueprint.route("/groups/<groupname>", methods=["PUT"])
 @admin_login_required
+@enable_audit_logging
 def update_group(groupname):
     """
     DEPRECATED: This endpoint is deprecated and will be removed in a future release.
@@ -548,6 +574,7 @@ def update_group(groupname):
 
 @blueprint.route("/groups/<groupname>", methods=["DELETE"])
 @admin_login_required
+@enable_audit_logging
 def delete_group(groupname):
     """
     DEPRECATED: This endpoint is deprecated and will be removed in a future release.
@@ -565,6 +592,7 @@ def delete_group(groupname):
 
 @blueprint.route("/groups/<groupname>/projects", methods=["PUT"])
 @admin_login_required
+@enable_audit_logging
 def add_projects_to_group(groupname):
     """
     DEPRECATED: This endpoint is deprecated and will be removed in a future release.
@@ -584,6 +612,7 @@ def add_projects_to_group(groupname):
 
 @blueprint.route("/groups/<groupname>/projects", methods=["GET"])
 @admin_login_required
+@enable_audit_logging
 def get_group_projects(groupname):
     """
     DEPRECATED: This endpoint is deprecated and will be removed in a future release.
@@ -604,6 +633,7 @@ def get_group_projects(groupname):
 @blueprint.route("/cloud_providers/<providername>", methods=["GET"])
 @blueprint.route("/cloud_provider/<providername>", methods=["GET"])
 @admin_login_required
+@enable_audit_logging
 def get_cloud_provider(providername):
     """
     DEPRECATED: This endpoint is deprecated and will be removed in a future release.
@@ -620,6 +650,7 @@ def get_cloud_provider(providername):
 @blueprint.route("/cloud_providers/<providername>", methods=["POST"])
 @blueprint.route("/cloud_provider/<providername>", methods=["POST"])
 @admin_login_required
+@enable_audit_logging
 def create_cloud_provider(providername):
     """
     DEPRECATED: This endpoint is deprecated and will be removed in a future release.
@@ -646,6 +677,7 @@ def create_cloud_provider(providername):
 @blueprint.route("/cloud_providers/<providername>", methods=["DELETE"])
 @blueprint.route("/cloud_provider/<providername>", methods=["DELETE"])
 @admin_login_required
+@enable_audit_logging
 def delete_cloud_provider(providername):
     """
     DEPRECATED: This endpoint is deprecated and will be removed in a future release.
@@ -666,6 +698,7 @@ def delete_cloud_provider(providername):
 
 @blueprint.route("/register", methods=["GET"])
 @admin_login_required
+@enable_audit_logging
 def get_registered_users():
     """
     DEPRECATED: This endpoint is deprecated and will be removed in a future release.
