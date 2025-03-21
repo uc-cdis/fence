@@ -470,6 +470,7 @@ def _setup_oidc_clients(app):
                 logger=logger,
                 HTTP_PROXY=config.get("HTTP_PROXY"),
                 idp=settings.get("name") or idp.title(),
+                arborist=app.arborist,
             )
             clean_idp = idp.lower().replace(" ", "")
             setattr(app, f"{clean_idp}_client", client)
