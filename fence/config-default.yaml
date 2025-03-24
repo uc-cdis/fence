@@ -751,7 +751,7 @@ AZ_BLOB_CREDENTIALS:
 AZ_BLOB_CONTAINER_URL: 'https://myfakeblob.blob.core.windows.net/my-fake-container/'
 
 # url where authz microservice is running
-ARBORIST: null
+ARBORIST: 'http://arborist-service'
 
 # url where the audit-service is running
 AUDIT_SERVICE: 'http://audit-service'
