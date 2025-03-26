@@ -34,9 +34,7 @@ PASSPORT_CACHE = {}
 
 
 def sync_gen3_users_authz_from_ga4gh_passports(
-    passports,
-    pkey_cache=None,
-    db_session=None,
+    passports, pkey_cache=None, db_session=None, skip_google_updates=False
 ):
     """
     Validate passports and embedded visas, using each valid visa's identity
@@ -49,6 +47,7 @@ def sync_gen3_users_authz_from_ga4gh_passports(
     Args:
         passports (list): a list of raw encoded passport strings, each
                           including header, payload, and signature
+        skip_google_updates (bool): True if google group updates should be skipped. False if otherwise.
 
     Return:
         list: a list of users, each corresponding to a valid visa identity
@@ -151,6 +150,7 @@ def sync_gen3_users_authz_from_ga4gh_passports(
                 ga4gh_visas=ga4gh_visas,
                 expiration=min_visa_expiration,
                 db_session=db_session,
+                skip_google_updates=skip_google_updates,
             )
             users_from_current_passport.append(gen3_user)
 
@@ -366,7 +366,7 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id, db_session=None):
 
 
 def _sync_validated_visa_authorization(
-    gen3_user, ga4gh_visas, expiration, db_session=None
+    gen3_user, ga4gh_visas, expiration, db_session=None, skip_google_updates=False
 ):
     """
     Wrapper around UserSyncer.sync_single_user_visas method, which parses
@@ -383,7 +383,7 @@ def _sync_validated_visa_authorization(
                             that are parsed
         expiration (int): time at which synced Arborist policies and
                           inclusion in any GBAG are set to expire
-
+        skip_google_updates (bool): True if google group updates should be skipped. False if otherwise.
     Return:
         None
     """
@@ -398,6 +398,7 @@ def _sync_validated_visa_authorization(
         ga4gh_visas,
         db_session,
         expires=expiration,
+        skip_google_updates=skip_google_updates,
     )
 
     # after syncing authorization, persist the visas that were parsed successfully.
@@ -514,8 +515,8 @@ def put_gen3_usernames_for_passport_into_cache(
     )
 
     logger.debug(
-        f"Cached users {user_ids_from_passports} for provided passport in "
-        f"database cache and placed in in-memory cache. "
+        f"Cached {user_ids_from_passports} passport in "
+        f"database. "
         f"Expires: {expires_at}"
     )
 
