@@ -1,3 +1,4 @@
+import paramiko.ssh_exception
 import backoff
 import glob
 import jwt
@@ -402,7 +403,16 @@ class UserSyncer(object):
         with paramiko.SSHClient() as client:
             client.set_log_channel(self.logger.name)
 
-            client.set_missing_host_key_policy(paramiko.AutoAddPolicy())
+            # Load known host keys
+            known_hosts_path = os.path.expanduser("~/.ssh/known_hosts")
+            if os.path.exists(known_hosts_path):
+                client.load_host_keys(known_hosts_path)
+            else:
+                self.logger.warning(
+                    "No known_hosts file found — rejecting unknown hosts."
+                )
+
+            client.set_missing_host_key_policy(paramiko.RejectPolicy())
             parameters = {
                 "hostname": str(server.get("host", "")),
                 "username": str(server.get("username", "")),
@@ -418,9 +428,13 @@ class UserSyncer(object):
                     parameters.get("port", "unknown"),
                 )
             )
-            self._connect_with_ssh(ssh_client=client, parameters=parameters)
-            with client.open_sftp() as sftp:
-                download_dir(sftp, "./", path)
+            try:
+                self._connect_with_ssh(ssh_client=client, parameters=parameters)
+
+                with client.open_sftp() as sftp:
+                    download_dir(sftp, "./", path)
+            except paramiko.ssh_exception.SSHException as e:
+                self.logger.error(f"SSH connection failed: {e}")
 
         if proxy:
             proxy.close()
