@@ -2039,9 +2039,10 @@ class UserSyncer(object):
                 print("-----------processing permissions----------")
                 # get arborist policies for users
                 print(username)
+                print("--------user project info------")
                 print(user_project_info)
+                print("------arborist users auth mapping-----")
                 print(arborist_users_auth_mapping[username])
-                print(arborist_users_auth_mapping)
 
                 # find diff of incoming vs current policies
 
