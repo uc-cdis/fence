@@ -20,6 +20,9 @@ FROM base AS builder
 
 USER gen3
 
+RUN apt-get update
+RUN apt-get install vim -y
+
 # copy ONLY poetry artifact, install the dependencies but not the app;
 # this will make sure that the dependencies are cached
 COPY poetry.lock pyproject.toml /${appname}/
