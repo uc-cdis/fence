@@ -1983,11 +1983,12 @@ class UserSyncer(object):
             # Get auth mapping for users
             print("------------user loop----------")
             for user in arborist_users:
-                print(user)
+                user = user["name"]
+                print(username)
                 try:
                     arborist_users_auth_mapping[
-                        user
-                    ] = self.arborist_client.auth_mapping(user)
+                        username
+                    ] = self.arborist_client.auth_mapping(username)
                     print("------------arborist_users_map---------------")
                     print(arborist_users_auth_mapping)
                 except (ArboristError, KeyError, AttributeError) as error:
