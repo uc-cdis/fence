@@ -6,7 +6,7 @@ from urllib.parse import urlparse, urlencode, parse_qsl
 from fence.auth import login_user
 from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
-from fence.errors import UserError
+from fence.errors import UserError, Unauthorized
 from fence.metrics import metrics
 
 logger = get_logger(__name__)

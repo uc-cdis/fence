@@ -3,6 +3,7 @@ from flask import current_app
 from datetime import datetime
 from functools import wraps
 import urllib.request, urllib.parse, urllib.error
+import re
 
 from authutils.errors import JWTError, JWTExpiredError
 from authutils.token.validate import (
@@ -63,7 +64,13 @@ def build_redirect_url(hostname, path):
 
 
 def login_user(
-    username, provider, fence_idp=None, shib_idp=None, email=None, id_from_idp=None
+    username,
+    provider,
+    fence_idp=None,
+    shib_idp=None,
+    email=None,
+    id_from_idp=None,
+    username_deny_regex=None,
 ):
     """
     Login a user with the given username and provider. Set values in Flask
@@ -80,6 +87,15 @@ def login_user(
         id_from_idp (str, optional): id from the IDP (which may be different than
             the username)
     """
+    username_deny_regex = username_deny_regex or config["GLOBAL_USERNAME_DENY_REGEX"]
+    if username_deny_regex:
+        if re.match(pattern=username_deny_regex, string=username):
+            logger.info(
+                f"Blocked login of user with username {username} due to deny regex: {username_deny_regex}"
+            )
+
+            # intentionally empty message to prevent information leakage
+            raise Unauthorized(message="")
 
     def set_flask_session_values(user):
         """
