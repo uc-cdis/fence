@@ -1959,6 +1959,7 @@ class UserSyncer(object):
         # get list of users from arborist to make sure users that are completely removed
         # from authorization sources get policies revoked
         arborist_user_projects = {}
+        arborist_users_auth_mapping = {}
         if not single_user_sync:
             try:
                 arborist_users = self.arborist_client.get_users().json["users"]
@@ -1978,6 +1979,23 @@ class UserSyncer(object):
                     "WARNING: this sync will NOT remove access for users no longer in "
                     f"authorization sources. Error: {error}"
                 )
+
+            # Get auth mapping for users
+            print("users----------")
+            print(arborist_user_projects)
+            for user in arborist_users:
+                try:
+                    arborist_users_auth_mapping[
+                        user
+                    ] = self.arborist_client.auth_mapping(user)
+                    print("------------arborist_users_map---------------")
+                    print(arborist_users_auth_mapping)
+                except (ArboristError, KeyError, AttributeError) as error:
+                    self.logger.warning(
+                        "Could not get auth mapping of users in Arborist, continuing anyway. "
+                        "WARNING: this sync will NOT remove access for users no longer in "
+                        f"authorization sources. Error: {error}"
+                    )
 
             # update the project info with users from arborist
             self.sync_two_phsids_dict(arborist_user_projects, user_projects)
