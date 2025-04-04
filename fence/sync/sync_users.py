@@ -1981,7 +1981,6 @@ class UserSyncer(object):
                 )
 
             # Get auth mapping for users
-            print("------------user loop----------")
             for user in arborist_users:
                 username = user["name"]
                 print(username)
@@ -1989,8 +1988,6 @@ class UserSyncer(object):
                     arborist_users_auth_mapping[
                         username
                     ] = self.arborist_client.auth_mapping(username)
-                    print("------------arborist_users_map---------------")
-                    print(arborist_users_auth_mapping)
                 except (ArboristError, KeyError, AttributeError) as error:
                     self.logger.warning(
                         "Could not get auth mapping of users in Arborist, continuing anyway. "
@@ -2039,6 +2036,19 @@ class UserSyncer(object):
 
             self.arborist_client.create_user_if_not_exist(username)
             if not single_user_sync:
+                print("-----------processing permissions----------")
+                # get arborist policies for users
+                print(username)
+                print(user_project_info)
+                print(arborist_users_auth_mapping[username])
+                print(arborist_users_auth_mapping)
+
+                # find diff of incoming vs current policies
+
+                # add new policies
+
+                # remove removed policies
+
                 self._revoke_all_policies_preserve_mfa(username, idp)
 
             # as of 2/11/2022, for single_user_sync, as RAS visa parsing has
