@@ -1981,11 +1981,7 @@ class UserSyncer(object):
                 )
 
             # Get auth mapping for users
-            print("users----------")
-            print(arborist_user_projects)
-            print(arborist_users)
-            for user in arborist_users:
-                print(user)
+            print("------------user loop----------")
             for user in arborist_users:
                 print(user)
                 try:
