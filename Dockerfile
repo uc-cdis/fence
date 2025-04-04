@@ -20,9 +20,6 @@ FROM base AS builder
 
 USER gen3
 
-RUN yum update -y
-RUN yum install vim -y
-
 # copy ONLY poetry artifact, install the dependencies but not the app;
 # this will make sure that the dependencies are cached
 COPY poetry.lock pyproject.toml /${appname}/
