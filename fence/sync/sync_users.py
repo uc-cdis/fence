@@ -2061,6 +2061,9 @@ class UserSyncer(object):
                 user_project_info, project_to_authz_mapping
             )
 
+            print("----------project to authz mapping-------")
+            print(project_to_authz_mapping)
+
             for roles in unique_policies.keys():
                 for role in roles:
                     self._create_arborist_role(role)
@@ -2111,8 +2114,6 @@ class UserSyncer(object):
                                     )
                                 self._created_policies.add(policy_id)
 
-                            print("-------policy_id---------")
-                            print(policy_id)
                             self._grant_arborist_policy(
                                 username, policy_id, expires=expires
                             )
