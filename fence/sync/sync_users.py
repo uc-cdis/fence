@@ -2039,8 +2039,8 @@ class UserSyncer(object):
                 print("-----------processing permissions----------")
                 # get arborist policies for users
                 print(username)
-                print("--------user project info------")
-                print(user_project_info)
+                print("--------all resources------")
+                print(all_resources)
                 print("------arborist users auth mapping-----")
                 print(arborist_users_auth_mapping[username])
 
