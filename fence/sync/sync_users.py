@@ -2111,6 +2111,8 @@ class UserSyncer(object):
                                     )
                                 self._created_policies.add(policy_id)
 
+                            print("-------policy_id---------")
+                            print(policy_id)
                             self._grant_arborist_policy(
                                 username, policy_id, expires=expires
                             )
