@@ -2036,14 +2036,6 @@ class UserSyncer(object):
 
             self.arborist_client.create_user_if_not_exist(username)
             if not single_user_sync:
-                print("-----------processing permissions----------")
-                # get arborist policies for users
-                print(username)
-                print("--------all resources------")
-                print(all_resources)
-                print("------arborist users auth mapping-----")
-                print(arborist_users_auth_mapping[username])
-
                 # find diff of incoming vs current policies
 
                 # add new policies
@@ -2060,9 +2052,6 @@ class UserSyncer(object):
             unique_policies = self._determine_unique_policies(
                 user_project_info, project_to_authz_mapping
             )
-
-            print("----------project to authz mapping-------")
-            print(project_to_authz_mapping)
 
             for roles in unique_policies.keys():
                 for role in roles:
@@ -2120,6 +2109,9 @@ class UserSyncer(object):
 
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
+                    print("--------user yaml policies----------")
+                    print(username)
+                    print(policy)
                     self.arborist_client.grant_user_policy(
                         username,
                         policy,
