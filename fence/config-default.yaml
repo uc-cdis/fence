@@ -184,7 +184,7 @@ OPENID_CONNECT:
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/ras/callback'
-    scope: 'openid email profile ga4gh_passport_v1'
+    scope: 'openid email profile ga4gh_passport_v1'  # federated_identities
 #    multifactor_auth_claim_info:
 #      claim: 'acr'
 #      values: [ 'https://stsstg.nih.gov/assurance/aal/2' ]

@@ -174,6 +174,14 @@ class RASOauth2Client(Oauth2ClientBase):
                 issuer, subject_id, username, email
             )
 
+            user_sub = userinfo.get("sub")
+            # TODO log additional identity information, is this sufficient? Is this the appropriate place?
+            if userinfo.get("federated_identities"):
+                sources = userinfo.get("federated_identities", {}).get("sources", {})
+                self.logger.info(
+                    f"Gen3 user sub: '{user_sub}', federated_identities sources: '{sources}'"
+                )
+
             # Save userinfo and token in flask.g for later use in post_login
             flask.g.userinfo = userinfo
             flask.g.tokens = token
@@ -188,7 +196,7 @@ class RASOauth2Client(Oauth2ClientBase):
         return {
             "username": username,
             "email": userinfo.get("email"),
-            "sub": userinfo.get("sub"),
+            "sub": user_sub,
             "mfa": self.has_mfa_claim(claims),
         }
 
