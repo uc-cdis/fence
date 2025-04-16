@@ -41,6 +41,7 @@ class FenceConfig(Config):
             "WHITE_LISTED_GOOGLE_PARENT_ORGS",
             "CLIENT_CREDENTIALS_ON_DOWNLOAD_ENABLED",
             "DATA_UPLOAD_BUCKET",
+            "DEFAULT_BACKOFF_SETTINGS_MAX_TRIES",
         ]
         for default in defaults:
             self.force_default_if_none(default, default_cfg=default_config)
@@ -156,9 +157,8 @@ class FenceConfig(Config):
 
         all_parent_studies = set()
         for dbgap_config in configs:
-            parent_studies = dbgap_config.get(
-                "parent_to_child_studies_mapping", {}
-            ).keys()
+            study_mapping = dbgap_config.get("parent_to_child_studies_mapping", {})
+            parent_studies = study_mapping.keys()
             conflicts = parent_studies & all_parent_studies
             if len(conflicts) > 0:
                 raise Exception(
