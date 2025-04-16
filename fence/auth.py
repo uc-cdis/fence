@@ -62,6 +62,25 @@ def build_redirect_url(hostname, path):
     return redirect_base + path
 
 
+def get_ip_information_string():
+    headers = [
+        f"{header}: {value}"
+        for header, value in flask.request.headers
+        if "X-Forwarded-*" in header
+    ]
+    return f"flask.request.remote_addr={flask.request.remote_addr} x_forwarded_headers={headers}"
+
+
+def log_ip(function):
+    @wraps(function)
+    def decorated_function(*args, **kwargs):
+        ip_info = get_ip_information_string()
+        logger.info(ip_info)
+        return function(*args, **kwargs)
+
+    return decorated_function
+
+
 def login_user(
     username, provider, fence_idp=None, shib_idp=None, email=None, id_from_idp=None
 ):
@@ -80,6 +99,14 @@ def login_user(
         id_from_idp (str, optional): id from the IDP (which may be different than
             the username)
     """
+
+    def set_flask_session_values_and_log_ip(user):
+        set_flask_session_values(user)
+
+        ip_info = get_ip_information_string()
+        logger.info(
+            f"User logged in. user.id={user.id} user.username={user.username} {ip_info}"
+        )
 
     def set_flask_session_values(user):
         """
@@ -115,7 +142,7 @@ def login_user(
         #  idp info persisted to the database. We return early to avoid
         #  unnecessarily re-saving that user and idp info.
         if user.identity_provider and user.identity_provider.name == provider:
-            set_flask_session_values(user)
+            set_flask_session_values_and_log_ip(user)
             return
     else:
         if not config["ALLOW_NEW_USER_ON_LOGIN"]:
@@ -146,7 +173,7 @@ def login_user(
     current_app.scoped_session().add(user)
     current_app.scoped_session().commit()
 
-    set_flask_session_values(user)
+    set_flask_session_values_and_log_ip(user)
 
 
 def logout(next_url, force_era_global_logout=False):
