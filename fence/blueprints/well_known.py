@@ -26,7 +26,6 @@ def jwks():
 
 
 @blueprint.route("/openid-configuration")
-@log_ip
 def openid_configuration():
     """
     Return the OIDC provider configuration describing fence.

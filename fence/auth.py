@@ -63,7 +63,12 @@ def build_redirect_url(hostname, path):
 
 
 def get_ip_information_string():
-    all_headers = [f"{header}: {value}" for header, value in flask.request.headers]
+    """
+    Returns a string containing the client's IP address and any X-Forwarded headers.
+
+    Returns:
+        str: A formatted string containing the client's IP address and X-Forwarded headers.
+    """
     x_forwarded_headers = [
         f"{header}: {value}"
         for header, value in flask.request.headers
@@ -73,6 +78,16 @@ def get_ip_information_string():
 
 
 def log_ip(function):
+    """
+    Logs the client's IP address and any X-Forwarded headers to the logger.
+
+    Args:
+        function: The function to be decorated.
+
+    Returns:
+        The decorated function.
+    """
+
     @wraps(function)
     def decorated_function(*args, **kwargs):
         ip_info = get_ip_information_string()
