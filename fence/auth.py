@@ -67,9 +67,9 @@ def get_ip_information_string():
     x_forwarded_headers = [
         f"{header}: {value}"
         for header, value in flask.request.headers
-        if "X-Forwarded-*" in header
+        if "X-Forwarded" in header
     ]
-    return f"flask.request.remote_addr={flask.request.remote_addr} all_headers={all_headers} x_forwarded_headers={x_forwarded_headers}"
+    return f"flask.request.remote_addr={flask.request.remote_addr} x_forwarded_headers={x_forwarded_headers}"
 
 
 def log_ip(function):
