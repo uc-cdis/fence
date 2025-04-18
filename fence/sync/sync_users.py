@@ -1269,6 +1269,9 @@ class UserSyncer(object):
         """
         initialize projects
         """
+        print("--------project mapping-=------------")
+        print(self.project_mapping)
+
         if self.project_mapping:
             for projects in list(self.project_mapping.values()):
                 for p in projects:
@@ -1983,7 +1986,6 @@ class UserSyncer(object):
             # Get auth mapping for users
             for user in arborist_users:
                 username = user["name"]
-                print(username)
                 try:
                     arborist_users_auth_mapping[
                         username
@@ -2109,9 +2111,6 @@ class UserSyncer(object):
 
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
-                    print("--------user yaml policies----------")
-                    print(username)
-                    print(policy)
                     self.arborist_client.grant_user_policy(
                         username,
                         policy,
@@ -2178,6 +2177,8 @@ class UserSyncer(object):
                 ('read', 'read-storage', 'write', 'write-storage'): ('phs000005.c1', 'phs000006.c1'),
             }
         """
+        print("--------------project to authz mapping--------------")
+        print(project_to_authz_mapping)
         roles_to_resources = collections.defaultdict(list)
         for study, roles in user_project_info.items():
             ordered_roles = tuple(sorted(roles))
