@@ -6,6 +6,7 @@ This blueprint defines the endpoints under ``.well-known/``, which includes:
 
 import flask
 
+from fence.auth import log_ip
 from fence.models import ClientAuthType
 from fence.config import config
 
