@@ -465,12 +465,16 @@ def _setup_oidc_clients(app):
             # https://docs.authlib.org/en/latest/client/frameworks.html
             app.fence_client.register(**settings)
         else:  # generic OIDC implementation
+            if hasattr(app, "ARBORIST"):
+                app_arborist = app.arborist
+            else:
+                app_arborist = None
             client = Oauth2ClientBase(
                 settings=settings,
                 logger=logger,
                 HTTP_PROXY=config.get("HTTP_PROXY"),
                 idp=settings.get("name") or idp.title(),
-                arborist=app.arborist,
+                arborist=app_arborist,
             )
             clean_idp = idp.lower().replace(" ", "")
             setattr(app, f"{clean_idp}_client", client)
