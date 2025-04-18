@@ -29,6 +29,8 @@ from fence.models import (
     GA4GHVisaV1,
     create_user,
     User,
+    UpstreamRefreshToken,
+    query_for_user,
 )
 
 from tests.conftest import random_txn, NoAsyncMagicMock
@@ -362,6 +364,15 @@ def fake_ras_login(username, subject, email=None, db_session=None):
     logger.debug(
         f"subject: {subject}, username: {username}, actual_username: {actual_username}"
     )
+    user = query_for_user(db_session, actual_username)
+    refresh = UpstreamRefreshToken(
+        user=user,
+        refresh_token=f"fake-refresh-{subject}",
+        expires=int(time.time()) + 3600,  # valid for 1 hour
+    )
+    db_session.add(refresh)
+    db_session.commit()
+
     is_logged_in = login_user_or_require_registration(
         actual_username, provider="ras", email=None, id_from_idp=subject
     )
