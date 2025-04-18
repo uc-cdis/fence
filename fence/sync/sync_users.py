@@ -2028,6 +2028,9 @@ class UserSyncer(object):
         all_resources.extend(r for r in project_to_authz_mapping.values())
         self._create_arborist_resources(all_resources)
 
+        print("-0-----user projects------")
+        print(user_projects)
+
         for username, user_project_info in user_projects.items():
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
@@ -2179,6 +2182,8 @@ class UserSyncer(object):
         """
         print("--------------project to authz mapping--------------")
         print(project_to_authz_mapping)
+        print("------user project info-------")
+        print(user_project_info)
         roles_to_resources = collections.defaultdict(list)
         for study, roles in user_project_info.items():
             ordered_roles = tuple(sorted(roles))
