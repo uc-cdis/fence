@@ -152,10 +152,15 @@ class FenceConfig(Config):
 
             groups_sync_enabled = idp.get("is_authz_groups_sync_enabled", False)
             # when is_authz_groups_sync_enabled, then you must provide authz_groups_sync, with group prefix
-            if groups_sync_enabled and not idp.get("authz_groups_sync"):
-                error = f"Error: is_authz_groups_sync_enabled is enabled, required values not configured, for idp: {idp_id}"
-                logger.error(error)
-                raise Exception(error)
+            if groups_sync_enabled:
+                if not idp.get("authz_groups_sync"):
+                    error = f"Error: is_authz_groups_sync_enabled is enabled, required values not configured, for idp: {idp_id}"
+                    logger.error(error)
+                    raise Exception(error)
+                if not self._configs.get("ARBORIST"):
+                    error = f"Error: is_authz_groups_sync_enabled is enabled for idp '{idp_id}' but ARBORIST url is not configured"
+                    logger.error(error)
+                    raise Exception(error)
 
         self._validate_parent_child_studies(self._configs["dbGaP"])
 
