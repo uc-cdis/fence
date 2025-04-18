@@ -114,7 +114,7 @@ def provider_info(login_details):
         "idp": login_details["idp"],
         "name": login_details["name"],
         # "url" deprecated, replaced by "urls"
-        "url": absolute_login_url(login_details["idp"]),
+        "url": absolute_login_url(provider_id=login_details["idp"]),
         "desc": login_details.get("desc", None),
         "secondary": login_details.get("secondary", False),
     }
@@ -130,7 +130,7 @@ def provider_info(login_details):
         login_details["idp"] == "shibboleth" or fence_idp == "shibboleth"
     ) and "shib_idps" in login_details:
         # get list of all available shib IDPs
-        if not hasattr(flask.current_app, "all_shib_idps"):
+        if not hasattr(flask.current_app, "all_shib_idps"):  # TODO cache for a set time
             flask.current_app.all_shib_idps = get_all_shib_idps()
 
         requested_shib_idps = login_details["shib_idps"]
@@ -166,7 +166,9 @@ def provider_info(login_details):
             {
                 "name": shib_idp["name"],
                 "url": absolute_login_url(
-                    login_details["idp"], fence_idp, shib_idp["idp"]
+                    provider_id=login_details["idp"],
+                    fence_idp=fence_idp,
+                    shib_idp=shib_idp["idp"],
                 ),
             }
             for shib_idp in shib_idps
@@ -174,12 +176,52 @@ def provider_info(login_details):
 
     # non-Shibboleth provider
     else:
-        info["urls"] = [
-            {
-                "name": login_details["name"],
-                "url": absolute_login_url(login_details["idp"], fence_idp),
-            }
-        ]
+        discovery_details = (
+            config["OPENID_CONNECT"]
+            .get(login_details["idp"], {})
+            .get("idp_discovery", {})
+        )
+        if discovery_details:
+            assert discovery_details.get(
+                "url"
+            ), f"Unable to get list of {login_details['idp']} IDPs: OPENID_CONNECT.{login_details['idp']}.idp_discovery.url not configured"
+            assert discovery_details.get(
+                "format"
+            ), f"Unable to get list of {login_details['idp']} IDPs: OPENID_CONNECT.{login_details['idp']}.idp_discovery.format not configured"
+            try:
+                all_idps = get_all_upstream_idps(
+                    login_details["idp"],
+                    discovery_details["url"],
+                    discovery_details["format"],
+                )
+                # import json; print(json.dumps(all_idps, indent=2))
+            except Exception as e:
+                print(e)
+                raise
+            # for upstream_idp in all_idps:
+            #     print('upstream_idp', upstream_idp)
+            #     break
+            info["urls"] = [
+                {
+                    "name": upstream_idp["name"],
+                    "url": absolute_login_url(
+                        provider_id=login_details["idp"], fence_idp=upstream_idp["idp"]
+                    ),
+                }
+                for upstream_idp in all_idps
+            ]
+            import json
+
+            print(json.dumps(info["urls"], indent=2))
+        else:
+            info["urls"] = [
+                {
+                    "name": login_details["name"],
+                    "url": absolute_login_url(
+                        provider_id=login_details["idp"], fence_idp=fence_idp
+                    ),
+                }
+            ]
 
     return info
 
@@ -358,6 +400,47 @@ def make_login_blueprint():
         )
 
     return blueprint
+
+
+# TODO refactor to merge `get_all_upstream_idps` and `get_all_shib_idps`, backwards compatible
+def get_all_upstream_idps(idp_name, discovery_url, format) -> dict:
+    if format == "mdq":  # InCommon Metadata Query Protocol
+        all_idps = []
+        res = requests.get(discovery_url)
+        assert res.status_code == 200
+        xml_data = res.text
+
+        from xml.etree import ElementTree
+
+        tree = ElementTree.ElementTree(ElementTree.fromstring(xml_data))
+        root = tree.getroot()
+        for element in root.iter():
+            # print(f"Tag: {element.tag}, Text: {element.text}")
+            # if "EntityDescriptor" in element.tag:
+            #     print(element.attrib)
+            #     # print(element)
+            #     print(dir(element))
+            #     # for sub in element.iter():
+            #     #     print(f"     Tag: {sub.tag}, Text: {sub.text}")
+            #     break
+
+            if (
+                "EntityDescriptor" in element.tag
+                and element.attrib
+                and "entityID" in element.attrib
+            ):
+                all_idps.append(
+                    {
+                        "idp": element.attrib["entityID"],
+                        "name": element.attrib["entityID"],  # TODO parse DisplayName
+                    }
+                )
+        return all_idps
+
+    else:
+        raise InternalError(
+            f"IdP '{idp_name}' misconfigured: idp_discovery.format '{format}' is not supported"
+        )
 
 
 def get_all_shib_idps():

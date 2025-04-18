@@ -115,6 +115,11 @@ OPENID_CONNECT:
     multifactor_auth_claim_info: # optional, include if you're using arborist to enforce mfa on a per-file level
       claim: '' # claims field that indicates mfa, either the acr or acm claim.
       values: [ "" ] # possible values that indicate mfa was used. At least one value configured here is required to be in the token
+    # TODO comment
+    idp_discovery:
+      url: 'https://server.com/disco'
+      format: mdq
+
   # These Google values must be obtained from Google's Cloud Console
   # Follow: https://developers.google.com/identity/protocols/OpenIDConnect
   #

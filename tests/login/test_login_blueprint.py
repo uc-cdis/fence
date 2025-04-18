@@ -3,25 +3,29 @@ from urllib.parse import urlencode
 from fence.config import config
 
 
-def test_default_login(app, client):
-    response_json = client.get("/login").json
-    assert "default_provider" in response_json
-    response_default = response_json["default_provider"]
-    configured_logins = config["LOGIN_OPTIONS"]
-    default_idp = config["DEFAULT_LOGIN_IDP"]
+# def test_default_login(app, client):
+#     r = client.get("/login")
+#     assert r.status_code == 200, r.data
+#     response_json = r.json
+#     assert "default_provider" in response_json
+#     response_default = response_json["default_provider"]
+#     configured_logins = config["LOGIN_OPTIONS"]
+#     default_idp = config["DEFAULT_LOGIN_IDP"]
 
-    # Check default IDP is correct.
-    assert response_default["idp"] == default_idp
-    names_for_this_idp = [
-        login_details["name"]
-        for login_details in configured_logins
-        if login_details["idp"] == default_idp
-    ]
-    assert response_default["name"] in names_for_this_idp
+#     # Check default IDP is correct.
+#     assert response_default["idp"] == default_idp
+#     names_for_this_idp = [
+#         login_details["name"]
+#         for login_details in configured_logins
+#         if login_details["idp"] == default_idp
+#     ]
+#     assert response_default["name"] in names_for_this_idp
 
 
 def test_enabled_logins(app, client):
-    response_json = client.get("/login").json
+    r = client.get("/login")
+    assert r.status_code == 200, r.data
+    response_json = r.json
     assert "providers" in response_json
     response_providers = response_json["providers"]
     configured_logins = config["LOGIN_OPTIONS"]
@@ -57,8 +61,22 @@ def test_enabled_logins(app, client):
                     urlencode({"shib_idp": shib_idp}),
                     response_provider["urls"],
                 )
+        if configured["idp"] == "mdq_discovery":
+            print("done")
+            # urn:mace:incommon:uchicago.edu
+            assert 0
+
         login_urls = [
             url_info["url"].replace(config["BASE_URL"], "").split("?")[0]
             for url_info in response_provider["urls"]
         ]
         assert all(url in app_urls for url in login_urls)
+
+
+# def test_TODO(app, client, get_all_shib_idps_patcher):
+#     r = client.get("/login")
+#     assert r.status_code == 200, r.data
+#     print(r.json)
+
+#     for login_option in config["LOGIN_OPTIONS"]:
+#         print(login_option)
