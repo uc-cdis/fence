@@ -465,7 +465,7 @@ def _setup_oidc_clients(app):
             # https://docs.authlib.org/en/latest/client/frameworks.html
             app.fence_client.register(**settings)
         else:  # generic OIDC implementation
-            if hasattr(app, "ARBORIST"):
+            if hasattr(app, "arborist"):
                 app_arborist = app.arborist
             else:
                 app_arborist = None
