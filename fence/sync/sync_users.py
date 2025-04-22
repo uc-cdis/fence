@@ -1595,6 +1595,9 @@ class UserSyncer(object):
             user_yaml = UserYAML.from_file(
                 self.sync_from_local_yaml_file, encrypted=False, logger=self.logger
             )
+            print("-------sync from local yaml-----")
+            print(self.sync_from_local_yaml_file)
+            print(self.sync_from_local_csv_dir)
         except (EnvironmentError, AssertionError) as e:
             self.logger.error(str(e))
             self.logger.error("aborting early")
