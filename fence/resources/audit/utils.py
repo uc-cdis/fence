@@ -88,62 +88,45 @@ def create_audit_log_for_request(response):
     return response
 
 
-def create_local_audit_log_for_request(response):
+def create_log_for_request(response):
     """
     Right before returning the response to the user (see `after_this_request`
     in `enable_local_audit_logging` decorator), record an audit log. The data we
     need to record the logs are stored in `flask.g.audit_data` before reaching
     this code.
     """
-    try:
-        method = flask.request.method
-        endpoint = flask.request.path
-        audit_data = getattr(flask.g, "audit_data", {})
-        request_url = endpoint
-        if flask.request.query_string:
-            # could use `flask.request.url` but we don't want the root URL
-            request_url += f"?{flask.request.query_string.decode('utf-8')}"
-        request_url = _clean_authorization_request_url(request_url)
-        status_code = response.status_code
-        logger.info(
-            f"Audit log: method=%s, endpoint=%s, audit_data=%s, request_url=%, status_code=%s ",
-            method,
-            endpoint,
-            audit_data,
-            request_url,
-            status_code,
-        )
-
-    except Exception:
-        # TODO monitor this somehow
-        traceback.print_exc()
-        logger.error(f"!!! Unable to create audit log! Returning response anyway...")
-
+    method = flask.request.method
+    endpoint = flask.request.path
+    audit_data = getattr(flask.g, "audit_data", {})
+    request_url = endpoint
+    if flask.request.query_string:
+        # could use `flask.request.url` but we don't want the root URL
+        request_url += f"?{flask.request.query_string.decode('utf-8')}"
+    request_url = _clean_authorization_request_url(request_url)
+    status_code = response.status_code
+    logger.info(
+        f"Audit log: method=%s, endpoint=%s, audit_data=%s, request_url=%, status_code=%s ",
+        method,
+        endpoint,
+        audit_data,
+        request_url,
+        status_code,
+    )
     return response
 
 
-def enable_local_audit_logging(f):
+def enable_request_logging(f):
     """
     This decorator should be added to any API endpoint for which we want to
-    add audit logs to the local fence logs.
-
-    This decorator should also not be added to non-audited endpoints, so that performance is not impacted.
-    The `create_audit_log_for_request_decorator` decorator is only added
-    if auditing is enabled, so that performance is not impacted when auditing
-    is disabled.
+    write a log entry to the local fence logs.
     """
 
     @wraps(f)
     def wrapper(*args, **kwargs):
-        def create_local_audit_log_for_request_decorator(response):
-            return create_local_audit_log_for_request(response)
+        def create_log_for_request_decorator(response):
+            return create_log_for_request(response)
 
-        if is_audit_enabled():
-            # we can't add the `after_this_request` and
-            # `create_audit_log_for_request_decorator` decorators to the
-            # functions directly, because `is_audit_enabled` depends on
-            # the config being loaded
-            flask.after_this_request(create_local_audit_log_for_request_decorator)
+        flask.after_this_request(create_log_for_request_decorator)
         return f(*args, **kwargs)
 
     return wrapper
@@ -154,8 +137,8 @@ def enable_audit_logging(f):
     This decorator should be added to any API endpoint for which we want to
     push audit logs into the **audit-service**. The audit-service logs serve a very
     specific use case where we need some of the audit log entries available via audit-service.
-    For most of the cases, local audit logs will suffice, and therefore one should consider using
-    the enable_local_audit_logging decorator instead.
+    For most of the cases, local logs will suffice, and therefore one should consider using
+    the enable_request_logging decorator instead.
 
     This decorator should also not be added to non-audited endpoints, so that performance is not impacted.
     The `create_audit_log_for_request_decorator` decorator is only added
