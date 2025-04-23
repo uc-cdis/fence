@@ -6,6 +6,8 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from cdislogging import get_logger
 
 from fence.config import config
+from flask.wrappers import Request
+from fence.user import get_current_user
 
 
 logger = get_logger(__name__)
@@ -91,32 +93,29 @@ def create_audit_log_for_request(response):
     return response
 
 
-def create_log_for_request(response):
+def create_log_for_request(request: Request):
     """
-    Right before returning the response to the user (see `after_this_request`
-    in `enable_local_audit_logging` decorator), record an audit log. The data we
-    need to record the logs are stored in `flask.g.audit_data` before reaching
-    this code.
+    Right before processing the request (see `enable_local_audit_logging` decorator),
+    record an audit log. The data we need to record the logs are stored in
+    `flask.g.audit_data` before reaching this code.
     """
-    # ? username = get_current_user().username
-    method = flask.request.method
-    endpoint = flask.request.path
+    username = get_current_user().username
+    method = request.method
+    endpoint = request.path
     audit_data = getattr(flask.g, "audit_data", {})
     request_url = endpoint
-    if flask.request.query_string:
-        # could use `flask.request.url` but we don't want the root URL
-        request_url += f"?{flask.request.query_string.decode('utf-8')}"
+    if request.query_string:
+        # could use `request.url` but we don't want the root URL
+        request_url += f"?{request.query_string.decode('utf-8')}"
     request_url = _clean_authorization_request_url(request_url)
-    status_code = response.status_code
     logger.info(
-        f"Audit log: method=%s, endpoint=%s, audit_data=%s, request_url=%, status_code=%s ",
+        f"Request log: admin method called by user. Details: user=%s, method=%s, endpoint=%s, audit_data=%s, request_url=% ",
+        username,
         method,
         endpoint,
         audit_data,
         request_url,
-        status_code,
     )
-    return response
 
 
 def enable_request_logging(f):
@@ -127,10 +126,7 @@ def enable_request_logging(f):
 
     @wraps(f)
     def wrapper(*args, **kwargs):
-        def create_log_for_request_decorator(response):
-            return create_log_for_request(response)
-
-        flask.after_this_request(create_log_for_request_decorator)
+        create_log_for_request(flask.request)
         return f(*args, **kwargs)
 
     return wrapper
