@@ -2051,6 +2051,7 @@ class UserSyncer(object):
                 # add new policies
 
                 # remove removed policies
+                print("-------------revoke all policies--------")
 
                 self._revoke_all_policies_preserve_mfa(username, idp)
 
