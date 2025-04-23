@@ -24,10 +24,13 @@ def _clean_authorization_request_url(request_url):
     """
     parsed_url = urlparse(request_url)
     query_params = dict(parse_qsl(parsed_url.query, keep_blank_values=True))
+    # specifically look for code and state parameters (commonly used in OAuth redirects)
+    # and replace their values with "redacted":
     for param in ["code", "state"]:
         if param in query_params:
             query_params[param] = "redacted"
-    url_parts = list(parsed_url)  # cast to list to override query params
+    # rebuild the URL with the sanitized query params:
+    url_parts = list(parsed_url)
     url_parts[4] = urlencode(query=query_params)
     request_url = urlunparse(url_parts)
     return request_url
@@ -95,6 +98,7 @@ def create_log_for_request(response):
     need to record the logs are stored in `flask.g.audit_data` before reaching
     this code.
     """
+    # ? username = get_current_user().username
     method = flask.request.method
     endpoint = flask.request.path
     audit_data = getattr(flask.g, "audit_data", {})
