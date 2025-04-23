@@ -108,8 +108,6 @@ def test_sync(
 
     syncer.sync()
 
-    syncer.sync()
-
     users = db_session.query(models.User).all()
 
     # 5 from user.yaml, 6 from fake dbgap SFTP

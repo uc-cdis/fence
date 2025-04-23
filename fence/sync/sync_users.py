@@ -569,6 +569,8 @@ class UserSyncer(object):
                     dbgap_project = phsid[0]
                     # There are issues where dbgap has a wrong entry in their whitelist. Since we do a bulk arborist request, there are wrong entries in it that invalidates the whole request causing other correct entries not to be added
                     skip = False
+                    print("-------project id patterns------")
+                    print(project_id_patterns)
                     for pattern in project_id_patterns:
                         self.logger.debug(
                             "Checking pattern:{} with project_id:{}".format(
