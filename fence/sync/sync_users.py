@@ -1903,7 +1903,12 @@ class UserSyncer(object):
 
         if not is_mfa_enabled:
             # TODO This should be a diff, not a revocation of all policies.
-            self.arborist_client.revoke_all_policies_for_user(username)
+            try:
+                self.arborist_client.revoke_all_policies_for_user(username)
+            except Exception as e:
+                print("----------revoke all policies for users---------")
+                print(e)
+
             return
 
         policies = []
