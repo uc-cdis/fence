@@ -14,6 +14,8 @@ services:
 
   fence_db:
     image: postgres:12.10-bullseye
+    ports:
+      - "5432:5432"
     container_name: fence_db
     environment:
       POSTGRES_PASSWORD: mysecretpassword  # pragma: allowlist secret
