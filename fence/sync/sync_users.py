@@ -2100,28 +2100,28 @@ class UserSyncer(object):
                             # format project '/x/y/z' -> 'x.y.z'
                             # so the policy id will be something like 'x.y.z-create'
                             policy_id = _format_policy_id(resource, role)
-                            # if policy_id not in self._created_policies:
-                            #     try:
-                            #         self.arborist_client.update_policy(
-                            #             policy_id,
-                            #             {
-                            #                 "description": "policy created by fence sync",
-                            #                 "role_ids": [role],
-                            #                 "resource_paths": [resource],
-                            #             },
-                            #             create_if_not_exist=True,
-                            #         )
-                            #     except ArboristError as e:
-                            #         self.logger.info(
-                            #             "not creating policy in arborist; {}".format(
-                            #                 str(e)
-                            #             )
-                            #         )
-                            #     self._created_policies.add(policy_id)
+                            if policy_id not in self._created_policies:
+                                try:
+                                    self.arborist_client.update_policy(
+                                        policy_id,
+                                        {
+                                            "description": "policy created by fence sync",
+                                            "role_ids": [role],
+                                            "resource_paths": [resource],
+                                        },
+                                        create_if_not_exist=True,
+                                    )
+                                except ArboristError as e:
+                                    self.logger.info(
+                                        "not creating policy in arborist; {}".format(
+                                            str(e)
+                                        )
+                                    )
+                                self._created_policies.add(policy_id)
 
-                            # self._grant_arborist_policy(
-                            #     username, policy_id, expires=expires
-                            # )
+                            self._grant_arborist_policy(
+                                username, policy_id, expires=expires
+                            )
 
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
