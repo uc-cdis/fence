@@ -1,6 +1,7 @@
+from authlib.common.urls import add_params_to_uri
 from authlib.integrations.requests_client import OAuth2Session
 from cached_property import cached_property
-from flask import current_app
+import flask
 from jose import jwt
 import requests
 import time
@@ -154,6 +155,11 @@ class Oauth2ClientBase(object):
         uri, _ = self.session.create_authorization_url(
             authorization_endpoint, prompt="login"
         )
+
+        self.logger.error(f"DEBUG: flask.request.args = {flask.request.args}")
+        params = {"idp_hint": "urn:mace:incommon:uchicago.edu"}
+        uri = add_params_to_uri(uri, params)
+
         return uri
 
     def get_auth_info(self, code):
@@ -266,7 +272,7 @@ class Oauth2ClientBase(object):
         """
         Store refresh token in db.
         """
-        db_session = db_session or current_app.scoped_session()
+        db_session = db_session or flask.current_app.scoped_session()
         user.upstream_refresh_tokens = []
         upstream_refresh_token = UpstreamRefreshToken(
             user=user,

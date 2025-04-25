@@ -195,7 +195,7 @@ def provider_info(login_details):
                     discovery_details["format"],
                 )
                 # import json; print(json.dumps(all_idps, indent=2))
-            except Exception as e:
+            except Exception as e:  # TODO remove this
                 print(e)
                 raise
             # for upstream_idp in all_idps:
@@ -403,6 +403,7 @@ def make_login_blueprint():
 
 
 # TODO refactor to merge `get_all_upstream_idps` and `get_all_shib_idps`, backwards compatible
+# TODO compare the output of `get_all_upstream_idps` and `get_all_shib_idps` - maybe we only need 1
 def get_all_upstream_idps(idp_name, discovery_url, format) -> dict:
     if format == "mdq":  # InCommon Metadata Query Protocol
         all_idps = []
