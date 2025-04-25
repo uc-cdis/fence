@@ -2085,6 +2085,8 @@ class UserSyncer(object):
                         username, policy_hash, expires=expires
                     )
             else:
+                print("--------unique policies------")
+                print(unique_policies)
                 for roles, resources in unique_policies.items():
                     for role in roles:
                         for resource in resources:
