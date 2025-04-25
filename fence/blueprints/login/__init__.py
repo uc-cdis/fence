@@ -416,26 +416,44 @@ def get_all_upstream_idps(idp_name: str, discovery_url: str, format: str) -> dic
         xml_data = fetch_data(discovery_url)
         tree = ElementTree.ElementTree(ElementTree.fromstring(xml_data))
         for element in tree.getroot().iter():
+
+            if element.tag.endswith("EntityDescriptor"):
+                if "entityID" not in element.keys():
+                    continue
+                idp = element.get("entityID")
+                display_name = None
+                for sub in element.iter():
+                    if sub.tag.endswith("Organization"):
+                        for subsub in element.iter():
+                            if subsub.tag.endswith("OrganizationDisplayName"):
+                                display_name = subsub.text
+                all_idps.append(
+                    {
+                        "idp": idp,
+                        "name": display_name or idp,
+                    }
+                )
+
             # print(f"Tag: {element.tag}, Text: {element.text}")
             # if "EntityDescriptor" in element.tag:
             #     print(element.attrib)
             #     # print(element)
             #     print(dir(element))
-            #     # for sub in element.iter():
-            #     #     print(f"     Tag: {sub.tag}, Text: {sub.text}")
+            #     for sub in element.iter():
+            #         print(f"     Tag: {sub.tag}, Text: {sub.text}")
             #     break
 
-            if (
-                "EntityDescriptor" in element.tag
-                and element.attrib
-                and "entityID" in element.attrib
-            ):
-                all_idps.append(
-                    {
-                        "idp": element.attrib["entityID"],
-                        "name": element.attrib["entityID"],  # TODO parse DisplayName
-                    }
-                )
+            # if (
+            #     element.tag.endswith("EntityDescriptor")
+            #     and element.attrib
+            #     and "entityID" in element.attrib
+            # ):
+            #     all_idps.append(
+            #         {
+            #             "idp": element.attrib["entityID"],
+            #             "name": display_name or element.attrib["entityID"],
+            #         }
+            #     )
         return all_idps
 
     else:

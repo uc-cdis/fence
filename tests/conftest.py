@@ -1755,6 +1755,7 @@ def get_all_upstream_idps_mqd_data_patcher():
         ),
         "r",
     ) as f:
+        # subset of the data from http://mdq.incommon.org/entities/idps/all
         mock.return_value = f.read()
     fetch_data_patch = patch("fence.blueprints.login.fetch_data", mock)
     fetch_data_patch.start()
