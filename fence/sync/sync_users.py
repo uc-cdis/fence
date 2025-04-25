@@ -2121,6 +2121,8 @@ class UserSyncer(object):
 
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
+                    print("------user yaml=------")
+                    print(username, policy)
                     self.arborist_client.grant_user_policy(
                         username,
                         policy,
