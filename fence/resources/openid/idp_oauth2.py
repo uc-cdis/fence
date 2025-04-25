@@ -156,8 +156,11 @@ class Oauth2ClientBase(object):
             authorization_endpoint, prompt="login"
         )
 
-        self.logger.error(f"DEBUG: flask.request.args = {flask.request.args}")
-        params = {"idp_hint": "urn:mace:incommon:uchicago.edu"}
+        params = {}
+        if "idp" in flask.request.args:
+            idp = flask.request.args["idp"]
+            flask.session["upstream_idp"] = idp
+            params["idp_hint"] = idp  # TODO how to configure this
         uri = add_params_to_uri(uri, params)
 
         return uri

@@ -718,7 +718,7 @@ def test_disabled_prometheus_metrics(client, monkeypatch):
     metrics.add_login_event(
         user_sub="123",
         idp="test_idp",
-        fence_idp="shib",
+        upstream_idp="shib",
         shib_idp="university",
         client_id="test_azp",
     )
@@ -740,11 +740,11 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
 
     # record a login event and check that we get both a metric for the specific IDP, and an
     # IDP-agnostic metric for the total number of login events. The latter should have no IDP
-    # information (no `fence_idp` or `shib_idp`).
+    # information (no `upstream_idp` or `shib_idp`).
     metrics.add_login_event(
         user_sub="123",
         idp="test_idp",
-        fence_idp="shib",
+        upstream_idp="shib",
         shib_idp="university",
         client_id="test_azp",
     )
@@ -756,7 +756,7 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
             "labels": {
                 "user_sub": "123",
                 "idp": "test_idp",
-                "fence_idp": "shib",
+                "upstream_idp": "shib",
                 "shib_idp": "university",
                 "client_id": "test_azp",
             },
@@ -767,7 +767,7 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
             "labels": {
                 "user_sub": "123",
                 "idp": "all",
-                "fence_idp": "None",
+                "upstream_idp": "None",
                 "shib_idp": "None",
                 "client_id": "test_azp",
             },
@@ -780,7 +780,7 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
     metrics.add_login_event(
         user_sub="123",
         idp="test_idp",
-        fence_idp="shib",
+        upstream_idp="shib",
         shib_idp="university",
         client_id="test_azp",
     )
@@ -788,7 +788,7 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
     metrics.add_login_event(
         user_sub="123",
         idp="another_idp",
-        fence_idp=None,
+        upstream_idp=None,
         shib_idp=None,
         client_id="test_azp",
     )
@@ -812,7 +812,7 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
             "labels": {
                 "user_sub": "123",
                 "idp": "all",
-                "fence_idp": "None",
+                "upstream_idp": "None",
                 "shib_idp": "None",
                 "client_id": "test_azp",
             },
@@ -823,18 +823,18 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
             "labels": {
                 "user_sub": "123",
                 "idp": "test_idp",
-                "fence_idp": "shib",
+                "upstream_idp": "shib",
                 "shib_idp": "university",
                 "client_id": "test_azp",
             },
-            "value": 2.0,  # recorded login events for this idp, fence_idp and shib_idp combo
+            "value": 2.0,  # recorded login events for this idp, upstream_idp and shib_idp combo
         },
         {
             "name": "gen3_fence_login_total",
             "labels": {
                 "user_sub": "123",
                 "idp": "another_idp",
-                "fence_idp": "None",
+                "upstream_idp": "None",
                 "shib_idp": "None",
                 "client_id": "test_azp",
             },

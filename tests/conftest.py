@@ -62,7 +62,8 @@ os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "true"
 
 # all the IDPs we want to test.
 # any newly added custom OIDC IDP should be added here.
-# generic OIDC IDPs should start with "generic" so the tests work.
+# generic OIDC IDPs should start with "generic" so the tests work
+# (see `get_value_from_discovery_doc_patcher`logic).
 LOGIN_IDPS = [
     "fence",
     "google",
@@ -76,6 +77,7 @@ LOGIN_IDPS = [
     "cilogon",
     "generic1",
     "generic2",
+    "generic_mdq_discovery",
 ]
 
 

@@ -121,7 +121,7 @@ class Metrics:
         logger.debug(f"Setting gauge '{name}' with labels: {labels}")
         self._metrics[name].labels(*labels.values()).set(value)
 
-    def add_login_event(self, user_sub, idp, fence_idp, shib_idp, client_id):
+    def add_login_event(self, user_sub, idp, upstream_idp, shib_idp, client_id):
         """
         Record a login event
         """
@@ -133,7 +133,7 @@ class Metrics:
                 "user_sub": user_sub,
                 "idp": idp,
                 "client_id": client_id,
-                "fence_idp": fence_idp,
+                "upstream_idp": upstream_idp,
                 "shib_idp": shib_idp,
             },
         )
@@ -144,7 +144,7 @@ class Metrics:
                 "idp": "all",
                 "client_id": client_id,
                 # when counting all IDPs, we don't care about the fence and shib IDP values
-                "fence_idp": None,
+                "upstream_idp": None,
                 "shib_idp": None,
             },
         )

@@ -14,7 +14,7 @@ def test_contfest_idps():
     cannot be parsed by this test.
     """
     current_dir = os.path.dirname(os.path.realpath(__file__))
-    err_msg = "For IDP file '{}': IDP '{}' should be added to the tests' 'LOGIN_IDPS' to be tested"
+    err_msg = "For IDP file '{}': IDP '{}' should be added to the tests in 'LOGIN_IDPS' to be tested"
 
     subdir = "resources/openid"
     path = os.path.join(current_dir, "../../fence", subdir)

@@ -321,6 +321,7 @@ SESSION_ALLOWED_SCOPES:
 # Each option must be configured with a "name" and an "idp".
 # - "idp" must be a configured provider in OPENID_CONNECT section.
 # Multiple options can be configured with the same idp.
+# TODO upstream_idp doc and example
 # - if provider_id is "fence", "fence_idp" can be any of the providers
 # supported by the other Fence. If not specified, will default to NIH login.
 # - if provider_id is "fence" and fence_idp is "shibboleth", a list of
@@ -367,6 +368,7 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
 # spoofing.
   # - name: 'Shibboleth Login'
   #   idp: shibboleth
+# TODO test satosa with specific upstream_idp
 
 # Default login provider:
 # - must be configured in LOGIN_OPTIONS and OPENID_CONNECT

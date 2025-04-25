@@ -100,8 +100,10 @@ def get_user_info(current_session, username):
         "message": "",
     }
 
-    if "fence_idp" in flask.session:
-        info["fence_idp"] = flask.session["fence_idp"]
+    if "upstream_idp" in flask.session:
+        info["upstream_idp"] = flask.session["upstream_idp"]
+        # backwards compatibility: also set `fence_idp`
+        info["fence_idp"] = flask.session["upstream_idp"]
     if "shib_idp" in flask.session:
         info["shib_idp"] = flask.session["shib_idp"]
 

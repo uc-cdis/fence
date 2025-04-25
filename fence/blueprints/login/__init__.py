@@ -54,22 +54,24 @@ def get_idp_route_name(idp):
     return special_routes.get(idp, idp.lower())
 
 
-def absolute_login_url(provider_id, fence_idp=None, shib_idp=None):
+def absolute_login_url(provider_id, upstream_idp=None, shib_idp=None):
     """
     Args:
         provider_id (str): provider to log in with.
-        fence_idp (str, optional): if provider_id is "fence"
-            (multi-tenant Fence setup), fence_idp can be any of the
+        upstream_idp (str, optional): can be set to any of the providers
+            supported by the upstream provider (aka provider_id).
+            For example, if provider_id is "fence"
+            (multi-tenant Fence setup), upstream_idp can be any of the
             providers supported by the other Fence. If not specified,
             will default to NIH login.
         shib_idp (str, optional): if provider_id is "fence" and
-            fence_idp is "shibboleth", shib_idp can be any Shibboleth/
+            upstream_idp is "shibboleth", shib_idp can be any Shibboleth/
             InCommon provider. If not specified, will default to NIH
             login.
 
     Returns:
         str: login URL for this provider, including extra query
-            parameters if fence_idp and/or shib_idp are specified.
+            parameters if upstream_idp and/or shib_idp are specified.
     """
     try:
         base_url = config["BASE_URL"].rstrip("/")
@@ -78,8 +80,8 @@ def absolute_login_url(provider_id, fence_idp=None, shib_idp=None):
         raise InternalError("identity provider misconfigured: {}".format(str(e)))
 
     params = {}
-    if fence_idp:
-        params["idp"] = fence_idp
+    if upstream_idp:
+        params["idp"] = upstream_idp
     if shib_idp:
         params["shib_idp"] = shib_idp
     login_url = add_params_to_uri(login_url, params)
@@ -87,17 +89,17 @@ def absolute_login_url(provider_id, fence_idp=None, shib_idp=None):
     return login_url
 
 
-def provider_info(login_details):
+def get_provider_info(login_details):
     """
     Args:
         login_details (dict):
-        { name, desc, idp, fence_idp, shib_idps, secondary }
+        { name, desc, idp, upstream_idp, shib_idps, secondary }
         - "idp": a configured provider.
         Multiple options can be configured with the same idp.
-        - if provider_id is "fence", "fence_idp" can be any of the
+        - if provider_id is "fence", "upstream_idp" can be any of the
         providers supported by the other Fence. If not specified, will
         default to NIH login.
-        - if provider_id is "fence" and fence_idp is "shibboleth", a
+        - if provider_id is "fence" and upstream_idp is "shibboleth", a
         list of "shib_idps" can be configured for InCommon login. If
         not specified, will default to NIH login.
         - Optional parameters: "desc" (description) and "secondary"
@@ -120,14 +122,15 @@ def provider_info(login_details):
     }
 
     # for Fence multi-tenant login
-    fence_idp = None
+    upstream_idp = None
     if login_details["idp"] == "fence":
-        fence_idp = login_details.get("fence_idp")
+        # backwards compatibility: fall back to `fence_idp` if `upstream_idp` is not specified
+        upstream_idp = login_details.get("upstream_idp", login_details.get("fence_idp"))
 
     # handle Shibboleth IDPs: InCommon login can either be configured
     # directly in this Fence, or through multi-tenant Fence
     if (
-        login_details["idp"] == "shibboleth" or fence_idp == "shibboleth"
+        login_details["idp"] == "shibboleth" or upstream_idp == "shibboleth"
     ) and "shib_idps" in login_details:
         # get list of all available shib IDPs
         if not hasattr(flask.current_app, "all_shib_idps"):  # TODO cache for a set time
@@ -167,7 +170,7 @@ def provider_info(login_details):
                 "name": shib_idp["name"],
                 "url": absolute_login_url(
                     provider_id=login_details["idp"],
-                    fence_idp=fence_idp,
+                    upstream_idp=upstream_idp,
                     shib_idp=shib_idp["idp"],
                 ),
             }
@@ -205,7 +208,8 @@ def provider_info(login_details):
                 {
                     "name": upstream_idp["name"],
                     "url": absolute_login_url(
-                        provider_id=login_details["idp"], fence_idp=upstream_idp["idp"]
+                        provider_id=login_details["idp"],
+                        upstream_idp=upstream_idp["idp"],
                     ),
                 }
                 for upstream_idp in all_idps
@@ -218,7 +222,7 @@ def provider_info(login_details):
                 {
                     "name": login_details["name"],
                     "url": absolute_login_url(
-                        provider_id=login_details["idp"], fence_idp=fence_idp
+                        provider_id=login_details["idp"], upstream_idp=upstream_idp
                     ),
                 }
             ]
@@ -258,7 +262,7 @@ def get_login_providers_info():
 
     try:
         all_provider_info = [
-            provider_info(login_details) for login_details in login_options
+            get_provider_info(login_details) for login_details in login_options
         ]
     except KeyError as e:
         raise InternalError("LOGIN_OPTIONS misconfigured: cannot find key {}".format(e))
