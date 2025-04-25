@@ -144,12 +144,14 @@ OPENID_CONNECT:
   generic_mdq_discovery:
     client_id: ''
     client_secret: ''
-    redirect_url: '{{BASE_URL}}/login/mdq_discovery/login'
+    redirect_url: '{{BASE_URL}}/login/generic_mdq_discovery/login'
     discovery:
-      authorization_endpoint: 'https://mdq_discovery/authorization_endpoint'
+      authorization_endpoint: 'https://generic_mdq_discovery/authorization_endpoint'
     idp_discovery:
-      url: 'http://mdq.incommon.org/entities/idps/all'  # TODO set tests to a subset of the results
+      url: 'https://generic_mdq_discovery/get-all-idps'
       format: mdq
+    authorization_url_param_map:  # TODO unit test this somehow
+      idp: idp_hint
 
 # these are the *possible* scopes a client can be given, NOT scopes that are
 # given to all clients. You can be more restrictive during client creation

@@ -26,6 +26,7 @@ import flask
 import requests
 
 from cdislogging import get_logger
+from xml.etree import ElementTree
 
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 from fence.blueprints.login.cilogon import CilogonLogin, CilogonCallback
@@ -42,6 +43,7 @@ from fence.errors import InternalError
 from fence.resources.audit.utils import enable_audit_logging
 from fence.restful import RestfulApi
 from fence.config import config
+from fence.utils import fetch_data
 
 logger = get_logger(__name__)
 
@@ -199,7 +201,7 @@ def get_provider_info(login_details):
                 )
                 # import json; print(json.dumps(all_idps, indent=2))
             except Exception as e:  # TODO remove this
-                print(e)
+                print("get_provider_info error:", e)
                 raise
             # for upstream_idp in all_idps:
             #     print('upstream_idp', upstream_idp)
@@ -216,7 +218,7 @@ def get_provider_info(login_details):
             ]
             import json
 
-            print(json.dumps(info["urls"], indent=2))
+            print("get_provider_info res:", json.dumps(info["urls"], indent=2))
         else:
             info["urls"] = [
                 {
@@ -408,18 +410,12 @@ def make_login_blueprint():
 
 # TODO refactor to merge `get_all_upstream_idps` and `get_all_shib_idps`, backwards compatible
 # TODO compare the output of `get_all_upstream_idps` and `get_all_shib_idps` - maybe we only need 1
-def get_all_upstream_idps(idp_name, discovery_url, format) -> dict:
+def get_all_upstream_idps(idp_name: str, discovery_url: str, format: str) -> dict:
     if format == "mdq":  # InCommon Metadata Query Protocol
         all_idps = []
-        res = requests.get(discovery_url)
-        assert res.status_code == 200
-        xml_data = res.text
-
-        from xml.etree import ElementTree
-
+        xml_data = fetch_data(discovery_url)
         tree = ElementTree.ElementTree(ElementTree.fromstring(xml_data))
-        root = tree.getroot()
-        for element in root.iter():
+        for element in tree.getroot().iter():
             # print(f"Tag: {element.tag}, Text: {element.text}")
             # if "EntityDescriptor" in element.tag:
             #     print(element.attrib)

@@ -1746,6 +1746,25 @@ def restore_config():
 
 
 @pytest.fixture(scope="function")
+def get_all_upstream_idps_mqd_data_patcher():
+    mock = MagicMock()
+    with open(
+        os.path.join(
+            os.path.dirname(os.path.realpath(__file__)),
+            "data/incommon_mdq_data_extract.xml",
+        ),
+        "r",
+    ) as f:
+        mock.return_value = f.read()
+    fetch_data_patch = patch("fence.blueprints.login.fetch_data", mock)
+    fetch_data_patch.start()
+
+    yield mock
+
+    fetch_data_patch.stop()
+
+
+@pytest.fixture(scope="function")
 def get_all_shib_idps_patcher():
     """
     Don't make real requests to the list of InCommon IDPs exposed

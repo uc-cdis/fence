@@ -119,7 +119,9 @@ OPENID_CONNECT:
     idp_discovery:
       url: 'https://server.com/disco'
       format: mdq
-
+    # TODO comment
+    authorization_url_param_map:
+     idp: upstream_idp_parameter
   # These Google values must be obtained from Google's Cloud Console
   # Follow: https://developers.google.com/identity/protocols/OpenIDConnect
   #

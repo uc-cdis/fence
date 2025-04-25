@@ -156,11 +156,16 @@ class Oauth2ClientBase(object):
             authorization_endpoint, prompt="login"
         )
 
-        params = {}
         if "idp" in flask.request.args:
-            idp = flask.request.args["idp"]
-            flask.session["upstream_idp"] = idp
-            params["idp_hint"] = idp  # TODO how to configure this
+            flask.session["upstream_idp"] = flask.request.args["idp"]
+
+        # add query parameters to the url as configured in `authorization_url_param_map`
+        params = {}
+        for in_param, out_param in self.settings.get(
+            "authorization_url_param_map", {}
+        ).items():
+            if in_param in flask.request.args:
+                params[out_param] = flask.request.args[in_param]
         uri = add_params_to_uri(uri, params)
 
         return uri

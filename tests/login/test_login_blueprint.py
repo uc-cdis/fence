@@ -22,7 +22,7 @@ from fence.config import config
 #     assert response_default["name"] in names_for_this_idp
 
 
-def test_enabled_logins(app, client):
+def test_enabled_logins(app, client, get_all_upstream_idps_mqd_data_patcher):
     r = client.get("/login")
     assert r.status_code == 200, r.data
     response_json = r.json
@@ -61,23 +61,19 @@ def test_enabled_logins(app, client):
                     urlencode({"shib_idp": shib_idp}),
                     response_provider["urls"],
                 )
-        if configured["idp"] == "mdq_discovery":
-            print("done")
-            # TODO test here
-            # urn:mace:incommon:uchicago.edu
-            # assert 0
+        if "upstream_idps" in configured:
+            for upstream_idp in configured["upstream_idps"]:
+                assert any(
+                    urlencode({"idp": upstream_idp}) in url_info["url"]
+                    for url_info in response_provider["urls"]
+                ), 'upstream_idp param "{}", encoded "{}", is not in provider\'s login URLs: {}'.format(
+                    upstream_idp,
+                    urlencode({"idp": upstream_idp}),
+                    response_provider["urls"],
+                )
 
         login_urls = [
             url_info["url"].replace(config["BASE_URL"], "").split("?")[0]
             for url_info in response_provider["urls"]
         ]
         assert all(url in app_urls for url in login_urls)
-
-
-# def test_TODO(app, client, get_all_shib_idps_patcher):
-#     r = client.get("/login")
-#     assert r.status_code == 200, r.data
-#     print(r.json)
-
-#     for login_option in config["LOGIN_OPTIONS"]:
-#         print(login_option)
