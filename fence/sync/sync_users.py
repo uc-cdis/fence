@@ -2118,15 +2118,15 @@ class UserSyncer(object):
                             )
 
             if user_yaml:
-                print("---------user yaml--------------")
-                print(user_yaml)
-
                 for policy in user_yaml.policies.get(username, []):
                     self.arborist_client.grant_user_policy(
                         username,
                         policy,
                         expires_at=expires,
                     )
+
+        print("--------user yaml projects----------")
+        print(user_yaml.policies)
 
         if user_yaml:
             for client_name, client_details in user_yaml.clients.items():
