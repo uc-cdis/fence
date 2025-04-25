@@ -1903,12 +1903,7 @@ class UserSyncer(object):
 
         if not is_mfa_enabled:
             # TODO This should be a diff, not a revocation of all policies.
-            try:
-                self.arborist_client.revoke_all_policies_for_user(username)
-            except Exception as e:
-                print("----------revoke all policies for users---------")
-                print(e)
-
+            self.arborist_client.revoke_all_policies_for_user(username)
             return
 
         policies = []
@@ -2038,9 +2033,6 @@ class UserSyncer(object):
         all_resources.extend(r for r in project_to_authz_mapping.values())
         self._create_arborist_resources(all_resources)
 
-        print("-0-----user projects------")
-        print(user_projects)
-
         for username, user_project_info in user_projects.items():
             self.logger.info("processing user `{}`".format(username))
             user = query_for_user(session=session, username=username)
@@ -2051,13 +2043,17 @@ class UserSyncer(object):
 
             self.arborist_client.create_user_if_not_exist(username)
             if not single_user_sync:
+                print("---------arborist_users_auth_mapping---------")
+                print(arborist_users_auth_mapping)
+
+                print("------user projects------")
+                print(user_projects)
                 # find diff of incoming vs current policies
 
                 # add new policies
 
                 # remove removed policies
                 print("-------------revoke all policies--------")
-
                 self._revoke_all_policies_preserve_mfa(username, idp)
 
             # as of 2/11/2022, for single_user_sync, as RAS visa parsing has
@@ -2191,10 +2187,6 @@ class UserSyncer(object):
                 ('read', 'read-storage', 'write', 'write-storage'): ('phs000005.c1', 'phs000006.c1'),
             }
         """
-        print("--------------project to authz mapping--------------")
-        print(project_to_authz_mapping)
-        print("------user project info-------")
-        print(user_project_info)
         roles_to_resources = collections.defaultdict(list)
         for study, roles in user_project_info.items():
             ordered_roles = tuple(sorted(roles))
