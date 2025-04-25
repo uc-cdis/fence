@@ -2050,8 +2050,6 @@ class UserSyncer(object):
                 print(user_projects)
                 # find diff of incoming vs current policies
 
-                # add new policies
-
                 # remove removed policies
                 print("-------------revoke all policies--------")
                 self._revoke_all_policies_preserve_mfa(username, idp)
@@ -2120,9 +2118,10 @@ class UserSyncer(object):
                             )
 
             if user_yaml:
+                print("---------user yaml--------------")
+                print(user_yaml)
+
                 for policy in user_yaml.policies.get(username, []):
-                    print("------user yaml=------")
-                    print(username, policy)
                     self.arborist_client.grant_user_policy(
                         username,
                         policy,
@@ -2356,6 +2355,21 @@ class UserSyncer(object):
         policy_hash = hashlib.sha256(canonical_policy.encode("utf-8")).hexdigest()
 
         return policy_hash
+
+    def _compare_policies(self, existing_policies, incoming_policies):
+        """
+        Compares a user's existing polivies with incoming policies from either user_yaml or dbgap whitelist
+
+
+        Args:
+            existing_policies (_type_): user's existing policies pulled with arborist_client.auth_mapping(username)
+            incoming_policies (_type_): user's policies as dictated by authz source
+
+        Return:
+            policies_to_add (dict): policies to be added to arborist
+            policies_to_remove (dict): policies to be removed from arborist
+        """
+        pass
 
     def _grant_arborist_policy(self, username, policy_id, expires=None):
         """
