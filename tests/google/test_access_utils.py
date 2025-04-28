@@ -26,7 +26,7 @@ from fence.resources.google.access_utils import (
     patch_user_service_account,
     remove_white_listed_service_account_ids, update_google_groups_for_users, GoogleUpdateException
 )
-from fence.utils import DEFAULT_BACKOFF_SETTINGS
+from fence.config import DEFAULT_BACKOFF_SETTINGS
 
 
 class MockResponse:

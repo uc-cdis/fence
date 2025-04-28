@@ -12,7 +12,7 @@ from userdatamodel.models import Group
 from fence.config import config
 from fence.errors import UserError
 from fence.jwt.validate import validate_jwt
-from fence.utils import create_client, get_SQLAlchemyDriver
+from fence import get_SQLAlchemyDriver
 from fence.models import (
     AccessPrivilege,
     Project,
