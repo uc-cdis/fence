@@ -77,26 +77,6 @@ def get_ip_information_string():
     return f"flask.request.remote_addr={flask.request.remote_addr} x_forwarded_headers={x_forwarded_headers}"
 
 
-def log_ip(function):
-    """
-    Logs the client's IP address and any X-Forwarded headers to the logger.
-
-    Args:
-        function: The function to be decorated.
-
-    Returns:
-        The decorated function.
-    """
-
-    @wraps(function)
-    def decorated_function(*args, **kwargs):
-        ip_info = get_ip_information_string()
-        logger.info(ip_info)
-        return function(*args, **kwargs)
-
-    return decorated_function
-
-
 def login_user(
     username, provider, fence_idp=None, shib_idp=None, email=None, id_from_idp=None
 ):
