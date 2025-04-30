@@ -178,7 +178,8 @@ def generate_signed_session_token(kid, private_key, expires_in, context=None):
 
     claims = {
         "pur": "session",
-        "aud": ["fence", issuer],
+        #TODO remove http://fence-service/ from aud
+        "aud": ["fence", issuer, "http://fence-service/"],
         "sub": str(context.get("user_id", "")),
         "iss": issuer,
         "iat": iat,
@@ -342,7 +343,8 @@ def generate_api_key(kid, private_key, user_id, expires_in, scopes, client_id):
         "pur": "api_key",
         "sub": sub,
         "iss": iss,
-        "aud": [iss],
+        #TODO remove http://fence-service/ from aud
+        "aud": [iss, "http://fence-service/"],
         "iat": iat,
         "exp": exp,
         "jti": jti,
@@ -399,7 +401,8 @@ def generate_signed_access_token(
     claims = {
         "pur": "access",
         "iss": iss,
-        "aud": [iss],
+        #TODO remove http://fence-service/ from aud
+        "aud": [ iss, "http://fence-service/"],
         "iat": iat,
         "exp": exp,
         "jti": jti,
