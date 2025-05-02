@@ -178,6 +178,7 @@ def get_provider_info(login_details):
             }
             for shib_idp in shib_idps
         ]
+        # import json; print("get_all_shib_idps res:", json.dumps(flask.current_app.all_shib_idps, indent=2))
 
     # non-Shibboleth provider
     else:
@@ -217,9 +218,7 @@ def get_provider_info(login_details):
                 }
                 for upstream_idp in all_idps
             ]
-            import json
-
-            print("get_provider_info res:", json.dumps(info["urls"], indent=2))
+            # import json; print("get_all_upstream_idps res:", json.dumps(all_idps, indent=2))
         else:
             info["urls"] = [
                 {
@@ -412,6 +411,8 @@ def make_login_blueprint():
 # TODO refactor to merge `get_all_upstream_idps` and `get_all_shib_idps`, backwards compatible
 # TODO compare the output of `get_all_upstream_idps` and `get_all_shib_idps` - maybe we only need 1
 def get_all_upstream_idps(idp_name: str, discovery_url: str, format: str) -> dict:
+    # TODO use <Extensions><mdui:UIInfo><mdui:DisplayName> instead of OrganizationDisplayName
+    # TODO check the DisplayName lang like in `get_shib_idp_en_name` (use `RESTENA` org for testing``)
     if format == "mdq":  # InCommon Metadata Query Protocol
         all_idps = []
         xml_data = fetch_url_data(discovery_url)
@@ -421,40 +422,53 @@ def get_all_upstream_idps(idp_name: str, discovery_url: str, format: str) -> dic
                 if "entityID" not in element.keys():
                     continue
                 idp = element.get("entityID")
-                display_name = None
+                display_names = []
                 # TODO can i get it directly instead of iter?
+                # get the DisplayName
                 for sub in element.iter():
-                    if sub.tag.endswith("Organization"):
+                    if sub.tag.endswith("Extensions"):
                         for subsub in sub.iter():
-                            if subsub.tag.endswith("OrganizationDisplayName"):
-                                display_name = subsub.text
+                            if subsub.tag.endswith("UIInfo"):
+                                for subsubsub in subsub.iter():
+                                    if subsubsub.tag.endswith("DisplayName"):
+                                        lang = ""
+                                        if (
+                                            "{http://www.w3.org/XML/1998/namespace}lang"
+                                            in subsubsub.keys()
+                                        ):
+                                            lang = subsubsub.get(
+                                                "{http://www.w3.org/XML/1998/namespace}lang"
+                                            )
+                                        display_names.append(
+                                            {"value": subsubsub.text, "lang": lang}
+                                        )
+                # if Extensions.UIInfo.DisplayName is not provided, fall back to
+                # Organization.OrganizationDisplayName
+                if not display_names:
+                    for sub2 in element.iter():
+                        if sub2.tag.endswith("Organization"):
+                            for subsub2 in sub2.iter():
+                                if subsub2.tag.endswith("OrganizationDisplayName"):
+                                    lang = ""
+                                    if (
+                                        "{http://www.w3.org/XML/1998/namespace}lang"
+                                        in subsub2.keys()
+                                    ):
+                                        lang = subsub2.get(
+                                            "{http://www.w3.org/XML/1998/namespace}lang"
+                                        )
+                                    display_names.append(
+                                        {"value": subsub2.text, "lang": lang}
+                                    )
+                # import json; print(idp, json.dumps(display_names, indent=2))
                 all_idps.append(
                     {
                         "idp": idp,
-                        "name": display_name or idp,
+                        "name": get_shib_idp_en_name(display_names)
+                        if display_names
+                        else idp,
                     }
                 )
-
-            # print(f"Tag: {element.tag}, Text: {element.text}")
-            # if "EntityDescriptor" in element.tag:
-            #     print(element.attrib)
-            #     # print(element)
-            #     print(dir(element))
-            #     for sub in element.iter():
-            #         print(f"     Tag: {sub.tag}, Text: {sub.text}")
-            #     break
-
-            # if (
-            #     element.tag.endswith("EntityDescriptor")
-            #     and element.attrib
-            #     and "entityID" in element.attrib
-            # ):
-            #     all_idps.append(
-            #         {
-            #             "idp": element.attrib["entityID"],
-            #             "name": display_name or element.attrib["entityID"],
-            #         }
-            #     )
         return all_idps
 
     else:

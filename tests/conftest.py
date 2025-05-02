@@ -1797,8 +1797,8 @@ def get_all_shib_idps_patcher():
             "name": "Some InCommon Provider",
         },
         {
-            "idp": "urn:mace:incommon:nih.gov",
-            "name": "National Institutes of Health (NIH)",
+            "idp": "https://idp.uca.fr/idp/shibboleth",
+            "name": "Université Clermont Auvergne",
         },
         {
             "idp": "urn:mace:incommon:uchicago.edu",
