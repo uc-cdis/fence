@@ -43,7 +43,7 @@ from fence.errors import InternalError
 from fence.resources.audit.utils import enable_audit_logging
 from fence.restful import RestfulApi
 from fence.config import config
-from fence.utils import fetch_data
+from fence.utils import fetch_url_data
 
 logger = get_logger(__name__)
 
@@ -194,6 +194,7 @@ def get_provider_info(login_details):
                 "format"
             ), f"Unable to get list of {login_details['idp']} IDPs: OPENID_CONNECT.{login_details['idp']}.idp_discovery.format not configured"
             try:
+                # TODO support configuring a subset of idps
                 all_idps = get_all_upstream_idps(
                     login_details["idp"],
                     discovery_details["url"],
@@ -413,18 +414,18 @@ def make_login_blueprint():
 def get_all_upstream_idps(idp_name: str, discovery_url: str, format: str) -> dict:
     if format == "mdq":  # InCommon Metadata Query Protocol
         all_idps = []
-        xml_data = fetch_data(discovery_url)
+        xml_data = fetch_url_data(discovery_url)
         tree = ElementTree.ElementTree(ElementTree.fromstring(xml_data))
         for element in tree.getroot().iter():
-
             if element.tag.endswith("EntityDescriptor"):
                 if "entityID" not in element.keys():
                     continue
                 idp = element.get("entityID")
                 display_name = None
+                # TODO can i get it directly instead of iter?
                 for sub in element.iter():
                     if sub.tag.endswith("Organization"):
-                        for subsub in element.iter():
+                        for subsub in sub.iter():
                             if subsub.tag.endswith("OrganizationDisplayName"):
                                 display_name = subsub.text
                 all_idps.append(

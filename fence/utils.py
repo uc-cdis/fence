@@ -34,7 +34,7 @@ def json_res(data):
     return flask.Response(json.dumps(data), mimetype="application/json")
 
 
-def fetch_data(url: str) -> str:
+def fetch_url_data(url: str) -> str:
     """
     Perform a GET request and return the raw response data.
     Using this function instead of making the request directly in the caller function allows us

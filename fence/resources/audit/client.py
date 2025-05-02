@@ -202,7 +202,7 @@ class AuditServiceClient:
             "username": username,
             "sub": sub,
             "idp": idp,
-            # note: audit-service still registers `upstream_idp` as `fence_idp`
+            # NOTE: audit-service still registers `upstream_idp` as `fence_idp`
             "fence_idp": upstream_idp,
             "shib_idp": shib_idp,
             "client_id": client_id,

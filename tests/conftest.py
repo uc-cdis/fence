@@ -1752,17 +1752,17 @@ def get_all_upstream_idps_mqd_data_patcher():
         os.path.join(
             os.path.dirname(os.path.realpath(__file__)),
             "data/incommon_mdq_data_extract.xml",
+            # ^ subset of the data from http://mdq.incommon.org/entities/idps/all
         ),
         "r",
     ) as f:
-        # subset of the data from http://mdq.incommon.org/entities/idps/all
         mock.return_value = f.read()
-    fetch_data_patch = patch("fence.blueprints.login.fetch_data", mock)
-    fetch_data_patch.start()
+    fetch_url_data_patch = patch("fence.blueprints.login.fetch_url_data", mock)
+    fetch_url_data_patch.start()
 
     yield mock
 
-    fetch_data_patch.stop()
+    fetch_url_data_patch.stop()
 
 
 @pytest.fixture(scope="function")

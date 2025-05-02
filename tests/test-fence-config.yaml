@@ -247,7 +247,7 @@ LOGIN_OPTIONS:
     idp: generic_mdq_discovery
   - name: 'MDQ discovery 2'
     idp: generic_mdq_discovery
-    upstream_idps:
+    upstream_idps:  # TODO test this
     - urn:mace:incommon:nih.gov
     - urn:mace:incommon:uchicago.edu
 
