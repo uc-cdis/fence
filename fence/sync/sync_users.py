@@ -569,8 +569,6 @@ class UserSyncer(object):
                     dbgap_project = phsid[0]
                     # There are issues where dbgap has a wrong entry in their whitelist. Since we do a bulk arborist request, there are wrong entries in it that invalidates the whole request causing other correct entries not to be added
                     skip = False
-                    print("-------project id patterns------")
-                    print(project_id_patterns)
                     for pattern in project_id_patterns:
                         self.logger.debug(
                             "Checking pattern:{} with project_id:{}".format(
@@ -1271,8 +1269,6 @@ class UserSyncer(object):
         """
         initialize projects
         """
-        print("--------project mapping-=------------")
-        print(self.project_mapping)
 
         if self.project_mapping:
             for projects in list(self.project_mapping.values()):
@@ -1597,9 +1593,6 @@ class UserSyncer(object):
             user_yaml = UserYAML.from_file(
                 self.sync_from_local_yaml_file, encrypted=False, logger=self.logger
             )
-            print("-------sync from local yaml-----")
-            print(self.sync_from_local_yaml_file)
-            print(self.sync_from_local_csv_dir)
         except (EnvironmentError, AssertionError) as e:
             self.logger.error(str(e))
             self.logger.error("aborting early")
@@ -2043,15 +2036,9 @@ class UserSyncer(object):
 
             self.arborist_client.create_user_if_not_exist(username)
             if not single_user_sync:
-                print("---------arborist_users_auth_mapping---------")
-                print(arborist_users_auth_mapping)
-
-                print("------user projects------")
-                print(user_projects)
                 # find diff of incoming vs current policies
 
                 # remove removed policies
-                print("-------------revoke all policies--------")
                 self._revoke_all_policies_preserve_mfa(username, idp)
 
             # as of 2/11/2022, for single_user_sync, as RAS visa parsing has
@@ -2068,6 +2055,8 @@ class UserSyncer(object):
                     self._create_arborist_role(role)
 
             if single_user_sync:
+                print("-----single user sync-----")
+                print(unique_policies)
                 for ordered_roles, ordered_resources in unique_policies.items():
                     policy_hash = self._hash_policy_contents(
                         ordered_roles, ordered_resources
@@ -2085,7 +2074,7 @@ class UserSyncer(object):
                         username, policy_hash, expires=expires
                     )
             else:
-                print("--------unique policies------")
+                print("-----------not single user sync--------")
                 print(unique_policies)
                 for roles, resources in unique_policies.items():
                     for role in roles:
@@ -2126,9 +2115,6 @@ class UserSyncer(object):
                         policy,
                         expires_at=expires,
                     )
-
-        print("--------user yaml projects----------")
-        print(user_yaml.policies)
 
         if user_yaml:
             for client_name, client_details in user_yaml.clients.items():
