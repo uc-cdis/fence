@@ -37,9 +37,9 @@ def mock_arborist(mock_arborist_requests):
 
 @pytest.fixture
 def admin_user(db_session):
-    test_user = db_session.query(User).filter_by(username="test").first()
+    test_user = db_session.query(User).filter_by(username="admin_user").first()
     if not test_user:
-        test_user = User(username="test", id="5678", is_admin=True)
+        test_user = User(username="admin_user", id="5678", is_admin=True)
         db_session.add(test_user)
         db_session.commit()
 
@@ -253,7 +253,7 @@ def test_get_user(
     assert "test_a" in usernames
     assert "test_b" in usernames
     assert "test_amazing_user_with_an_fancy_but_extremely_long_name" in usernames
-    assert "test" in usernames
+    assert "admin_user" in usernames
 
 
 def test_get_user_noauth(client, db_session):
@@ -546,7 +546,7 @@ def test_put_user_username_remove_admin_self(
     """PUT /users/<username>: [update_user] what if admin un-admins self?"""
     """ It seems this is fine. """
     r = client.put(
-        "/admin/users/test",
+        "/admin/users/admin_user",
         headers={
             "Authorization": "Bearer " + encoded_admin_jwt,
             "Content-Type": "application/json",
@@ -554,7 +554,7 @@ def test_put_user_username_remove_admin_self(
         data=json.dumps({"role": "user"}),
     )
     assert r.status_code == 200
-    user = db_session.query(User).filter_by(username="test").one()
+    user = db_session.query(User).filter_by(username="admin_user").one()
     assert user.is_admin == False
 
 

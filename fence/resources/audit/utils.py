@@ -7,7 +7,8 @@ from cdislogging import get_logger
 
 from fence.config import config
 from flask.wrappers import Request
-from fence.user import get_current_user
+from fence.jwt.validate import validate_jwt
+from fence.auth import get_user_from_claims
 
 
 logger = get_logger(__name__)
@@ -99,7 +100,8 @@ def create_log_for_request(request: Request):
     record an audit log. The data we need to record the logs are stored in
     `flask.g.audit_data` before reaching this code.
     """
-    username = get_current_user().username
+    claims = validate_jwt()
+    username = get_user_from_claims(claims).username
     method = request.method
     endpoint = request.path
     audit_data = getattr(flask.g, "audit_data", {})
