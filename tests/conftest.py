@@ -1294,7 +1294,13 @@ def patch_app_db_session(app, monkeypatch):
 
 
 @pytest.fixture(scope="function")
-def oauth_client(app, db_session, oauth_user, get_all_shib_idps_patcher):
+def oauth_client(
+    app,
+    db_session,
+    oauth_user,
+    get_all_shib_idps_patcher,
+    get_all_upstream_idps_mqd_data_patcher,
+):
     """
     Create a confidential OAuth2 client and add it to the database along with a
     test user for the client.
@@ -1371,7 +1377,13 @@ def oauth_client_B(app, request, db_session):
 
 
 @pytest.fixture(scope="function")
-def oauth_client_public(app, db_session, oauth_user, get_all_shib_idps_patcher):
+def oauth_client_public(
+    app,
+    db_session,
+    oauth_user,
+    get_all_shib_idps_patcher,
+    get_all_upstream_idps_mqd_data_patcher,
+):
     """
     Create a public OAuth2 client.
     """
@@ -1396,7 +1408,9 @@ def oauth_client_public(app, db_session, oauth_user, get_all_shib_idps_patcher):
 
 
 @pytest.fixture(scope="function")
-def oauth_client_with_client_credentials(db_session, get_all_shib_idps_patcher):
+def oauth_client_with_client_credentials(
+    db_session, get_all_shib_idps_patcher, get_all_upstream_idps_mqd_data_patcher
+):
     """
     Create a confidential OAuth2 client and add it to the database along with a
     test user for the client.
@@ -1441,7 +1455,12 @@ def oauth_test_client_B(client, oauth_client_B):
 
 
 @pytest.fixture(scope="function")
-def oauth_test_client_public(client, oauth_client_public, get_all_shib_idps_patcher):
+def oauth_test_client_public(
+    client,
+    oauth_client_public,
+    get_all_shib_idps_patcher,
+    get_all_upstream_idps_mqd_data_patcher,
+):
     return OAuth2TestClient(client, oauth_client_public, confidential=False)
 
 

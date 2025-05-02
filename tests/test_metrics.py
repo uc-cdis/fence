@@ -101,7 +101,7 @@ def test_disabled_audit(
     )
     with audit_decorator_mocker as audit_decorator:
         response = client.get(path, headers=headers)
-        assert response.status_code == 200, response
+        assert response.status_code == 200, response.text
         assert response.json.get("url")
         audit_decorator.assert_not_called()
 
@@ -179,7 +179,7 @@ def test_presigned_url_log(
             status_code=201,
         )
         response = client.get(path, headers=headers)
-        assert response.status_code == 200, response
+        assert response.status_code == 200, response.text
         assert response.json.get("url")
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/presigned_url",
@@ -281,7 +281,7 @@ def test_presigned_url_log_acl(
             status_code=201,
         )
         response = client.get(path, headers=headers)
-        assert response.status_code == 200, response
+        assert response.status_code == 200, response.text
         assert response.json.get("url")
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/presigned_url",
@@ -323,7 +323,7 @@ def test_presigned_url_log_public(endpoint, client, public_indexd_client, monkey
             status_code=201,
         )
         response = client.get(path)
-        assert response.status_code == 200, response
+        assert response.status_code == 200, response.text
         assert response.json.get("url")
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/presigned_url",
@@ -395,7 +395,7 @@ def test_presigned_url_log_disabled(
             status_code=201,
         )
         response = client.get(path, headers=headers)
-        assert response.status_code == 200, response
+        assert response.status_code == 200, response.text
         assert response.json.get("url")
         audit_service_requests.post.assert_not_called()
 
@@ -517,7 +517,7 @@ def test_login_log_login_endpoint(
         flask.g.encoded_visas = ""
     elif idp == "generic1":
         get_auth_info_value = {"generic1_username": username}
-    elif idp == "generic2":
+    elif idp == "generic2" or idp == "generic_mdq_discovery":
         get_auth_info_value = {"sub": username}
 
     if idp in ["google", "microsoft", "okta", "synapse", "cognito"]:
@@ -538,7 +538,7 @@ def test_login_log_login_endpoint(
         )
         path = f"/login/{idp}/{callback_endpoint}"  # SEE fence/blueprints/login/fence_login.py L91
         response = client.get(path, headers=headers)
-        assert response.status_code == 200, response
+        assert response.status_code == 200, response.text
         user_sub = db_session.query(User).filter(User.username == username).first().id
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/login",
@@ -655,7 +655,7 @@ def test_presigned_url_log_push_to_sqs(
         )
     }
     response = client.get(path, headers=headers)
-    assert response.status_code == 200, response
+    assert response.status_code == 200, response.text
     assert response.json.get("url")
 
     expected_audit_data = {
@@ -697,7 +697,7 @@ def test_login_log_push_to_sqs(
 
     path = "/login/google/login"
     response = client.get(path)
-    assert response.status_code == 200, response
+    assert response.status_code == 200, response.text
     # not checking the parameters here because we can't json.dumps "sub: ANY"
     mocked_sqs.send_message.assert_called_once()
 
