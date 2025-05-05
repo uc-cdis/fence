@@ -97,25 +97,22 @@ def create_audit_log_for_request(response):
 def create_log_for_request(request: Request):
     """
     Right before processing the request (see `enable_request_logging` decorator),
-    record an audit log. The data we need to record the logs are stored in
-    `flask.g.audit_data` before reaching this code.
+    record a log entry.
     """
     claims = validate_jwt()
     username = get_user_from_claims(claims).username
     method = request.method
     endpoint = request.path
-    audit_data = getattr(flask.g, "audit_data", {})
     request_url = endpoint
     if request.query_string:
         # could use `request.url` but we don't want the root URL
         request_url += f"?{request.query_string.decode('utf-8')}"
     request_url = _clean_authorization_request_url(request_url)
     logger.info(
-        f"Incoming request: user=%s, method=%s, endpoint=%s, audit_data=%s, request_url=% ",
+        f"Incoming request: user=%s, method=%s, endpoint=%s, request_url=% ",
         username,
         method,
         endpoint,
-        audit_data,
         request_url,
     )
 
