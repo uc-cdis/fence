@@ -1,8 +1,8 @@
-# Override the default_digest_method for Signer.
+# Override the default_digest_method for Signer before flask and flask_wtf are loaded. 
 import hashlib
 from itsdangerous import Signer
 
-Signer.default_digest_method = hashlib.sha256
+Signer.default_digest_method = hashlib.sha256 # Explicitly set to sha256 as the default will break in FIPS environments.
 
 from collections import OrderedDict
 import os
