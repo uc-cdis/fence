@@ -2,7 +2,7 @@
 import hashlib
 from itsdangerous import Signer
 
-Signer.default_digest_method = hashlib.sha256 # Explicitly set to sha256 as the default will break in FIPS environments when flask_wtf attempts to process a user registration form. 
+Signer.default_digest_method = hashlib.sha256 # Explicitly set to sha256 as the default (sha1) will break in FIPS environments when flask_wtf attempts to process a user registration form. 
 
 from collections import OrderedDict
 import os
