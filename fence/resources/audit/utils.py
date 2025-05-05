@@ -111,7 +111,7 @@ def create_log_for_request(request: Request):
         request_url += f"?{request.query_string.decode('utf-8')}"
     request_url = _clean_authorization_request_url(request_url)
     logger.info(
-        f"Request log: admin method called by user. Details: user=%s, method=%s, endpoint=%s, audit_data=%s, request_url=% ",
+        f"Incoming request: user=%s, method=%s, endpoint=%s, audit_data=%s, request_url=% ",
         username,
         method,
         endpoint,
