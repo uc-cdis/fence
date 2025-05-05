@@ -35,7 +35,6 @@ class FenceConfig(Config):
             "GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN",
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN",
             "GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN",
-            "ACCESS_TOKEN_EXPIRES_IN",
             "dbGaP",
             "CIRRUS_CFG",
             "WHITE_LISTED_GOOGLE_PARENT_ORGS",

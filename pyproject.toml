@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fence"
-version = "11.1.1"
+version = "11.2.0"
 description = "Gen3 AuthN/AuthZ OIDC Service"
 authors = ["CTDS UChicago <cdis@uchicago.edu>"]
 license = "Apache-2.0"
@@ -57,6 +57,7 @@ boto = "*"
 # NOTE:
 # for testing with updated libaries as git repos:
 # foobar = {git = "https://github.com/uc-cdis/some-repo", rev = "feat/test"}
+jinja2 = "^3.1.6"
 
 [tool.poetry.group.dev.dependencies]
 addict = "^2.2.1"

@@ -25,6 +25,7 @@ from azure.storage.blob import (
 
 from fence import auth
 from fence.auth import (
+    get_ip_information_string,
     get_jwt,
     current_token,
     login_required,
@@ -209,6 +210,10 @@ def _log_signed_url_data_info(
     logger.info(
         f"Signed URL Generated. action={action} size_in_kibibytes={size_in_kibibytes} "
         f"acl={acl} authz={authz} bucket={bucket} user_sub={user_sub} client_id={client_id}"
+    )
+    ip_info = get_ip_information_string()
+    logger.info(
+        f"User identified for signed URL generation. user_sub={user_sub} client_id={client_id} {ip_info}"
     )
 
     metrics.add_signed_url_event(
