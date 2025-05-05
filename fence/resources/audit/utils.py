@@ -96,7 +96,7 @@ def create_audit_log_for_request(response):
 
 def create_log_for_request(request: Request):
     """
-    Right before processing the request (see `enable_local_audit_logging` decorator),
+    Right before processing the request (see `enable_request_logging` decorator),
     record an audit log. The data we need to record the logs are stored in
     `flask.g.audit_data` before reaching this code.
     """
