@@ -143,6 +143,7 @@ def enable_audit_logging(f):
     the enable_request_logging decorator instead.
 
     This decorator should also not be added to non-audited endpoints, so that performance is not impacted.
+
     The `create_audit_log_for_request_decorator` decorator is only added
     if auditing is enabled, so that performance is not impacted when auditing
     is disabled.
