@@ -174,7 +174,7 @@ class DefaultOAuth2Callback(Resource):
         # default to now + REFRESH_TOKEN_EXPIRES_IN
         if expires is None:
             expires = int(time.time()) + config["REFRESH_TOKEN_EXPIRES_IN"]
-            logger.info(self, f"Refresh token not in JWT, using default: {expires}")
+            logger.info(f"Refresh token not in JWT, using default: {expires}")
 
         # Store refresh token in db
         should_persist_token = (
