@@ -1,3 +1,9 @@
+# Override the default_digest_method for Signer.
+import hashlib
+from itsdangerous import Signer
+
+Signer.default_digest_method = hashlib.sha256
+
 from collections import OrderedDict
 import os
 from urllib.parse import urljoin
