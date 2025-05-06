@@ -223,19 +223,18 @@ def test_get_user_long_username(
     client, admin_user, encoded_admin_jwt, db_session, test_user_long, log_capture
 ):
     """GET /users/<username>: [get_user]: happy path"""
+    username = "test_amazing_user_with_an_fancy_but_extremely_long_name"
     r = client.get(
-        "/admin/users/test_amazing_user_with_an_fancy_but_extremely_long_name",
+        f"/admin/users/{username}",
         headers={"Authorization": "Bearer " + encoded_admin_jwt},
     )
     assert r.status_code == 200
-    assert (
-        r.json["username"] == "test_amazing_user_with_an_fancy_but_extremely_long_name"
-    )
+    assert r.json["username"] == username
     # also assert that the logs were recorded:
     assert len(log_capture) >= 1
     # Now check for the specific message:
     messages = [f"{r.levelname} - {r.getMessage()}" for r in log_capture]
-    expected_log_message = "INFO - Incoming request: user=admin_user, method=GET, endpoint=/admin/users/test_amazing_user_with_an_fancy_but_extremely_long_name, request_url=/admin/users/test_amazing_user_with_an_fancy_but_extremely_long_name"
+    expected_log_message = f"INFO - Incoming request: user=admin_user, method=GET, endpoint=/admin/users/{username}, request_url=/admin/users/{username}"
     assert expected_log_message in messages, (
         f"\n{expected_log_message} -> not found in INFO logs. Actual messages:\n"
         + "\n".join(messages)
@@ -764,7 +763,7 @@ def test_soft_delete_user_username(
     assert len(log_capture) >= 1
     # Now check for the specific message:
     messages = [f"{r.levelname} - {r.getMessage()}" for r in log_capture]
-    expected_log_message = "INFO - Incoming request: user=admin_user, method=DELETE, endpoint=/admin/users/test_user_d/soft, request_url=/admin/users/test_user_d/soft"
+    expected_log_message = f"INFO - Incoming request: user=admin_user, method=DELETE, endpoint=/admin/users/{username}/soft, request_url=/admin/users/{username}/soft"
     assert expected_log_message in messages, (
         f"\n{expected_log_message} -> not found in INFO logs. Actual messages:\n"
         + "\n".join(messages)
@@ -776,6 +775,7 @@ def test_soft_delete_user_user_not_found(
     admin_user,
     encoded_admin_jwt,
     db_session,
+    log_capture,
 ):
     """
     Test soft-delete user endpoint returns error when user is not found.
@@ -789,6 +789,15 @@ def test_soft_delete_user_user_not_found(
         headers={"Authorization": "Bearer " + encoded_admin_jwt},
     )
     assert r.status_code == 404
+    # also assert that the logs were recorded:
+    assert len(log_capture) >= 1
+    # Now check for the specific message:
+    messages = [f"{r.levelname} - {r.getMessage()}" for r in log_capture]
+    expected_log_message = f"INFO - Incoming request: user=admin_user, method=DELETE, endpoint=/admin/users/{username}/soft, request_url=/admin/users/{username}/soft"
+    assert expected_log_message in messages, (
+        f"\n{expected_log_message} -> not found in INFO logs. Actual messages:\n"
+        + "\n".join(messages)
+    )
 
 
 def test_delete_user_username(
