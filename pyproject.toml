@@ -53,6 +53,7 @@ werkzeug = ">=3.0.0"
 cachelib = "^0.2.0"
 azure-storage-blob = "^12.6.0"
 Flask-WTF = "^1.0.0"
+itsdangerous = '*' # Use Flask-WTF's itsdangerous
 boto = "*"
 # NOTE:
 # for testing with updated libaries as git repos:
