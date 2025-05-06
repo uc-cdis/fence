@@ -259,7 +259,7 @@ def test_get_user_username_noauth(client, db_session, log_capture):
     r = client.get("/admin/users/test_a")
     assert r.status_code == 401
     # also assert that the logs are not recorded if noauth:
-    assert len(log_capture) >= 0
+    assert len(log_capture) == 0
 
 
 # GET /user tests
