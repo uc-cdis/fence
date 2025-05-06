@@ -409,7 +409,7 @@ class UserSyncer(object):
                 client.load_host_keys(known_hosts_path)
             else:
                 self.logger.warning(
-                    "No known_hosts file found — rejecting unknown hosts. Make sure the SFTP host key is present in known_hosts before attempting connection."
+                    "No known_hosts file found — rejecting unknown hosts - make sure the SFTP host key is present in known_hosts before attempting connection."
                 )
 
             client.set_missing_host_key_policy(paramiko.RejectPolicy())
