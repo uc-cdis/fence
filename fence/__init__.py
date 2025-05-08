@@ -1,3 +1,11 @@
+# Override the default_digest_method for Signer before flask and flask_wtf are loaded. 
+import hashlib
+from itsdangerous import Signer
+# Explicitly set to sha256 as the default (sha1) will break in FIPS environments when flask_wtf attempts to process a user registration form. 
+# This is a known issue with itsdangerous defaults (see: https://github.com/pgadmin-org/pgadmin4/issues/7979 for a similar issue with pgadmin)
+# According to: https://itsdangerous.palletsprojects.com/en/latest/concepts/#digest-method-security and https://stackoverflow.com/a/27669587, we can override the default here:
+Signer.default_digest_method = hashlib.sha256 
+
 from collections import OrderedDict
 import os
 from urllib.parse import urljoin
