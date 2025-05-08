@@ -123,6 +123,12 @@ class Visa_Token_Update(object):
             if users == None:
                 break
             for user in users:
+                if not self._has_valid_refresh_token(user, db_session):
+                    self.logger.info(
+                        f"Skipping user {user.username}: no valid refresh token"
+                    )
+                    # do not add to queue if no valid token
+                    continue
                 self.logger.info("Producer producing user {}".format(user.username))
                 await queue.put(user)
             if len(users) < chunk_size:
@@ -173,6 +179,23 @@ class Visa_Token_Update(object):
                 pass
 
             updater_queue.task_done()
+
+    def _has_valid_refresh_token(self, user, db_session):
+        """
+        Return True if user has at least one non‑expired refresh token.
+        Deletes any expired tokens
+        """
+        valid = False
+
+        for row in list(user.upstream_refresh_tokens):
+            if row.expires > time.time():
+                valid = True
+            else:
+                # remove expired token
+                db_session.delete(row)
+                db_session.commit()
+
+        return valid
 
     def _pick_client(self, user):
         """
