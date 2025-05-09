@@ -1631,6 +1631,8 @@ class UserSyncer(object):
 
         google_update_ex = None
 
+        print("-----------user info----------------")
+        print(user_info)
         try:
             # update the Fence DB
             if user_projects:
@@ -2085,6 +2087,9 @@ class UserSyncer(object):
                             # format project '/x/y/z' -> 'x.y.z'
                             # so the policy id will be something like 'x.y.z-create'
                             policy_id = _format_policy_id(resource, role)
+                            print("-----resource-------")
+                            print(resource)
+
                             if policy_id not in self._created_policies:
                                 try:
                                     self.arborist_client.update_policy(
@@ -2302,6 +2307,8 @@ class UserSyncer(object):
             bool: True if policy creation was successful. False otherwise
         """
         try:
+            print("-----resources----")
+            print(resources)
             response_json = self.arborist_client.create_policy(
                 {
                     "id": policy_id,
@@ -2346,7 +2353,7 @@ class UserSyncer(object):
 
     def _compare_policies(self, existing_policies, incoming_policies):
         """
-        Compares a user's existing polivies with incoming policies from either user_yaml or dbgap whitelist
+        Compares a user's existing policies with incoming policies from either user_yaml or dbgap whitelist
 
 
         Args:
