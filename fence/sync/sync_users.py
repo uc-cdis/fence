@@ -1633,6 +1633,8 @@ class UserSyncer(object):
 
         print("-----------user info----------------")
         print(user_info)
+        print("-----------user projects----------------")
+        print(user_projects)
         try:
             # update the Fence DB
             if user_projects:
