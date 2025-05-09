@@ -1603,15 +1603,6 @@ class UserSyncer(object):
         user_projects = self.parse_projects(user_projects)
         user_yaml.projects = self.parse_projects(user_yaml.projects)
 
-        print("-----------user projects dbgap----------------")
-        print(user_projects)
-
-        print("------projects from yaml-----")
-        print(user_yaml.projects)
-
-        print("-----------user projects csv----------------")
-        print(user_projects_csv)
-
         # merge all user info dicts into "user_info".
         # the user info (such as email) in the user.yaml files
         # overrides the user info from the CSV files.
@@ -1639,9 +1630,6 @@ class UserSyncer(object):
                 )
 
         google_update_ex = None
-
-        print("-----------user info----------------")
-        print(user_info)
 
         try:
             # update the Fence DB
@@ -1971,9 +1959,14 @@ class UserSyncer(object):
 
         # get list of users from arborist to make sure users that are completely removed
         # from authorization sources get policies revoked
+
         arborist_user_projects = {}
-        arborist_users_auth_mapping = {}
         if not single_user_sync:
+            arborist_users_auth_mapping = {}
+            to_add, to_remove, to_delete = self._compare_policies(
+                arborist_users_auth_mapping, user_projects
+            )
+
             try:
                 arborist_users = self.arborist_client.get_users().json["users"]
 
@@ -2009,6 +2002,8 @@ class UserSyncer(object):
 
             # update the project info with users from arborist
             self.sync_two_phsids_dict(arborist_user_projects, user_projects)
+            print("------arborist_user_projects--------")
+            print(user_projects)
 
         policy_id_list = []
         policies = []
@@ -2364,7 +2359,6 @@ class UserSyncer(object):
     def _compare_policies(self, existing_policies, incoming_policies):
         """
         Compares a user's existing policies with incoming policies from either user_yaml or dbgap whitelist
-
 
         Args:
             existing_policies (_type_): user's existing policies pulled with arborist_client.auth_mapping(username)
