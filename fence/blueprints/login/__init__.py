@@ -409,10 +409,11 @@ def make_login_blueprint():
 
 
 # TODO refactor to merge `get_all_upstream_idps` and `get_all_shib_idps`, backwards compatible
-# TODO compare the output of `get_all_upstream_idps` and `get_all_shib_idps` - maybe we only need 1
+# Compared the InCommon list of IDPs with the login.bionimbus.org Shibboleth Discofeed:
+# the list of providers is exactly the same (except for the NIH IdP which was removed and replaced
+# by us manually from the login.bionimbus.org Discofeed). So we could maybe use the InCommon list
+# for everything instead of duplicating the logic.
 def get_all_upstream_idps(idp_name: str, discovery_url: str, format: str) -> dict:
-    # TODO use <Extensions><mdui:UIInfo><mdui:DisplayName> instead of OrganizationDisplayName
-    # TODO check the DisplayName lang like in `get_shib_idp_en_name` (use `RESTENA` org for testing``)
     if format == "mdq":  # InCommon Metadata Query Protocol
         all_idps = []
         xml_data = fetch_url_data(discovery_url)
@@ -422,44 +423,53 @@ def get_all_upstream_idps(idp_name: str, discovery_url: str, format: str) -> dic
                 if "entityID" not in element.keys():
                     continue
                 idp = element.get("entityID")
+
+                # get the IdP's display name
                 display_names = []
-                # TODO can i get it directly instead of iter?
-                # get the DisplayName
-                for sub in element.iter():
-                    if sub.tag.endswith("Extensions"):
-                        for subsub in sub.iter():
-                            if subsub.tag.endswith("UIInfo"):
-                                for subsubsub in subsub.iter():
-                                    if subsubsub.tag.endswith("DisplayName"):
-                                        lang = ""
-                                        if (
-                                            "{http://www.w3.org/XML/1998/namespace}lang"
-                                            in subsubsub.keys()
-                                        ):
-                                            lang = subsubsub.get(
-                                                "{http://www.w3.org/XML/1998/namespace}lang"
-                                            )
-                                        display_names.append(
-                                            {"value": subsubsub.text, "lang": lang}
-                                        )
-                # if Extensions.UIInfo.DisplayName is not provided, fall back to
+                for idpsSoDescriptor in element.findall(
+                    "{urn:oasis:names:tc:SAML:2.0:metadata}IDPSSODescriptor"
+                ):
+                    for extension in idpsSoDescriptor.findall(
+                        "{urn:oasis:names:tc:SAML:2.0:metadata}Extensions"
+                    ):
+                        for uiInfo in extension.findall(
+                            "{urn:oasis:names:tc:SAML:metadata:ui}UIInfo"
+                        ):
+                            for displayName in uiInfo.findall(
+                                "{urn:oasis:names:tc:SAML:metadata:ui}DisplayName"
+                            ):
+                                lang = ""
+                                if (
+                                    "{http://www.w3.org/XML/1998/namespace}lang"
+                                    in displayName.keys()
+                                ):
+                                    lang = displayName.get(
+                                        "{http://www.w3.org/XML/1998/namespace}lang"
+                                    )
+                                display_names.append(
+                                    {"value": displayName.text, "lang": lang}
+                                )
+
+                # if IDPSSODescriptor.Extensions.UIInfo.DisplayName is not provided, fall back to
                 # Organization.OrganizationDisplayName
                 if not display_names:
-                    for sub2 in element.iter():
-                        if sub2.tag.endswith("Organization"):
-                            for subsub2 in sub2.iter():
-                                if subsub2.tag.endswith("OrganizationDisplayName"):
-                                    lang = ""
-                                    if (
-                                        "{http://www.w3.org/XML/1998/namespace}lang"
-                                        in subsub2.keys()
-                                    ):
-                                        lang = subsub2.get(
-                                            "{http://www.w3.org/XML/1998/namespace}lang"
-                                        )
-                                    display_names.append(
-                                        {"value": subsub2.text, "lang": lang}
-                                    )
+                    for org in element.findall(
+                        "{urn:oasis:names:tc:SAML:2.0:metadata}Organization"
+                    ):
+                        for orgDisplayName in org.findall(
+                            "{urn:oasis:names:tc:SAML:2.0:metadata}OrganizationDisplayName"
+                        ):
+                            lang = ""
+                            if (
+                                "{http://www.w3.org/XML/1998/namespace}lang"
+                                in orgDisplayName.keys()
+                            ):
+                                lang = orgDisplayName.get(
+                                    "{http://www.w3.org/XML/1998/namespace}lang"
+                                )
+                            display_names.append(
+                                {"value": orgDisplayName.text, "lang": lang}
+                            )
                 # import json; print(idp, json.dumps(display_names, indent=2))
                 all_idps.append(
                     {

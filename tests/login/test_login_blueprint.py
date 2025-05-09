@@ -1,6 +1,7 @@
 from urllib.parse import urlencode
 
 from fence.config import config
+from fence.blueprints.login import get_all_upstream_idps
 
 
 # TODO fix this test
@@ -37,8 +38,6 @@ def test_enabled_logins(
     # desc and secondary information
     app_urls = [url_map_rule.rule for url_map_rule in app.url_map._rules]
     for configured in configured_logins:
-        # if configured["idp"] != "generic_mdq_discovery":
-        #     continue  # TODO remove
         # this assumes (idp, name) couples in test config are unique
         response_provider = next(
             (
@@ -82,3 +81,36 @@ def test_enabled_logins(
             for url_info in response_provider["urls"]
         ]
         assert all(url in app_urls for url in login_urls)
+
+
+def test_get_all_upstream_idps(get_all_upstream_idps_mqd_data_patcher):
+    """
+    Check that `get_all_upstream_idps` parses the XML MDQ data at
+    `tests/data/incommon_mdq_data_extract.xml` as expected.
+    """
+    res = get_all_upstream_idps(
+        "generic_mdq_discovery", "https://generic_mdq_discovery/get-all-idps", "mdq"
+    )
+    assert res == [
+        {"idp": "urn:mace:incommon:osu.edu", "name": "Ohio State University"},
+        {"idp": "urn:mace:incommon:uchicago.edu", "name": "University of Chicago"},
+        {
+            # example of choosing the 1st provided value when the display name is not
+            # available in English
+            "idp": "https://idp.uca.fr/idp/shibboleth",
+            "name": "Université Clermont Auvergne",
+        },
+        {"idp": "urn:mace:incommon:nmu.edu", "name": "Northern Michigan University"},
+        {
+            "idp": "https://login.restena.lu/simplesamlphp/saml2/idp/metadata.php",
+            "name": "RESTENA Users",
+        },
+        {
+            # example of falling back on OrganizationDisplayName because DisplayName
+            # is not provided,
+            # and example of choosing English when the display name is available in
+            # multiple languages including English
+            "idp": "https://idp-proxy.ugd.edu.mk",
+            "name": "Goce Delcev University, Stip",
+        },
+    ]
