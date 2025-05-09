@@ -1603,6 +1603,15 @@ class UserSyncer(object):
         user_projects = self.parse_projects(user_projects)
         user_yaml.projects = self.parse_projects(user_yaml.projects)
 
+        print("-----------user projects dbgap----------------")
+        print(user_projects)
+
+        print("------projects from yaml-----")
+        print(user_yaml.projects)
+
+        print("-----------user projects csv----------------")
+        print(user_projects_csv)
+
         # merge all user info dicts into "user_info".
         # the user info (such as email) in the user.yaml files
         # overrides the user info from the CSV files.
@@ -1633,8 +1642,7 @@ class UserSyncer(object):
 
         print("-----------user info----------------")
         print(user_info)
-        print("-----------user projects----------------")
-        print(user_projects)
+
         try:
             # update the Fence DB
             if user_projects:
