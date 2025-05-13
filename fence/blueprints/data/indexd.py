@@ -1005,7 +1005,7 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
         bucket_cred = s3_buckets.get(bucket_name)
         if bucket_cred is None:
-            logger.debug(f"Bucket '{bucket_name}' not found in S3_BUCKETS config")
+            logger.info(f"Bucket '{bucket_name}' not found in S3_BUCKETS config")
             raise InternalError("permission denied for bucket")
 
         cred_key = get_value(
