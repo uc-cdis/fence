@@ -47,7 +47,9 @@ class GoogleOauth2Client(Oauth2ClientBase):
             jwks_endpoint = self.get_value_from_discovery_doc(
                 "jwks_uri", "https://www.googleapis.com/oauth2/v3/certs"
             )
-            claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
+            claims, refresh_token, access_token = self.get_jwt_claims_identity(
+                token_endpoint, jwks_endpoint, code
+            )
 
             if claims.get("email") and claims.get("email_verified"):
                 return {"email": claims["email"], "sub": claims.get("sub")}
