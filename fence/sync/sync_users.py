@@ -1993,8 +1993,6 @@ class UserSyncer(object):
                     arborist_users_auth_mapping[
                         username
                     ] = self.arborist_client.auth_mapping(username)
-                    print("------arborist_users_auth_mapping--------")
-                    print(arborist_users_auth_mapping)
 
                 except (ArboristError, KeyError, AttributeError) as error:
                     self.logger.warning(
@@ -2005,8 +2003,6 @@ class UserSyncer(object):
 
             # update the project info with users from arborist
             self.sync_two_phsids_dict(arborist_user_projects, user_projects)
-            print("------arborist_user_projects--------")
-            print(user_projects)
 
         policy_id_list = []
         policies = []
@@ -2065,8 +2061,6 @@ class UserSyncer(object):
                     self._create_arborist_role(role)
 
             if single_user_sync:
-                print("-----single user sync-----")
-                print(unique_policies)
                 for ordered_roles, ordered_resources in unique_policies.items():
                     policy_hash = self._hash_policy_contents(
                         ordered_roles, ordered_resources
@@ -2077,6 +2071,12 @@ class UserSyncer(object):
                         ordered_resources,
                         skip_if_exists=True,
                     )
+                    print("------update_authz_in_arborist------")
+                    print(policy_hash)
+                    print(ordered_roles)
+                    print(ordered_resources)
+                    print("----unique_policies----")
+                    print(unique_policies)
                     # return here as it is not expected single_user_sync
                     # will need any of the remaining user_yaml operations
                     # left in _update_authz_in_arborist
@@ -2084,8 +2084,6 @@ class UserSyncer(object):
                         username, policy_hash, expires=expires
                     )
             else:
-                print("-----------not single user sync--------")
-                print(unique_policies)
                 for roles, resources in unique_policies.items():
                     for role in roles:
                         for resource in resources:
@@ -2095,8 +2093,6 @@ class UserSyncer(object):
                             # format project '/x/y/z' -> 'x.y.z'
                             # so the policy id will be something like 'x.y.z-create'
                             policy_id = _format_policy_id(resource, role)
-                            print("-----resource-------")
-                            print(resource)
 
                             if policy_id not in self._created_policies:
                                 try:
@@ -2315,8 +2311,6 @@ class UserSyncer(object):
             bool: True if policy creation was successful. False otherwise
         """
         try:
-            print("-----resources----")
-            print(resources)
             response_json = self.arborist_client.create_policy(
                 {
                     "id": policy_id,
