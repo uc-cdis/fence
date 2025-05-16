@@ -39,24 +39,25 @@ def test_get_all_upstream_idps(get_all_upstream_idps_mqd_data_patcher):
     ]
 
 
-# TODO fix this test
-# def test_default_login(app, client):
-#     r = client.get("/login")
-#     assert r.status_code == 200, r.data
-#     response_json = r.json
-#     assert "default_provider" in response_json
-#     response_default = response_json["default_provider"]
-#     configured_logins = config["LOGIN_OPTIONS"]
-#     default_idp = config["DEFAULT_LOGIN_IDP"]
+def test_default_login(
+    app, client, get_all_shib_idps_patcher, get_all_upstream_idps_mqd_data_patcher
+):
+    r = client.get("/login")
+    assert r.status_code == 200, r.data
+    response_json = r.json
+    assert "default_provider" in response_json
+    response_default = response_json["default_provider"]
+    configured_logins = config["LOGIN_OPTIONS"]
+    default_idp = config["DEFAULT_LOGIN_IDP"]
 
-#     # Check default IDP is correct.
-#     assert response_default["idp"] == default_idp
-#     names_for_this_idp = [
-#         login_details["name"]
-#         for login_details in configured_logins
-#         if login_details["idp"] == default_idp
-#     ]
-#     assert response_default["name"] in names_for_this_idp
+    # Check default IDP is correct.
+    assert response_default["idp"] == default_idp
+    names_for_this_idp = [
+        login_details["name"]
+        for login_details in configured_logins
+        if login_details["idp"] == default_idp
+    ]
+    assert response_default["name"] in names_for_this_idp
 
 
 def test_enabled_logins(
