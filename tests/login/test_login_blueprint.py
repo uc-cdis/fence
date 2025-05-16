@@ -1,7 +1,5 @@
 from urllib.parse import urlencode
 
-from flask import current_app
-
 from fence.config import config
 from fence.blueprints.login import get_all_upstream_idps, UPSTREAM_IDP_CACHE
 

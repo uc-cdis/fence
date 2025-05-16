@@ -115,11 +115,15 @@ OPENID_CONNECT:
     multifactor_auth_claim_info: # optional, include if you're using arborist to enforce mfa on a per-file level
       claim: '' # claims field that indicates mfa, either the acr or acm claim.
       values: [ "" ] # possible values that indicate mfa was used. At least one value configured here is required to be in the token
-    # TODO comment
+    # use `idp_discovery` to configure a URL at which the list of available upstream IdPs is
+    # provided. The list will be parsed and cached by fence. When `idp_discovery` is configured,
+    # `LOGIN_OPTIONS` for this IdP must include `upstream_idps`.
     idp_discovery:
       url: 'https://server.com/disco'
       format: mdq
-    # TODO comment
+    # use `authorization_url_param_map` to set parameters when redirecting to the IdP.
+    # for the example config below, if the login URL includes `idp=google`, the redirect URL will
+    # include `upstream_idp_parameter=google`.
     authorization_url_param_map:
      idp: upstream_idp_parameter
   # These Google values must be obtained from Google's Cloud Console
@@ -323,7 +327,6 @@ SESSION_ALLOWED_SCOPES:
 # Each option must be configured with a "name" and an "idp".
 # - "idp" must be a configured provider in OPENID_CONNECT section.
 # Multiple options can be configured with the same idp.
-# TODO upstream_idp doc and example
 # - if provider_id is "fence", "fence_idp" can be any of the providers
 # supported by the other Fence. If not specified, will default to NIH login.
 # - if provider_id is "fence" and fence_idp is "shibboleth", a list of
@@ -357,6 +360,13 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
   #   fence_idp: orcid
   # - name: 'CILogon Login'
   #   idp: cilogon
+  # - name: 'Generic OIDC Login'
+  #   idp: generic_oidc_idp
+  #   # `upstream_idps` can be '*' (all available IdPs) or a list of one or more IdPs. The list of
+  #   # available IdPs is fetched by configuring `idp_discovery` in the `OPENID_CONNECT` section.
+  #   upstream_idps:
+  #     - urn:mace:incommon:nih.gov
+  #     - urn:mace:incommon:uchicago.edu
   # - name: 'InCommon Login'
   #   idp: fence
   #   fence_idp: shibboleth

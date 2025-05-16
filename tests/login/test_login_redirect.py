@@ -12,6 +12,7 @@ https://sts.nih.gov is not stable and causes test failures.
 import pytest
 from unittest.mock import MagicMock, patch
 
+from fence.config import config
 from tests.conftest import LOGIN_IDPS
 
 
@@ -115,8 +116,30 @@ def test_valid_redirect_base(app, client, idp, get_value_from_discovery_doc_patc
         ).start()
 
     redirect = app.config["BASE_URL"]
-    response = client.get("/login/{}?redirect={}".format(idp, redirect))
+    login_url = "/login/{}?redirect={}".format(idp, redirect)
+
+    # test `authorization_url_param_map` functionality
+    authorization_url_param_map = config["OPENID_CONNECT"][idp].get(
+        "authorization_url_param_map"
+    )
+    for in_param in authorization_url_param_map:
+        if in_param == "key_not_in_login_url":
+            # do not add this parameter to the login URL
+            continue
+        login_url += f"&{in_param}=param_value"
+
+    response = client.get(login_url)
     assert response.status_code == 302
+    redirect_location = response.headers["Location"]
+    for in_param, out_param in authorization_url_param_map.items():
+        if in_param == "key_not_in_login_url":
+            # check that if a parameter configured in `authorization_url_param_map` is not in the
+            # login URL, it is not added to the redirect URL
+            assert f"&{out_param}=param_value" not in redirect_location
+        else:
+            # other parameters should be mapped to the configured `out_param` and added to the
+            # redirect URL
+            assert f"&{out_param}=param_value" in redirect_location
 
     if idp == "fence":
         mock.stop()

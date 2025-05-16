@@ -151,8 +151,9 @@ OPENID_CONNECT:
     idp_discovery:
       url: 'https://generic_mdq_discovery/get-all-idps'
       format: mdq
-    authorization_url_param_map:  # TODO unit test this somehow
+    authorization_url_param_map:
       idp: idp_hint
+      key_not_in_login_url: something
 
 # these are the *possible* scopes a client can be given, NOT scopes that are
 # given to all clients. You can be more restrictive during client creation
