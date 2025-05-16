@@ -22,9 +22,10 @@ non-generic provider.
 """
 
 from authlib.common.urls import add_params_to_uri
-import flask
 
+from cachelib import SimpleCache
 from cdislogging import get_logger
+import flask
 from xml.etree import ElementTree
 
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
@@ -45,6 +46,9 @@ from fence.config import config
 from fence.utils import fetch_url_data
 
 logger = get_logger(__name__)
+
+
+UPSTREAM_IDP_CACHE = SimpleCache(default_timeout=86400)  # cached for 24h
 
 
 # Mapping from IDP ID to the name in the URL on the blueprint (see below).
@@ -134,12 +138,12 @@ def get_provider_info(login_details):
         login_details["idp"] == "shibboleth" or upstream_idp == "shibboleth"
     ) and "shib_idps" in login_details:
         # get list of all available shib IDPs
-        if not hasattr(flask.current_app, "all_shib_idps"):  # TODO cache for a set time
-            flask.current_app.all_shib_idps = get_all_shib_idps()
+        if not UPSTREAM_IDP_CACHE.has("all_shib_idps"):
+            UPSTREAM_IDP_CACHE.add("all_shib_idps", get_all_shib_idps())
 
         requested_shib_idps = login_details["shib_idps"]
         if requested_shib_idps == "*":
-            shib_idps = flask.current_app.all_shib_idps
+            shib_idps = UPSTREAM_IDP_CACHE.get("all_shib_idps")
         elif isinstance(requested_shib_idps, list):
             # get the display names for each requested shib IDP
             shib_idps = []
@@ -147,7 +151,9 @@ def get_provider_info(login_details):
                 shib_idp = next(
                     (
                         available_shib_idp
-                        for available_shib_idp in flask.current_app.all_shib_idps
+                        for available_shib_idp in UPSTREAM_IDP_CACHE.get(
+                            "all_shib_idps"
+                        )
                         if available_shib_idp["idp"] == requested_shib_idp
                     ),
                     None,
@@ -192,22 +198,20 @@ def get_provider_info(login_details):
             assert discovery_details.get(
                 "format"
             ), f"Unable to get list of {login_details['idp']} IDPs: OPENID_CONNECT.{login_details['idp']}.idp_discovery.format not configured"
-            if not hasattr(flask.current_app, "all_upstream_idps"):
-                try:
-                    # TODO cache for a set time
-                    flask.current_app.all_upstream_idps = get_all_upstream_idps(
+            if not UPSTREAM_IDP_CACHE.has("all_upstream_idps"):
+                UPSTREAM_IDP_CACHE.add(
+                    "all_upstream_idps",
+                    get_all_upstream_idps(
                         login_details["idp"],
                         discovery_details["url"],
                         discovery_details["format"],
-                    )
-                except Exception as e:  # TODO remove this
-                    print("get_provider_info error:", e)
-                    raise
+                    ),
+                )
 
             # TODO merge with shib_idps bloc and fallback to shib_idps param
             requested_upstream_idps = login_details.get("upstream_idps")
             if requested_upstream_idps == "*":
-                upstream_idps = flask.current_app.all_upstream_idps
+                upstream_idps = UPSTREAM_IDP_CACHE.get("all_upstream_idps")
             elif isinstance(requested_upstream_idps, list):
                 # get the display names for each requested shib IDP
                 upstream_idps = []
@@ -215,7 +219,9 @@ def get_provider_info(login_details):
                     upstream_idp = next(
                         (
                             available_upstream_idp
-                            for available_upstream_idp in flask.current_app.all_upstream_idps
+                            for available_upstream_idp in UPSTREAM_IDP_CACHE.get(
+                                "all_upstream_idps"
+                            )
                             if available_upstream_idp["idp"] == requested_upstream_idp
                         ),
                         None,
@@ -229,9 +235,7 @@ def get_provider_info(login_details):
                     upstream_idps.append(upstream_idp)
             else:
                 raise InternalError(
-                    'login option "{}" misconfigured: "upstream_idps" must be a list or "*", got {}'.format(
-                        login_details["name"], requested_upstream_idps
-                    )
+                    f'login option "{login_details["name"]}" misconfigured: because "OPENID_CONNECT.{login_details["idp"]}.idp_discovery" is configured, "LOGIN_OPTIONS.{login_details["name"]}.upstream_idps" must be a list or "*", got {requested_upstream_idps}'
                 )
 
             info["urls"] = [

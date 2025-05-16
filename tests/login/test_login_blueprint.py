@@ -3,7 +3,7 @@ from urllib.parse import urlencode
 from flask import current_app
 
 from fence.config import config
-from fence.blueprints.login import get_all_upstream_idps, get_all_shib_idps
+from fence.blueprints.login import get_all_upstream_idps, UPSTREAM_IDP_CACHE
 
 
 def test_get_all_upstream_idps(get_all_upstream_idps_mqd_data_patcher):
@@ -96,9 +96,10 @@ def test_enabled_logins(
             )
             if configured_upstream_idps == "*":
                 configured_upstream_idps = (
-                    current_app.all_upstream_idps
+                    # UPSTREAM_IDP_CACHE should be populated during `client.get("/login")`
+                    UPSTREAM_IDP_CACHE.get("all_upstream_idps")
                     if "upstream_idps" in configured
-                    else current_app.all_shib_idps
+                    else UPSTREAM_IDP_CACHE.get("all_shib_idps")
                 )
                 configured_upstream_idps = [
                     idp["idp"] for idp in configured_upstream_idps
