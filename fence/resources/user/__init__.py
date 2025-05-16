@@ -102,7 +102,8 @@ def get_user_info(current_session, username):
 
     if "upstream_idp" in flask.session:
         info["upstream_idp"] = flask.session["upstream_idp"]
-        # backwards compatibility: also set `fence_idp`
+        # [Backwards compatibility for Fence multi-tenant login / Shibboleth legacy configuration]
+        # also set `fence_idp`
         info["fence_idp"] = flask.session["upstream_idp"]
     if "shib_idp" in flask.session:
         info["shib_idp"] = flask.session["shib_idp"]

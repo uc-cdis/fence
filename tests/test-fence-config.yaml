@@ -231,15 +231,17 @@ LOGIN_OPTIONS:
     shib_idps:
     - urn:mace:incommon:uchicago.edu
     - https://idp.uca.fr/idp/shibboleth
-  # TODO support this:
-  # - name: 'Shibboleth Login with upstream_idps'
-  #   idp: fence
-  #   fence_idp: shibboleth
-  #   upstream_idps:
-  #   - urn:mace:incommon:uchicago.edu
-  - name: 'Orcid Login'
+  - name: 'Shibboleth Login with upstream_idps'
+    idp: fence
+    upstream_idp: shibboleth
+    shib_idps:
+    - urn:mace:incommon:uchicago.edu
+  - name: 'Orcid Login with legacy fence_idp'
     idp: fence
     fence_idp: orcid
+  - name: 'Orcid Login with upstream_idp'
+    idp: fence
+    upstream_idp: orcid
   - name: 'CILogon Login'
     idp: cilogon
   - name: 'Microsoft Login'

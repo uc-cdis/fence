@@ -326,14 +326,20 @@ SESSION_ALLOWED_SCOPES:
 # List of enabled login options (used by data-portal to display login buttons).
 # Each option must be configured with a "name" and an "idp".
 # - "idp" must be a configured provider in OPENID_CONNECT section.
-# Multiple options can be configured with the same idp.
-# - if provider_id is "fence", "fence_idp" can be any of the providers
-# supported by the other Fence. If not specified, will default to NIH login.
-# - if provider_id is "fence" and fence_idp is "shibboleth", a list of
-# "shib_idps" can be configured for InCommon login. If not specified, will
-# default to NIH login.
+#   Multiple options can be configured with the same idp.
+# TODO: `upstream_idp`` should be a `upstream_idps` list of 1 item
+# - "upstream_idps" can be '*' (all available IdPs) or a list of one or more IdPs. The list of
+#   available IdPs is fetched by configuring `idp_discovery` in the `OPENID_CONNECT` section.
+# - "upstream_idp" can be set to any of the providers supported by the upstream provider (aka idp).
+#   For example, if idp is "fence" (multi-tenant Fence setup), upstream_idp can be any of the
+#   providers supported by the other Fence. If not specified, will default to NIH login.
+# - "shib_idps": if provider_id is "fence" and upstream_idp is "shibboleth", a list of
+#   "shib_idps" can be configured for InCommon login. If not specified, will
+#   default to NIH login.
+# - "fence_idp": deprecated; same as `upstream_idp`
+#   [Backwards compatibility for Fence multi-tenant login / Shibboleth legacy configuration]
 # - Optional parameters: "desc" (description) and "secondary" (boolean - can
-# be used by the frontend to display secondary buttons differently).
+#   be used by the frontend to display secondary buttons differently).
 LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
   # - name: 'Login from Google'
   #   desc: 'description'
@@ -352,14 +358,6 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
   #   idp: cognito
   # - name: 'Login from RAS'
   #   idp: ras
-  # - name: 'NIH Login'
-  #   idp: fence
-  #   fence_idp: shibboleth
-  # - name: 'ORCID Login through other Fence'
-  #   idp: fence
-  #   fence_idp: orcid
-  # - name: 'CILogon Login'
-  #   idp: cilogon
   # - name: 'Generic OIDC Login'
   #   idp: generic_oidc_idp
   #   # `upstream_idps` can be '*' (all available IdPs) or a list of one or more IdPs. The list of
@@ -367,9 +365,17 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
   #   upstream_idps:
   #     - urn:mace:incommon:nih.gov
   #     - urn:mace:incommon:uchicago.edu
+  # - name: 'NIH Login'
+  #   idp: fence
+  #   upstream_idp: shibboleth
+  # - name: 'ORCID Login through other Fence'
+  #   idp: fence
+  #   upstream_idp: orcid
+  # - name: 'CILogon Login'
+  #   idp: cilogon
   # - name: 'InCommon Login'
   #   idp: fence
-  #   fence_idp: shibboleth
+  #   upstream_idp: shibboleth
   #   # "shib_idps" can be '*' or a list of one or more entity IDs
   #   shib_idps:
   #     - urn:mace:incommon:nih.gov

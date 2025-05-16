@@ -94,11 +94,9 @@ def test_enabled_logins(
                 "upstream_idps", configured.get("shib_idps")
             )
             if configured_upstream_idps == "*":
-                configured_upstream_idps = (
-                    # UPSTREAM_IDP_CACHE should be populated during `client.get("/login")`
-                    UPSTREAM_IDP_CACHE.get(f"all_{configured['idp']}_upstream_idps")
-                    if "upstream_idps" in configured
-                    else UPSTREAM_IDP_CACHE.get("all_shib_idps")
+                # UPSTREAM_IDP_CACHE should be populated during `client.get("/login")`
+                configured_upstream_idps = UPSTREAM_IDP_CACHE.get(
+                    f"all_{configured['idp']}_upstream_idps"
                 )
                 configured_upstream_idps = [
                     idp["idp"] for idp in configured_upstream_idps
