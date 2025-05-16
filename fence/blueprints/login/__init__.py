@@ -23,7 +23,6 @@ non-generic provider.
 
 from authlib.common.urls import add_params_to_uri
 import flask
-import requests
 
 from cdislogging import get_logger
 from xml.etree import ElementTree
@@ -162,8 +161,8 @@ def get_provider_info(login_details):
                 shib_idps.append(shib_idp)
         else:
             raise InternalError(
-                'fence provider misconfigured: "shib_idps" must be a list or "*", got {}'.format(
-                    requested_shib_idps
+                'login option "{}" misconfigured: "shib_idps" must be a list or "*", got {}'.format(
+                    login_details["name"], requested_shib_idps
                 )
             )
 
@@ -178,7 +177,6 @@ def get_provider_info(login_details):
             }
             for shib_idp in shib_idps
         ]
-        # import json; print("get_all_shib_idps res:", json.dumps(flask.current_app.all_shib_idps, indent=2))
 
     # non-Shibboleth provider
     else:
@@ -194,20 +192,48 @@ def get_provider_info(login_details):
             assert discovery_details.get(
                 "format"
             ), f"Unable to get list of {login_details['idp']} IDPs: OPENID_CONNECT.{login_details['idp']}.idp_discovery.format not configured"
-            try:
-                # TODO support configuring a subset of idps
-                all_idps = get_all_upstream_idps(
-                    login_details["idp"],
-                    discovery_details["url"],
-                    discovery_details["format"],
+            if not hasattr(flask.current_app, "all_upstream_idps"):
+                try:
+                    # TODO cache for a set time
+                    flask.current_app.all_upstream_idps = get_all_upstream_idps(
+                        login_details["idp"],
+                        discovery_details["url"],
+                        discovery_details["format"],
+                    )
+                except Exception as e:  # TODO remove this
+                    print("get_provider_info error:", e)
+                    raise
+
+            # TODO merge with shib_idps bloc and fallback to shib_idps param
+            requested_upstream_idps = login_details.get("upstream_idps")
+            if requested_upstream_idps == "*":
+                upstream_idps = flask.current_app.all_upstream_idps
+            elif isinstance(requested_upstream_idps, list):
+                # get the display names for each requested shib IDP
+                upstream_idps = []
+                for requested_upstream_idp in set(requested_upstream_idps):
+                    upstream_idp = next(
+                        (
+                            available_upstream_idp
+                            for available_upstream_idp in flask.current_app.all_upstream_idps
+                            if available_upstream_idp["idp"] == requested_upstream_idp
+                        ),
+                        None,
+                    )
+                    if not upstream_idp:
+                        raise InternalError(
+                            'Requested upstream_idp "{}" does not exist'.format(
+                                requested_upstream_idp
+                            )
+                        )
+                    upstream_idps.append(upstream_idp)
+            else:
+                raise InternalError(
+                    'login option "{}" misconfigured: "upstream_idps" must be a list or "*", got {}'.format(
+                        login_details["name"], requested_upstream_idps
+                    )
                 )
-                # import json; print(json.dumps(all_idps, indent=2))
-            except Exception as e:  # TODO remove this
-                print("get_provider_info error:", e)
-                raise
-            # for upstream_idp in all_idps:
-            #     print('upstream_idp', upstream_idp)
-            #     break
+
             info["urls"] = [
                 {
                     "name": upstream_idp["name"],
@@ -216,9 +242,10 @@ def get_provider_info(login_details):
                         upstream_idp=upstream_idp["idp"],
                     ),
                 }
-                for upstream_idp in all_idps
+                for upstream_idp in upstream_idps
             ]
-            # import json; print("get_all_upstream_idps res:", json.dumps(all_idps, indent=2))
+
+        # provider without IdP discovery settings
         else:
             info["urls"] = [
                 {
@@ -416,7 +443,7 @@ def make_login_blueprint():
 def get_all_upstream_idps(idp_name: str, discovery_url: str, format: str) -> dict:
     if format == "mdq":  # InCommon Metadata Query Protocol
         all_idps = []
-        xml_data = fetch_url_data(discovery_url)
+        xml_data = fetch_url_data(discovery_url, "text")
         tree = ElementTree.ElementTree(ElementTree.fromstring(xml_data))
         for element in tree.getroot().iter():
             if element.tag.endswith("EntityDescriptor"):
@@ -500,13 +527,9 @@ def get_all_shib_idps():
         raise InternalError(
             "Unable to get list of Shibboleth IDPs: OPENID_CONNECT.fence.shibboleth_discovery_url not configured"
         )
-    res = requests.get(url)
-    assert (
-        res.status_code == 200
-    ), "Unable to get list of Shibboleth IDPs from {}".format(url)
 
     all_shib_idps = []
-    for shib_idp in res.json():
+    for shib_idp in fetch_url_data(url, "json"):
         if "entityID" not in shib_idp:
             logger.warning(
                 f"get_all_shib_idps(): 'entityID' field not in IDP data: {shib_idp}. Skipping this IDP."

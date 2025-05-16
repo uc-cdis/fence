@@ -370,7 +370,6 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
 # spoofing.
   # - name: 'Shibboleth Login'
   #   idp: shibboleth
-# TODO test satosa with specific upstream_idp
 
 # Default login provider:
 # - must be configured in LOGIN_OPTIONS and OPENID_CONNECT

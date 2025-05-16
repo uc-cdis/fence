@@ -1805,10 +1805,7 @@ def get_all_shib_idps_patcher():
             "name": "University of Chicago",
         },
     ]
-    get_all_shib_idps_patch = patch(
-        "fence.blueprints.login.get_all_shib_idps",
-        mock,
-    )
+    get_all_shib_idps_patch = patch("fence.blueprints.login.get_all_shib_idps", mock)
     get_all_shib_idps_patch.start()
 
     yield mock

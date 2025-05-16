@@ -220,7 +220,11 @@ LOGIN_OPTIONS:
     secondary: True # optional parameter
   - name: 'Fence Multi-Tenant Login'
     idp: fence
-  - name: 'InCommon Login'
+  - name: 'InCommon Login all providers'
+    idp: fence
+    fence_idp: shibboleth
+    shib_idps: "*"
+  - name: 'InCommon Login some providers'
     idp: fence
     fence_idp: shibboleth
     shib_idps:
@@ -243,9 +247,10 @@ LOGIN_OPTIONS:
     idp: generic1
   - name: 'Generic login 2'
     idp: generic2
-  - name: 'MDQ discovery'
+  - name: 'MDQ discovery all providers'
     idp: generic_mdq_discovery
-  - name: 'MDQ discovery 2'
+    upstream_idps: "*"
+  - name: 'MDQ discovery some providers'
     idp: generic_mdq_discovery
     upstream_idps:  # TODO test this
     - urn:mace:incommon:uchicago.edu
