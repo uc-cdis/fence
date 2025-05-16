@@ -198,9 +198,10 @@ def get_provider_info(login_details):
             assert discovery_details.get(
                 "format"
             ), f"Unable to get list of {login_details['idp']} IDPs: OPENID_CONNECT.{login_details['idp']}.idp_discovery.format not configured"
-            if not UPSTREAM_IDP_CACHE.has("all_upstream_idps"):
+            cache_key = f"all_{login_details['idp']}_upstream_idps"
+            if not UPSTREAM_IDP_CACHE.has(cache_key):
                 UPSTREAM_IDP_CACHE.add(
-                    "all_upstream_idps",
+                    cache_key,
                     get_all_upstream_idps(
                         login_details["idp"],
                         discovery_details["url"],
@@ -211,7 +212,7 @@ def get_provider_info(login_details):
             # TODO merge with shib_idps bloc and fallback to shib_idps param
             requested_upstream_idps = login_details.get("upstream_idps")
             if requested_upstream_idps == "*":
-                upstream_idps = UPSTREAM_IDP_CACHE.get("all_upstream_idps")
+                upstream_idps = UPSTREAM_IDP_CACHE.get(cache_key)
             elif isinstance(requested_upstream_idps, list):
                 # get the display names for each requested shib IDP
                 upstream_idps = []
@@ -220,7 +221,7 @@ def get_provider_info(login_details):
                         (
                             available_upstream_idp
                             for available_upstream_idp in UPSTREAM_IDP_CACHE.get(
-                                "all_upstream_idps"
+                                cache_key
                             )
                             if available_upstream_idp["idp"] == requested_upstream_idp
                         ),

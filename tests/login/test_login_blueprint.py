@@ -97,7 +97,7 @@ def test_enabled_logins(
             if configured_upstream_idps == "*":
                 configured_upstream_idps = (
                     # UPSTREAM_IDP_CACHE should be populated during `client.get("/login")`
-                    UPSTREAM_IDP_CACHE.get("all_upstream_idps")
+                    UPSTREAM_IDP_CACHE.get(f"all_{configured['idp']}_upstream_idps")
                     if "upstream_idps" in configured
                     else UPSTREAM_IDP_CACHE.get("all_shib_idps")
                 )
@@ -111,7 +111,8 @@ def test_enabled_logins(
                 assert any(
                     urlencode({"idp": upstream_idp}) in url_info["url"]
                     for url_info in response_provider["urls"]
-                ), 'upstream_idp param "{}", encoded "{}", is not in provider\'s login URLs: {}'.format(
+                ), 'IdP "{}": upstream_idp param "{}", encoded "{}", is not in provider\'s login URLs: {}'.format(
+                    configured["name"],
                     upstream_idp,
                     urlencode({"idp": upstream_idp}),
                     response_provider["urls"],

@@ -220,16 +220,22 @@ LOGIN_OPTIONS:
     secondary: True # optional parameter
   - name: 'Fence Multi-Tenant Login'
     idp: fence
-  - name: 'InCommon Login all providers'
+  - name: 'Shibboleth Login all providers'
     idp: fence
     fence_idp: shibboleth
     shib_idps: "*"
-  - name: 'InCommon Login some providers'
+  - name: 'Shibboleth Login some providers'
     idp: fence
     fence_idp: shibboleth
     shib_idps:
     - urn:mace:incommon:uchicago.edu
     - https://idp.uca.fr/idp/shibboleth
+  # TODO support this:
+  # - name: 'Shibboleth Login with upstream_idps'
+  #   idp: fence
+  #   fence_idp: shibboleth
+  #   upstream_idps:
+  #   - urn:mace:incommon:uchicago.edu
   - name: 'Orcid Login'
     idp: fence
     fence_idp: orcid
