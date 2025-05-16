@@ -168,7 +168,7 @@ def get_provider_info(login_details):
         )
         if not shib_url:
             raise InternalError(
-                f"Unable to get list of Shibboleth IDPs: OPENID_CONNECT.{login_details['idp']}.shibboleth_discovery_url not configured"
+                f"Unable to get list of Shibboleth IDPs: 'OPENID_CONNECT.{login_details['idp']}.shibboleth_discovery_url' not configured"
             )
         discovery_details = {"url": shib_url, "format": "shibboleth"}
         requested_upstream_idps = login_details.get("shib_idps", [])
@@ -181,6 +181,9 @@ def get_provider_info(login_details):
 
     # provider WITHOUT IdP discovery settings
     if not discovery_details:
+        assert (
+            requested_upstream_idps != "*"
+        ), f'Login option "{login_details["name"]}" misconfigured: requested providers is set to "*", but "OPENID_CONNECT.{login_details["idp"]}.idp_discovery" is not configured'
         if requested_upstream_idps:
             info["urls"] = [
                 {
@@ -196,10 +199,10 @@ def get_provider_info(login_details):
     # provider WITH IdP discovery settings
     assert discovery_details.get(
         "url"
-    ), f"Unable to get list of {login_details['idp']} IDPs: OPENID_CONNECT.{login_details['idp']}.idp_discovery.url not configured"
+    ), f"Unable to get list of {login_details['idp']} IDPs: 'OPENID_CONNECT.{login_details['idp']}.idp_discovery.url' not configured"
     assert discovery_details.get(
         "format"
-    ), f"Unable to get list of {login_details['idp']} IDPs: OPENID_CONNECT.{login_details['idp']}.idp_discovery.format not configured"
+    ), f"Unable to get list of {login_details['idp']} IDPs: 'OPENID_CONNECT.{login_details['idp']}.idp_discovery.format' not configured"
     cache_key = f"all_{login_details['idp']}_upstream_idps"
     if not UPSTREAM_IDP_CACHE.has(cache_key):
         if shib_special_case:
@@ -238,13 +241,13 @@ def get_provider_info(login_details):
     else:
         if shib_special_case:
             raise InternalError(
-                'login option "{}" misconfigured: "shib_idps" must be a list or "*", got {}'.format(
+                'Login option "{}" misconfigured: "shib_idps" must be a list or "*", got {}'.format(
                     login_details["name"], requested_upstream_idp
                 )
             )
         else:
             raise InternalError(
-                f'login option "{login_details["name"]}" misconfigured: because "OPENID_CONNECT.{login_details["idp"]}.idp_discovery" is configured, "LOGIN_OPTIONS.{login_details["name"]}.upstream_idps" must be a list or "*", got {requested_upstream_idps}'
+                f'Login option "{login_details["name"]}" misconfigured: because "OPENID_CONNECT.{login_details["idp"]}.idp_discovery" is configured, "LOGIN_OPTIONS.{login_details["name"]}.upstream_idps" must be a list or "*", got {requested_upstream_idps}'
             )
 
     if shib_special_case:
@@ -318,7 +321,7 @@ def get_login_providers_info():
     )
     if not default_provider_info:
         raise InternalError(
-            "default provider misconfigured: DEFAULT_LOGIN_IDP is set to {}, which is not configured in LOGIN_OPTIONS".format(
+            "default provider misconfigured: DEFAULT_LOGIN_IDP is set to '{}', which is not configured in LOGIN_OPTIONS".format(
                 default_idp
             )
         )
