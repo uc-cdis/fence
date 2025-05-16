@@ -515,9 +515,9 @@ def test_login_log_login_endpoint(
             "id_token": jwt_string,
         }
         flask.g.encoded_visas = ""
-    elif idp == "generic1":
-        get_auth_info_value = {"generic1_username": username}
-    elif idp == "generic2" or idp == "generic_mdq_discovery":
+    elif idp == "generic_with_discovery_url":
+        get_auth_info_value = {"generic_with_discovery_url_username": username}
+    elif idp == "generic_with_discovery_block" or idp == "generic_mdq_discovery":
         get_auth_info_value = {"sub": username}
 
     if idp in ["google", "microsoft", "okta", "synapse", "cognito"]:

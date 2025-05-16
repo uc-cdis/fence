@@ -129,19 +129,19 @@ OPENID_CONNECT:
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/shib/login'
-  generic1:
+  generic_with_discovery_url:
     name: 'Generic OIDC IDP 1'
     client_id: ''
     client_secret: ''
-    redirect_url: '{{BASE_URL}}/login/generic1/login'
-    user_id_field: 'generic1_username'
-    discovery_url: 'https://generic1/.well-known'
-  generic2:
+    redirect_url: '{{BASE_URL}}/login/generic_with_discovery_url/login'
+    user_id_field: 'generic_with_discovery_url_username'
+    discovery_url: 'https://generic_with_discovery_url/.well-known'
+  generic_with_discovery_block:
     client_id: ''
     client_secret: ''
-    redirect_url: '{{BASE_URL}}/login/generic2/login'
+    redirect_url: '{{BASE_URL}}/login/generic_with_discovery_block/login'
     discovery:
-      authorization_endpoint: 'https://generic2/authorization_endpoint'
+      authorization_endpoint: 'https://generic_with_discovery_block/authorization_endpoint'
   generic_mdq_discovery:
     client_id: ''
     client_secret: ''
@@ -250,15 +250,15 @@ LOGIN_OPTIONS:
   - name: 'RAS Login'
     idp: ras
   - name: 'Generic login 1'
-    idp: generic1
+    idp: generic_with_discovery_url
   - name: 'Generic login 2'
-    idp: generic2
+    idp: generic_with_discovery_block
   - name: 'MDQ discovery all providers'
     idp: generic_mdq_discovery
     upstream_idps: "*"
   - name: 'MDQ discovery some providers'
     idp: generic_mdq_discovery
-    upstream_idps:  # TODO test this
+    upstream_idps:
     - urn:mace:incommon:uchicago.edu
     - https://idp.uca.fr/idp/shibboleth
 

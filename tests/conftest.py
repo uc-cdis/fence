@@ -75,8 +75,8 @@ LOGIN_IDPS = [
     "cognito",
     "ras",
     "cilogon",
-    "generic1",
-    "generic2",
+    "generic_with_discovery_url",
+    "generic_with_discovery_block",
     "generic_mdq_discovery",
 ]
 

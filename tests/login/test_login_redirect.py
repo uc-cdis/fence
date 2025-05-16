@@ -21,38 +21,54 @@ def test_get_value_from_discovery_doc(app):
     the discovery doc in `OPENID_CONNECT`, and that default values are used
     when the requested key is not in the discovery doc.
     """
-    # Scenario: config with `discovery` and no `discovery_url` (IDP generic2)
+    # Scenario: config with `discovery` and no `discovery_url` (IDP generic_with_discovery_block)
     # - get a key that is in the discovery data
-    authorization_endpoint = app.generic2_client.get_value_from_discovery_doc(
-        "authorization_endpoint", "default"
+    authorization_endpoint = (
+        app.generic_with_discovery_block_client.get_value_from_discovery_doc(
+            "authorization_endpoint", "default"
+        )
     )
-    assert authorization_endpoint == "https://generic2/authorization_endpoint"
+    assert (
+        authorization_endpoint
+        == "https://generic_with_discovery_block/authorization_endpoint"
+    )
 
     # - get a key that is not in the discovery data
-    other_endpoint = app.generic2_client.get_value_from_discovery_doc(
-        "other_endpoint", "default"
+    other_endpoint = (
+        app.generic_with_discovery_block_client.get_value_from_discovery_doc(
+            "other_endpoint", "default"
+        )
     )
     assert other_endpoint == "default"
 
-    # Scenario: config with `discovery_url` (IDP generic1)
+    # Scenario: config with `discovery_url` (IDP generic_with_discovery_url)
     class MockResponse:
         def __init__(self):
             self.status_code = 200
 
         def json(self):
-            return {"authorization_endpoint": "https://generic1/authorization_endpoint"}
+            return {
+                "authorization_endpoint": "https://generic_with_discovery_url/authorization_endpoint"
+            }
 
-    app.generic1_client.discovery_doc = MockResponse()
+    app.generic_with_discovery_url_client.discovery_doc = MockResponse()
 
     # - get a key that is in the discovery data
-    authorization_endpoint = app.generic1_client.get_value_from_discovery_doc(
-        "authorization_endpoint", "default"
+    authorization_endpoint = (
+        app.generic_with_discovery_url_client.get_value_from_discovery_doc(
+            "authorization_endpoint", "default"
+        )
     )
-    assert authorization_endpoint == "https://generic1/authorization_endpoint"
+    assert (
+        authorization_endpoint
+        == "https://generic_with_discovery_url/authorization_endpoint"
+    )
 
     # - get a key that is not in the discovery data
-    authorization_endpoint = app.generic1_client.get_value_from_discovery_doc(
-        "other_endpoint", "default"
+    authorization_endpoint = (
+        app.generic_with_discovery_url_client.get_value_from_discovery_doc(
+            "other_endpoint", "default"
+        )
     )
     assert authorization_endpoint == "default"
 
