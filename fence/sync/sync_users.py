@@ -2071,12 +2071,6 @@ class UserSyncer(object):
                         ordered_resources,
                         skip_if_exists=True,
                     )
-                    print("------update_authz_in_arborist------")
-                    print(policy_hash)
-                    print(ordered_roles)
-                    print(ordered_resources)
-                    print("----unique_policies----")
-                    print(unique_policies)
                     # return here as it is not expected single_user_sync
                     # will need any of the remaining user_yaml operations
                     # left in _update_authz_in_arborist
@@ -2093,6 +2087,10 @@ class UserSyncer(object):
                             # format project '/x/y/z' -> 'x.y.z'
                             # so the policy id will be something like 'x.y.z-create'
                             policy_id = _format_policy_id(resource, role)
+
+                            print("-------policy id---------")
+                            print(policy_id)
+                            print(self._created_policies)
 
                             if policy_id not in self._created_policies:
                                 try:
@@ -2386,6 +2384,8 @@ class UserSyncer(object):
                 policy_id,
                 expires_at=expires,
             )
+            print("-------response_json---------")
+            print(response_json)
         except ArboristError as e:
             self.logger.error(
                 "could not grant policy `{}` to user `{}`: {}".format(
