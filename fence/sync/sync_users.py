@@ -2088,6 +2088,11 @@ class UserSyncer(object):
                             # so the policy id will be something like 'x.y.z-create'
                             policy_id = _format_policy_id(resource, role)
 
+                            print("--------resource path--- ------")
+                            print(resource)
+                            print(role)
+                            print("-------unique policies---------")
+                            print(unique_policies)
                             print("-------policy id---------")
                             print(policy_id)
                             print(self._created_policies)
