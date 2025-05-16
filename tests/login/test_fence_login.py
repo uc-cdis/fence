@@ -49,6 +49,7 @@ def config_idp_in_client(
                     "client_secret": "other_fence_client_secret",
                     "api_base_url": "http://other-fence",
                     "authorize_url": "http://other-fence/oauth2/authorize",
+                    "shibboleth_discovery_url": "https://shibboleth_discovery_url/DiscoFeed",
                 }
             },
         }

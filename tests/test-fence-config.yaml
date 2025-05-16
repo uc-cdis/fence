@@ -233,15 +233,17 @@ LOGIN_OPTIONS:
     - https://idp.uca.fr/idp/shibboleth
   - name: 'Shibboleth Login with upstream_idps'
     idp: fence
-    upstream_idp: shibboleth
+    upstream_idps:
+    - shibboleth
     shib_idps:
     - urn:mace:incommon:uchicago.edu
   - name: 'Orcid Login with legacy fence_idp'
     idp: fence
     fence_idp: orcid
-  - name: 'Orcid Login with upstream_idp'
+  - name: 'Orcid Login with upstream_idps'
     idp: fence
-    upstream_idp: orcid
+    upstream_idp:
+    - orcid
   - name: 'CILogon Login'
     idp: cilogon
   - name: 'Microsoft Login'

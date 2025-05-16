@@ -102,8 +102,8 @@ def test_enabled_logins(
                     idp["idp"] for idp in configured_upstream_idps
                 ]
 
-            # each configured "upstream_idp" should have a corresponding URL in the list of IdP URLs
-            # returned by the /login endpoint
+            # each IdP in the configured "upstream_idps" should have a corresponding URL in the
+            # list of IdP URLs returned by the /login endpoint
             for upstream_idp in configured_upstream_idps:
                 assert any(
                     urlencode({"idp": upstream_idp}) in url_info["url"]

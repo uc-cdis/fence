@@ -327,17 +327,18 @@ SESSION_ALLOWED_SCOPES:
 # Each option must be configured with a "name" and an "idp".
 # - "idp" must be a configured provider in OPENID_CONNECT section.
 #   Multiple options can be configured with the same idp.
-# TODO: `upstream_idp`` should be a `upstream_idps` list of 1 item
-# - "upstream_idps" can be '*' (all available IdPs) or a list of one or more IdPs. The list of
-#   available IdPs is fetched by configuring `idp_discovery` in the `OPENID_CONNECT` section.
-# - "upstream_idp" can be set to any of the providers supported by the upstream provider (aka idp).
-#   For example, if idp is "fence" (multi-tenant Fence setup), upstream_idp can be any of the
-#   providers supported by the other Fence. If not specified, will default to NIH login.
-# - "shib_idps": if provider_id is "fence" and upstream_idp is "shibboleth", a list of
+# - "name": display name for this provider
+# - "upstream_idps" can be '*' (all available IdPs) or a list of one or more IdPs supported by the
+#   upstream provider (aka "idp" above). If "*", the list of available IdPs is fetched by
+#   configuring `idp_discovery` in the `OPENID_CONNECT` section.
+#   For example, if idp is "fence" (multi-tenant Fence setup), upstream_idps can include any of the
+#   providers supported by the other Fence. For multi-tenant Fence, if upstream_idps is not
+#   specified, will default to NIH login.
+# - "shib_idps": if "idp" is "fence" and upstream_idp is "shibboleth", a list of
 #   "shib_idps" can be configured for InCommon login. If not specified, will
 #   default to NIH login.
-# - "fence_idp": deprecated; same as `upstream_idp`
-#   [Backwards compatibility for Fence multi-tenant login / Shibboleth legacy configuration]
+# - "fence_idp": deprecated; same as a `upstream_idps` list of 1 item.
+#   ^ [Backwards compatibility for Fence multi-tenant login / Shibboleth legacy configuration]
 # - Optional parameters: "desc" (description) and "secondary" (boolean - can
 #   be used by the frontend to display secondary buttons differently).
 LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
