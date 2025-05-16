@@ -12,6 +12,7 @@ https://sts.nih.gov is not stable and causes test failures.
 import pytest
 from unittest.mock import MagicMock, patch
 
+from fence.blueprints.login import get_idp_route_name
 from fence.config import config
 from tests.conftest import LOGIN_IDPS
 
@@ -77,7 +78,7 @@ def test_get_value_from_discovery_doc(app):
 @pytest.fixture(scope="function")
 def get_value_from_discovery_doc_patcher():
     mocks = []
-    to_patch = [e for e in LOGIN_IDPS if e not in ["fence", "shib"]]
+    to_patch = [e for e in LOGIN_IDPS if e not in ["fence", "shibboleth"]]
     for idp in to_patch:
         mock = MagicMock()
         mock.return_value = ""
@@ -116,11 +117,11 @@ def test_valid_redirect_base(app, client, idp, get_value_from_discovery_doc_patc
         ).start()
 
     redirect = app.config["BASE_URL"]
-    login_url = "/login/{}?redirect={}".format(idp, redirect)
+    login_url = "/login/{}?redirect={}".format(get_idp_route_name(idp), redirect)
 
     # test `authorization_url_param_map` functionality
     authorization_url_param_map = config["OPENID_CONNECT"][idp].get(
-        "authorization_url_param_map"
+        "authorization_url_param_map", {}
     )
     for in_param in authorization_url_param_map:
         if in_param == "key_not_in_login_url":
@@ -130,6 +131,7 @@ def test_valid_redirect_base(app, client, idp, get_value_from_discovery_doc_patc
 
     response = client.get(login_url)
     assert response.status_code == 302
+
     redirect_location = response.headers["Location"]
     for in_param, out_param in authorization_url_param_map.items():
         if in_param == "key_not_in_login_url":
@@ -156,7 +158,9 @@ def test_valid_redirect_oauth(
     Check that a valid redirect is allowed. Here we use the URL from the test OAuth
     client.
     """
-    response = client.get("/login/{}?redirect={}".format(idp, oauth_client.url))
+    response = client.get(
+        "/login/{}?redirect={}".format(get_idp_route_name(idp), oauth_client.url)
+    )
     assert response.status_code == 302
 
 
@@ -165,5 +169,7 @@ def test_invalid_redirect_fails(client, idp):
     """
     Check that giving a bogus redirect to the login endpoint returns an error.
     """
-    response = client.get("/login/{}?redirect=https://evil-site.net".format(idp))
+    response = client.get(
+        "/login/{}?redirect=https://evil-site.net".format(get_idp_route_name(idp))
+    )
     assert response.status_code == 400

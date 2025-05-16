@@ -32,6 +32,7 @@ import time
 from unittest.mock import ANY, MagicMock, patch
 
 import fence
+from fence.blueprints.login import get_idp_route_name
 from fence.metrics import metrics
 from fence.config import config
 from fence.blueprints.data.indexd import get_bucket_from_urls
@@ -488,7 +489,7 @@ def test_login_log_login_endpoint(
         get_auth_info_value = {"orcid": username}
     elif idp == "cilogon":
         get_auth_info_value = {"sub": username}
-    elif idp == "shib":
+    elif idp == "shibboleth":
         headers["persistent_id"] = username
         idp_name = "itrust"
     elif idp == "okta":
@@ -536,7 +537,7 @@ def test_login_log_login_endpoint(
             data={},
             status_code=201,
         )
-        path = f"/login/{idp}/{callback_endpoint}"  # SEE fence/blueprints/login/fence_login.py L91
+        path = f"/login/{get_idp_route_name(idp)}/{callback_endpoint}"
         response = client.get(path, headers=headers)
         assert response.status_code == 200, response.text
         user_sub = db_session.query(User).filter(User.username == username).first().id

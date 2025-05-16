@@ -51,7 +51,7 @@ from fence.jwt.validate import validate_jwt
 import tests
 from tests import test_settings
 from tests import utils
-from tests.utils import TEST_RAS_USERNAME, TEST_RAS_SUB
+from tests.utils import TEST_RAS_SUB
 from tests.utils.oauth2.client import OAuth2TestClient
 from tests.storageclient.storage_client_mock import get_client
 
@@ -67,7 +67,7 @@ os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "true"
 LOGIN_IDPS = [
     "fence",
     "google",
-    "shib",
+    "shibboleth",
     "orcid",
     "synapse",
     "microsoft",

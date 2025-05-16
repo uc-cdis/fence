@@ -23,6 +23,8 @@ def test_contfest_idps():
             if f.startswith("__") or f == "idp_oauth2.py":
                 continue
             idp = f.split("_")[0]
+            if idp == "shib":
+                idp = "shibboleth"  # see `get_idp_route_name` function
             assert idp in LOGIN_IDPS, err_msg.format(os.path.join(subdir, f), idp)
         break  # no need to check subdirectories
 
@@ -33,5 +35,7 @@ def test_contfest_idps():
             if f.startswith("__") or f in ["base.py", "redirect.py", "utils.py"]:
                 continue
             idp = f.split(".py")[0].split("_login")[0]
+            if idp == "shib":
+                idp = "shibboleth"  # see `get_idp_route_name` function
             assert idp in LOGIN_IDPS, err_msg.format(os.path.join(subdir, f), idp)
         break  # no need to check subdirectories
