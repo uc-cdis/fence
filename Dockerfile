@@ -44,6 +44,9 @@ FROM base
 
 ENV PATH="/${appname}/.venv/bin:$PATH"
 
+# Do NOT change the below path unless you update the application code to use the new path as well
+ENV PROMETHEUS_MULTIPROC_DIR="/var/tmp/uwsgi_flask_metrics"
+
 # Install ccrypt to decrypt dbgap telmetry files
 RUN echo "Upgrading dnf"; \
     dnf upgrade -y; \
