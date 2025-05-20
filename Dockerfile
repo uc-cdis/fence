@@ -43,6 +43,10 @@ RUN git config --global --add safe.directory ${appname} && COMMIT=`git rev-parse
 FROM base
 
 ENV PATH="/${appname}/.venv/bin:$PATH"
+ENV PROMETHEUS_MULTIPROC_DIR="/var/tmp/uwsgi_flask_metrics"
+
+RUN mkdir -p ${PROMETHEUS_MULTIPROC_DIR} && chown gen3:gen3 ${PROMETHEUS_MULTIPROC_DIR}
+
 
 # Install ccrypt to decrypt dbgap telmetry files
 RUN echo "Upgrading dnf"; \
