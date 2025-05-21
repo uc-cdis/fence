@@ -2003,8 +2003,6 @@ class UserSyncer(object):
 
             # update the project info with users from arborist
             self.sync_two_phsids_dict(arborist_user_projects, user_projects)
-            print("-------arborist user projects-------")
-            print(arborist_user_projects)
 
         policy_id_list = []
         policies = []
@@ -2043,6 +2041,10 @@ class UserSyncer(object):
                 idp = user.identity_provider.name if user.identity_provider else None
 
             self.arborist_client.create_user_if_not_exist(username)
+
+            # Binam: Need to intervene on user_project_info here
+            # arborist_users_auth_mapping
+
             if not single_user_sync:
                 # find diff of incoming vs current policies
 
@@ -2080,6 +2082,7 @@ class UserSyncer(object):
                         username, policy_hash, expires=expires
                     )
             else:
+                # Binam: This is just to grant policies. Lets not think too much about unique policies but make sure I change unique policies before it gets here or gets created
                 for roles, resources in unique_policies.items():
                     for role in roles:
                         for resource in resources:
@@ -2180,6 +2183,8 @@ class UserSyncer(object):
                 ('read', 'read-storage', 'write', 'write-storage'): ('phs000005.c1', 'phs000006.c1'),
             }
         """
+        print("----project_to_authz_mapping-----")
+        print(project_to_authz_mapping)
         roles_to_resources = collections.defaultdict(list)
         for study, roles in user_project_info.items():
             ordered_roles = tuple(sorted(roles))
