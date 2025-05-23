@@ -141,7 +141,7 @@ class UserSession(SessionMixin):
         return self.session_token["context"][key]
 
     def __setitem__(self, key, value):
-        # If token doesn't exists, create the first session token when
+        # If token doesn't exist, create the first session token when
         # data in the session is attempting to be set
         if not self._encoded_token:
             self.create_initial_token()

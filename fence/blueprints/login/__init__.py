@@ -22,10 +22,11 @@ non-generic provider.
 """
 
 from authlib.common.urls import add_params_to_uri
-import flask
-import requests
 
+from cachelib import SimpleCache
 from cdislogging import get_logger
+import flask
+from xml.etree import ElementTree
 
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 from fence.blueprints.login.cilogon import CilogonLogin, CilogonCallback
@@ -42,8 +43,12 @@ from fence.errors import InternalError
 from fence.resources.audit.utils import enable_audit_logging
 from fence.restful import RestfulApi
 from fence.config import config
+from fence.utils import fetch_url_data
 
 logger = get_logger(__name__)
+
+
+UPSTREAM_IDP_CACHE = SimpleCache(default_timeout=86400)  # cached for 24h
 
 
 # Mapping from IDP ID to the name in the URL on the blueprint (see below).
@@ -54,22 +59,24 @@ def get_idp_route_name(idp):
     return special_routes.get(idp, idp.lower())
 
 
-def absolute_login_url(provider_id, fence_idp=None, shib_idp=None):
+def absolute_login_url(provider_id, upstream_idp=None, shib_idp=None):
     """
     Args:
         provider_id (str): provider to log in with.
-        fence_idp (str, optional): if provider_id is "fence"
-            (multi-tenant Fence setup), fence_idp can be any of the
+        upstream_idp (str, optional): can be set to any of the providers
+            supported by the upstream provider (aka provider_id).
+            For example, if provider_id is "fence"
+            (multi-tenant Fence setup), upstream_idp can be any of the
             providers supported by the other Fence. If not specified,
             will default to NIH login.
         shib_idp (str, optional): if provider_id is "fence" and
-            fence_idp is "shibboleth", shib_idp can be any Shibboleth/
+            upstream_idp is "shibboleth", shib_idp can be any Shibboleth/
             InCommon provider. If not specified, will default to NIH
             login.
 
     Returns:
         str: login URL for this provider, including extra query
-            parameters if fence_idp and/or shib_idp are specified.
+            parameters if upstream_idp and/or shib_idp are specified.
     """
     try:
         base_url = config["BASE_URL"].rstrip("/")
@@ -78,8 +85,8 @@ def absolute_login_url(provider_id, fence_idp=None, shib_idp=None):
         raise InternalError("identity provider misconfigured: {}".format(str(e)))
 
     params = {}
-    if fence_idp:
-        params["idp"] = fence_idp
+    if upstream_idp:
+        params["idp"] = upstream_idp
     if shib_idp:
         params["shib_idp"] = shib_idp
     login_url = add_params_to_uri(login_url, params)
@@ -87,22 +94,24 @@ def absolute_login_url(provider_id, fence_idp=None, shib_idp=None):
     return login_url
 
 
-def provider_info(login_details):
+def get_provider_info(login_details):
     """
     Args:
         login_details (dict):
-        { name, desc, idp, fence_idp, shib_idps, secondary }
+        { name, desc, idp, upstream_idps, shib_idps, secondary }
         - "idp": a configured provider.
-        Multiple options can be configured with the same idp.
-        - if provider_id is "fence", "fence_idp" can be any of the
-        providers supported by the other Fence. If not specified, will
-        default to NIH login.
-        - if provider_id is "fence" and fence_idp is "shibboleth", a
-        list of "shib_idps" can be configured for InCommon login. If
-        not specified, will default to NIH login.
+          Multiple options can be configured with the same idp.
+        - "upstream_idps": list of upstream IdPs (IdPs supported by the
+          configured "idp") we want to enable. For example, if idp is "fence" (multi-tenant
+          Fence setup), upstream_idps can include any of the providers supported by the other
+          Fence. For multi-tenant Fence, if upstream_idps is not specified, will default to
+          NIH login.
+        - if "idp" is "fence" and upstream_idps includes "shibboleth", a
+          list of "shib_idps" can be configured for InCommon login. If
+          not specified, will default to NIH login.
         - Optional parameters: "desc" (description) and "secondary"
-        (boolean - can be used by the frontend to display secondary
-        buttons differently).
+          (boolean - can be used by the frontend to display secondary
+          buttons differently).
 
     Returns:
         dict: { name, desc, idp, urls, secondary }
@@ -114,71 +123,152 @@ def provider_info(login_details):
         "idp": login_details["idp"],
         "name": login_details["name"],
         # "url" deprecated, replaced by "urls"
-        "url": absolute_login_url(login_details["idp"]),
+        "url": absolute_login_url(provider_id=login_details["idp"]),
+        "urls": [
+            {
+                "name": login_details["name"],
+                "url": absolute_login_url(provider_id=login_details["idp"]),
+            }
+        ],
         "desc": login_details.get("desc", None),
         "secondary": login_details.get("secondary", False),
     }
 
-    # for Fence multi-tenant login
-    fence_idp = None
-    if login_details["idp"] == "fence":
-        fence_idp = login_details.get("fence_idp")
+    # [Backwards compatibility for Fence multi-tenant login / Shibboleth legacy configuration]
+    # fall back to `fence_idp` if `upstream_idps` is not specified
+    requested_upstream_idps = login_details.get("upstream_idps")
+    if not requested_upstream_idps and "fence_idp" in login_details:
+        requested_upstream_idps = [login_details["fence_idp"]]
 
-    # handle Shibboleth IDPs: InCommon login can either be configured
-    # directly in this Fence, or through multi-tenant Fence
-    if (
-        login_details["idp"] == "shibboleth" or fence_idp == "shibboleth"
-    ) and "shib_idps" in login_details:
-        # get list of all available shib IDPs
-        if not hasattr(flask.current_app, "all_shib_idps"):
-            flask.current_app.all_shib_idps = get_all_shib_idps()
+    # Get the IdP's discovery settings.
+    # [Backwards compatibility for Fence multi-tenant login / Shibboleth legacy configuration]
+    # Handle Shibboleth IDPs; InCommon login can either be configured directly in this Fence,
+    # or through multi-tenant Fence
+    shib_special_case = (
+        login_details["idp"] == "shibboleth"
+        or requested_upstream_idps == ["shibboleth"]
+    ) and "shib_idps" in login_details
+    if shib_special_case:
+        """
+        Set `discovery_details` manually because we need to enter the block below even though
+        `idp_discovery` is not configured: the legacy Shibboleth integration uses config
+        `shibboleth_discovery_url` instead of the generic `idp_discovery`.
 
-        requested_shib_idps = login_details["shib_idps"]
-        if requested_shib_idps == "*":
-            shib_idps = flask.current_app.all_shib_idps
-        elif isinstance(requested_shib_idps, list):
-            # get the display names for each requested shib IDP
-            shib_idps = []
-            for requested_shib_idp in set(requested_shib_idps):
-                shib_idp = next(
-                    (
-                        available_shib_idp
-                        for available_shib_idp in flask.current_app.all_shib_idps
-                        if available_shib_idp["idp"] == requested_shib_idp
-                    ),
-                    None,
-                )
-                if not shib_idp:
-                    raise InternalError(
-                        'Requested shib_idp "{}" does not exist'.format(
-                            requested_shib_idp
-                        )
-                    )
-                shib_idps.append(shib_idp)
-        else:
+        May 2 2025: Compared the list of IdPs parsed by `get_all_shib_idps` from the
+        login.bionimbus.org Shibboleth Discofeed (at https://login.bionimbus.org/Shibboleth.sso/
+        DiscoFeed) with the list of IdPs parsed by `get_all_upstream_idps` from the InCommon
+        discovery XML (at http://mdq.incommon.org/entities/idps/all). The list of providers is
+        exactly the same (except for the NIH IdP which was removed from the login.bionimbus.org
+        Discofeed and replaced by us manually). So we most likely could use the InCommon list and the generic `get_all_upstream_idps` function for Shibboleth instead of duplicating logic.
+        """
+        shib_url = (
+            config["OPENID_CONNECT"]
+            .get(login_details["idp"], {})
+            .get("shibboleth_discovery_url")
+        )
+        if not shib_url:
             raise InternalError(
-                'fence provider misconfigured: "shib_idps" must be a list or "*", got {}'.format(
-                    requested_shib_idps
+                f"Unable to get list of Shibboleth IDPs: 'OPENID_CONNECT.{login_details['idp']}.shibboleth_discovery_url' not configured"
+            )
+        discovery_details = {"url": shib_url, "format": "shibboleth"}
+        requested_upstream_idps = login_details.get("shib_idps", [])
+    else:
+        discovery_details = (
+            config["OPENID_CONNECT"]
+            .get(login_details["idp"], {})
+            .get("idp_discovery", {})
+        )
+
+    # provider WITHOUT IdP discovery settings
+    if not discovery_details:
+        assert (
+            requested_upstream_idps != "*"
+        ), f'Login option "{login_details["name"]}" misconfigured: requested providers is set to "*", but "OPENID_CONNECT.{login_details["idp"]}.idp_discovery" is not configured'
+        if requested_upstream_idps:
+            info["urls"] = [
+                {
+                    "name": login_details["name"],
+                    "url": absolute_login_url(
+                        provider_id=login_details["idp"], upstream_idp=upstream_idp
+                    ),
+                }
+                for upstream_idp in requested_upstream_idps
+            ]
+        return info
+
+    # provider WITH IdP discovery settings
+    assert discovery_details.get(
+        "url"
+    ), f"Unable to get list of {login_details['idp']} IDPs: 'OPENID_CONNECT.{login_details['idp']}.idp_discovery.url' not configured"
+    assert discovery_details.get(
+        "format"
+    ), f"Unable to get list of {login_details['idp']} IDPs: 'OPENID_CONNECT.{login_details['idp']}.idp_discovery.format' not configured"
+    cache_key = f"all_{login_details['idp']}_upstream_idps"
+    if not UPSTREAM_IDP_CACHE.has(cache_key):
+        UPSTREAM_IDP_CACHE.add(
+            cache_key,
+            get_all_upstream_idps(
+                login_details["idp"],
+                discovery_details["url"],
+                discovery_details["format"],
+            ),
+        )
+
+    if requested_upstream_idps == "*":
+        upstream_idps = UPSTREAM_IDP_CACHE.get(cache_key)
+    elif isinstance(requested_upstream_idps, list) and len(requested_upstream_idps):
+        # get the display names for each requested IdP
+        upstream_idps = []
+        for requested_upstream_idp in set(requested_upstream_idps):
+            available_upstream_idp = next(
+                (
+                    _available_upstream_idp
+                    for _available_upstream_idp in UPSTREAM_IDP_CACHE.get(cache_key)
+                    if _available_upstream_idp["idp"] == requested_upstream_idp
+                ),
+                None,
+            )
+            if not available_upstream_idp:
+                raise InternalError(
+                    'IdP "{}": requested upstream_idp/shib_idp "{}" does not exist'.format(
+                        login_details["name"], requested_upstream_idp
+                    )
+                )
+            upstream_idps.append(available_upstream_idp)
+    else:
+        if shib_special_case:
+            raise InternalError(
+                'Login option "{}" misconfigured: "shib_idps" must be a list or "*", got {}'.format(
+                    login_details["name"], requested_upstream_idp
                 )
             )
+        else:
+            raise InternalError(
+                f'Login option "{login_details["name"]}" misconfigured: because "OPENID_CONNECT.{login_details["idp"]}.idp_discovery" is configured, "LOGIN_OPTIONS.{login_details["name"]}.upstream_idps" must be a list or "*", got {requested_upstream_idps}'
+            )
 
+    if shib_special_case:
         info["urls"] = [
             {
                 "name": shib_idp["name"],
                 "url": absolute_login_url(
-                    login_details["idp"], fence_idp, shib_idp["idp"]
+                    provider_id=login_details["idp"],
+                    upstream_idp="shibboleth",
+                    shib_idp=shib_idp["idp"],
                 ),
             }
-            for shib_idp in shib_idps
+            for shib_idp in upstream_idps
         ]
-
-    # non-Shibboleth provider
     else:
         info["urls"] = [
             {
-                "name": login_details["name"],
-                "url": absolute_login_url(login_details["idp"], fence_idp),
+                "name": upstream_idp["name"],
+                "url": absolute_login_url(
+                    provider_id=login_details["idp"],
+                    upstream_idp=upstream_idp["idp"],
+                ),
             }
+            for upstream_idp in upstream_idps
         ]
 
     return info
@@ -216,7 +306,7 @@ def get_login_providers_info():
 
     try:
         all_provider_info = [
-            provider_info(login_details) for login_details in login_options
+            get_provider_info(login_details) for login_details in login_options
         ]
     except KeyError as e:
         raise InternalError("LOGIN_OPTIONS misconfigured: cannot find key {}".format(e))
@@ -228,7 +318,7 @@ def get_login_providers_info():
     )
     if not default_provider_info:
         raise InternalError(
-            "default provider misconfigured: DEFAULT_LOGIN_IDP is set to {}, which is not configured in LOGIN_OPTIONS".format(
+            "default provider misconfigured: DEFAULT_LOGIN_IDP is set to '{}', which is not configured in LOGIN_OPTIONS".format(
                 default_idp
             )
         )
@@ -360,7 +450,81 @@ def make_login_blueprint():
     return blueprint
 
 
-def get_all_shib_idps():
+def get_all_upstream_idps(idp_name: str, discovery_url: str, format: str) -> dict:
+    if format == "shibboleth":
+        return get_all_shib_idps(discovery_url)
+    elif format == "mdq-xml":  # InCommon Metadata Query Protocol
+        all_idps = []
+        xml_data = fetch_url_data(discovery_url, "text")
+        tree = ElementTree.ElementTree(ElementTree.fromstring(xml_data))
+        for element in tree.getroot().iter():
+            if element.tag.endswith("EntityDescriptor"):
+                if "entityID" not in element.keys():
+                    continue
+                idp = element.get("entityID")
+
+                # get the IdP's display name
+                display_names = []
+                for idpsSoDescriptor in element.findall(
+                    "{urn:oasis:names:tc:SAML:2.0:metadata}IDPSSODescriptor"
+                ):
+                    for extension in idpsSoDescriptor.findall(
+                        "{urn:oasis:names:tc:SAML:2.0:metadata}Extensions"
+                    ):
+                        for uiInfo in extension.findall(
+                            "{urn:oasis:names:tc:SAML:metadata:ui}UIInfo"
+                        ):
+                            for displayName in uiInfo.findall(
+                                "{urn:oasis:names:tc:SAML:metadata:ui}DisplayName"
+                            ):
+                                lang = ""
+                                if (
+                                    "{http://www.w3.org/XML/1998/namespace}lang"
+                                    in displayName.keys()
+                                ):
+                                    lang = displayName.get(
+                                        "{http://www.w3.org/XML/1998/namespace}lang"
+                                    )
+                                display_names.append(
+                                    {"value": displayName.text, "lang": lang}
+                                )
+
+                # if IDPSSODescriptor.Extensions.UIInfo.DisplayName is not provided, fall back to
+                # Organization.OrganizationDisplayName
+                if not display_names:
+                    for org in element.findall(
+                        "{urn:oasis:names:tc:SAML:2.0:metadata}Organization"
+                    ):
+                        for orgDisplayName in org.findall(
+                            "{urn:oasis:names:tc:SAML:2.0:metadata}OrganizationDisplayName"
+                        ):
+                            lang = ""
+                            if (
+                                "{http://www.w3.org/XML/1998/namespace}lang"
+                                in orgDisplayName.keys()
+                            ):
+                                lang = orgDisplayName.get(
+                                    "{http://www.w3.org/XML/1998/namespace}lang"
+                                )
+                            display_names.append(
+                                {"value": orgDisplayName.text, "lang": lang}
+                            )
+                all_idps.append(
+                    {
+                        "idp": idp,
+                        "name": get_shib_idp_en_name(display_names)
+                        if display_names
+                        else idp,
+                    }
+                )
+        return all_idps
+    else:
+        raise InternalError(
+            f"IdP 'OPENID_CONNECT.{idp_name}' misconfigured: idp_discovery.format '{format}' is not supported"
+        )
+
+
+def get_all_shib_idps(url: str):
     """
     Get the list of all existing Shibboleth IDPs.
     This function only returns the information we need to generate login URLs.
@@ -368,18 +532,8 @@ def get_all_shib_idps():
     Returns:
         list: list of {"idp": "", "name": ""} dictionaries
     """
-    url = config["OPENID_CONNECT"].get("fence", {}).get("shibboleth_discovery_url")
-    if not url:
-        raise InternalError(
-            "Unable to get list of Shibboleth IDPs: OPENID_CONNECT.fence.shibboleth_discovery_url not configured"
-        )
-    res = requests.get(url)
-    assert (
-        res.status_code == 200
-    ), "Unable to get list of Shibboleth IDPs from {}".format(url)
-
     all_shib_idps = []
-    for shib_idp in res.json():
+    for shib_idp in fetch_url_data(url, "json"):
         if "entityID" not in shib_idp:
             logger.warning(
                 f"get_all_shib_idps(): 'entityID' field not in IDP data: {shib_idp}. Skipping this IDP."
