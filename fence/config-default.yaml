@@ -147,7 +147,7 @@ OPENID_CONNECT:
     # organization claim field from idp
     organization_claim_field: 'org'
     # default organization
-    default_organization: 'AU BioCommons'
+    default_organization: 'Default Organization'
     # automatically register users from Idp
     enable_idp_users_registration: true
   # These Google values must be obtained from Google's Cloud Console
