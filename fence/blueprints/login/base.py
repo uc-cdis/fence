@@ -205,7 +205,7 @@ class DefaultOAuth2Callback(Resource):
         refresh token using three methods:
 
         1. Using PyJWT to decode the token (without signature verification).
-        3. Manually base64 decoding the token's payload (if it's a JWT).
+        2. Manually base64 decoding the token's payload (if it's a JWT).
 
         **Disclaimer:** This function assumes that the refresh token is valid and
         does not perform any JWT validation. For JWTs from an OpenID Connect (OIDC)
