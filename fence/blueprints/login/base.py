@@ -257,7 +257,7 @@ class DefaultOAuth2Callback(Resource):
             if exp is not None:
                 return exp
         except Exception as e:
-            logger.info(f"Method 3 (Manual decoding) failed: {e}")
+            logger.info(f"Method 2 (Manual decoding) failed: {e}")
 
         # If all methods fail, return None
         return None
