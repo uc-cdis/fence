@@ -2056,6 +2056,9 @@ class UserSyncer(object):
             # (i.e.{'read', 'read-storage'}), unique_policies will just be a
             # single policy with ('read', 'read-storage') being the single
             # key
+            print("-----project_to_authz_mapping-----")
+            print(project_to_authz_mapping)
+
             unique_policies = self._determine_unique_policies(
                 user_project_info, project_to_authz_mapping
             )
