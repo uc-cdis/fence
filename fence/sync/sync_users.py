@@ -2092,6 +2092,10 @@ class UserSyncer(object):
                             # format project '/x/y/z' -> 'x.y.z'
                             # so the policy id will be something like 'x.y.z-create'
                             policy_id = _format_policy_id(resource, role)
+                            print("-------policy id----------")
+                            print(policy_id)
+                            print(resource)
+                            print(role)
                             if policy_id not in self._created_policies:
                                 try:
                                     self.arborist_client.update_policy(
