@@ -2056,12 +2056,11 @@ class UserSyncer(object):
             # (i.e.{'read', 'read-storage'}), unique_policies will just be a
             # single policy with ('read', 'read-storage') being the single
             # key
-            print("-----project_to_authz_mapping-----")
-            print(project_to_authz_mapping)
-
             unique_policies = self._determine_unique_policies(
                 user_project_info, project_to_authz_mapping
             )
+            print("----unique policies-----")
+            print(unique_policies)
 
             for roles in unique_policies.keys():
                 for role in roles:
@@ -2095,10 +2094,6 @@ class UserSyncer(object):
                             # format project '/x/y/z' -> 'x.y.z'
                             # so the policy id will be something like 'x.y.z-create'
                             policy_id = _format_policy_id(resource, role)
-                            print("-------policy id----------")
-                            print(policy_id)
-                            print(resource)
-                            print(role)
                             if policy_id not in self._created_policies:
                                 try:
                                     self.arborist_client.update_policy(
@@ -2190,8 +2185,6 @@ class UserSyncer(object):
                 ('read', 'read-storage', 'write', 'write-storage'): ('phs000005.c1', 'phs000006.c1'),
             }
         """
-        print("----project_to_authz_mapping-----")
-        print(project_to_authz_mapping)
         roles_to_resources = collections.defaultdict(list)
         for study, roles in user_project_info.items():
             ordered_roles = tuple(sorted(roles))
@@ -2393,8 +2386,6 @@ class UserSyncer(object):
                 policy_id,
                 expires_at=expires,
             )
-            print("-------response_json---------")
-            print(response_json)
         except ArboristError as e:
             self.logger.error(
                 "could not grant policy `{}` to user `{}`: {}".format(
