@@ -6,7 +6,7 @@ from fence.config import config
 from fence.blueprints.login import get_all_upstream_idps, UPSTREAM_IDP_CACHE
 
 
-def test_get_all_upstream_idps(get_all_upstream_idps_mqd_data_patcher):
+def test_get_all_upstream_idps(get_all_upstream_idps_data_patcher):
     """
     Check that `get_all_upstream_idps` parses the XML MDQ data at
     `tests/data/incommon_mdq_data_extract.xml` as expected.
@@ -39,9 +39,7 @@ def test_get_all_upstream_idps(get_all_upstream_idps_mqd_data_patcher):
     ]
 
 
-def test_default_login(
-    app, client, get_all_shib_idps_patcher, get_all_upstream_idps_mqd_data_patcher
-):
+def test_default_login(app, client, get_all_upstream_idps_data_patcher):
     r = client.get("/login")
     assert r.status_code == 200, r.data
     response_json = r.json
@@ -67,13 +65,7 @@ def test_default_login(
         for login_option in config["LOGIN_OPTIONS"]
     ],
 )
-def test_enabled_logins(
-    app,
-    client,
-    login_option,
-    get_all_shib_idps_patcher,
-    get_all_upstream_idps_mqd_data_patcher,
-):
+def test_enabled_logins(app, client, login_option, get_all_upstream_idps_data_patcher):
     r = client.get("/login")
     assert r.status_code == 200, r.data
     response_json = r.json

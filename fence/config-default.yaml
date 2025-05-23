@@ -318,7 +318,7 @@ SESSION_ALLOWED_SCOPES:
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # LOGIN
-#   - Modify based on which OIDC provider(s) you configured above
+#   - Modify based on which OIDC provider(s) are configured in OPENID_CONNECT
 #   - NOTE: You can have multiple IDPs for users to login with, but one has to be set
 #           as the default
 # //////////////////////////////////////////////////////////////////////////////////////

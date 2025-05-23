@@ -70,7 +70,7 @@ def config_idp_in_client(
 
 
 def test_redirect_oauth2_authorize(
-    app, client, config_idp_in_client, get_all_shib_idps_patcher
+    app, client, config_idp_in_client, get_all_upstream_idps_data_patcher
 ):
     """
     Test that the ``/oauth2/authorize`` endpoint on the client fence redirects to the
@@ -84,7 +84,7 @@ def test_redirect_oauth2_authorize(
 
 
 def test_redirect_oauth2_authorize_default_params(
-    client, app, config_idp_in_client, get_all_shib_idps_patcher
+    client, app, config_idp_in_client, get_all_upstream_idps_data_patcher
 ):
     """
     Test that when the `/oauth2/authorize` endpoint redirects to the default

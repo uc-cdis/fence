@@ -1294,13 +1294,7 @@ def patch_app_db_session(app, monkeypatch):
 
 
 @pytest.fixture(scope="function")
-def oauth_client(
-    app,
-    db_session,
-    oauth_user,
-    get_all_shib_idps_patcher,
-    get_all_upstream_idps_mqd_data_patcher,
-):
+def oauth_client(app, db_session, oauth_user, get_all_upstream_idps_data_patcher):
     """
     Create a confidential OAuth2 client and add it to the database along with a
     test user for the client.
@@ -1378,11 +1372,7 @@ def oauth_client_B(app, request, db_session):
 
 @pytest.fixture(scope="function")
 def oauth_client_public(
-    app,
-    db_session,
-    oauth_user,
-    get_all_shib_idps_patcher,
-    get_all_upstream_idps_mqd_data_patcher,
+    app, db_session, oauth_user, get_all_upstream_idps_data_patcher
 ):
     """
     Create a public OAuth2 client.
@@ -1409,7 +1399,7 @@ def oauth_client_public(
 
 @pytest.fixture(scope="function")
 def oauth_client_with_client_credentials(
-    db_session, get_all_shib_idps_patcher, get_all_upstream_idps_mqd_data_patcher
+    db_session, get_all_upstream_idps_data_patcher
 ):
     """
     Create a confidential OAuth2 client and add it to the database along with a
@@ -1456,10 +1446,7 @@ def oauth_test_client_B(client, oauth_client_B):
 
 @pytest.fixture(scope="function")
 def oauth_test_client_public(
-    client,
-    oauth_client_public,
-    get_all_shib_idps_patcher,
-    get_all_upstream_idps_mqd_data_patcher,
+    client, oauth_client_public, get_all_upstream_idps_data_patcher
 ):
     return OAuth2TestClient(client, oauth_client_public, confidential=False)
 
@@ -1765,52 +1752,46 @@ def restore_config():
 
 
 @pytest.fixture(scope="function")
-def get_all_upstream_idps_mqd_data_patcher():
-    mock = MagicMock()
-    with open(
-        os.path.join(
-            os.path.dirname(os.path.realpath(__file__)),
-            "data/incommon_mdq_data_extract.xml",
-            # ^ subset of the data from http://mdq.incommon.org/entities/idps/all
-        ),
-        "r",
-    ) as f:
-        mock.return_value = f.read()
-    fetch_url_data_patch = patch("fence.blueprints.login.fetch_url_data", mock)
+def get_all_upstream_idps_data_patcher():
+    def mocked_fetch_url_data(*args, **kwargs):
+        url = args[0] if args else ""
+        if "shibboleth" in url:
+            return [
+                {"entityID": "some-incommon-entity-id"},
+                {
+                    "entityID": "https://idp.uca.fr/idp/shibboleth",
+                    "DisplayNames": [
+                        {"value": "Université Clermont Auvergne", "lang": "en"}
+                    ],
+                },
+                {
+                    "entityID": "urn:mace:incommon:uchicago.edu",
+                    "DisplayNames": [
+                        {"value": "University of Chicago", "lang": "en"},
+                        {"value": "Universidad de Chicago", "lang": "es"},
+                    ],
+                },
+            ]
+        elif "generic_mdq_discovery" in url:
+            with open(
+                os.path.join(
+                    os.path.dirname(os.path.realpath(__file__)),
+                    "data/incommon_mdq_data_extract.xml",
+                    # ^ subset of the data from http://mdq.incommon.org/entities/idps/all
+                ),
+                "r",
+            ) as f:
+                return f.read()
+
+    fetch_url_data_patch = patch(
+        "fence.blueprints.login.fetch_url_data",
+        MagicMock(side_effect=mocked_fetch_url_data),
+    )
     fetch_url_data_patch.start()
 
     yield mock
 
     fetch_url_data_patch.stop()
-
-
-@pytest.fixture(scope="function")
-def get_all_shib_idps_patcher():
-    """
-    Don't make real requests to the list of InCommon IDPs exposed
-    by login.bionimbus
-    """
-    mock = MagicMock()
-    mock.return_value = [
-        {
-            "idp": "some-incommon-entity-id",
-            "name": "Some InCommon Provider",
-        },
-        {
-            "idp": "https://idp.uca.fr/idp/shibboleth",
-            "name": "Université Clermont Auvergne",
-        },
-        {
-            "idp": "urn:mace:incommon:uchicago.edu",
-            "name": "University of Chicago",
-        },
-    ]
-    get_all_shib_idps_patch = patch("fence.blueprints.login.get_all_shib_idps", mock)
-    get_all_shib_idps_patch.start()
-
-    yield mock
-
-    get_all_shib_idps_patch.stop()
 
 
 @pytest.fixture(scope="function")

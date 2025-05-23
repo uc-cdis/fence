@@ -205,17 +205,14 @@ def get_provider_info(login_details):
     ), f"Unable to get list of {login_details['idp']} IDPs: 'OPENID_CONNECT.{login_details['idp']}.idp_discovery.format' not configured"
     cache_key = f"all_{login_details['idp']}_upstream_idps"
     if not UPSTREAM_IDP_CACHE.has(cache_key):
-        if shib_special_case:
-            UPSTREAM_IDP_CACHE.add(cache_key, get_all_shib_idps())
-        else:
-            UPSTREAM_IDP_CACHE.add(
-                cache_key,
-                get_all_upstream_idps(
-                    login_details["idp"],
-                    discovery_details["url"],
-                    discovery_details["format"],
-                ),
-            )
+        UPSTREAM_IDP_CACHE.add(
+            cache_key,
+            get_all_upstream_idps(
+                login_details["idp"],
+                discovery_details["url"],
+                discovery_details["format"],
+            ),
+        )
 
     if requested_upstream_idps == "*":
         upstream_idps = UPSTREAM_IDP_CACHE.get(cache_key)
@@ -233,8 +230,8 @@ def get_provider_info(login_details):
             )
             if not available_upstream_idp:
                 raise InternalError(
-                    'Requested upstream_idp/shib_idp "{}" does not exist'.format(
-                        requested_upstream_idp
+                    'IdP "{}": requested upstream_idp/shib_idp "{}" does not exist'.format(
+                        login_details["name"], requested_upstream_idp
                     )
                 )
             upstream_idps.append(available_upstream_idp)
@@ -523,7 +520,7 @@ def get_all_upstream_idps(idp_name: str, discovery_url: str, format: str) -> dic
         return all_idps
     else:
         raise InternalError(
-            f"IdP '{idp_name}' misconfigured: idp_discovery.format '{format}' is not supported"
+            f"IdP 'OPENID_CONNECT.{idp_name}' misconfigured: idp_discovery.format '{format}' is not supported"
         )
 
 
