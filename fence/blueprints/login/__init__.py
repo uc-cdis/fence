@@ -453,7 +453,7 @@ def make_login_blueprint():
 def get_all_upstream_idps(idp_name: str, discovery_url: str, format: str) -> dict:
     if format == "shibboleth":
         return get_all_shib_idps(discovery_url)
-    elif format == "mdq":  # InCommon Metadata Query Protocol
+    elif format == "mdq-xml":  # InCommon Metadata Query Protocol
         all_idps = []
         xml_data = fetch_url_data(discovery_url, "text")
         tree = ElementTree.ElementTree(ElementTree.fromstring(xml_data))
