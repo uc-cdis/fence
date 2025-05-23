@@ -2003,6 +2003,9 @@ class UserSyncer(object):
 
             # update the project info with users from arborist
             self.sync_two_phsids_dict(arborist_user_projects, user_projects)
+            print("----arborist user projects-----")
+            print(arborist_user_projects)
+            print(user_projects)
 
         policy_id_list = []
         policies = []
@@ -2060,6 +2063,8 @@ class UserSyncer(object):
                 user_project_info, project_to_authz_mapping
             )
             print("----unique policies-----")
+            print(user_project_info)
+            print(project_to_authz_mapping)
             print(unique_policies)
 
             for roles in unique_policies.keys():
