@@ -136,7 +136,7 @@ def get_provider_info(login_details):
 
     # [Backwards compatibility for Fence multi-tenant login / Shibboleth legacy configuration]
     # fall back to `fence_idp` if `upstream_idps` is not specified
-    requested_upstream_idps = login_details.get("upstream_idps", [])
+    requested_upstream_idps = login_details.get("upstream_idps")
     if not requested_upstream_idps and "fence_idp" in login_details:
         requested_upstream_idps = [login_details["fence_idp"]]
 
@@ -219,8 +219,8 @@ def get_provider_info(login_details):
 
     if requested_upstream_idps == "*":
         upstream_idps = UPSTREAM_IDP_CACHE.get(cache_key)
-    elif isinstance(requested_upstream_idps, list):
-        # get the display names for each requested shib IDP
+    elif isinstance(requested_upstream_idps, list) and len(requested_upstream_idps):
+        # get the display names for each requested IdP
         upstream_idps = []
         for requested_upstream_idp in set(requested_upstream_idps):
             available_upstream_idp = next(

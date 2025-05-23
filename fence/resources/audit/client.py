@@ -202,8 +202,7 @@ class AuditServiceClient:
             "username": username,
             "sub": sub,
             "idp": idp,
-            # [Backwards compatibility for Fence multi-tenant login / Shibboleth legacy
-            # configuration] audit-service still registers `upstream_idp` as `fence_idp`
+            # NOTE: audit-service still registers `upstream_idp` as `fence_idp`
             "fence_idp": upstream_idp,
             "shib_idp": shib_idp,
             "client_id": client_id,

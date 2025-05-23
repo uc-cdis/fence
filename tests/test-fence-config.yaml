@@ -154,6 +154,15 @@ OPENID_CONNECT:
     authorization_url_param_map:
       idp: idp_hint
       key_not_in_login_url: something
+  generic_mdq_discovery_without_idp_discovery:
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/generic_mdq_discovery_without_idp_discovery/login'
+    discovery:
+      authorization_endpoint: 'https://generic_mdq_discovery_without_idp_discovery/authorization_endpoint'
+    authorization_url_param_map:
+      idp: idp_hint
+      key_not_in_login_url: something
 
 # these are the *possible* scopes a client can be given, NOT scopes that are
 # given to all clients. You can be more restrictive during client creation
@@ -242,7 +251,7 @@ LOGIN_OPTIONS:
     fence_idp: orcid
   - name: 'Orcid Login with upstream_idps'
     idp: fence
-    upstream_idp:
+    upstream_idps:
     - orcid
   - name: 'CILogon Login'
     idp: cilogon
@@ -266,6 +275,10 @@ LOGIN_OPTIONS:
     upstream_idps:
     - urn:mace:incommon:uchicago.edu
     - https://idp.uca.fr/idp/shibboleth
+  - name: 'MDQ discovery without idp_discovery some providers'
+    idp: generic_mdq_discovery_without_idp_discovery
+    upstream_idps:
+    - urn:mace:incommon:uchicago.edu
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # LIBRARY CONFIGURATION (flask)
