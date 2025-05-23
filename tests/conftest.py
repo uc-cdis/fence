@@ -1757,7 +1757,7 @@ def get_all_upstream_idps_data_patcher():
         url = args[0] if args else ""
         if "shibboleth" in url:
             return [
-                {"entityID": "some-incommon-entity-id"},
+                {"entityID": "entity-id-without-display-name"},
                 {
                     "entityID": "https://idp.uca.fr/idp/shibboleth",
                     "DisplayNames": [

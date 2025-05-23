@@ -39,7 +39,7 @@ def config_idp_in_client(
                     "name": "InCommon login",
                     "idp": "fence",
                     "fence_idp": "shibboleth",
-                    "shib_idps": ["some-incommon-entity-id"],
+                    "shib_idps": ["entity-id-without-display-name"],
                 }
             ],
             "OPENID_CONNECT": {
@@ -94,7 +94,7 @@ def test_redirect_oauth2_authorize_default_params(
     assert r.status_code == 302
     assert "/login/fence" in r.location
     assert "idp=shibboleth" in r.location
-    assert "shib_idp=some-incommon-entity-id" in r.location
+    assert "shib_idp=entity-id-without-display-name" in r.location
 
 
 def test_redirect_login_fence(app, client, config_idp_in_client):
