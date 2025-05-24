@@ -57,6 +57,8 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
                             "method": flask.request.method,
                             "path": flask.request.path,
                             "service": flask.request.headers.get("Gen3-Service"),
+                            # Fence uses Flask, we can get the raw request body using get_data()
+                            # as_text=True gives us a regular string instead of bytes, which is needed for the signature check
                             "body": flask.request.get_data(as_text=True),
                         }
                         payload = json.dumps(standardized_payload, sort_keys=True)
