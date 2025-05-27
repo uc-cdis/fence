@@ -2063,9 +2063,12 @@ class UserSyncer(object):
                 user_project_info, project_to_authz_mapping
             )
             print("----unique policies-----")
-            print(user_project_info)
-            print(project_to_authz_mapping)
             print(unique_policies)
+            print(
+                self._determine_unique_policies(
+                    arborist_users_auth_mapping[username], project_to_authz_mapping
+                )
+            )
 
             for roles in unique_policies.keys():
                 for role in roles:
