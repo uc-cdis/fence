@@ -2003,9 +2003,6 @@ class UserSyncer(object):
 
             # update the project info with users from arborist
             self.sync_two_phsids_dict(arborist_user_projects, user_projects)
-            print("----arborist user projects-----")
-            print(arborist_user_projects)
-            print(user_projects)
 
         policy_id_list = []
         policies = []
@@ -2064,6 +2061,7 @@ class UserSyncer(object):
             )
             print("----unique policies-----")
             print(user_project_info)
+            print("----arborist users auth mapping-----")
             print(arborist_users_auth_mapping[username])
 
             print(unique_policies)
@@ -2105,9 +2103,6 @@ class UserSyncer(object):
                             # format project '/x/y/z' -> 'x.y.z'
                             # so the policy id will be something like 'x.y.z-create'
                             policy_id = _format_policy_id(resource, role)
-                            print("----policy id-----")
-                            print(resource, role)
-                            print(policy_id)
                             if policy_id not in self._created_policies:
                                 try:
                                     self.arborist_client.update_policy(
