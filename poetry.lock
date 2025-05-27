@@ -937,18 +937,19 @@ dotenv = ["python-dotenv"]
 
 [[package]]
 name = "flask-cors"
-version = "5.0.0"
-description = "A Flask extension adding a decorator for CORS support"
+version = "6.0.0"
+description = "A Flask extension simplifying CORS support"
 optional = false
-python-versions = "*"
+python-versions = "<4.0,>=3.9"
 groups = ["main"]
 files = [
-    {file = "Flask_Cors-5.0.0-py2.py3-none-any.whl", hash = "sha256:b9e307d082a9261c100d8fb0ba909eec6a228ed1b60a8315fd85f783d61910bc"},
-    {file = "flask_cors-5.0.0.tar.gz", hash = "sha256:5aadb4b950c4e93745034594d9f3ea6591f734bb3662e16e255ffbf5e89c88ef"},
+    {file = "flask_cors-6.0.0-py3-none-any.whl", hash = "sha256:6332073356452343a8ccddbfec7befdc3fdd040141fe776ec9b94c262f058657"},
+    {file = "flask_cors-6.0.0.tar.gz", hash = "sha256:4592c1570246bf7beee96b74bc0adbbfcb1b0318f6ba05c412e8909eceec3393"},
 ]
 
 [package.dependencies]
-Flask = ">=0.9"
+flask = ">=0.9"
+Werkzeug = ">=0.7"
 
 [[package]]
 name = "flask-restful"
@@ -2832,4 +2833,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9.2,<4.0.0"
-content-hash = "c13653214bd73d641454aa3f4497271a7e132cd16b3561163831701185404ae1"
+content-hash = "c48a07329dc489e923d9a4cfa3392437fcfd0c096ae3613db2ad33d4cf19ca9f"
