@@ -2063,6 +2063,9 @@ class UserSyncer(object):
                 user_project_info, project_to_authz_mapping
             )
             print("----unique policies-----")
+            print(user_project_info)
+            print(arborist_users_auth_mapping[username])
+
             print(unique_policies)
             print(
                 self._determine_unique_policies(
