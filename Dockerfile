@@ -57,6 +57,7 @@ RUN echo "Upgrading dnf"; \
         libxcrypt-compat-4.4.33 \
         libpq-15.0 \
         gcc \
+        yq \
         tar xz; \
     echo "Installing RPM"; \
     rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt-1.11-1.src.rpm && \
