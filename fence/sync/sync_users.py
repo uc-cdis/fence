@@ -2005,6 +2005,7 @@ class UserSyncer(object):
             self.sync_two_phsids_dict(arborist_user_projects, user_projects)
             print("------arborist users auth mapping 1-------")
             print(arborist_users_auth_mapping)
+            print(self.list_resources_for_user(username))
 
         policy_id_list = []
         policies = []
@@ -2046,25 +2047,6 @@ class UserSyncer(object):
 
             # Binam: Need to intervene on user_project_info here
             # arborist_users_auth_mapping
-
-            if not single_user_sync:
-                # find diff of incoming vs current policies
-                arborist_users_auth_mapping = {}
-                # remove removed policies
-                self._revoke_all_policies_preserve_mfa(username, idp)
-                try:
-                    arborist_users_auth_mapping[
-                        username
-                    ] = self.arborist_client.auth_mapping(username)
-                except Exception as e:
-                    self.logger.warning(
-                        "Could not get auth mapping for user `{}` in Arborist: {}".format(
-                            username, str(e)
-                        )
-                    )
-                    arborist_users_auth_mapping[username] = {}
-                print("------arborist users auth mapping 2-------")
-                print(arborist_users_auth_mapping)
 
             # as of 2/11/2022, for single_user_sync, as RAS visa parsing has
             # previously mapped each project to the same set of privileges
