@@ -57,12 +57,15 @@ RUN echo "Upgrading dnf"; \
         libxcrypt-compat-4.4.33 \
         libpq-15.0 \
         gcc \
-        yq \
         tar xz; \
     echo "Installing RPM"; \
     rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt-1.11-1.src.rpm && \
     cd /root/rpmbuild/SOURCES/ && \
     tar -zxf ccrypt-1.11.tar.gz && cd ccrypt-1.11 && ./configure --disable-libcrypt && make install && make check;
+
+RUN add-apt-repository ppa:rmescandon/yq \
+    apt update \
+    apt install yq -y
 
 COPY --chown=gen3:gen3 --from=builder /$appname /$appname
 
