@@ -14,6 +14,7 @@ from fence.models import UpstreamRefreshToken
 
 from fence.jwt.validate import validate_jwt
 from authutils.token.keys import get_public_key_for_token
+from fence.config import config
 
 
 class Oauth2ClientBase(object):
@@ -326,7 +327,9 @@ class Oauth2ClientBase(object):
             refresh_token = token_response["refresh_token"]
             # Fetching the expires at from token_response.
             # Defaulting to config settings.
-            default_refresh_token_exp = self.settings.get("default_refresh_token_exp")
+            default_refresh_token_exp = self.settings.get(
+                "default_refresh_token_exp", config["DEFAULT_REFRESH_TOKEN_EXP"]
+            )
             expires_at = token_response.get(
                 "expires_at", time.time() + default_refresh_token_exp
             )

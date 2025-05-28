@@ -506,6 +506,9 @@ GEN3_PASSPORT_EXPIRES_IN: 43200
 # We use the same field name for POSTs to /data/download for consistency
 GA4GH_DRS_POSTED_PASSPORT_FIELD: "passports"
 
+# The number of seconds after a refresh token from an IdP will expire if there is not
+# a specific exp configured for that IdP above in OPENID_CONNECT
+DEFAULT_REFRESH_TOKEN_EXP: 3600
 
 ########################################################################################
 #                               OPTIONAL CONFIGURATIONS                                #
