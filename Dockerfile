@@ -63,9 +63,8 @@ RUN echo "Upgrading dnf"; \
     cd /root/rpmbuild/SOURCES/ && \
     tar -zxf ccrypt-1.11.tar.gz && cd ccrypt-1.11 && ./configure --disable-libcrypt && make install && make check;
 
-RUN add-apt-repository ppa:rmescandon/yq \
-    apt update \
-    apt install yq -y
+RUN pip install yq \
+    jq
 
 COPY --chown=gen3:gen3 --from=builder /$appname /$appname
 
