@@ -551,6 +551,7 @@ def test_login_log_login_endpoint(
                 "fence_idp": None,
                 "shib_idp": None,
                 "client_id": None,
+                "ip": "flask.request.remote_addr=127.0.0.1 x_forwarded_headers=[]",
             },
         )
 
