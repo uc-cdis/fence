@@ -2005,7 +2005,7 @@ class UserSyncer(object):
             self.sync_two_phsids_dict(arborist_user_projects, user_projects)
             print("------arborist users auth mapping 1-------")
             print(arborist_users_auth_mapping)
-            print(self.list_resources_for_user(username))
+            print(self.arborist_client.list_resources_for_user(username))
 
         policy_id_list = []
         policies = []
