@@ -63,7 +63,8 @@ RUN echo "Upgrading dnf"; \
     cd /root/rpmbuild/SOURCES/ && \
     tar -zxf ccrypt-1.11.tar.gz && cd ccrypt-1.11 && ./configure --disable-libcrypt && make install && make check;
 
-RUN wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq && \
+RUN dnf install -y wget ca-certificates && \
+    wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq && \
     chmod +x /usr/local/bin/yq
 
 COPY --chown=gen3:gen3 --from=builder /$appname /$appname
