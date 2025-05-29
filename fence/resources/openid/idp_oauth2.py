@@ -163,23 +163,37 @@ class Oauth2ClientBase(object):
         user OR "error" field with details of the error.
         """
         user_id_field = self.settings.get("user_id_field", "sub")
+        user_email_field = self.settings.get("user_email_field", "email")
+        id_from_idp_field = self.settings.get("id_from_idp_field", "sub")
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
             jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
             claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
 
-            if claims.get(user_id_field):
-                if user_id_field == "email" and not claims.get("email_verified"):
-                    return {"error": "Email is not verified"}
-                return {
-                    user_id_field: claims[user_id_field],
-                    "mfa": self.has_mfa_claim(claims),
-                }
-            else:
-                self.logger.exception(
-                    f"Can't get {user_id_field} from claims: {claims}"
-                )
-                return {"error": f"Can't get {user_id_field} from claims"}
+            fields = {user_id_field, user_email_field, id_from_idp_field}
+
+            user_auth_info = {}
+
+            for field in fields:
+                if claims.get(field):
+
+                    # Field is email, but isn't verified and we aren't assuming all emails are verified
+                    if field == "email" and not (claims.get("email_verified") or self.settings.get("assume_emails_verified")):
+                        return {"error": "Email is not verified"}
+
+                    # We got the field, so append it to our dictionary
+                    user_auth_info[field] = claims[field]
+
+            # Append the mfa field
+            user_auth_info["mfa"] = self.has_mfa_claim(claims)
+
+            # Debug
+            self.logger.debug(
+                f"Oauth2ClientBase get_auth_info returning {user_auth_info}"
+            )
+
+            # Return what we have assembled
+            return user_auth_info
 
         except Exception as e:
             self.logger.exception(f"Can't get user info from {self.idp}: {e}")
