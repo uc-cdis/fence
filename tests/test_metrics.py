@@ -518,6 +518,18 @@ def test_login_log_login_endpoint(
         flask.g.encoded_visas = ""
     elif idp == "generic_with_discovery_url":
         get_auth_info_value = {"generic_with_discovery_url_username": username}
+    elif idp == "generic_additional_params":
+        # get_auth_info_value specific to generic_additional_params
+        # TODO: Need test when is_authz_groups_sync_enabled == true
+        get_auth_info_value = {
+            "username": username,
+            "sub": username,
+            "email_verified": True,
+            "iat": 1609459200,
+            "exp": 1609462800,
+            "refresh_token": "mock_refresh_token",
+            "groups": ["group1", "group2"],
+        }
     elif idp.startswith("generic_"):
         get_auth_info_value = {"sub": username}
 
@@ -539,6 +551,7 @@ def test_login_log_login_endpoint(
         )
         path = f"/login/{get_idp_route_name(idp)}/{callback_endpoint}"
         response = client.get(path, headers=headers)
+        print(f"Response: {response.status_code}, Body: {response.data}")
         assert response.status_code == 200, response.text
         user_sub = db_session.query(User).filter(User.username == username).first().id
         audit_service_requests.post.assert_called_once_with(

@@ -78,6 +78,7 @@ LOGIN_IDPS = [
     "generic_with_discovery_url",
     "generic_with_discovery_block",
     "generic_mdq_discovery",
+    "generic_additional_params",
 ]
 
 
@@ -398,6 +399,12 @@ def mock_arborist_requests(request):
         defaults = {
             "arborist/health": {"GET": ("", 200)},
             "arborist/auth/mapping": {"POST": ({}, "200")},
+            "arborist/group": {
+                "GET": (
+                    {"groups": [{"name": "data_uploaders", "users": ["test_user"]}]},
+                    200,
+                )
+            },
         }
         defaults.update(urls_to_responses)
         urls_to_responses = defaults
@@ -479,6 +486,33 @@ def app(kid, rsa_private_key, rsa_public_key):
     yield fence.app
 
     mocker.unmock_functions()
+
+
+@pytest.fixture
+def mock_app():
+    return MagicMock()
+
+
+@pytest.fixture
+def mock_user():
+    return MagicMock()
+
+
+@pytest.fixture
+def mock_db_session():
+    """Mock the database session."""
+    db_session = MagicMock()
+    return db_session
+
+
+@pytest.fixture
+def expired_mock_user():
+    """Mock a user object with upstream refresh tokens."""
+    user = MagicMock()
+    user.upstream_refresh_tokens = [
+        MagicMock(refresh_token="expired_token", expires=0),  # Expired token
+    ]
+    return user
 
 
 @pytest.fixture(scope="function")

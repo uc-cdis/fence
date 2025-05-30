@@ -44,7 +44,7 @@ ENCRYPTION_KEY: ''
 # //////////////////////////////////////////////////////////////////////////////////////
 # flask's debug setting
 # WARNING: DO NOT ENABLE IN PRODUCTION
-DEBUG: true
+DEBUG: false
 # if true, will automatically login a user with username "test"
 MOCK_AUTH: true
 # if true, will only fake a successful login response from Google in /login/google
@@ -160,6 +160,20 @@ OPENID_CONNECT:
     redirect_url: '{{BASE_URL}}/login/generic_mdq_discovery_without_idp_discovery/login'
     discovery:
       authorization_endpoint: 'https://generic_mdq_discovery_without_idp_discovery/authorization_endpoint'
+  generic_additional_params:
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/generic_additional_params/login'
+    discovery_url: 'https://generic_additional_params/.well-known/openid-configuration'
+    persist_refresh_token: false
+    is_authz_groups_sync_enabled: false
+    group_claim_field: "groups"
+    group_membership_expiration_duration: 604800
+    authz_groups_sync:
+      group_prefix: /covid
+    verify_aud: false
+    audience: fence
+    default_refresh_token_exp: 3600
 
 # these are the *possible* scopes a client can be given, NOT scopes that are
 # given to all clients. You can be more restrictive during client creation
