@@ -25,8 +25,8 @@ from authlib.common.urls import add_params_to_uri
 
 from cachelib import SimpleCache
 from cdislogging import get_logger
+from defusedxml import ElementTree
 import flask
-from xml.etree import ElementTree
 
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 from fence.blueprints.login.cilogon import CilogonLogin, CilogonCallback
@@ -456,8 +456,7 @@ def get_all_upstream_idps(idp_name: str, discovery_url: str, format: str) -> dic
     elif format == "mdq-xml":  # InCommon Metadata Query Protocol
         all_idps = []
         xml_data = fetch_url_data(discovery_url, "text")
-        tree = ElementTree.ElementTree(ElementTree.fromstring(xml_data))
-        for element in tree.getroot().iter():
+        for element in ElementTree.fromstring(xml_data).iter():
             if element.tag.endswith("EntityDescriptor"):
                 if "entityID" not in element.keys():
                     continue
