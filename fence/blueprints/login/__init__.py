@@ -470,28 +470,28 @@ def get_all_upstream_idps(idp_name: str, discovery_url: str, format: str) -> lis
 
             # get the IdP's display name from IDPSSODescriptor.Extensions.UIInfo.DisplayName
             display_names = []
-            for idpsSoDescriptor in element.findall(
+            for idps_so_descriptor in element.findall(
                 "{urn:oasis:names:tc:SAML:2.0:metadata}IDPSSODescriptor"
             ):
-                for extension in idpsSoDescriptor.findall(
+                for extension in idps_so_descriptor.findall(
                     "{urn:oasis:names:tc:SAML:2.0:metadata}Extensions"
                 ):
-                    for uiInfo in extension.findall(
+                    for ui_info in extension.findall(
                         "{urn:oasis:names:tc:SAML:metadata:ui}UIInfo"
                     ):
-                        for displayName in uiInfo.findall(
+                        for display_name in ui_info.findall(
                             "{urn:oasis:names:tc:SAML:metadata:ui}DisplayName"
                         ):
                             lang = ""
                             if (
                                 "{http://www.w3.org/XML/1998/namespace}lang"
-                                in displayName.keys()
+                                in display_name.keys()
                             ):
-                                lang = displayName.get(
+                                lang = display_name.get(
                                     "{http://www.w3.org/XML/1998/namespace}lang"
                                 )
                             display_names.append(
-                                {"value": displayName.text, "lang": lang}
+                                {"value": display_name.text, "lang": lang}
                             )
 
             # if IDPSSODescriptor.Extensions.UIInfo.DisplayName is not provided, fall back to

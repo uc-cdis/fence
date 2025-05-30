@@ -116,7 +116,6 @@ def register_user():
         # make sure the user exists in Arborist
         flask.current_app.arborist.create_user(dict(name=flask.g.user.username))
         if config["REGISTERED_USERS_GROUP"]:
-            # TODO test if group doesn't exist
             flask.current_app.arborist.add_user_to_group(
                 flask.g.user.username,
                 config["REGISTERED_USERS_GROUP"],
