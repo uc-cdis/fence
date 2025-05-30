@@ -1963,9 +1963,9 @@ class UserSyncer(object):
         arborist_user_projects = {}
         if not single_user_sync:
             arborist_users_auth_mapping = {}
-            # to_add, to_remove, to_delete = self._compare_policies(
-            #     arborist_users_auth_mapping, user_projects
-            # )
+            to_add, to_remove, to_delete = self._compare_policies(
+                arborist_users_auth_mapping, user_projects
+            )
 
             try:
                 arborist_users = self.arborist_client.get_users().json["users"]
@@ -2033,7 +2033,7 @@ class UserSyncer(object):
             for r in resources
         ]
         all_resources.extend(r for r in project_to_authz_mapping.values())
-        # self._create_arborist_resources(all_resources)
+        self._create_arborist_resources(all_resources)
 
         for username, user_project_info in user_projects.items():
             self.logger.info("processing user `{}`".format(username))
@@ -2057,27 +2057,27 @@ class UserSyncer(object):
                 user_project_info, project_to_authz_mapping
             )
 
-            # for roles in unique_policies.keys():
-            #     for role in roles:
-            #         self._create_arborist_role(role)
+            for roles in unique_policies.keys():
+                for role in roles:
+                    self._create_arborist_role(role)
 
             if single_user_sync:
                 for ordered_roles, ordered_resources in unique_policies.items():
                     policy_hash = self._hash_policy_contents(
                         ordered_roles, ordered_resources
                     )
-                    # self._create_arborist_policy(
-                    #     policy_hash,
-                    #     ordered_roles,
-                    #     ordered_resources,
-                    #     skip_if_exists=True,
-                    # )
+                    self._create_arborist_policy(
+                        policy_hash,
+                        ordered_roles,
+                        ordered_resources,
+                        skip_if_exists=True,
+                    )
                     # return here as it is not expected single_user_sync
                     # will need any of the remaining user_yaml operations
                     # left in _update_authz_in_arborist
-                    # return self._grant_arborist_policy(
-                    #     username, policy_hash, expires=expires
-                    # )
+                    return self._grant_arborist_policy(
+                        username, policy_hash, expires=expires
+                    )
             else:
                 # Binam: This is just to grant policies. Lets not think too much about unique policies but make sure I change unique policies before it gets here or gets created
                 for roles, resources in unique_policies.items():
@@ -2089,38 +2089,36 @@ class UserSyncer(object):
                             # format project '/x/y/z' -> 'x.y.z'
                             # so the policy id will be something like 'x.y.z-create'
                             policy_id = _format_policy_id(resource, role)
-                            # if policy_id not in self._created_policies:
-                            #     try:
-                            #         self.arborist_client.update_policy(
-                            #             policy_id,
-                            #             {
-                            #                 "description": "policy created by fence sync",
-                            #                 "role_ids": [role],
-                            #                 "resource_paths": [resource],
-                            #             },
-                            #             create_if_not_exist=True,
-                            #         )
-                            #     except ArboristError as e:
-                            #         self.logger.info(
-                            #             "not creating policy in arborist; {}".format(
-                            #                 str(e)
-                            #             )
-                            #         )
-                            #     self._created_policies.add(policy_id)
+                            if policy_id not in self._created_policies:
+                                try:
+                                    self.arborist_client.update_policy(
+                                        policy_id,
+                                        {
+                                            "description": "policy created by fence sync",
+                                            "role_ids": [role],
+                                            "resource_paths": [resource],
+                                        },
+                                        create_if_not_exist=True,
+                                    )
+                                except ArboristError as e:
+                                    self.logger.info(
+                                        "not creating policy in arborist; {}".format(
+                                            str(e)
+                                        )
+                                    )
+                                self._created_policies.add(policy_id)
 
-                            # self._grant_arborist_policy(
-                            #     username, policy_id, expires=expires
-                            # )
+                            self._grant_arborist_policy(
+                                username, policy_id, expires=expires
+                            )
 
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
-                    print("------useryaml policies-------")
-                    print(username, policy)
-                    # self.arborist_client.grant_user_policy(
-                    #     username,
-                    #     policy,
-                    #     expires_at=expires,
-                    # )
+                    self.arborist_client.grant_user_policy(
+                        username,
+                        policy,
+                        expires_at=expires,
+                    )
 
         if user_yaml:
             for client_name, client_details in user_yaml.clients.items():
