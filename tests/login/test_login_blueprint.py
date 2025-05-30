@@ -48,7 +48,7 @@ def test_default_login(app, client, get_all_upstream_idps_data_patcher):
     configured_logins = config["LOGIN_OPTIONS"]
     default_idp = config["DEFAULT_LOGIN_IDP"]
 
-    # Check default IDP is correct.
+    # Check default IdP is correct.
     assert response_default["idp"] == default_idp
     names_for_this_idp = [
         login_details["name"]
@@ -73,7 +73,7 @@ def test_enabled_logins(app, client, login_option, get_all_upstream_idps_data_pa
     response_providers = response_json["providers"]
 
     # Check all providers in the response have the expected idp, name, URLs,
-    # desc and secondary information
+    # description and secondary information
     response_provider = next(
         (
             # this assumes (idp, name) couples in test config are unique
@@ -97,20 +97,21 @@ def test_enabled_logins(app, client, login_option, get_all_upstream_idps_data_pa
             "upstream_idps", login_option.get("shib_idps")
         )
         if login_option_upstream_idps == "*":
-            # UPSTREAM_IDP_CACHE should be populated during `client.get("/login")`
-            login_option_upstream_idps = (
-                UPSTREAM_IDP_CACHE.get(f"all_{login_option['idp']}_upstream_idps") or []
-            )
+            # UPSTREAM_IDP_CACHE should have been populated during `client.get("/login")`
             login_option_upstream_idps = [
-                idp["idp"] for idp in login_option_upstream_idps
+                idp["idp"]
+                for idp in UPSTREAM_IDP_CACHE.get(
+                    f"all_{login_option['idp']}_upstream_idps"
+                )
+                or []
             ]
 
         # each IdP in the login_option "upstream_idps" should have a corresponding URL in the
         # list of IdP URLs returned by the /login endpoint
+        login_urls = [url_info["url"] for url_info in response_provider["urls"]]
         for upstream_idp in login_option_upstream_idps:
             assert any(
-                urlencode({"idp": upstream_idp}) in url_info["url"]
-                for url_info in response_provider["urls"]
+                urlencode({"idp": upstream_idp}) in url for url in login_urls
             ), 'IdP "{}": upstream_idp param "{}", encoded "{}", is not in provider\'s login URLs: {}'.format(
                 login_option["name"],
                 upstream_idp,
@@ -118,17 +119,16 @@ def test_enabled_logins(app, client, login_option, get_all_upstream_idps_data_pa
                 response_provider["urls"],
             )
 
-        # the /login endpoint should only return URLs for IdPs login_option in "upstream_idps"
-        login_urls = [url_info["url"] for url_info in response_provider["urls"]]
+        # the /login endpoint should only return URLs for IdPs configured as "upstream_idps"
         if login_option_upstream_idps:
             assert len(login_option_upstream_idps) == len(
                 login_urls
             ), f"URL mismatch for IdP '{login_option['name']}'"
 
-    # all IdP URLs returned by the /login endpoint should match an existing app URL
-    app_urls = [url_map_rule.rule for url_map_rule in app.url_map._rules]
-    login_urls = [
+    # all IdP URLs returned by the /login endpoint should match an existing app route
+    app_routes = [url_map_rule.rule for url_map_rule in app.url_map._rules]
+    login_urls = {
         url_info["url"].replace(config["BASE_URL"], "").split("?")[0]
         for url_info in response_provider["urls"]
-    ]
-    assert all(url in app_urls for url in login_urls)
+    }
+    assert all(url in app_routes for url in login_urls)

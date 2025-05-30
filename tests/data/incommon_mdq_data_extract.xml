@@ -200,9 +200,9 @@
       <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.uca.fr/idp/profile/SAML2/Redirect/SSO"/>
     </IDPSSODescriptor>
     <Organization>
-      <OrganizationName xml:lang="en">Université Clermont Auvergne</OrganizationName>
-      <OrganizationDisplayName xml:lang="en">Université Clermont Auvergne</OrganizationDisplayName>
-      <OrganizationURL xml:lang="en">http://www.uca.fr</OrganizationURL>
+      <OrganizationName xml:lang="fr">Université Clermont Auvergne</OrganizationName>
+      <OrganizationDisplayName xml:lang="fr">Université Clermont Auvergne</OrganizationDisplayName>
+      <OrganizationURL xml:lang="fr">http://www.uca.fr</OrganizationURL>
     </Organization>
     <ContactPerson contactType="technical">
       <EmailAddress>mailto:support.dsi@uca.fr</EmailAddress>

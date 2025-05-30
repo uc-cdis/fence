@@ -60,9 +60,9 @@ from tests.storageclient.storage_client_mock import get_client
 os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "true"
 
 
-# all the IDPs we want to test.
-# any newly added custom OIDC IDP should be added here.
-# generic OIDC IDPs should start with "generic" so the tests work
+# all the IdPs we want to test.
+# any newly added custom OIDC IdP should be added here.
+# generic OIDC IdPs should start with "generic" so the tests work
 # (see `get_value_from_discovery_doc_patcher`logic).
 LOGIN_IDPS = [
     "fence",
@@ -1761,7 +1761,7 @@ def get_all_upstream_idps_data_patcher():
                 {
                     "entityID": "https://idp.uca.fr/idp/shibboleth",
                     "DisplayNames": [
-                        {"value": "Université Clermont Auvergne", "lang": "en"}
+                        {"value": "Université Clermont Auvergne", "lang": "fr"}
                     ],
                 },
                 {
@@ -1782,6 +1782,8 @@ def get_all_upstream_idps_data_patcher():
                 "r",
             ) as f:
                 return f.read()
+        else:
+            return f"Update get_all_upstream_idps_data_patcher() to handle URL '{url}'"
 
     fetch_url_data_patch = patch(
         "fence.blueprints.login.fetch_url_data",

@@ -160,9 +160,6 @@ OPENID_CONNECT:
     redirect_url: '{{BASE_URL}}/login/generic_mdq_discovery_without_idp_discovery/login'
     discovery:
       authorization_endpoint: 'https://generic_mdq_discovery_without_idp_discovery/authorization_endpoint'
-    authorization_url_param_map:
-      idp: idp_hint
-      key_not_in_login_url: something
 
 # these are the *possible* scopes a client can be given, NOT scopes that are
 # given to all clients. You can be more restrictive during client creation
@@ -246,7 +243,7 @@ LOGIN_OPTIONS:
     - shibboleth
     shib_idps:
     - urn:mace:incommon:uchicago.edu
-  - name: 'Orcid Login with legacy fence_idp'
+  - name: 'Orcid Login with deprecated fence_idp'
     idp: fence
     fence_idp: orcid
   - name: 'Orcid Login with upstream_idps'

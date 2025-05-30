@@ -334,9 +334,9 @@ SESSION_ALLOWED_SCOPES:
 #   For example, if idp is "fence" (multi-tenant Fence setup), upstream_idps can include any of the
 #   providers supported by the other Fence. For multi-tenant Fence, if upstream_idps is not
 #   specified, will default to NIH login.
-# - "shib_idps": if "idp" is "fence" and upstream_idps is "shibboleth", a list of
-#   "shib_idps" can be configured for InCommon login. If not specified, will
-#   default to NIH login.
+# - "shib_idps": if "idp" is "fence" and upstream_idps is ["shibboleth"], a list of
+#   "shib_idps" can be configured for InCommon login. Can be '*' (all available IdPs) or a list of
+#   one or more entity IDs. If not specified, will default to NIH login.
 # - "fence_idp": deprecated; same as a `upstream_idps` list of 1 item.
 #   ^ [Backwards compatibility for Fence multi-tenant login / Shibboleth legacy configuration]
 # - Optional parameters: "desc" (description) and "secondary" (boolean - can
@@ -361,23 +361,20 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
   #   idp: ras
   # - name: 'Generic OIDC Login'
   #   idp: generic_oidc_idp
-  #   # `upstream_idps` can be '*' (all available IdPs) or a list of one or more IdPs. The list of
-  #   # available IdPs is fetched by configuring `idp_discovery` in the `OPENID_CONNECT` section.
   #   upstream_idps:
   #     - urn:mace:incommon:nih.gov
   #     - urn:mace:incommon:uchicago.edu
   # - name: 'NIH Login'
   #   idp: fence
-  #   upstream_idps: shibboleth
+  #   upstream_idps: [shibboleth]
   # - name: 'ORCID Login through other Fence'
   #   idp: fence
-  #   upstream_idps: orcid
+  #   upstream_idps: [orcid]
   # - name: 'CILogon Login'
   #   idp: cilogon
   # - name: 'InCommon Login'
   #   idp: fence
-  #   upstream_idps: shibboleth
-  #   # "shib_idps" can be '*' or a list of one or more entity IDs
+  #   upstream_idps: [shibboleth]
   #   shib_idps:
   #     - urn:mace:incommon:nih.gov
   #     - urn:mace:incommon:uchicago.edu
