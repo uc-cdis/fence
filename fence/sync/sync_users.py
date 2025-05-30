@@ -1963,9 +1963,9 @@ class UserSyncer(object):
         arborist_user_projects = {}
         if not single_user_sync:
             arborist_users_auth_mapping = {}
-            to_add, to_remove, to_delete = self._compare_policies(
-                arborist_users_auth_mapping, user_projects
-            )
+            # to_add, to_remove, to_delete = self._compare_policies(
+            #     arborist_users_auth_mapping, user_projects
+            # )
 
             try:
                 arborist_users = self.arborist_client.get_users().json["users"]
