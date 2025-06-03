@@ -56,7 +56,8 @@ werkzeug = ">=3.0.0"
 cachelib = "^0.2.0"
 azure-storage-blob = "^12.6.0"
 Flask-WTF = "^1.0.0"
-pcdcutils = {git = "https://github.com/chicagopcdc/pcdcutils.git", rev = "0.5.0"}
+# Testing a fix to pcdcutils
+pcdcutils = {git = "https://github.com/chicagopcdc/pcdcutils.git", rev = "PEDS-1379-3"}
 boto = "*"
 # NOTE:
 # for testing with updated libaries as git repos:
