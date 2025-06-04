@@ -1,3 +1,4 @@
+from unittest import mock
 import flask
 import pytest
 from fence.auth import login_user, logout
@@ -8,8 +9,8 @@ from fence.config import config
 from fence.errors import Unauthorized
 
 
-
-def test_login_user_already_in_db(db_session):
+@mock.patch("fence.auth.get_ip_information_string")
+def test_login_user_already_in_db(get_ip_information_string_mock, db_session):
     """
     Test that if a user is already in the database and logs in, the session will contain
     the user's information (including additional information that may have been provided
@@ -35,6 +36,8 @@ def test_login_user_already_in_db(db_session):
     assert flask.session["provider"] == provider
     assert flask.session["user_id"] == user_id
     assert flask.g.user == test_user
+
+    assert get_ip_information_string_mock.called
 
 
 def test_login_failure_for_user_already_in_db_but_inactive(db_session):
@@ -85,7 +88,8 @@ def test_login_user_with_idp_already_in_db(db_session):
     assert flask.g.user == test_user
 
 
-def test_login_new_user(db_session):
+@mock.patch("fence.auth.get_ip_information_string")
+def test_login_new_user(get_ip_information_string_mock, db_session):
     """
     Test that if a user is not in the database and logs in, the user is added to the
     database and the session will contain the user's information.
@@ -105,6 +109,8 @@ def test_login_new_user(db_session):
     assert flask.session["provider"] == provider
     assert flask.session["user_id"] == str(test_user.id)
     assert flask.g.user == test_user
+
+    assert get_ip_information_string_mock.called
 
 
 def test_login_new_user_not_allowed(db_session, monkeypatch):
