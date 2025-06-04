@@ -875,10 +875,6 @@ class UserSyncer(object):
             username.lower(): info for username, info in user_info.items()
         }
 
-        print("-----fence set-------")
-        print(cur_db_user_project_list)
-        print(syncing_user_project_list)
-
         to_delete = set.difference(cur_db_user_project_list, syncing_user_project_list)
         to_add = set.difference(syncing_user_project_list, cur_db_user_project_list)
         to_update = set.intersection(
@@ -1657,8 +1653,6 @@ class UserSyncer(object):
                     " arborist client--did you run sync with --arborist <arborist client> arg?"
                 )
             self.logger.info("Synchronizing arborist...")
-            print("------from user yaml---------")
-            print(user_yaml)
             success = self._update_arborist(sess, user_yaml)
             if success:
                 self.logger.info("Finished synchronizing arborist")
@@ -2009,9 +2003,6 @@ class UserSyncer(object):
 
             # update the project info with users from arborist
             self.sync_two_phsids_dict(arborist_user_projects, user_projects)
-            print("------arborist users auth mapping 1-------")
-            print(arborist_users_auth_mapping)
-            print(self.arborist_client.list_resources_for_user(username))
 
         policy_id_list = []
         policies = []
@@ -2119,6 +2110,8 @@ class UserSyncer(object):
                             )
 
             if user_yaml:
+                print("---------user yaml policies-------")
+                print(user_yaml.policies.get(username, []))
                 for policy in user_yaml.policies.get(username, []):
                     self.arborist_client.grant_user_policy(
                         username,
