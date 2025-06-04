@@ -6,19 +6,9 @@ from fence.authz.errors import ArboristError
 from fence.errors import Forbidden, Unauthorized, NotFound
 from fence.jwt.utils import get_jwt_header
 from fence.config import config
-from pcdcutils.gen3 import Gen3RequestManager
+from pcdcutils.gen3 import Gen3RequestManager, SignaturePayload
+import json
 
-
-class SignaturePayload:
-    def __init__(self, method, path, headers=None):
-        self.method = method.upper()
-        self.path = path
-        self.headers = headers or {}
-
-    def get_data(self, as_text=True):
-        header_str = "\n".join(f"{k}: {v}" for k, v in sorted(self.headers.items()))
-        payload_str = f"{self.method} {self.path}\n{header_str}"
-        return payload_str if as_text else payload_str.encode("utf-8")
 
 
 def check_arborist_auth(resource, method, constraints=None, check_signature=False):
@@ -61,11 +51,23 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
                 resources=resource,
             ):
                 if check_signature:
+                    headers = dict(flask.request.headers)
+                    body = flask.request.get_json()
+                    method = flask.request.method 
+                    path = flask.request.path
+
+                    print("AAAAAAAAAAAAAA")
+                    print(flask.request.headers)
+                    print(headers)
+                    print(body)
+                    print(method)
+                    print(path)
+
                     g3rm = Gen3RequestManager(headers=flask.request.headers)
 
                     if g3rm.is_gen3_signed():
                         # --- PUBLIC_KEY guard ---
-                        public_key = config.get("PUBLIC_KEY")
+                        public_key = config.get("AMANUENSIS_PUBLIC_KEY")
                         if not public_key:
                             flask.current_app.logger.error(
                                 "No PUBLIC_KEY configured — cannot validate signature"
@@ -76,13 +78,14 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
 
                         # --- Prepare SignaturePayload ---
                         payload = SignaturePayload(
-                            method=flask.request.method,
-                            path=flask.request.path,  # Flask
+                            method=method,
+                            path=path
                             headers={
                                 "Gen3-Service": flask.request.headers.get(
                                     "Gen3-Service"
                                 )
                             },
+                            body = json.dumps(body, separators=(",", ":"))
                         )
 
                         if not g3rm.valid_gen3_signature(payload, config):
