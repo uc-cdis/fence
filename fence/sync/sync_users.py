@@ -2053,6 +2053,7 @@ class UserSyncer(object):
                         username, policy_hash, expires=expires
                     )
             else:
+                policy_ids_to_grant = set()
                 for roles, resources in unique_policies.items():
                     for role in roles:
                         for resource in resources:
@@ -2080,10 +2081,10 @@ class UserSyncer(object):
                                         )
                                     )
                                 self._created_policies.add(policy_id)
-
-                            self._grant_arborist_policy(
-                                username, policy_id, expires=expires
-                            )
+                            policy_ids_to_grant.add(policy_id)
+                self._grant_arborist_policies(
+                    username, policy_ids_to_grant, expires=expires
+                )
 
             if user_yaml:
                 for policy in user_yaml.policies.get(username, []):
@@ -2351,6 +2352,32 @@ class UserSyncer(object):
         self.logger.debug(
             "granted policy `{}` to user `{}`".format(policy_id, username)
         )
+        return True
+
+    def _grant_arborist_policies(self, username, policy_ids, expires=None):
+        """
+        Wrapper around gen3authz's grant_user_policies with additional logging
+
+        Args:
+            username (str): username of user in Arborist who policy should be
+                            granted to
+            policy_ids (set[str]): Arborist policy ids
+            expires (int): POSIX timestamp for when policy should expire
+
+        Return:
+            bool: True if granting of policies was successful, False otherwise
+        """
+        try:
+            response_json = self.arborist_client.grant_bulk_user_policy(
+                username,
+                policy_ids,
+                expires_at=expires,
+            )
+        except ArboristError as e:
+            self.logger.error(
+                "could not grant bulk policies  to user `{}`: {}".format(username, e)
+            )
+            return False
         return True
 
     def _determine_arborist_resource(self, dbgap_study, dbgap_config):
