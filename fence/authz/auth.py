@@ -45,7 +45,8 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
             print("AAAAAAAAAAAAAA",flush=True)
             print(flask.request.headers,flush=True)
             print(dict(flask.request.headers),flush=True)
-            print(flask.request.get_json(),flush=True)
+            if flask.request.method in ['POST', 'PUT', 'PATCH']:
+               print(flask.request.get_json(silent=True),flush=True)
             print(flask.request.method ,flush=True)
             print(flask.request.path,flush=True)
 
@@ -62,10 +63,12 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
             ):
                 if check_signature:
                     headers = dict(flask.request.headers)
-                    body = flask.request.get_json()
                     method_s = flask.request.method 
                     path = flask.request.path
-
+                    body = None
+                    if method_s in ['POST', 'PUT', 'PATCH']:
+                        body = flask.request.get_json(silent=True)
+    
                     g3rm = Gen3RequestManager(headers=flask.request.headers)
 
                     if g3rm.is_gen3_signed():
