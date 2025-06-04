@@ -40,16 +40,6 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
     def decorator(f):
         @wraps(f)
         def wrapper(*f_args, **f_kwargs):
-
-            print("REACHED THE WRAPPER", flush=True)
-            print("AAAAAAAAAAAAAA",flush=True)
-            print(flask.request.headers,flush=True)
-            print(dict(flask.request.headers),flush=True)
-            if flask.request.method in ['POST', 'PUT', 'PATCH']:
-               print(flask.request.get_json(silent=True),flush=True)
-            print(flask.request.method ,flush=True)
-            print(flask.request.path,flush=True)
-
             if not hasattr(flask.current_app, "arborist"):
                 raise Forbidden(
                     "this fence instance is not configured with arborist;"
@@ -64,12 +54,22 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
                 if check_signature:
                     headers = dict(flask.request.headers)
                     method_s = flask.request.method 
-                    path = flask.request.path
+                    path = flask.request.url #flask.request.path
                     body = None
                     if method_s in ['POST', 'PUT', 'PATCH']:
                         body = flask.request.get_json(silent=True)
+
+
+
+                    print("REACHED THE WRAPPER", flush=True)
+                    print("AAAAAAAAAAAAAA",flush=True)
+                    print(headers,flush=True)
+                    if method_s in ['POST', 'PUT', 'PATCH']:
+                       print(body,flush=True)
+                    print(method_s ,flush=True)
+                    print(path,flush=True)
     
-                    g3rm = Gen3RequestManager(headers=flask.request.headers)
+                    g3rm = Gen3RequestManager(headers=headers)
 
                     if g3rm.is_gen3_signed():
                         # --- PUBLIC_KEY guard ---
@@ -87,12 +87,16 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
                             method=method_s,
                             path=path,
                             headers={
-                                "Gen3-Service": flask.request.headers.get(
+                                "Gen3-Service": headers.get(
                                     "Gen3-Service"
                                 )
                             },
                             body = json.dumps(body, separators=(",", ":"))
                         )
+
+                        print("REACHED AAAAAAAAA", flush=True)
+                        print(payload.get_standardized_payload(config.get("SERVICE_NAME").upper()), flush=True)
+
 
                         if not g3rm.valid_gen3_signature(payload, config):
                             raise Forbidden("Gen3 signed request is invalid")
