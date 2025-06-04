@@ -95,7 +95,7 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
                         )
 
                         print("REACHED AAAAAAAAA", flush=True)
-                        print(payload.get_standardized_payload(config.get("SERVICE_NAME").upper()), flush=True)
+                        print(payload.get_standardized_payload(headers.get("Gen3-Service")), flush=True)
 
 
                         if not g3rm.valid_gen3_signature(payload, config):
