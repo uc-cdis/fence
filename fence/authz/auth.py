@@ -1,13 +1,14 @@
 from functools import wraps
+import json
 
 import flask
+from pcdcutils.gen3 import Gen3RequestManager, SignaturePayload
 
 from fence.authz.errors import ArboristError
 from fence.errors import Forbidden, Unauthorized, NotFound
 from fence.jwt.utils import get_jwt_header
 from fence.config import config
-from pcdcutils.gen3 import Gen3RequestManager, SignaturePayload
-import json
+from fence import logger
 
 
 
@@ -56,12 +57,12 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
                     method_s = flask.request.method 
                     path = flask.request.path
 
-                    print("AAAAAAAAAAAAAA")
-                    print(flask.request.headers)
-                    print(headers)
-                    print(body)
-                    print(method_s)
-                    print(path)
+                    logger.error("AAAAAAAAAAAAAA")
+                    logger.error(flask.request.headers)
+                    logger.error(headers)
+                    logger.error(body)
+                    logger.error(method_s)
+                    logger.error(path)
 
                     g3rm = Gen3RequestManager(headers=flask.request.headers)
 
