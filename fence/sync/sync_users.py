@@ -875,6 +875,10 @@ class UserSyncer(object):
             username.lower(): info for username, info in user_info.items()
         }
 
+        print("-----fence set-------")
+        print(cur_db_user_project_list)
+        print(syncing_user_project_list)
+
         to_delete = set.difference(cur_db_user_project_list, syncing_user_project_list)
         to_add = set.difference(syncing_user_project_list, cur_db_user_project_list)
         to_update = set.intersection(
