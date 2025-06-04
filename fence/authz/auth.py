@@ -79,7 +79,7 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
                         # --- Prepare SignaturePayload ---
                         payload = SignaturePayload(
                             method=method,
-                            path=path
+                            path=path,
                             headers={
                                 "Gen3-Service": flask.request.headers.get(
                                     "Gen3-Service"
