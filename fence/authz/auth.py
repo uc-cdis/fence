@@ -2,12 +2,12 @@ from functools import wraps
 import json
 
 import flask
+from pcdcutils.gen3 import Gen3RequestManager, SignaturePayload
 
 from fence.authz.errors import ArboristError
 from fence.errors import Forbidden, Unauthorized, NotFound
 from fence.jwt.utils import get_jwt_header
 from fence.config import config
-from pcdcutils.gen3 import Gen3RequestManager
 
 
 def check_arborist_auth(resource, method, constraints=None, check_signature=False):
@@ -50,18 +50,37 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
                 resources=resource,
             ):
                 if check_signature:
-                    g3rm = Gen3RequestManager(headers=flask.request.headers)
+                    headers = dict(flask.request.headers)
+                    method_s = flask.request.method 
+                    path = flask.request.url #flask.request.path
+                    body = None
+                    if method_s in ['POST', 'PUT', 'PATCH']:
+                        body = flask.request.get_json(silent=True)
+    
+                    g3rm = Gen3RequestManager(headers=headers)
+
                     if g3rm.is_gen3_signed():
-                        # Build the standardized payload
-                        standardized_payload = {
-                            "method": flask.request.method,
-                            "path": flask.request.path,
-                            "service": flask.request.headers.get("Gen3-Service"),
-                            # Fence uses Flask, we can get the raw request body using get_data()
-                            # as_text=True gives us a regular string instead of bytes, which is needed for the signature check
-                            "body": flask.request.get_data(as_text=True),
-                        }
-                        payload = json.dumps(standardized_payload, sort_keys=True)
+                        # --- PUBLIC_KEY guard ---
+                        public_key = config.get("AMANUENSIS_PUBLIC_KEY")
+                        if not public_key:
+                            flask.current_app.logger.error(
+                                "No PUBLIC_KEY configured — cannot validate signature"
+                            )
+                            raise Forbidden(
+                                "Missing PUBLIC_KEY — cannot validate signature"
+                            )
+
+                        # --- Prepare SignaturePayload ---
+                        payload = SignaturePayload(
+                            method=method_s,
+                            path=path,
+                            headers={
+                                "Gen3-Service": headers.get(
+                                    "Gen3-Service"
+                                )
+                            },
+                            body = json.dumps(body, separators=(",", ":"))
+                        )
 
                         if not g3rm.valid_gen3_signature(payload, config):
                             raise Forbidden("Gen3 signed request is invalid")
@@ -69,10 +88,6 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
                         raise Forbidden(
                             "user does not have privileges to access this endpoint and the signature is not present."
                         )
-                else:
-                    raise Forbidden(
-                        "user does not have privileges to access this endpoint"
-                    )
             return f(*f_args, **f_kwargs)
 
         return wrapper
