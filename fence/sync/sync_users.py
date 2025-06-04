@@ -1994,6 +1994,9 @@ class UserSyncer(object):
                         username
                     ] = self.arborist_client.auth_mapping(username)
 
+                    print("-------arborist users get user-------")
+                    print(self.arborist_client.get_user(username))
+
                 except (ArboristError, KeyError, AttributeError) as error:
                     self.logger.warning(
                         "Could not get auth mapping of users in Arborist, continuing anyway. "
