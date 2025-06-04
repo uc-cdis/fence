@@ -162,7 +162,7 @@ MAX_PRESIGNED_URL_TTL = 3600
 MAX_API_KEY_TTL = 2592000
 
 #: ``MAX_ACCESS_TOKEN_TTL: int``
-#: The number of seconds after an access token is issued until it expires.
+#: The number of seconds after an access token is issued from an API key until it expires.
 MAX_ACCESS_TOKEN_TTL = 3600
 dir_path = "/secrets"
 fence_creds = os.path.join(dir_path, "fence_credentials.json")
