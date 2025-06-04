@@ -40,11 +40,14 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
     def decorator(f):
         @wraps(f)
         def wrapper(*f_args, **f_kwargs):
-            logger.error("Decorator wrapper entered")
-            logger.debug("Decorator wrapper entered")
-            logger.info("Decorator wrapper entered")
+
             print("REACHED THE WRAPPER", flush=True)
-            flask.current_app.logger.error("Flask logger reached")
+            print("AAAAAAAAAAAAAA",flush=True)
+            print(flask.request.headers,flush=True)
+            print(dict(flask.request.headers),flush=True)
+            print(flask.request.get_json(),flush=True)
+            print(flask.request.method ,flush=True)
+            print(flask.request.path,flush=True)
 
             if not hasattr(flask.current_app, "arborist"):
                 raise Forbidden(
@@ -62,16 +65,6 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
                     body = flask.request.get_json()
                     method_s = flask.request.method 
                     path = flask.request.path
-
-
-
-                    logger.error("AAAAAAAAAAAAAA",flush=True)
-                    logger.error(flask.request.headers,flush=True)
-                    logger.error(headers,flush=True)
-                    logger.error(body,flush=True)
-                    logger.error(method_s,flush=True)
-                    logger.error(path,flush=True)
-                    flask.current_app.logger.info("Checking signature headers...")
 
                     g3rm = Gen3RequestManager(headers=flask.request.headers)
 

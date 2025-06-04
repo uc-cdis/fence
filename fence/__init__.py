@@ -99,7 +99,6 @@ def app_init(
     logger.info(
         f"Prometheus metrics are{'' if config['ENABLE_PROMETHEUS_METRICS'] else ' NOT'} enabled."
     )
-    logger.info("TEST AAAAAAAAAAAAAA")
 
 
 def app_sessions(app):
