@@ -40,6 +40,12 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
     def decorator(f):
         @wraps(f)
         def wrapper(*f_args, **f_kwargs):
+            logger.error("Decorator wrapper entered")
+            logger.debug("Decorator wrapper entered")
+            logger.info("Decorator wrapper entered")
+            print("REACHED THE WRAPPER", flush=True)
+            flask.current_app.logger.error("Flask logger reached")
+
             if not hasattr(flask.current_app, "arborist"):
                 raise Forbidden(
                     "this fence instance is not configured with arborist;"
