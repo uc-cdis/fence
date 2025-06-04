@@ -8,8 +8,6 @@ from fence.authz.errors import ArboristError
 from fence.errors import Forbidden, Unauthorized, NotFound
 from fence.jwt.utils import get_jwt_header
 from fence.config import config
-from fence import logger
-
 
 
 def check_arborist_auth(resource, method, constraints=None, check_signature=False):
@@ -58,16 +56,6 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
                     body = None
                     if method_s in ['POST', 'PUT', 'PATCH']:
                         body = flask.request.get_json(silent=True)
-
-
-
-                    print("REACHED THE WRAPPER", flush=True)
-                    print("AAAAAAAAAAAAAA",flush=True)
-                    print(headers,flush=True)
-                    if method_s in ['POST', 'PUT', 'PATCH']:
-                       print(body,flush=True)
-                    print(method_s ,flush=True)
-                    print(path,flush=True)
     
                     g3rm = Gen3RequestManager(headers=headers)
 
@@ -93,10 +81,6 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
                             },
                             body = json.dumps(body, separators=(",", ":"))
                         )
-
-                        print("REACHED AAAAAAAAA", flush=True)
-                        print(payload.get_standardized_payload(headers.get("Gen3-Service")), flush=True)
-
 
                         if not g3rm.valid_gen3_signature(payload, config):
                             raise Forbidden("Gen3 signed request is invalid")
