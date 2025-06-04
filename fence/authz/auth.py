@@ -53,14 +53,14 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
                 if check_signature:
                     headers = dict(flask.request.headers)
                     body = flask.request.get_json()
-                    method = flask.request.method 
+                    method_s = flask.request.method 
                     path = flask.request.path
 
                     print("AAAAAAAAAAAAAA")
                     print(flask.request.headers)
                     print(headers)
                     print(body)
-                    print(method)
+                    print(method_s)
                     print(path)
 
                     g3rm = Gen3RequestManager(headers=flask.request.headers)
@@ -78,7 +78,7 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
 
                         # --- Prepare SignaturePayload ---
                         payload = SignaturePayload(
-                            method=method,
+                            method=method_s,
                             path=path,
                             headers={
                                 "Gen3-Service": flask.request.headers.get(
