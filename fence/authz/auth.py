@@ -2,12 +2,12 @@ from functools import wraps
 import json
 
 import flask
+from pcdcutils.gen3 import Gen3RequestManager, SignaturePayload
 
 from fence.authz.errors import ArboristError
 from fence.errors import Forbidden, Unauthorized, NotFound
 from fence.jwt.utils import get_jwt_header
 from fence.config import config
-from pcdcutils.gen3 import Gen3RequestManager
 
 
 def check_arborist_auth(resource, method, constraints=None, check_signature=False):
@@ -50,21 +50,49 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
                 resources=resource,
             ):
                 if check_signature:
-                    g3rm = Gen3RequestManager(headers=flask.request.headers)
+                    headers = dict(flask.request.headers)
+                    method_s = flask.request.method 
+                    path = flask.request.url #flask.request.path
+                    body = None
+                    if method_s in ['POST', 'PUT', 'PATCH']:
+                        body = flask.request.get_json(silent=True)
+    
+                    g3rm = Gen3RequestManager(headers=headers)
+
                     if g3rm.is_gen3_signed():
-                        data = flask.request.get_json()
-                        if not g3rm.valid_gen3_signature(json.dumps(data), config):
+                        # --- PUBLIC_KEY guard ---
+                        public_key = config.get("AMANUENSIS_PUBLIC_KEY")
+                        if not public_key:
+                            flask.current_app.logger.error(
+                                "No PUBLIC_KEY configured — cannot validate signature"
+                            )
+                            raise Forbidden(
+                                "Missing PUBLIC_KEY — cannot validate signature"
+                            )
+
+                        # --- Prepare SignaturePayload ---
+                        payload = SignaturePayload(
+                            method=method_s,
+                            path=path,
+                            headers={
+                                "Gen3-Service": headers.get(
+                                    "Gen3-Service"
+                                )
+                            },
+                            body = json.dumps(body, separators=(",", ":"))
+                        )
+
+                        if not g3rm.valid_gen3_signature(payload, config):
                             raise Forbidden("Gen3 signed request is invalid")
                     else:
-                        raise Forbidden("user does not have privileges to access this endpoint and the signature is not present.")
-                else:
-                    raise Forbidden("user does not have privileges to access this endpoint")
+                        raise Forbidden(
+                            "user does not have privileges to access this endpoint and the signature is not present."
+                        )
             return f(*f_args, **f_kwargs)
 
         return wrapper
 
     return decorator
-
 
 
 def register_arborist_user(user, policies=None):
@@ -77,28 +105,25 @@ def register_arborist_user(user, policies=None):
     created_user = flask.current_app.arborist.create_user(dict(name=user.username))
 
     if policies is None:
-        if "BASIC_REGISTRATION_ACCESS_POLICY" in config and len(config["BASIC_REGISTRATION_ACCESS_POLICY"]) > 0:
+        if (
+            "BASIC_REGISTRATION_ACCESS_POLICY" in config
+            and len(config["BASIC_REGISTRATION_ACCESS_POLICY"]) > 0
+        ):
             policies = config["BASIC_REGISTRATION_ACCESS_POLICY"]
         else:
             policies = []
-            raise NotFound("BASIC_REGISTRATION_ACCESS_POLICY is missing in the configuration file.")
+            raise NotFound(
+                "BASIC_REGISTRATION_ACCESS_POLICY is missing in the configuration file."
+            )
 
     for policy_name in policies:
         policy = flask.current_app.arborist.get_policy(policy_name)
         if not policy:
-            raise ArboristError(
-                "Policy {} NOT FOUND".format(
-                    policy_name
-                )
-            )
+            raise ArboristError("Policy {} NOT FOUND".format(policy_name))
 
         res = flask.current_app.arborist.grant_user_policy(user.username, policy_name)
         if res is None:
-            raise ArboristError(
-                "Policy {} has not been assigned.".format(
-                    policy["id"]
-                )
-            )
+            raise ArboristError("Policy {} has not been assigned.".format(policy["id"]))
 
 
 def remove_permission(user=None, policies=None):
@@ -114,7 +139,10 @@ def remove_permission(user=None, policies=None):
 
     if users and len(users) > 0:
         if policies is None:
-            if "BASIC_REGISTRATION_ACCESS_POLICY" in config and len(config["BASIC_REGISTRATION_ACCESS_POLICY"]) > 0:
+            if (
+                "BASIC_REGISTRATION_ACCESS_POLICY" in config
+                and len(config["BASIC_REGISTRATION_ACCESS_POLICY"]) > 0
+            ):
                 policies = config["BASIC_REGISTRATION_ACCESS_POLICY"]
             else:
                 policies = []
@@ -122,16 +150,14 @@ def remove_permission(user=None, policies=None):
         for policy_name in policies:
             policy = flask.current_app.arborist.get_policy(policy_name)
             if not policy:
-                raise ArboristError(
-                    "Policy {} NOT FOUND".format(
-                        policy_name
-                    )
-                )
+                raise ArboristError("Policy {} NOT FOUND".format(policy_name))
 
             for user in users:
                 user_policies = [policy["policy"] for policy in user["policies"]]
                 if policy_name in user_policies:
-                    res = flask.current_app.arborist.revoke_user_policy(user["name"], policy_name)
+                    res = flask.current_app.arborist.revoke_user_policy(
+                        user["name"], policy_name
+                    )
                     if res is None:
                         raise ArboristError(
                             "Policy {} has not been revoked from user {}.".format(
@@ -139,13 +165,3 @@ def remove_permission(user=None, policies=None):
                             )
                         )
     return "200"
-
-
-
-        
-
-
-    
-
-    
-    
