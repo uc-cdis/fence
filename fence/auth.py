@@ -287,6 +287,19 @@ def get_user_from_claims(claims):
 
 def admin_login_required(function):
     """Use the check_arborist_auth decorator checking on admin authorization."""
+
+    headers = dict(flask.request.headers)
+    body = flask.request.get_json()
+    method_s = flask.request.method 
+    path = flask.request.path
+
+    logger.error("AAAAAAAAAAAAAA")
+    logger.error(flask.request.headers)
+    logger.error(headers)
+    logger.error(body)
+    logger.error(method_s)
+    logger.error(path)
+                    
     return check_arborist_auth(["/services/fence/admin"], "*", check_signature=True)(function)
 
 

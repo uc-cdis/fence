@@ -57,13 +57,6 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
                     method_s = flask.request.method 
                     path = flask.request.path
 
-                    logger.error("AAAAAAAAAAAAAA")
-                    logger.error(flask.request.headers)
-                    logger.error(headers)
-                    logger.error(body)
-                    logger.error(method_s)
-                    logger.error(path)
-
                     g3rm = Gen3RequestManager(headers=flask.request.headers)
 
                     if g3rm.is_gen3_signed():
