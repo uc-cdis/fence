@@ -1657,6 +1657,8 @@ class UserSyncer(object):
                     " arborist client--did you run sync with --arborist <arborist client> arg?"
                 )
             self.logger.info("Synchronizing arborist...")
+            print("------from user yaml---------")
+            print(user_yaml)
             success = self._update_arborist(sess, user_yaml)
             if success:
                 self.logger.info("Finished synchronizing arborist")
