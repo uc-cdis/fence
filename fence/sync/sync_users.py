@@ -2082,15 +2082,14 @@ class UserSyncer(object):
                                     )
                                 self._created_policies.add(policy_id)
                             policy_ids_to_grant.add(policy_id)
-                self._grant_arborist_policies(username, policy_ids_to_grant)
+                self._grant_arborist_policies(
+                    username, policy_ids_to_grant, expires=expires
+                )
 
             if user_yaml:
-                for policy in user_yaml.policies.get(username, []):
-                    self.arborist_client.grant_user_policy(
-                        username,
-                        policy,
-                        expires_at=expires,
-                    )
+                self._grant_arborist_policies(
+                    username, user_yaml.policies.get(username, []), expires=expires
+                )
 
         if user_yaml:
             for client_name, client_details in user_yaml.clients.items():
@@ -2352,7 +2351,7 @@ class UserSyncer(object):
         )
         return True
 
-    def _grant_arborist_policies(self, username, policy_ids):
+    def _grant_arborist_policies(self, username, policy_ids, expires=None):
         """
         Wrapper around gen3authz's grant_user_policies with additional logging
 
@@ -2368,6 +2367,10 @@ class UserSyncer(object):
             response_json = self.arborist_client.grant_bulk_user_policy(
                 username, policy_ids
             )
+            # TODO: When gen3authz 2.3.0 is released, uncomment this and delete the above call.
+            # response_json = self.arborist_client.grant_bulk_user_policy(
+            #     username, policy_ids, expires
+            # )
         except ArboristError as e:
             self.logger.error(
                 "could not grant bulk policies  to user `{}`: {}".format(username, e)
