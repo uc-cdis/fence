@@ -2019,8 +2019,6 @@ class UserSyncer(object):
                 idp = user.identity_provider.name if user.identity_provider else None
 
             self.arborist_client.create_user_if_not_exist(username)
-            if not single_user_sync:
-                self._revoke_all_policies_preserve_mfa(username, idp)
 
             # as of 2/11/2022, for single_user_sync, as RAS visa parsing has
             # previously mapped each project to the same set of privileges
@@ -2363,9 +2361,47 @@ class UserSyncer(object):
         Return:
             bool: True if granting of policies was successful, False otherwise
         """
+        existing_policies = set()
+        to_grant = set()
+        to_revoke = set()
+        is_revoke_all = False
+        try:
+            response_json = self.arborist_client.get_user(username)
+            existing_policies = {
+                policy["policy"] for policy in response_json["policies"]
+            }
+        except ArboristError as e:
+            self.logger.error(
+                "could not get policies for user `{}`: {}".format(username, e)
+            )
+
+        if len(existing_policies) > 0:
+            to_grant = set(policy_ids) - existing_policies
+            to_revoke = existing_policies - set(policy_ids)
+        else:
+            is_revoke_all = True
+
+        try:
+            for policy in to_revoke:
+                self.arborist_client.revoke_user_policy(username, policy)
+        except ArboristError as e:
+            self.logger.error(
+                "could not revoke policy {} for user `{}`, revoking all instead: {}".format(
+                    policy, username, e
+                )
+            )
+            is_revoke_all = True
+
+        if is_revoke_all:
+            self.arborist_client.revoke_all_policies_for_user(username)
+            to_grant = set(policy_ids)
+
+        if "mfa_policy" in existing_policies:
+            to_grant.add("mfa_policy")
+
         try:
             response_json = self.arborist_client.grant_bulk_user_policy(
-                username, policy_ids
+                username, to_grant
             )
             # TODO: When gen3authz 2.3.0 is released, uncomment this and delete the above call.
             # response_json = self.arborist_client.grant_bulk_user_policy(
