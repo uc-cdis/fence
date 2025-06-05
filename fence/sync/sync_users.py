@@ -2056,6 +2056,8 @@ class UserSyncer(object):
             unique_policies = self._determine_unique_policies(
                 user_project_info, project_to_authz_mapping
             )
+            print("---------unique policies-------")
+            print(unique_policies)
 
             for roles in unique_policies.keys():
                 for role in roles:
