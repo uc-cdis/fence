@@ -29,6 +29,8 @@ def reset_prometheus_metrics():
     logic? Because it doesn't work, the prometheus client also keeps the state, and the mismatch
     causes errors. This only works when the client is reset too (new process)
     """
+    assert os.environ.get("PROMETHEUS_CONFIGURED_FOR_TESTS"), "Prometheus is not configured correctly. Make sure to run the tests using `tests/ci_commands_script.sh`."
+
     yield
 
     folder = os.environ["PROMETHEUS_MULTIPROC_DIR"]
