@@ -2082,7 +2082,11 @@ class UserSyncer(object):
                         username, policy_hash, expires=expires
                     )
             else:
-                # Binam: This is just to grant policies. Lets not think too much about unique policies but make sure I change unique policies before it gets here or gets created
+                # TODO: Lets create the _created_policies set here and in a different loop grant arborist policies
+                # we can compare the set of created policies with the set of policies the user already has
+                # well, self._created policies is just general polcies and not associated with a specific user
+                user_policy = []
+
                 for roles, resources in unique_policies.items():
                     for role in roles:
                         for resource in resources:
@@ -2092,6 +2096,7 @@ class UserSyncer(object):
                             # format project '/x/y/z' -> 'x.y.z'
                             # so the policy id will be something like 'x.y.z-create'
                             policy_id = _format_policy_id(resource, role)
+                            user_policy.append(policy_id)
                             if policy_id not in self._created_policies:
                                 try:
                                     self.arborist_client.update_policy(
@@ -2114,6 +2119,9 @@ class UserSyncer(object):
                             self._grant_arborist_policy(
                                 username, policy_id, expires=expires
                             )
+                print("---------user policy-------")
+                print(username)
+                print(user_policy)
 
             if user_yaml:
                 print("---------user yaml policies-------")
