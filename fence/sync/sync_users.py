@@ -1954,16 +1954,11 @@ class UserSyncer(object):
             # if incoming_policies is empty, we revoke all policies
             is_revoke_all = True
 
-        print("---------------------------------------------")
-        print(username)
-        print(to_add)
-        print(to_remove)
-        print(to_keep)
-
         if not is_revoke_all:
             try:
-                for policy in to_remove:
-                    self.arborist_client.revoke_user_policy(username, policy)
+                if to_remove:
+                    for policy in to_remove:
+                        self.arborist_client.revoke_user_policy(username, policy)
             except ArboristError as e:
                 self.logger.error(
                     f"Could not revoke user {username} policy {policy}. Revoking all instead: {e}"
@@ -1971,7 +1966,13 @@ class UserSyncer(object):
                 is_revoke_all = True
 
         if is_revoke_all:
-            self.arborist_client.revoke_all_policies_for_user(username)
+            try:
+                self.arborist_client.revoke_all_policies_for_user(username)
+            except ArboristError as e:
+                self.logger.error(
+                    f"Could not revoke all policies for user {username}. Error: {e}"
+                )
+                return False
             to_add = incoming_policies  # if we revoke all, we need to add all incoming policies
 
         if (
@@ -1980,19 +1981,20 @@ class UserSyncer(object):
         ):
             to_add.add("mfa_policy")
 
-        try:
-            response_json = self.arborist_client.grant_bulk_user_policy(
-                username, to_add
-            )
-            # TODO: When gen3authz 2.3.0 is released, uncomment this and delete the above call.
-            # response_json = self.arborist_client.grant_bulk_user_policy(
-            #     username, policy_ids, expires
-            # )
-        except ArboristError as e:
-            self.logger.error(
-                f"Could not grant user {username} policies {to_add}. Error: {e}"
-            )
-            return False
+        if to_add:
+            try:
+                response_json = self.arborist_client.grant_bulk_user_policy(
+                    username, list(to_add)
+                )
+                # TODO: When gen3authz 2.3.0 is released, uncomment this and delete the above call.
+                # response_json = self.arborist_client.grant_bulk_user_policy(
+                #     username, policy_ids, expires
+                # )
+            except ArboristError as e:
+                self.logger.error(
+                    f"Could not grant user {username} policies {to_add}. Error: {e}"
+                )
+                return False
 
         return True
 
@@ -2193,13 +2195,13 @@ class UserSyncer(object):
 
             self._grant_arborist_policies(username, incoming_policies, expires=expires)
 
-            if user_yaml:
-                for policy in user_yaml.policies.get(username, []):
-                    self.arborist_client.grant_user_policy(
-                        username,
-                        policy,
-                        expires_at=expires,
-                    )
+            # if user_yaml:
+            #     for policy in user_yaml.policies.get(username, []):
+            #         self.arborist_client.grant_user_policy(
+            #             username,
+            #             policy,
+            #             expires_at=expires,
+            #         )
 
         if user_yaml:
             for client_name, client_details in user_yaml.clients.items():
