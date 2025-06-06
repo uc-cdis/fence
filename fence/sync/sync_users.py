@@ -1958,6 +1958,9 @@ class UserSyncer(object):
             try:
                 if to_remove:
                     for policy in to_remove:
+                        self.logger.info(
+                            f"Revoking policy {policy} for user {username}."
+                        )
                         self.arborist_client.revoke_user_policy(username, policy)
             except ArboristError as e:
                 self.logger.error(
@@ -1967,6 +1970,7 @@ class UserSyncer(object):
 
         if is_revoke_all:
             try:
+                self.logger.info(f"Revoking all policies for user {username}.")
                 self.arborist_client.revoke_all_policies_for_user(username)
             except ArboristError as e:
                 self.logger.error(
