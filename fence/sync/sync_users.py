@@ -1981,7 +1981,7 @@ class UserSyncer(object):
             to_add.add("mfa_policy")
 
         try:
-            response_json = self.arborist_client.grant_bulk_user_policies(
+            response_json = self.arborist_client.grant_bulk_user_policy(
                 username, to_add
             )
             # TODO: When gen3authz 2.3.0 is released, uncomment this and delete the above call.
