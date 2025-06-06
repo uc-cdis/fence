@@ -1954,6 +1954,12 @@ class UserSyncer(object):
             # if incoming_policies is empty, we revoke all policies
             is_revoke_all = True
 
+        print("---------------------------------------------")
+        print(username)
+        print(to_add)
+        print(to_remove)
+        print(to_keep)
+
         if not is_revoke_all:
             try:
                 for policy in to_remove:
