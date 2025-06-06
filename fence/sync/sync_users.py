@@ -1914,6 +1914,82 @@ class UserSyncer(object):
         if "mfa_policy" in policies:
             self.arborist_client.grant_user_policy(username, "mfa_policy")
 
+    def _grant_arborist_policies(self, username, incoming_policies, expires=None):
+        """
+        Grant policies in Arborist for a user.
+
+        Args:
+            user_existing_policies (_type_): _description_
+            incoming_policies (_type_): _description_
+        """
+        user_existing_policies = set()
+        to_keep = set()
+        to_add = set()
+        to_remove = set()
+        is_revoke_all = False
+
+        try:
+            user_existing_policies = set(
+                policy["policy"]
+                for policy in self.arborist_client.get_user(username)["policies"]
+            )
+        except ArboristError as e:
+            self.logger.error(
+                f"Could not get user {username} policies from Arborist: {e}"
+            )
+            # if getting existing policies fails, revoke all policies and re-apply
+            is_revoke_all = True
+
+        if is_revoke_all is False and len(incoming_policies) > 0:
+            to_keep = (
+                incoming_policies & user_existing_policies
+            )  # policies that remain unchanged
+            to_add = (
+                incoming_policies - user_existing_policies
+            )  # policies that need to be added
+            to_remove = (
+                user_existing_policies - incoming_policies
+            )  # policies that need to be removed
+        else:
+            # if incoming_policies is empty, we revoke all policies
+            is_revoke_all = True
+
+        if not is_revoke_all:
+            try:
+                for policy in to_remove:
+                    self.arborist_client.revoke_user_policy(username, policy)
+            except ArboristError as e:
+                self.logger.error(
+                    f"Could not revoke user {username} policy {policy}. Revoking all instead: {e}"
+                )
+                is_revoke_all = True
+
+        if is_revoke_all:
+            self.arborist_client.revoke_all_policies_for_user(username)
+            to_add = incoming_policies  # if we revoke all, we need to add all incoming policies
+
+        if (
+            "mfa_policy" not in incoming_policies
+            and "mfa_policy" in user_existing_policies
+        ):
+            to_add.add("mfa_policy")
+
+        try:
+            response_json = self.arborist_client.grant_bulk_user_policies(
+                username, to_add
+            )
+            # TODO: When gen3authz 2.3.0 is released, uncomment this and delete the above call.
+            # response_json = self.arborist_client.grant_bulk_user_policy(
+            #     username, policy_ids, expires
+            # )
+        except ArboristError as e:
+            self.logger.error(
+                f"Could not grant user {username} policies {to_add}. Error: {e}"
+            )
+            return False
+
+        return True
+
     def _update_authz_in_arborist(
         self,
         session,
@@ -1994,9 +2070,6 @@ class UserSyncer(object):
                         username
                     ] = self.arborist_client.auth_mapping(username)
 
-                    print("-------arborist users get user-------")
-                    print(self.arborist_client.get_user(username))
-
                 except (ArboristError, KeyError, AttributeError) as error:
                     self.logger.warning(
                         "Could not get auth mapping of users in Arborist, continuing anyway. "
@@ -2045,9 +2118,6 @@ class UserSyncer(object):
 
             self.arborist_client.create_user_if_not_exist(username)
 
-            # Binam: Need to intervene on user_project_info here
-            # arborist_users_auth_mapping
-
             # as of 2/11/2022, for single_user_sync, as RAS visa parsing has
             # previously mapped each project to the same set of privileges
             # (i.e.{'read', 'read-storage'}), unique_policies will just be a
@@ -2056,13 +2126,11 @@ class UserSyncer(object):
             unique_policies = self._determine_unique_policies(
                 user_project_info, project_to_authz_mapping
             )
-            print("---------unique policies-------")
-            print(unique_policies)
-            print(project_to_authz_mapping)
-
             for roles in unique_policies.keys():
                 for role in roles:
                     self._create_arborist_role(role)
+
+            incoming_policies = set()  # set of policies for current user.
 
             if single_user_sync:
                 for ordered_roles, ordered_resources in unique_policies.items():
@@ -2082,10 +2150,6 @@ class UserSyncer(object):
                         username, policy_hash, expires=expires
                     )
             else:
-                # TODO: Lets create the _created_policies set here and in a different loop grant arborist policies
-                # we can compare the set of created policies with the set of policies the user already has
-                # well, self._created policies is just general polcies and not associated with a specific user
-                user_policy = []
 
                 for roles, resources in unique_policies.items():
                     for role in roles:
@@ -2096,7 +2160,7 @@ class UserSyncer(object):
                             # format project '/x/y/z' -> 'x.y.z'
                             # so the policy id will be something like 'x.y.z-create'
                             policy_id = _format_policy_id(resource, role)
-                            user_policy.append(policy_id)
+                            incoming_policies.add(policy_id)
                             if policy_id not in self._created_policies:
                                 try:
                                     self.arborist_client.update_policy(
@@ -2115,17 +2179,15 @@ class UserSyncer(object):
                                         )
                                     )
                                 self._created_policies.add(policy_id)
+            if user_yaml:
+                user_yaml_policies = set(user_yaml.policies.get(username, []))
+                incoming_policies = (
+                    incoming_policies | user_yaml_policies
+                )  # add policies from whitelist and useryaml
 
-                            self._grant_arborist_policy(
-                                username, policy_id, expires=expires
-                            )
-                print("---------user policy-------")
-                print(username)
-                print(user_policy)
+            self._grant_arborist_policies(username, incoming_policies, expires=expires)
 
             if user_yaml:
-                print("---------user yaml policies-------")
-                print(user_yaml.policies.get(username, []))
                 for policy in user_yaml.policies.get(username, []):
                     self.arborist_client.grant_user_policy(
                         username,
