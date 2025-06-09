@@ -6,8 +6,9 @@
 ARG AZLINUX_BASE_VERSION=master
 
 # ------ Base stage ------
-FROM 707767160287.dkr.ecr.us-east-1.amazonaws.com/gen3/python-nginx-al:${AZLINUX_BASE_VERSION} AS base
-# FROM quay.io/cdis/python-nginx-al:${AZLINUX_BASE_VERSION} AS base
+FROM quay.io/cdis/python-nginx-al:${AZLINUX_BASE_VERSION} AS base
+# Comment this in, and comment out the line above, if quay is down
+# FROM 707767160287.dkr.ecr.us-east-1.amazonaws.com/gen3/python-nginx-al:${AZLINUX_BASE_VERSION} as base
 
 ENV appname=fence
 
@@ -42,6 +43,11 @@ RUN git config --global --add safe.directory ${appname} && COMMIT=`git rev-parse
 FROM base
 
 ENV PATH="/${appname}/.venv/bin:$PATH"
+
+# FIXME: Remove this when it's in the base image
+ENV PROMETHEUS_MULTIPROC_DIR="/var/tmp/prometheus_metrics"
+RUN mkdir -p "${PROMETHEUS_MULTIPROC_DIR}" \
+    && chown gen3:gen3 "${PROMETHEUS_MULTIPROC_DIR}"
 
 # Install ccrypt to decrypt dbgap telmetry files
 RUN echo "Upgrading dnf"; \
