@@ -1003,14 +1003,14 @@ files = [
 
 [[package]]
 name = "gen3authz"
-version = "1.5.1"
+version = "2.3.0"
 description = "Gen3 authz client"
 optional = false
-python-versions = ">=3.6,<4.0"
+python-versions = "<4.0,>=3.6"
 groups = ["main"]
 files = [
-    {file = "gen3authz-1.5.1-py3-none-any.whl", hash = "sha256:249ab21471e1ae3c283a30f3e32819db218aaa63d8d7151ac7b6b83496ac3518"},
-    {file = "gen3authz-1.5.1.tar.gz", hash = "sha256:897f804a2f9d29181a6074fa14335fc9f18e757dd2e5dcec2a68bb9a008bfcb8"},
+    {file = "gen3authz-2.3.0-py3-none-any.whl", hash = "sha256:4b8dc202fff8bb3080a6e7c545dda5700ca87a1c7e2f9ca100a5d22c0684cca1"},
+    {file = "gen3authz-2.3.0.tar.gz", hash = "sha256:e34ccd243b0593e68539ae8929f91a33e35464b46379c47d1659f3c161262f73"},
 ]
 
 [package.dependencies]
@@ -2831,4 +2831,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9.2,<4.0.0"
-content-hash = "c13653214bd73d641454aa3f4497271a7e132cd16b3561163831701185404ae1"
+content-hash = "a6abace66486b84c1e62791fa2a92e476be007124a1383a5c910e2b53c68d75b"

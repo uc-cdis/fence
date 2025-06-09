@@ -2365,12 +2365,8 @@ class UserSyncer(object):
         """
         try:
             response_json = self.arborist_client.grant_bulk_user_policy(
-                username, policy_ids
+                username, policy_ids, expires
             )
-            # TODO: When gen3authz 2.3.0 is released, uncomment this and delete the above call.
-            # response_json = self.arborist_client.grant_bulk_user_policy(
-            #     username, policy_ids, expires
-            # )
         except ArboristError as e:
             self.logger.error(
                 "could not grant bulk policies  to user `{}`: {}".format(username, e)
