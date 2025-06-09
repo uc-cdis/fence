@@ -1858,7 +1858,7 @@ class UserSyncer(object):
             try:
                 response = self.arborist_client.put_group(
                     group["name"],
-                    # Arborist doesn't handle group descriptions deff
+                    # Arborist doesn't handle group descriptions yet
                     # description=group.get("description", ""),
                     users=group["users"],
                     policies=group["policies"],
@@ -2001,6 +2001,7 @@ class UserSyncer(object):
 
         if to_add:
             try:
+                self.logger.info(f"Bulk granting user {username} policies {to_add}.")
                 response_json = self.arborist_client.grant_bulk_user_policy(
                     username, list(to_add)
                 )
@@ -2064,10 +2065,6 @@ class UserSyncer(object):
 
         arborist_user_projects = {}
         if not single_user_sync:
-            arborist_users_auth_mapping = {}
-            # to_add, to_remove, to_delete = self._compare_policies(
-            #     arborist_users_auth_mapping, user_projects
-            # )
 
             try:
                 arborist_users = self.arborist_client.get_users().json["users"]
@@ -2087,21 +2084,6 @@ class UserSyncer(object):
                     "WARNING: this sync will NOT remove access for users no longer in "
                     f"authorization sources. Error: {error}"
                 )
-
-            # Get auth mapping for users
-            for user in arborist_users:
-                username = user["name"]
-                try:
-                    arborist_users_auth_mapping[
-                        username
-                    ] = self.arborist_client.auth_mapping(username)
-
-                except (ArboristError, KeyError, AttributeError) as error:
-                    self.logger.warning(
-                        "Could not get auth mapping of users in Arborist, continuing anyway. "
-                        "WARNING: this sync will NOT remove access for users no longer in "
-                        f"authorization sources. Error: {error}"
-                    )
 
             # update the project info with users from arborist
             self.sync_two_phsids_dict(arborist_user_projects, user_projects)
@@ -2439,20 +2421,6 @@ class UserSyncer(object):
         policy_hash = hashlib.sha256(canonical_policy.encode("utf-8")).hexdigest()
 
         return policy_hash
-
-    def _compare_policies(self, existing_policies, incoming_policies):
-        """
-        Compares a user's existing policies with incoming policies from either user_yaml or dbgap whitelist
-
-        Args:
-            existing_policies (_type_): user's existing policies pulled with arborist_client.auth_mapping(username)
-            incoming_policies (_type_): user's policies as dictated by authz source
-
-        Return:
-            policies_to_add (dict): policies to be added to arborist
-            policies_to_remove (dict): policies to be removed from arborist
-        """
-        pass
 
     def _grant_arborist_policy(self, username, policy_id, expires=None):
         """
