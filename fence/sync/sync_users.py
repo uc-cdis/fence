@@ -2106,9 +2106,6 @@ class UserSyncer(object):
             # update the project info with users from arborist
             self.sync_two_phsids_dict(arborist_user_projects, user_projects)
 
-        policy_id_list = []
-        policies = []
-
         # prefer in-memory if available from user_yaml, if not, get from database
         if user_yaml and user_yaml.project_to_resource:
             project_to_authz_mapping = user_yaml.project_to_resource
