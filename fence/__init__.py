@@ -486,7 +486,10 @@ def _setup_oidc_clients(app):
 
 def _setup_arborist_client(app):
     if app.config.get("ARBORIST"):
-        app.arborist = ArboristClient(arborist_base_url=config["ARBORIST"], timeout=30)
+        app.arborist = ArboristClient(
+            arborist_base_url=config["ARBORIST"],
+            timeout=app.config.get("ARBORIST_TIMEOUT", 30),
+        )
 
 
 def _setup_audit_service_client(app):
