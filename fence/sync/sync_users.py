@@ -1968,16 +1968,9 @@ class UserSyncer(object):
             # if incoming_policies is empty, we revoke all policies
             is_revoke_all = True
 
-        print("--------prints------")
-        print(to_keep)
-        print(to_add)
-        print(to_remove)
-        print(is_revoke_all)
-
         if not is_revoke_all:
             try:
                 if to_remove:
-                    print("----------polices to remove: {}".format(to_remove))
                     for policy in to_remove:
                         self.logger.info(
                             f"Revoking policy {policy} for user {username}."
@@ -2221,14 +2214,6 @@ class UserSyncer(object):
             self._grant_arborist_policies(
                 username, incoming_policies, user_yaml, expires=expires
             )
-
-            # if user_yaml:
-            #     for policy in user_yaml.policies.get(username, []):
-            #         self.arborist_client.grant_user_policy(
-            #             username,
-            #             policy,
-            #             expires_at=expires,
-            #         )
 
         if user_yaml:
             for client_name, client_details in user_yaml.clients.items():
