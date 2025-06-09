@@ -1928,6 +1928,11 @@ class UserSyncer(object):
         to_remove = set()
         is_revoke_all = False
 
+        print("--------prints------")
+        print(to_keep)
+        print(to_add)
+        print(to_remove)
+
         try:
             user_existing_policies = set(
                 policy["policy"]
@@ -1957,6 +1962,7 @@ class UserSyncer(object):
         if not is_revoke_all:
             try:
                 if to_remove:
+                    print("----------polices to remove: {}".format(to_remove))
                     for policy in to_remove:
                         self.logger.info(
                             f"Revoking policy {policy} for user {username}."
