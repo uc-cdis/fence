@@ -1914,9 +1914,12 @@ class UserSyncer(object):
         if "mfa_policy" in policies:
             self.arborist_client.grant_user_policy(username, "mfa_policy")
 
-    def _grant_arborist_policies(self, username, incoming_policies, expires=None):
+    def _grant_arborist_policies(
+        self, username, incoming_policies, user_yaml, expires=None
+    ):
         """
-        Grant policies in Arborist for a user.
+        Find the difference between the existing policies for a user and the incoming policies,
+        and decide whether to add, remove, or keep policies.
 
         Args:
             user_existing_policies (_type_): _description_
@@ -1950,6 +1953,14 @@ class UserSyncer(object):
             to_remove = (
                 user_existing_policies - incoming_policies
             )  # policies that need to be removed
+            for policy in to_remove:
+                if policy in user_yaml.authz.get(
+                    "anonymous_policies", []
+                ) or policy in user_yaml.authz.get("all_users_policies", []):
+                    self.logger.warning(
+                        f"Policy {policy} is an anonymous policy, not revoking it for user {username}."
+                    )
+                    to_remove.remove(policy)
         else:
             # if incoming_policies is empty, we revoke all policies
             is_revoke_all = True
@@ -2204,7 +2215,9 @@ class UserSyncer(object):
                     incoming_policies | user_yaml_policies
                 )  # add policies from whitelist and useryaml
 
-            self._grant_arborist_policies(username, incoming_policies, expires=expires)
+            self._grant_arborist_policies(
+                username, incoming_policies, user_yaml, expires=expires
+            )
 
             # if user_yaml:
             #     for policy in user_yaml.policies.get(username, []):
