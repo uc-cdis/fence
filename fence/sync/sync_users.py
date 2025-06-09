@@ -1928,11 +1928,6 @@ class UserSyncer(object):
         to_remove = set()
         is_revoke_all = False
 
-        print("--------prints------")
-        print(to_keep)
-        print(to_add)
-        print(to_remove)
-
         try:
             user_existing_policies = set(
                 policy["policy"]
@@ -1958,6 +1953,12 @@ class UserSyncer(object):
         else:
             # if incoming_policies is empty, we revoke all policies
             is_revoke_all = True
+
+        print("--------prints------")
+        print(to_keep)
+        print(to_add)
+        print(to_remove)
+        print(is_revoke_all)
 
         if not is_revoke_all:
             try:
