@@ -1953,6 +1953,8 @@ class UserSyncer(object):
             to_remove = (
                 user_existing_policies - incoming_policies
             )  # policies that need to be removed
+
+            anonymous_policies = set()
             for policy in to_remove:
                 if policy in user_yaml.authz.get(
                     "anonymous_policies", []
@@ -1960,7 +1962,8 @@ class UserSyncer(object):
                     self.logger.warning(
                         f"Policy {policy} is an anonymous policy, not revoking it for user {username}."
                     )
-                    to_remove.remove(policy)
+                    anonymous_policies.add(policy)
+            to_remove -= anonymous_policies
         else:
             # if incoming_policies is empty, we revoke all policies
             is_revoke_all = True
