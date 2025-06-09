@@ -2,4 +2,4 @@
 
 :warning: When adding any new migration logic, **please make sure** to also include
 a note in your PR and/or release notes about the new migration, since Fence can
-also be configured to have migrations executed manually by a sysadmin.
+be configured to have migrations executed manually by a sysadmin instead of automatically.
