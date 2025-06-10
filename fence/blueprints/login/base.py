@@ -332,6 +332,9 @@ def _login(
         if not user.additional_info.get("registration_info"):
             # If enabled, automatically register user from Idp
             if auto_register_users:
+                # NOTE: the token fields where we get the user's info are hardcoded, as well
+                # as which ones are required and what the optional fields' default values are.
+                # To be used in a generic manner, this should be moved to the configuration.
                 firstname = token_result.get("firstname")
                 lastname = token_result.get("lastname")
                 organization = token_result.get("org")
