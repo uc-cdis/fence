@@ -7,8 +7,10 @@ from flask import current_app
 import flask
 from cdislogging import get_logger
 from flask_restful import Resource
+
 from fence.auth import login_user
 from fence.blueprints.login.redirect import validate_redirect
+from fence.blueprints.register import add_user_registration_info_to_database
 from fence.config import config
 from fence.errors import UserError
 from fence.metrics import metrics
@@ -319,7 +321,7 @@ def _login(
     """
     login_user(username, idp_name, email=email, id_from_idp=id_from_idp)
 
-    register_idp_users = (
+    auto_register_users = (
         config["OPENID_CONNECT"]
         .get(idp_name, {})
         .get("enable_idp_users_registration", False)
@@ -329,7 +331,7 @@ def _login(
         user = flask.g.user
         if not user.additional_info.get("registration_info"):
             # If enabled, automatically register user from Idp
-            if register_idp_users:
+            if auto_register_users:
                 firstname = token_result.get("firstname")
                 lastname = token_result.get("lastname")
                 organization = token_result.get("org")
@@ -342,35 +344,14 @@ def _login(
                         f"User {username} missing name fields. Proceeding with minimal info."
                     )
                     firstname = firstname or "Unknown"
-                    lastname = lastname or "User"
-
+                    lastname = lastname or "Unknown"
                 if not organization:
-                    organization = None
                     logger.info(
                         f"User {username} missing organization. Defaulting to None."
                     )
-
-                # Store registration info
-                registration_info = {
-                    "firstname": firstname,
-                    "lastname": lastname,
-                    "org": organization,
-                    "email": email,
-                }
-                user.additional_info = user.additional_info or {}
-                user.additional_info["registration_info"] = registration_info
-
-                # Persist to database
-                current_app.scoped_session().add(user)
-                current_app.scoped_session().commit()
-
-                # Ensure user exists in Arborist and assign to group
-                with current_app.arborist.context():
-                    current_app.arborist.create_user(dict(name=username))
-                    current_app.arborist.add_user_to_group(
-                        username=username,
-                        group_name=config["REGISTERED_USERS_GROUP"],
-                    )
+                add_user_registration_info_to_database(
+                    firstname, lastname, organization, email
+                )
             else:
                 return flask.redirect(
                     config["BASE_URL"] + flask.url_for("register.register_user")

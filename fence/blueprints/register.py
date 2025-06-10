@@ -10,11 +10,14 @@ from flask_wtf import FlaskForm
 from wtforms import StringField
 from wtforms.validators import DataRequired, Email, StopValidation, ValidationError
 
+from cdislogging import get_logger
+
 from fence import config
 from fence.auth import login_required
 from fence.errors import UserError
 
 
+logger = get_logger(__name__)
 blueprint = flask.Blueprint("register", __name__)
 
 
@@ -96,29 +99,40 @@ def register_user():
     org = flask.request.form["organization"]
     email = flask.g.user.email or flask.request.form["email"]
 
-    combined_info = {}
-    if flask.g.user.additional_info is not None:
-        combined_info.update(flask.g.user.additional_info)
+    return add_user_registration_info_to_database(firstname, lastname, org, email)
+
+
+def add_user_registration_info_to_database(firstname, lastname, organization, email):
+    flask.g.user.additional_info = flask.g.user.additional_info or {}
     registration_info = {
-        "registration_info": {
-            "firstname": firstname,
-            "lastname": lastname,
-            "org": org,
-            "email": email,
-        }
+        "firstname": firstname,
+        "lastname": lastname,
+        "org": organization,
+        "email": email,
     }
-    combined_info.update(registration_info)
-    flask.g.user.additional_info = combined_info
+    flask.g.user.additional_info["registration_info"] = registration_info
     current_app.scoped_session().add(flask.g.user)
     current_app.scoped_session().commit()
 
     with flask.current_app.arborist.context():
         # make sure the user exists in Arborist
         flask.current_app.arborist.create_user(dict(name=flask.g.user.username))
-        flask.current_app.arborist.add_user_to_group(
-            flask.g.user.username,
-            config["REGISTERED_USERS_GROUP"],
-        )
+        if config["REGISTERED_USERS_GROUP"]:
+            # TODO unit tests
+            arborist_groups = set(
+                g["name"]
+                for g in flask.current_app.arborist.list_groups().get("groups", [])
+            )
+            if config["REGISTERED_USERS_GROUP"] not in arborist_groups:
+                logger.debug(
+                    f"Configured REGISTERED_USERS_GROUP '{config['REGISTERED_USERS_GROUP']}' does not exist yet. Creating it (it will have no policies)."
+                )
+                flask.current_app.arborist.put_group(config["REGISTERED_USERS_GROUP"])
+            success = flask.current_app.arborist.add_user_to_group(
+                flask.g.user.username,
+                config["REGISTERED_USERS_GROUP"],
+            )
+            assert success is True, "Unable to add user to group"
 
     # Respect session redirect--important when redirected here from login flow
     if flask.session.get("redirect"):
