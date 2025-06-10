@@ -69,7 +69,7 @@ def test_cilogon_client_init(mock_super_init, mock_settings, mock_logger):
 @patch(
     "fence.resources.openid.idp_oauth2.Oauth2ClientBase.get_value_from_discovery_doc"
 )
-def test_get_auth_url(mock_get_value_from_discovery_doc, oauth2_client):
+def test_get_auth_url(mock_get_value_from_discovery_doc, app, oauth2_client):
     """
     Test that get_auth_url correctly constructs the authorization URL.
     """

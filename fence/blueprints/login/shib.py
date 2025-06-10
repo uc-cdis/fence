@@ -40,7 +40,11 @@ class ShibbolethLogin(DefaultOAuth2Login):
         flask.session["entityID"] = entityID
         # TODO: use OPENID_CONNECT.shibboleth.redirect_url instead of hardcoded
         actual_redirect = config["BASE_URL"] + "/login/shib/login"
-        if not entityID or entityID == "urn:mace:incommon:nih.gov":
+        if (
+            not entityID
+            or entityID == "urn:mace:incommon:nih.gov"
+            or entityID == "https://auth.nih.gov/IDP"
+        ):
             # default to SSO_URL from the config which should be NIH login
             return flask.redirect(config["SSO_URL"] + actual_redirect)
         return flask.redirect(
@@ -70,7 +74,12 @@ class ShibbolethCallback(DefaultOAuth2Callback):
         entityID = flask.session.get("entityID")
 
         # if eppn not available or logging in through NIH
-        if not username or not entityID or entityID == "urn:mace:incommon:nih.gov":
+        if (
+            not username
+            or not entityID
+            or entityID == "urn:mace:incommon:nih.gov"
+            or entityID == "https://auth.nih.gov/IDP"
+        ):
             persistent_id = flask.request.headers.get(shib_header)
             username = persistent_id.split("!")[-1] if persistent_id else None
             if not username:
