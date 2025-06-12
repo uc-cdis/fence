@@ -344,12 +344,14 @@ def make_login_blueprint():
             callback_class = createCallbackClass(idp.lower(), configured_idps[idp])
 
         # create IDP routes
+        # print(f"/{get_idp_route_name(idp)}")
         blueprint_api.add_resource(
             login_class,
             f"/{get_idp_route_name(idp)}",
             strict_slashes=False,
             endpoint=f"{get_idp_route_name(idp)}_login",
         )
+        # print(custom_callback_endpoint or f"/{get_idp_route_name(idp)}/login")
         blueprint_api.add_resource(
             callback_class,
             custom_callback_endpoint or f"/{get_idp_route_name(idp)}/login",

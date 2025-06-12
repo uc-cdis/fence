@@ -13,7 +13,7 @@ from wtforms.validators import DataRequired, Email, StopValidation, ValidationEr
 from cdislogging import get_logger
 
 from fence import config
-from fence.auth import login_required
+from fence.auth import login_required, login_user
 from fence.errors import UserError
 
 
@@ -50,15 +50,15 @@ def xor_with_user_email(form, field):
 
 class RegistrationForm(FlaskForm):
     firstname = StringField(label="First Name", validators=[DataRequired()])
-    lastname = StringField(label="Last Name", validators=[DataRequired()])
-    organization = StringField(label="Organization", validators=[DataRequired()])
-    email = StringField(
-        label="Email", validators=[xor_with_user_email, Email(), DataRequired()]
-    )
+    # lastname = StringField(label="Last Name", validators=[DataRequired()])
+    # organization = StringField(label="Organization", validators=[DataRequired()])
+    # email = StringField(
+    #     label="Email", validators=[xor_with_user_email, Email(), DataRequired()]
+    # )
 
 
 @blueprint.route("/", methods=["GET", "POST"])
-@login_required()
+# @login_required()
 def register_user():
     """
     - If config["REGISTER_USERS_ON"] is True, then unregistered users are redirected
@@ -81,60 +81,93 @@ def register_user():
     but actual verification (for example, checking organization info against some trusted
     authority's records) has been deemed out of scope.
     """
-    form = RegistrationForm()
+    try:
+        # TODO what happens if registration fails? infinite redirects between login and registration?
+        import os; flask.current_app.config['WTF_CSRF_SECRET_KEY'] = os.urandom(32)
+        try:
+            form = RegistrationForm()
+        except Exception as e:
+            print(e)
 
-    if flask.request.method == "GET":
-        return flask.render_template(
-            "register_user.html",
-            user=flask.g.user,
-            form=form,
-        )
+        username = flask.session.get("login_in_progress_username")
+        if not username:
+            from fence.errors import Unauthorized
+            raise Unauthorized("Please login")
 
-    if not form.validate():
-        raise UserError("Form validation failed: {}".format(str(form.errors)))
+        if flask.request.method == "GET":
+            from fence.models import query_for_user
+            user = query_for_user(session=current_app.scoped_session(), username=username)
+            # print(dir(flask.g))
+            # TODO doesn't work if accessing /register before /login
+            print('register_user - user', user.username)
+            # flask.g.user.additional_info = {}
+            print('register_user - additional_info', user.additional_info)
+            return flask.render_template(
+                "register_user.html",
+                user=user,
+                form=form,
+            )
 
-    # Validation passed--don't check form data here.
-    firstname = flask.request.form["firstname"]
-    lastname = flask.request.form["lastname"]
-    org = flask.request.form["organization"]
-    email = flask.g.user.email or flask.request.form["email"]
+        # if not form.validate():
+        #     raise UserError("Form validation failed: {}".format(str(form.errors)))
 
-    return add_user_registration_info_to_database(firstname, lastname, org, email)
+        # Validation passed--don't check form data here.
+        firstname = flask.request.form["firstname"]
+        lastname = "x"# flask.request.form["lastname"]
+        org = "x"# flask.request.form["organization"]
+        email = "x"# flask.g.user.email or flask.request.form["email"]
+
+        registration_info = add_user_registration_info_to_database(username, firstname, lastname, org, email)
+        # TODO why is access token being set?
+
+        # Respect session redirect--important when redirected here from login flow
+        # print('register_user - redirect', flask.session.get("redirect"))
+        print('register_user - post_registration_redirect', flask.session.get("post_registration_redirect"))
+        if flask.session.get("post_registration_redirect"):
+            return flask.redirect(flask.session.get("post_registration_redirect"))
+        return flask.jsonify(registration_info)
+    except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(e)
+        raise
 
 
-def add_user_registration_info_to_database(firstname, lastname, organization, email):
-    flask.g.user.additional_info = flask.g.user.additional_info or {}
+def add_user_registration_info_to_database(username, firstname, lastname, organization, email):
+    from fence.models import query_for_user
+    user = query_for_user(session=current_app.scoped_session(), username=username)
+    user.additional_info = user.additional_info or {}
     registration_info = {
         "firstname": firstname,
         "lastname": lastname,
         "org": organization,
         "email": email,
     }
-    flask.g.user.additional_info["registration_info"] = registration_info
-    current_app.scoped_session().add(flask.g.user)
+    user.additional_info["registration_info"] = registration_info
+    current_app.scoped_session().add(user)
     current_app.scoped_session().commit()
 
-    with flask.current_app.arborist.context():
-        # make sure the user exists in Arborist
-        flask.current_app.arborist.create_user(dict(name=flask.g.user.username))
-        if config["REGISTERED_USERS_GROUP"]:
-            # TODO unit tests
-            arborist_groups = set(
-                g["name"]
-                for g in flask.current_app.arborist.list_groups().get("groups", [])
-            )
-            if config["REGISTERED_USERS_GROUP"] not in arborist_groups:
-                logger.debug(
-                    f"Configured REGISTERED_USERS_GROUP '{config['REGISTERED_USERS_GROUP']}' does not exist yet. Creating it (it will have no policies)."
+    if flask.current_app.arborist:
+        with flask.current_app.arborist.context():
+            # make sure the user exists in Arborist
+            flask.current_app.arborist.create_user(dict(name=user.username))
+            if config["REGISTERED_USERS_GROUP"]:
+                # TODO unit tests
+                arborist_groups = set(
+                    g["name"]
+                    for g in flask.current_app.arborist.list_groups().get("groups", [])
                 )
-                flask.current_app.arborist.put_group(config["REGISTERED_USERS_GROUP"])
-            success = flask.current_app.arborist.add_user_to_group(
-                flask.g.user.username,
-                config["REGISTERED_USERS_GROUP"],
-            )
-            assert success is True, "Unable to add user to group"
+                if config["REGISTERED_USERS_GROUP"] not in arborist_groups:
+                    logger.debug(
+                        f"Configured REGISTERED_USERS_GROUP '{config['REGISTERED_USERS_GROUP']}' does not exist yet. Creating it (it will have no policies)."
+                    )
+                    flask.current_app.arborist.put_group(config["REGISTERED_USERS_GROUP"])
+                success = flask.current_app.arborist.add_user_to_group(
+                    user.username,
+                    config["REGISTERED_USERS_GROUP"],
+                )
+                assert success is True, "Unable to add user to group"
 
-    # Respect session redirect--important when redirected here from login flow
-    if flask.session.get("redirect"):
-        return flask.redirect(flask.session.get("redirect"))
-    return flask.jsonify(registration_info)
+    # login_user(username, idp_name, email=email, id_from_idp=id_from_idp)
+
+    return registration_info

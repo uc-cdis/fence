@@ -167,6 +167,8 @@ def app_register_blueprints(app):
         """
         Register the root URL.
         """
+        # from fence.blueprints.login.base import _login
+        # return _login("pauline", "google", "pauline@uchicago")
         endpoints = {
             "oauth2 endpoint": "/oauth2",
             "user endpoint": "/user",
@@ -491,6 +493,9 @@ def _setup_oidc_clients(app):
 def _setup_arborist_client(app):
     if app.config.get("ARBORIST"):
         app.arborist = ArboristClient(arborist_base_url=config["ARBORIST"])
+    else:
+        logger.info("Arborist not configured")
+        app.arborist = None
 
 
 def _setup_audit_service_client(app):

@@ -78,7 +78,7 @@ def get_ip_information_string():
 
 
 def login_user(
-    username, provider, fence_idp=None, shib_idp=None, email=None, id_from_idp=None
+    username, provider, fence_idp=None, shib_idp=None, email=None, id_from_idp=None #, perform_actual_login=True
 ):
     """
     Login a user with the given username and provider. Set values in Flask
@@ -94,6 +94,7 @@ def login_user(
             on the IdP)
         id_from_idp (str, optional): id from the IDP (which may be different than
             the username)
+        TODO perform_actual_login - and rename/refactor function
     """
 
     def set_flask_session_values_and_log_ip(user):
@@ -123,7 +124,19 @@ def login_user(
         flask.g.token = None
 
     user = query_for_user(session=current_app.scoped_session(), username=username)
+    # print('login_user - flask.g.user', flask.g.user)
+    print("login_user - ", 'REGISTER_USERS_ON =', config["REGISTER_USERS_ON"], '; user.registration_info =', user and user.additional_info.get("registration_info"))
+    perform_actual_login = not config["REGISTER_USERS_ON"] or (user is not None and user.additional_info.get("registration_info", {}) != {})
+    print('login_user perform_actual_login =', perform_actual_login)
+    if perform_actual_login:
+        print("     LOGGING USER IN")
+    else:
+        print("     NOT LOGGING USER IN")
+
     if user:
+        # don't just use `flask.session["username"]` because other code relies on it to know
+        # whether a user is logged in.
+        flask.session["login_in_progress_username"] = user.username
         if user.active == False:
             # Abort login if user.active == False:
             raise Unauthorized(
@@ -137,7 +150,7 @@ def login_user(
         #  This expression is relevant to those users who already have user and
         #  idp info persisted to the database. We return early to avoid
         #  unnecessarily re-saving that user and idp info.
-        if user.identity_provider and user.identity_provider.name == provider:
+        if perform_actual_login and user.identity_provider and user.identity_provider.name == provider:
             set_flask_session_values_and_log_ip(user)
             return
     else:
@@ -147,6 +160,9 @@ def login_user(
 
         # add the new user
         user = User(username=username)
+        # don't just use `flask.session["username"]` because other code relies on it to know
+        # whether a user is logged in.
+        flask.session["login_in_progress_username"] = user.username
 
         if email:
             user.email = email
@@ -169,7 +185,8 @@ def login_user(
     current_app.scoped_session().add(user)
     current_app.scoped_session().commit()
 
-    set_flask_session_values_and_log_ip(user)
+    if perform_actual_login:
+        set_flask_session_values_and_log_ip(user)
 
 
 def logout(next_url, force_era_global_logout=False):
@@ -224,40 +241,44 @@ def login_required(scope=None):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            if flask.session.get("username"):
-                login_user(flask.session["username"], flask.session["provider"])
-                return f(*args, **kwargs)
+            try:
+                if flask.session.get("username"):
+                    login_user(flask.session["username"], flask.session["provider"])
+                    return f(*args, **kwargs)
 
-            eppn = None
-            if config["LOGIN_OPTIONS"]:
-                enable_shib = "shibboleth" in [
-                    option["idp"] for option in config["LOGIN_OPTIONS"]
-                ]
-            else:
-                # fall back on "providers"
-                enable_shib = "shibboleth" in (
-                    config.get("ENABLED_IDENTITY_PROVIDERS") or {}
-                ).get("providers", {})
+                eppn = None
+                if config["LOGIN_OPTIONS"]:
+                    enable_shib = "shibboleth" in [
+                        option["idp"] for option in config["LOGIN_OPTIONS"]
+                    ]
+                else:
+                    # fall back on "providers"
+                    enable_shib = "shibboleth" in (
+                        config.get("ENABLED_IDENTITY_PROVIDERS") or {}
+                    ).get("providers", {})
 
-            if enable_shib and "SHIBBOLETH_HEADER" in config:
-                eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
+                if enable_shib and "SHIBBOLETH_HEADER" in config:
+                    eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
 
-            if config.get("MOCK_AUTH") is True:
-                eppn = "test"
-            # if there is authorization header for oauth
-            if "Authorization" in flask.request.headers:
-                has_oauth(scope=scope)
-                return f(*args, **kwargs)
-            # if there is shibboleth session, then create user session and
-            # log user in
-            elif eppn:
-                username = eppn.split("!")[-1]
-                flask.session["username"] = username
-                flask.session["provider"] = IdentityProvider.itrust
-                login_user(username, flask.session["provider"])
-                return f(*args, **kwargs)
-            else:
-                raise Unauthorized("Please login")
+                if config.get("MOCK_AUTH") is True:
+                    eppn = "test"
+                # if there is authorization header for oauth
+                if "Authorization" in flask.request.headers:
+                    has_oauth(scope=scope)
+                    return f(*args, **kwargs)
+                # if there is shibboleth session, then create user session and
+                # log user in
+                elif eppn:
+                    username = eppn.split("!")[-1]
+                    flask.session["username"] = username
+                    flask.session["provider"] = IdentityProvider.itrust
+                    login_user(username, flask.session["provider"])
+                    return f(*args, **kwargs)
+                else:
+                    raise Unauthorized("Please login")
+            except Exception:
+                import traceback; traceback.print_exc()
+                raise
 
         return wrapper
 

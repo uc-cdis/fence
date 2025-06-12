@@ -115,7 +115,7 @@ def get_user_info(current_session, username):
 
     if hasattr(flask.current_app, "arborist"):
         try:
-            auth_mapping = flask.current_app.arborist.auth_mapping(user.username)
+            auth_mapping = flask.current_app.arborist.auth_mapping(user.username) if flask.current_app.arborist else {}
             resources = list(auth_mapping.keys())
         except ArboristError as exc:
             logger.error(

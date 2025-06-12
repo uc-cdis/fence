@@ -17,6 +17,7 @@ from fence.metrics import metrics
 
 
 logger = get_logger(__name__)
+import traceback # TODO remove
 
 
 class DefaultOAuth2Login(Resource):
@@ -33,37 +34,42 @@ class DefaultOAuth2Login(Resource):
         self.client = client
 
     def get(self):
-        redirect_url = flask.request.args.get("redirect")
-        validate_redirect(redirect_url)
-        flask.redirect_url = redirect_url
-        if flask.redirect_url:
-            flask.session["redirect"] = flask.redirect_url
+        try:
+            redirect_url = flask.request.args.get("redirect")
+            validate_redirect(redirect_url)
+            flask.redirect_url = redirect_url
+            if flask.redirect_url:
+                flask.session["redirect"] = flask.redirect_url
 
-        mock_login = (
-            config["OPENID_CONNECT"].get(self.idp_name.lower(), {}).get("mock", False)
-        )
-
-        # to support older cfgs, new cfgs should use the `mock` field in OPENID_CONNECT
-        legacy_mock_login = config.get(
-            "MOCK_{}_AUTH".format(self.idp_name.upper()), False
-        )
-
-        mock_default_user = (
-            config["OPENID_CONNECT"]
-            .get(self.idp_name.lower(), {})
-            .get("mock_default_user", "test@example.com")
-        )
-
-        if mock_login or legacy_mock_login:
-            # prefer dev cookie for mocked username, fallback on configuration
-            username = flask.request.cookies.get(
-                config.get("DEV_LOGIN_COOKIE_NAME"), mock_default_user
+            mock_login = (
+                config["OPENID_CONNECT"].get(self.idp_name.lower(), {}).get("mock", False)
             )
-            resp = _login(username, self.idp_name)
-            prepare_login_log(self.idp_name)
-            return resp
 
-        return flask.redirect(self.client.get_auth_url())
+            # to support older cfgs, new cfgs should use the `mock` field in OPENID_CONNECT
+            legacy_mock_login = config.get(
+                "MOCK_{}_AUTH".format(self.idp_name.upper()), False
+            )
+
+            mock_default_user = (
+                config["OPENID_CONNECT"]
+                .get(self.idp_name.lower(), {})
+                .get("mock_default_user", "test@example.com")
+            )
+
+            if mock_login or legacy_mock_login:
+                # prefer dev cookie for mocked username, fallback on configuration
+                username = flask.request.cookies.get(
+                    config.get("DEV_LOGIN_COOKIE_NAME"), mock_default_user
+                )
+                resp = _login(username, self.idp_name)  # logs in mocked user
+                prepare_login_log(self.idp_name)
+                return resp
+
+            return flask.redirect(self.client.get_auth_url())
+        except Exception as e:
+            traceback.print_exc()
+            print('DefaultOAuth2Login', e)
+            raise e
 
 
 class DefaultOAuth2Callback(Resource):
@@ -122,6 +128,7 @@ class DefaultOAuth2Callback(Resource):
             ]["is_authz_groups_sync_enabled"]
 
     def get(self):
+        # config["REGISTER_USERS_ON"] = True  # TODO remove
         # Check if user granted access
         if flask.request.args.get("error"):
 
@@ -146,6 +153,8 @@ class DefaultOAuth2Callback(Resource):
 
         code = flask.request.args.get("code")
         result = self.client.get_auth_info(code)
+        # result = {"email": "pauline@ctds"}
+        # self.username_field = "email"
 
         refresh_token = result.get("refresh_token")
 
@@ -155,49 +164,76 @@ class DefaultOAuth2Callback(Resource):
             raise UserError(
                 f"OAuth2 callback error: no '{self.username_field}' in {result}"
             )
+        try:
+            email = result.get(self.email_field)
+            id_from_idp = result.get(self.id_from_idp_field)
 
-        email = result.get(self.email_field)
-        id_from_idp = result.get(self.id_from_idp_field)
+            # resp = registration_flow_TODO(
+            #     username,
+            #     self.idp_name,
+            #     email=email,
+            #     id_from_idp=id_from_idp,
+            #     token_result=result,
+            # )
+            # if resp is not None:
+            #     return resp
+        except Exception as e:
+            traceback.print_exc()
+            print(1, e)
+            raise e
+        try:
+            resp, log_user_in_now = _login(
+                username,
+                self.idp_name,
+                email=email,
+                id_from_idp=id_from_idp,
+                token_result=result,
+            )
+        except Exception as e:
+            traceback.print_exc()
+            print(2, e)
+            raise e
 
-        resp = _login(
-            username,
-            self.idp_name,
-            email=email,
-            id_from_idp=id_from_idp,
-            token_result=result,
-        )
+        if not log_user_in_now:  # TODO move the var init to this function
+            return resp
 
-        if not flask.g.user:
-            raise UserError("Authentication failed: flask.g.user is missing.")
+        try:
+            # TODO where to move this?
+            # if not flask.g.user:
+            #     raise UserError("Authentication failed: flask.g.user is missing.")
 
-        expires = self.extract_exp(refresh_token)
+            expires = self.extract_exp(refresh_token)
 
-        # if the access token is not a JWT, or does not carry exp,
-        # default to now + REFRESH_TOKEN_EXPIRES_IN
-        if expires is None:
-            expires = int(time.time()) + config["REFRESH_TOKEN_EXPIRES_IN"]
-            logger.info(f"Refresh token not in JWT, using default: {expires}")
+            # if the access token is not a JWT, or does not carry exp,
+            # default to now + REFRESH_TOKEN_EXPIRES_IN
+            if expires is None:
+                expires = int(time.time()) + config["REFRESH_TOKEN_EXPIRES_IN"]
+                logger.info(f"Refresh token not in JWT, using default: {expires}")
 
-        # Store refresh token in db
-        should_persist_token = (
-            self.persist_refresh_token or self.read_authz_groups_from_tokens
-        )
-        if should_persist_token:
-            # Ensure flask.g.user exists to avoid a potential AttributeError
-            if getattr(flask.g, "user", None):
-                self.client.store_refresh_token(flask.g.user, refresh_token, expires)
-            else:
-                logger.error(
-                    "User information is missing from flask.g; cannot store refresh token."
-                )
+            # Store refresh token in db
+            should_persist_token = (
+                self.persist_refresh_token or self.read_authz_groups_from_tokens
+            )
+            if should_persist_token:
+                # Ensure flask.g.user exists to avoid a potential AttributeError
+                if getattr(flask.g, "user", None):
+                    self.client.store_refresh_token(flask.g.user, refresh_token, expires)
+                else:
+                    logger.error(
+                        "User information is missing from flask.g; cannot store refresh token."
+                    )
 
-        self.post_login(
-            user=flask.g.user,
-            token_result=result,
-            id_from_idp=id_from_idp,
-        )
+            self.post_login(
+                user=flask.g.user,
+                token_result=result,
+                id_from_idp=id_from_idp,
+            )
 
-        return resp
+            return resp
+        except Exception as e:
+            traceback.print_exc()
+            print(3, e)
+            raise e
 
     def extract_exp(self, refresh_token):
         """
@@ -281,7 +317,7 @@ class DefaultOAuth2Callback(Resource):
 
         if token_result:
             username = token_result.get(self.username_field)
-            if self.is_mfa_enabled:
+            if self.app.arborist and self.is_mfa_enabled:
                 if token_result.get("mfa"):
                     logger.info(f"Adding mfa_policy for {username}")
                     self.app.arborist.grant_user_policy(
@@ -319,8 +355,29 @@ def _login(
     Login user with given username, then automatically register if needed,
     and finally redirect if session has a saved redirect.
     """
+    from fence.models import query_for_user
+    user = query_for_user(session=current_app.scoped_session(), username=username)
+    # only log the user in if registration is disabled of if they are already registered
+    log_user_in_now = not config["REGISTER_USERS_ON"] or (user is not None and user.additional_info.get("registration_info"))
+    # print("_login", 'REGISTER_USERS_ON =', config["REGISTER_USERS_ON"], '; user.registration_info =', user and user.additional_info.get("registration_info"))
     login_user(username, idp_name, email=email, id_from_idp=id_from_idp)
+    # print('_login - user', flask.g.user)
 
+    # if flask.session.get("redirect"):
+    #     return flask.redirect(flask.session.get("redirect"))
+    # return flask.jsonify({"username": username, "registered": True})
+
+
+# def registration_flow_TODO(
+#     username,
+#     idp_name,
+#     email=None,
+#     id_from_idp=None,
+#     token_result=None,
+# ):
+    """
+    TODO
+    """
     auto_register_users = (
         config["OPENID_CONNECT"]
         .get(idp_name, {})
@@ -328,7 +385,9 @@ def _login(
     )
 
     if config["REGISTER_USERS_ON"]:
-        user = flask.g.user
+        # user = flask.g.user
+        from fence.models import query_for_user
+        user = query_for_user(session=current_app.scoped_session(), username=username)
         if not user.additional_info.get("registration_info"):
             # If enabled, automatically register user from Idp
             if auto_register_users:
@@ -353,13 +412,17 @@ def _login(
                         f"User {username} missing organization. Defaulting to None."
                     )
                 add_user_registration_info_to_database(
-                    firstname, lastname, organization, email
+                    username, firstname, lastname, organization, email
                 )
             else:
+                from flask import request
+                flask.session["post_registration_redirect"] = request.url
+                # return flask.redirect("http://localhost:8000/register"), log_user_in_now  # TODO remove
                 return flask.redirect(
                     config["BASE_URL"] + flask.url_for("register.register_user")
-                )
+                ), log_user_in_now
 
+    print("end of _login --- session.redirect =", flask.session.get("redirect"))
     if flask.session.get("redirect"):
-        return flask.redirect(flask.session.get("redirect"))
-    return flask.jsonify({"username": username, "registered": True})
+        return flask.redirect(flask.session.get("redirect")), log_user_in_now
+    return flask.jsonify({"username": username, "registered": True}), log_user_in_now
