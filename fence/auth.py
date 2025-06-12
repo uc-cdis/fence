@@ -79,7 +79,7 @@ def get_ip_information_string():
 
 def login_user(
     username, provider, fence_idp=None, shib_idp=None, email=None, id_from_idp=None #, perform_actual_login=True
-):
+) -> bool:
     """
     Login a user with the given username and provider. Set values in Flask
     session to indicate the user being logged in. In addition, commit the user
@@ -94,7 +94,8 @@ def login_user(
             on the IdP)
         id_from_idp (str, optional): id from the IDP (which may be different than
             the username)
-        TODO perform_actual_login - and rename/refactor function
+
+    TODO perform_actual_login - and rename/refactor function - document returned value
     """
 
     def set_flask_session_values_and_log_ip(user):
@@ -152,7 +153,7 @@ def login_user(
         #  unnecessarily re-saving that user and idp info.
         if perform_actual_login and user.identity_provider and user.identity_provider.name == provider:
             set_flask_session_values_and_log_ip(user)
-            return
+            return perform_actual_login
     else:
         if not config["ALLOW_NEW_USER_ON_LOGIN"]:
             # do not create new active users automatically
@@ -187,6 +188,8 @@ def login_user(
 
     if perform_actual_login:
         set_flask_session_values_and_log_ip(user)
+
+    return perform_actual_login
 
 
 def logout(next_url, force_era_global_logout=False):

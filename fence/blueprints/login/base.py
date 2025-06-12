@@ -182,7 +182,7 @@ class DefaultOAuth2Callback(Resource):
             print(1, e)
             raise e
         try:
-            resp, log_user_in_now = _login(
+            resp, user_is_logged_in = _login(
                 username,
                 self.idp_name,
                 email=email,
@@ -194,7 +194,7 @@ class DefaultOAuth2Callback(Resource):
             print(2, e)
             raise e
 
-        if not log_user_in_now:  # TODO move the var init to this function
+        if not user_is_logged_in:  # TODO move the var init to this function
             return resp
 
         try:
@@ -358,9 +358,10 @@ def _login(
     from fence.models import query_for_user
     user = query_for_user(session=current_app.scoped_session(), username=username)
     # only log the user in if registration is disabled of if they are already registered
-    log_user_in_now = not config["REGISTER_USERS_ON"] or (user is not None and user.additional_info.get("registration_info"))
+    # log_user_in_now = not config["REGISTER_USERS_ON"] or (user is not None and user.additional_info.get("registration_info"))
     # print("_login", 'REGISTER_USERS_ON =', config["REGISTER_USERS_ON"], '; user.registration_info =', user and user.additional_info.get("registration_info"))
-    login_user(username, idp_name, email=email, id_from_idp=id_from_idp)
+    user_is_logged_in = login_user(username, idp_name, email=email, id_from_idp=id_from_idp)
+    print("_login user_is_logged_in = ", user_is_logged_in)
     # print('_login - user', flask.g.user)
 
     # if flask.session.get("redirect"):
@@ -384,6 +385,7 @@ def _login(
         .get("enable_idp_users_registration", False)
     )
 
+    print("_login", 'REGISTER_USERS_ON =', config["REGISTER_USERS_ON"], '; user.registration_info =', user and user.additional_info.get("registration_info"))
     if config["REGISTER_USERS_ON"]:
         # user = flask.g.user
         from fence.models import query_for_user
@@ -417,12 +419,12 @@ def _login(
             else:
                 from flask import request
                 flask.session["post_registration_redirect"] = request.url
-                # return flask.redirect("http://localhost:8000/register"), log_user_in_now  # TODO remove
+                # return flask.redirect("http://localhost:8000/register"), user_is_logged_in  # TODO remove
                 return flask.redirect(
                     config["BASE_URL"] + flask.url_for("register.register_user")
-                ), log_user_in_now
+                ), user_is_logged_in
 
     print("end of _login --- session.redirect =", flask.session.get("redirect"))
     if flask.session.get("redirect"):
-        return flask.redirect(flask.session.get("redirect")), log_user_in_now
-    return flask.jsonify({"username": username, "registered": True}), log_user_in_now
+        return flask.redirect(flask.session.get("redirect")), user_is_logged_in
+    return flask.jsonify({"username": username, "registered": True}), user_is_logged_in

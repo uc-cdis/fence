@@ -97,8 +97,6 @@ def register_user():
         if flask.request.method == "GET":
             from fence.models import query_for_user
             user = query_for_user(session=current_app.scoped_session(), username=username)
-            # print(dir(flask.g))
-            # TODO doesn't work if accessing /register before /login
             print('register_user - user', user.username)
             # flask.g.user.additional_info = {}
             print('register_user - additional_info', user.additional_info)

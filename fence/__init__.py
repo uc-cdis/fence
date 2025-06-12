@@ -167,8 +167,6 @@ def app_register_blueprints(app):
         """
         Register the root URL.
         """
-        # from fence.blueprints.login.base import _login
-        # return _login("pauline", "google", "pauline@uchicago")
         endpoints = {
             "oauth2 endpoint": "/oauth2",
             "user endpoint": "/user",
