@@ -89,7 +89,7 @@ class StorageClientMocker(object):
         if name in self.users.keys():
             del self.users[name]
         else:
-            raise NotFoundError("User doesn't exists")
+            raise NotFoundError("User doesn't exist")
 
     def delete_keypair(self, name, access_key):
         """

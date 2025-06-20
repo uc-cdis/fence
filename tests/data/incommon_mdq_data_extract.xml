@@ -1,0 +1,388 @@
+<?xml version="1.0" encoding="UTF-8" standalone="no"?><EntitiesDescriptor xmlns="urn:oasis:names:tc:SAML:2.0:metadata" xmlns:alg="urn:oasis:names:tc:SAML:metadata:algsupport" xmlns:ds="http://www.w3.org/2000/09/xmldsig#" xmlns:icmd="http://id.incommon.org/metadata" xmlns:idpdisc="urn:oasis:names:tc:SAML:profiles:SSO:idp-discovery-protocol" xmlns:init="urn:oasis:names:tc:SAML:profiles:SSO:request-init" xmlns:mdattr="urn:oasis:names:tc:SAML:metadata:attribute" xmlns:mdrpi="urn:oasis:names:tc:SAML:metadata:rpi" xmlns:mdui="urn:oasis:names:tc:SAML:metadata:ui" xmlns:remd="http://refeds.org/metadata" xmlns:saml="urn:oasis:names:tc:SAML:2.0:assertion" xmlns:shibmd="urn:mace:shibboleth:metadata:1.0" xmlns:xenc="http://www.w3.org/2001/04/xmlenc#" xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance" ID="INC20250417T193108" Name="urn:mace:incommon" validUntil="2025-05-01T19:31:08Z"><Signature xmlns="http://www.w3.org/2000/09/xmldsig#"><SignedInfo><CanonicalizationMethod Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/><SignatureMethod Algorithm="http://www.w3.org/2001/04/xmldsig-more#rsa-sha256"/><Reference URI="#INC20250417T193108"><Transforms><Transform Algorithm="http://www.w3.org/2000/09/xmldsig#enveloped-signature"/><Transform Algorithm="http://www.w3.org/2001/10/xml-exc-c14n#"/></Transforms><DigestMethod Algorithm="http://www.w3.org/2001/04/xmlenc#sha256"/><DigestValue>Wb0mjpUDGk78C+TL46ARugzvcntt2+GlSg54iMfiJ8g=</DigestValue></Reference></SignedInfo><SignatureValue>SIGNATURE</SignatureValue><KeyInfo><X509Data><X509Certificate>CERTIFICATE</X509Certificate></X509Data></KeyInfo></Signature>
+<Extensions>
+  <mdrpi:PublicationInfo creationInstant="2025-04-17T19:31:08Z" publisher="https://incommon.org"/>
+</Extensions>
+<EntityDescriptor entityID="urn:mace:incommon:osu.edu">
+  <Extensions>
+    <mdrpi:RegistrationInfo registrationAuthority="https://incommon.org"/>
+    <mdattr:EntityAttributes>
+      <saml:Attribute Name="http://macedir.org/entity-category-support" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri">
+        <saml:AttributeValue>http://refeds.org/category/research-and-scholarship</saml:AttributeValue>
+      </saml:Attribute>
+      <saml:Attribute Name="urn:oasis:names:tc:SAML:attribute:assurance-certification" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri">
+        <saml:AttributeValue>https://refeds.org/sirtfi</saml:AttributeValue>
+      </saml:Attribute>
+      <saml:Attribute Name="http://macedir.org/entity-category" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri">
+        <saml:AttributeValue>http://id.incommon.org/category/registered-by-incommon</saml:AttributeValue>
+      </saml:Attribute>
+    </mdattr:EntityAttributes>
+  </Extensions>
+  <IDPSSODescriptor errorURL="https://webauth.service.ohio-state.edu/support.html" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <Extensions>
+      <shibmd:Scope regexp="false">osu.edu</shibmd:Scope>
+      <mdui:UIInfo>
+        <mdui:DisplayName xml:lang="en">Ohio State University</mdui:DisplayName>
+        <mdui:InformationURL xml:lang="en">https://webauth.service.ohio-state.edu/info.html</mdui:InformationURL>
+        <mdui:PrivacyStatementURL xml:lang="en">https://it.osu.edu/sites/default/files/files-1477502394/disclosurepolicy.pdf</mdui:PrivacyStatementURL>
+        <mdui:Logo height="83" width="83" xml:lang="en">https://webauth.service.ohio-state.edu/images/osu_mdui.png</mdui:Logo>
+      </mdui:UIInfo>
+    </Extensions>
+    <KeyDescriptor use="encryption">
+      <ds:KeyInfo>
+        <ds:X509Data>
+          <!-- Serial No. 15489795043023186841, expires on Tue Feb 25 18:24:41 2076 GMT -->
+          <ds:X509Certificate>CERTIFICATE</ds:X509Certificate>
+        </ds:X509Data>
+      </ds:KeyInfo>
+    </KeyDescriptor>
+    <KeyDescriptor use="signing">
+      <ds:KeyInfo>
+        <ds:X509Data>
+          <!-- Serial No. 16487676915339263015, expires on Tue Jul 10 19:17:22 2046 GMT -->
+          <ds:X509Certificate>CERTIFICATE</ds:X509Certificate>
+        </ds:X509Data>
+      </ds:KeyInfo>
+    </KeyDescriptor>
+    <SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://webauth.service.ohio-state.edu/idp/profile/SAML2/Redirect/SLO"/>
+    <SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://webauth.service.ohio-state.edu/idp/profile/SAML2/POST/SLO"/>
+    <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://webauth.service.ohio-state.edu/idp/profile/SAML2/Redirect/SSO"/>
+    <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://webauth.service.ohio-state.edu/idp/profile/SAML2/POST/SSO"/>
+    <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST-SimpleSign" Location="https://webauth.service.ohio-state.edu/idp/profile/SAML2/POST-SimpleSign/SSO"/>
+    <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:SOAP" Location="https://webauth.service.ohio-state.edu/idp/profile/SAML2/SOAP/ECP"/>
+  </IDPSSODescriptor>
+  <Organization>
+    <OrganizationName xml:lang="en">The Ohio State University</OrganizationName>
+    <OrganizationDisplayName xml:lang="en">Ohio State University</OrganizationDisplayName>
+    <OrganizationURL xml:lang="en">http://www.osu.edu/</OrganizationURL>
+  </Organization>
+  <ContactPerson contactType="support">
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
+  </ContactPerson>
+  <ContactPerson contactType="technical">
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
+  </ContactPerson>
+  <ContactPerson contactType="administrative">
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
+  </ContactPerson>
+  <ContactPerson contactType="other" remd:contactType="http://refeds.org/metadata/contactType/security">
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
+  </ContactPerson>
+</EntityDescriptor>
+<EntityDescriptor entityID="urn:mace:incommon:uchicago.edu">
+  <Extensions>
+    <mdrpi:RegistrationInfo registrationAuthority="https://incommon.org"/>
+    <mdattr:EntityAttributes>
+      <saml:Attribute Name="http://macedir.org/entity-category-support" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri">
+        <saml:AttributeValue>http://refeds.org/category/research-and-scholarship</saml:AttributeValue>
+      </saml:Attribute>
+      <saml:Attribute Name="urn:oasis:names:tc:SAML:attribute:assurance-certification" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri">
+        <saml:AttributeValue>https://refeds.org/sirtfi</saml:AttributeValue>
+      </saml:Attribute>
+      <saml:Attribute Name="http://macedir.org/entity-category" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri">
+        <saml:AttributeValue>http://id.incommon.org/category/registered-by-incommon</saml:AttributeValue>
+      </saml:Attribute>
+    </mdattr:EntityAttributes>
+  </Extensions>
+  <IDPSSODescriptor errorURL="https://itservices.uchicago.edu/page/support" protocolSupportEnumeration="urn:mace:shibboleth:1.0 urn:oasis:names:tc:SAML:1.1:protocol urn:oasis:names:tc:SAML:2.0:protocol">
+    <Extensions>
+      <shibmd:Scope regexp="false">uchicago.edu</shibmd:Scope>
+      <mdui:UIInfo>
+        <mdui:DisplayName xml:lang="en">University of Chicago</mdui:DisplayName>
+        <mdui:Description xml:lang="en">The University of Chicago Web Single Sign-On servce</mdui:Description>
+        <mdui:PrivacyStatementURL xml:lang="en">https://its.uchicago.edu/acceptable-use-policy/</mdui:PrivacyStatementURL>
+        <mdui:Logo height="83" width="350" xml:lang="en">https://cnet.uchicago.edu/static/idplogo.png</mdui:Logo>
+      </mdui:UIInfo>
+    </Extensions>
+    <KeyDescriptor use="signing">
+      <ds:KeyInfo>
+        <ds:X509Data>
+          <!-- Serial No. 374922140060581602800568455452348519662901100732, expires on Sun Jan 16 19:04:54 2033 GMT -->
+          <ds:X509Certificate>CERTIFICATE</ds:X509Certificate>
+        </ds:X509Data>
+      </ds:KeyInfo>
+    </KeyDescriptor>
+    <ArtifactResolutionService Binding="urn:oasis:names:tc:SAML:1.0:bindings:SOAP-binding" Location="https://shibboleth2.uchicago.edu:8443/idp/profile/SAML1/SOAP/ArtifactResolution" index="1"/>
+    <ArtifactResolutionService Binding="urn:oasis:names:tc:SAML:2.0:bindings:SOAP" Location="https://shibboleth2.uchicago.edu:8443/idp/profile/SAML2/SOAP/ArtifactResolution" index="2"/>
+    <SingleSignOnService Binding="urn:mace:shibboleth:1.0:profiles:AuthnRequest" Location="https://shibboleth2.uchicago.edu/idp/profile/Shibboleth/SSO"/>
+    <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://shibboleth2.uchicago.edu/idp/profile/SAML2/POST/SSO"/>
+    <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST-SimpleSign" Location="https://shibboleth2.uchicago.edu/idp/profile/SAML2/POST-SimpleSign/SSO"/>
+    <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://shibboleth2.uchicago.edu/idp/profile/SAML2/Redirect/SSO"/>
+    <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:SOAP" Location="https://shibboleth2.uchicago.edu/idp/profile/SAML2/SOAP/ECP"/>
+  </IDPSSODescriptor>
+  <AttributeAuthorityDescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:1.1:protocol urn:oasis:names:tc:SAML:2.0:protocol">
+    <Extensions>
+      <shibmd:Scope regexp="false">uchicago.edu</shibmd:Scope>
+    </Extensions>
+    <KeyDescriptor use="signing">
+      <ds:KeyInfo>
+        <ds:X509Data>
+          <!-- Serial No. 374922140060581602800568455452348519662901100732, expires on Sun Jan 16 19:04:54 2033 GMT -->
+          <ds:X509Certificate>CERTIFICATE</ds:X509Certificate>
+        </ds:X509Data>
+      </ds:KeyInfo>
+    </KeyDescriptor>
+    <AttributeService Binding="urn:oasis:names:tc:SAML:1.0:bindings:SOAP-binding" Location="https://shibboleth2.uchicago.edu:8443/idp/profile/SAML1/SOAP/AttributeQuery"/>
+    <AttributeService Binding="urn:oasis:names:tc:SAML:2.0:bindings:SOAP" Location="https://shibboleth2.uchicago.edu:8443/idp/profile/SAML2/SOAP/AttributeQuery"/>
+  </AttributeAuthorityDescriptor>
+  <Organization>
+    <OrganizationName xml:lang="en">University of Chicago</OrganizationName>
+    <OrganizationDisplayName xml:lang="en">University of Chicago</OrganizationDisplayName>
+    <OrganizationURL xml:lang="en">http://www.uchicago.edu/</OrganizationURL>
+  </Organization>
+  <ContactPerson contactType="administrative">
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
+  </ContactPerson>
+  <ContactPerson contactType="support">
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
+  </ContactPerson>
+  <ContactPerson contactType="other" remd:contactType="http://refeds.org/metadata/contactType/security">
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
+  </ContactPerson>
+  <ContactPerson contactType="technical">
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
+  </ContactPerson>
+  <ContactPerson contactType="technical">
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
+  </ContactPerson>
+</EntityDescriptor>
+<EntityDescriptor entityID="https://idp.uca.fr/idp/shibboleth">
+    <Extensions>
+      <mdrpi:RegistrationInfo registrationAuthority="https://federation.renater.fr/" registrationInstant="2017-06-27T13:48:24Z">
+        <mdrpi:RegistrationPolicy xml:lang="en">https://services.renater.fr/federation/en/documentation/engagement-conformite/metadata_registration_practice_statement</mdrpi:RegistrationPolicy>
+      </mdrpi:RegistrationInfo>
+      <mdattr:EntityAttributes>
+        <saml:Attribute Name="http://macedir.org/entity-category-support" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri">
+          <saml:AttributeValue>http://refeds.org/category/research-and-scholarship</saml:AttributeValue>
+          <saml:AttributeValue>https://myacademicid.org/entity-categories/esi</saml:AttributeValue>
+        </saml:Attribute>
+        <saml:Attribute Name="https://federation.renater.fr/member-of" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri">
+          <saml:AttributeValue>https://federation.renater.fr/edugain/</saml:AttributeValue>
+        </saml:Attribute>
+        <saml:Attribute Name="urn:oasis:names:tc:SAML:attribute:assurance-certification" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri">
+          <saml:AttributeValue>https://refeds.org/sirtfi</saml:AttributeValue>
+        </saml:Attribute>
+      </mdattr:EntityAttributes>
+    </Extensions>
+    <IDPSSODescriptor protocolSupportEnumeration="urn:mace:shibboleth:1.0 urn:oasis:names:tc:SAML:1.1:protocol urn:oasis:names:tc:SAML:2.0:protocol">
+      <Extensions>
+        <shibmd:Scope regexp="false">uca.fr</shibmd:Scope>
+        <mdui:UIInfo>
+          <mdui:DisplayName xml:lang="fr">Université Clermont Auvergne</mdui:DisplayName>
+          <mdui:DisplayName xml:lang="de">Université Clermont Auvergne DE</mdui:DisplayName>
+          <mdui:Description xml:lang="fr">Université Clermont Auvergne</mdui:Description>
+          <mdui:Description xml:lang="de">Université Clermont Auvergne DE</mdui:Description>
+          <mdui:Logo height="16" width="16">data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAABAAAAAQCAYAAAAf8/9hAAACw0lEQVQ4y12TTWhcZRSGn/Pd707uZJLJTJs4lUlb7I8WSnVTfxClgqA1tHRTulEorisuRFy5EFy5Ltl007SoBW0QW2NThKZgF6IgRUuaH9tGUStJZvI3k7lz537fcXHTavrC2Rxeznk5532F4REVQIFCaKkWujEiLLRa1OIEASBjKJshgEEVTR3EbfrCkMQ58J5tUZ5QBFVQ7zJOu51VkoL3KIotBIaT+5/itR1VtkZdTC4t8+nUHRbimECh00mIcjlO7t/D4R3b6Q4tNxdrjEzOcnu+hqx3Opq3dpO0+VaLl74YY7a+zNHdO7l45FVyxvAozk7OgG7g70ZT/1hdU1XVa7//pYNnPtejX13V/+Of5rpO11c29WzHO17/coyJe3+yq79MOZdjJenQEwR8NvQKAKrK0OgVxmfugvf0l/r49vgbPLvtMcyx0XEmZuYAoQtothPEeQ5VK/TmcgCc+Po7xm9Nc+TJXbz34kEWG02ePzfKajvBXpm+ByYA78B5RIWOSzlYGQAgTh0Xf53iuZ1VLh8fAuBAf5m3L1xidOoOFudADIKiziMiuNQxkI8AWIqzt3Wb/w5dDENwsNhsYfeW+phdqEMgiFdAsV55YbACwNzSMqSO67N3eeebCQ5UtvD+1RsQZEvt2FvHeOb0eVqNJo1CTGAMnxx+mUqhAMCZH3/JbIow/P1P4D3kQnAO8R67d2uZ+oenuDT5Gx449MQgj/f2AHB7vsbIDzchCCD1YAyIAQ84DwoWILKWE0/v22SSufoKb164jIig3m+YXx+qwSlxkhJcH9jzUbXUSzGKcN4zV19h+MbPfDB2Dec8xaiL5fU4k+4fDFAQ4db9eYR3P1ZSB9YCnv5iD6V8ntAYNqKI9577qw3W4iTLpII1hlIhjxURNLQPA1pbW6ecj8himHUNwva+Ir6opN6DQGgMgvAvQ1lgYxylh5kAAAAASUVORK5CYII=</mdui:Logo>
+        </mdui:UIInfo>
+      </Extensions>
+      <KeyDescriptor use="signing">
+        <ds:KeyInfo>
+          <ds:X509Data>
+            <ds:X509Certificate>CERTIFICATE</ds:X509Certificate>
+          </ds:X509Data>
+        </ds:KeyInfo>
+      </KeyDescriptor>
+      <SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.uca.fr/idp/profile/SAML2/Redirect/SLO"/>
+      <SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://idp.uca.fr/idp/profile/SAML2/POST/SLO"/>
+      <SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:SOAP" Location="https://idp.uca.fr/idp/profile/SAML2/SOAP/SLO"/>
+      <NameIDFormat>urn:mace:shibboleth:1.0:nameIdentifier</NameIDFormat>
+      <NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:transient</NameIDFormat>
+      <SingleSignOnService Binding="urn:mace:shibboleth:1.0:profiles:AuthnRequest" Location="https://idp.uca.fr/idp/profile/Shibboleth/SSO"/>
+      <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://idp.uca.fr/idp/profile/SAML2/POST/SSO"/>
+      <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.uca.fr/idp/profile/SAML2/Redirect/SSO"/>
+    </IDPSSODescriptor>
+    <Organization>
+      <OrganizationName xml:lang="fr">Université Clermont Auvergne</OrganizationName>
+      <OrganizationDisplayName xml:lang="fr">Université Clermont Auvergne</OrganizationDisplayName>
+      <OrganizationURL xml:lang="fr">http://www.uca.fr</OrganizationURL>
+    </Organization>
+    <ContactPerson contactType="technical">
+      <EmailAddress>mailto:test@test</EmailAddress>
+    </ContactPerson>
+    <ContactPerson contactType="other" remd:contactType="http://refeds.org/metadata/contactType/security">
+      <GivenName>Test Test</GivenName>
+      <EmailAddress>mailto:test@test</EmailAddress>
+    </ContactPerson>
+  </EntityDescriptor>
+<EntityDescriptor entityID="urn:mace:incommon:nmu.edu">
+  <Extensions>
+    <mdrpi:RegistrationInfo registrationAuthority="https://incommon.org"/>
+    <mdattr:EntityAttributes>
+      <saml:Attribute Name="urn:oasis:names:tc:SAML:attribute:assurance-certification" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri">
+        <saml:AttributeValue>https://refeds.org/sirtfi</saml:AttributeValue>
+      </saml:Attribute>
+      <saml:Attribute Name="http://macedir.org/entity-category-support" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri">
+        <saml:AttributeValue>http://refeds.org/category/research-and-scholarship</saml:AttributeValue>
+      </saml:Attribute>
+      <saml:Attribute Name="http://macedir.org/entity-category" NameFormat="urn:oasis:names:tc:SAML:2.0:attrname-format:uri">
+        <saml:AttributeValue>http://id.incommon.org/category/registered-by-incommon</saml:AttributeValue>
+      </saml:Attribute>
+    </mdattr:EntityAttributes>
+  </Extensions>
+  <IDPSSODescriptor errorURL="https://myuser.nmu.edu/federated_error.html" protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+    <Extensions>
+      <shibmd:Scope regexp="false">nmu.edu</shibmd:Scope>
+      <mdui:UIInfo>
+        <mdui:DisplayName xml:lang="en">Northern Michigan University</mdui:DisplayName>
+        <mdui:PrivacyStatementURL xml:lang="en">https://idp.nmu.edu/privacy_policy.php</mdui:PrivacyStatementURL>
+        <mdui:Logo height="801" width="801" xml:lang="en">https://www.nmu.edu/Webb/Images/NMULogos/NMU_Square_Transparent.png</mdui:Logo>
+      </mdui:UIInfo>
+    </Extensions>
+    <KeyDescriptor use="signing">
+      <ds:KeyInfo>
+        <ds:X509Data>
+          <!-- Serial No. 11929611914524782698, expires on Mon Mar  2 17:57:16 2026 GMT -->
+          <ds:X509Certificate>CERTIFICATE</ds:X509Certificate>
+        </ds:X509Data>
+      </ds:KeyInfo>
+    </KeyDescriptor>
+    <SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.nmu.edu/saml2/SingleLogoutService.php"/>
+    <SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://idp.nmu.edu/saml2/SingleLogoutService.php"/>
+    <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp.nmu.edu/saml2/SSOService.php"/>
+    <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST" Location="https://idp.nmu.edu/saml2/SSOService.php"/>
+  </IDPSSODescriptor>
+  <Organization>
+    <OrganizationName xml:lang="en">Northern Michigan University</OrganizationName>
+    <OrganizationDisplayName xml:lang="en">Northern Michigan University</OrganizationDisplayName>
+    <OrganizationURL xml:lang="en">http://www.nmu.edu</OrganizationURL>
+  </Organization>
+  <ContactPerson contactType="technical">
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
+  </ContactPerson>
+  <ContactPerson contactType="technical">
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
+  </ContactPerson>
+  <ContactPerson contactType="administrative">
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
+  </ContactPerson>
+  <ContactPerson contactType="other" remd:contactType="http://refeds.org/metadata/contactType/security">
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
+  </ContactPerson>
+  <ContactPerson contactType="technical">
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
+  </ContactPerson>
+</EntityDescriptor>
+<EntityDescriptor entityID="https://login.restena.lu/simplesamlphp/saml2/idp/metadata.php">
+    <Extensions>
+      <mdrpi:RegistrationInfo registrationAuthority="http://eduid.lu" registrationInstant="2015-07-07T08:00:00Z">
+        <mdrpi:RegistrationPolicy xml:lang="en">https://eduid.lu/media/eduid-mrps-02.pdf</mdrpi:RegistrationPolicy>
+      </mdrpi:RegistrationInfo>
+      <shibmd:Scope regexp="false">education.lu</shibmd:Scope>
+    </Extensions>
+    <IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+      <Extensions>
+        <mdui:UIInfo>
+          <mdui:DisplayName xml:lang="en">RESTENA Users</mdui:DisplayName>
+          <mdui:DisplayName xml:lang="fr">RESTENA Utilisateurs</mdui:DisplayName>
+          <mdui:DisplayName xml:lang="de">RESTENA Benutzer</mdui:DisplayName>
+          <mdui:DisplayName xml:lang="lb">RESTENA Benotzeren</mdui:DisplayName>
+          <mdui:Description xml:lang="en">Identity Provider for end users with an account at RESTENA Foundation</mdui:Description>
+          <mdui:Description xml:lang="fr">Fournisseur d'Identité pour utilisateurs avec un compte de la Fondation RESTENA</mdui:Description>
+          <mdui:Description xml:lang="de">Identitätsprovider für Nutzer mit einem Benutzerkonto bei der Stiftung RESTENA</mdui:Description>
+          <mdui:Keywords xml:lang="en">RESTENA user users login education</mdui:Keywords>
+          <mdui:Logo height="105" width="101" xml:lang="en">https://login.restena.lu/restena.png</mdui:Logo>
+        </mdui:UIInfo>
+        <mdui:DiscoHints>
+          <mdui:IPHint>158.64.0.0/16</mdui:IPHint>
+          <mdui:IPHint>2001:a18::0/32</mdui:IPHint>
+          <mdui:DomainHint>education.lu</mdui:DomainHint>
+          <mdui:DomainHint>lu</mdui:DomainHint>
+          <mdui:GeolocationHint>geo:49.50,6.00</mdui:GeolocationHint>
+        </mdui:DiscoHints>
+      </Extensions>
+      <KeyDescriptor use="signing">
+        <ds:KeyInfo>
+          <ds:X509Data>
+            <ds:X509Certificate>CERTIFICATE</ds:X509Certificate>
+          </ds:X509Data>
+        </ds:KeyInfo>
+      </KeyDescriptor>
+      <KeyDescriptor use="encryption">
+        <ds:KeyInfo>
+          <ds:X509Data>
+            <ds:X509Certificate>CERTIFICATE</ds:X509Certificate>
+          </ds:X509Data>
+        </ds:KeyInfo>
+      </KeyDescriptor>
+      <SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://login.restena.lu/simplesamlphp/module.php/saml/idp/singleLogout"/>
+      <NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:persistent</NameIDFormat>
+      <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://login.restena.lu/simplesamlphp/module.php/saml/idp/singleSignOnService"/>
+    </IDPSSODescriptor>
+    <Organization>
+      <OrganizationName xml:lang="en">RESTENA Foundation</OrganizationName>
+      <OrganizationName xml:lang="fr">Fondation RESTENA</OrganizationName>
+      <OrganizationName xml:lang="de">Stiftung</OrganizationName>
+      <OrganizationName xml:lang="lb">Fondatioun RESTENA</OrganizationName>
+      <OrganizationDisplayName xml:lang="en">RESTENA Foundation</OrganizationDisplayName>
+      <OrganizationDisplayName xml:lang="fr">Fondation RESTENA</OrganizationDisplayName>
+      <OrganizationDisplayName xml:lang="de">Stiftung RESTENA</OrganizationDisplayName>
+      <OrganizationDisplayName xml:lang="lb">Fondatioun RESTENA</OrganizationDisplayName>
+      <OrganizationURL xml:lang="en">http://www.restena.lu/restena/en/EN-Presentation.html</OrganizationURL>
+      <OrganizationURL xml:lang="fr">http://www.restena.lu/restena/fr/FR-Presentation.html</OrganizationURL>
+    </Organization>
+    <ContactPerson contactType="other" remd:contactType="http://refeds.org/metadata/contactType/security">
+      <Company>RESTENA Foundation</Company>
+      <GivenName>Test Test</GivenName>
+      <SurName>CSIRT</SurName>
+      <EmailAddress>mailto:test@test</EmailAddress>
+    </ContactPerson>
+    <ContactPerson contactType="technical">
+      <GivenName>Test Test</GivenName>
+      <EmailAddress>mailto:test@test</EmailAddress>
+    </ContactPerson>
+  </EntityDescriptor>
+<EntityDescriptor entityID="https://idp-proxy.ugd.edu.mk">
+    <Extensions>
+      <mdrpi:RegistrationInfo registrationAuthority="https://rr.aaiedu.mk" registrationInstant="2025-02-20T21:13:18Z"/>
+    </Extensions>
+    <IDPSSODescriptor protocolSupportEnumeration="urn:oasis:names:tc:SAML:2.0:protocol">
+      <Extensions>
+        <mdui:UIInfo>
+          <mdui:Logo height="261" width="622">https://www.ugd.edu.mk/wp-content/uploads/2023/11/ugd-logo-slogan.png</mdui:Logo>
+        </mdui:UIInfo>
+      </Extensions>
+      <KeyDescriptor use="signing">
+        <ds:KeyInfo>
+          <ds:X509Data>
+            <ds:X509Certificate>CERTIFICATE</ds:X509Certificate>
+          </ds:X509Data>
+        </ds:KeyInfo>
+      </KeyDescriptor>
+      <KeyDescriptor use="encryption">
+        <ds:KeyInfo>
+          <ds:X509Data>
+            <ds:X509Certificate>CERTIFICATE</ds:X509Certificate>
+          </ds:X509Data>
+        </ds:KeyInfo>
+      </KeyDescriptor>
+      <SingleLogoutService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp-proxy.ugd.edu.mk/module.php/saml/idp/singleLogout"/>
+      <NameIDFormat>urn:oasis:names:tc:SAML:2.0:nameid-format:transient</NameIDFormat>
+      <SingleSignOnService Binding="urn:oasis:names:tc:SAML:2.0:bindings:HTTP-Redirect" Location="https://idp-proxy.ugd.edu.mk/module.php/saml/idp/singleSignOnService"/>
+    </IDPSSODescriptor>
+    <Organization>
+      <OrganizationName xml:lang="mk">Универзитетот „Гоце Делчев“ – Штип</OrganizationName>
+      <OrganizationName xml:lang="en">Goce Delcev University, Stip</OrganizationName>
+      <OrganizationDisplayName xml:lang="mk">Универзитетот „Гоце Делчев“ – Штип</OrganizationDisplayName>
+      <OrganizationDisplayName xml:lang="en">Goce Delcev University, Stip</OrganizationDisplayName>
+      <OrganizationURL xml:lang="mk">https://www.ugd.edu.mk/</OrganizationURL>
+      <OrganizationURL xml:lang="en">https://www.ugd.edu.mk/en/</OrganizationURL>
+    </Organization>
+    <ContactPerson contactType="technical">
+      <GivenName>Test Test</GivenName>
+      <EmailAddress>mailto:test@test</EmailAddress>
+    </ContactPerson>
+  </EntityDescriptor>
+</EntitiesDescriptor>
