@@ -12,7 +12,9 @@ def test_get_all_upstream_idps(get_all_upstream_idps_data_patcher):
     `tests/data/incommon_mdq_data_extract.xml` as expected.
     """
     res = get_all_upstream_idps(
-        "generic_mdq_discovery", "https://generic_mdq_discovery/get-all-idps", "mdq-xml"
+        "generic_mdq_discovery",
+        "https://generic_mdq_discovery/get-all-idps",
+        "xml-mdq-v1.0",
     )
     assert res == [
         {"idp": "urn:mace:incommon:osu.edu", "name": "Ohio State University"},

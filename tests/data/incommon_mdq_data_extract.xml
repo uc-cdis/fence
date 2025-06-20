@@ -56,20 +56,20 @@
     <OrganizationURL xml:lang="en">http://www.osu.edu/</OrganizationURL>
   </Organization>
   <ContactPerson contactType="support">
-    <GivenName>IT Service Desk</GivenName>
-    <EmailAddress>mailto:8help@osu.edu</EmailAddress>
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
   </ContactPerson>
   <ContactPerson contactType="technical">
-    <GivenName>Authentication Support</GivenName>
-    <EmailAddress>mailto:webauth-admin@lists.service.ohio-state.edu</EmailAddress>
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
   </ContactPerson>
   <ContactPerson contactType="administrative">
-    <GivenName>Authentication Support</GivenName>
-    <EmailAddress>mailto:webauth-admin@lists.service.ohio-state.edu</EmailAddress>
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
   </ContactPerson>
   <ContactPerson contactType="other" remd:contactType="http://refeds.org/metadata/contactType/security">
-    <GivenName>Security Response Team</GivenName>
-    <EmailAddress>mailto:security@osu.edu</EmailAddress>
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
   </ContactPerson>
 </EntityDescriptor>
 <EntityDescriptor entityID="urn:mace:incommon:uchicago.edu">
@@ -134,24 +134,24 @@
     <OrganizationURL xml:lang="en">http://www.uchicago.edu/</OrganizationURL>
   </Organization>
   <ContactPerson contactType="administrative">
-    <GivenName>David Langenberg</GivenName>
-    <EmailAddress>mailto:davel@uchicago.edu</EmailAddress>
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
   </ContactPerson>
   <ContactPerson contactType="support">
-    <GivenName>IT Services Support</GivenName>
-    <EmailAddress>mailto:support@uchicago.edu</EmailAddress>
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
   </ContactPerson>
   <ContactPerson contactType="other" remd:contactType="http://refeds.org/metadata/contactType/security">
-    <GivenName>IT Security</GivenName>
-    <EmailAddress>mailto:security@uchicago.edu</EmailAddress>
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
   </ContactPerson>
   <ContactPerson contactType="technical">
-    <GivenName>Joao Cassamano</GivenName>
-    <EmailAddress>mailto:cassamanojc@uchicago.edu</EmailAddress>
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
   </ContactPerson>
   <ContactPerson contactType="technical">
-    <GivenName>Dominic Sanchez</GivenName>
-    <EmailAddress>mailto:dominics@uchicago.edu</EmailAddress>
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
   </ContactPerson>
 </EntityDescriptor>
 <EntityDescriptor entityID="https://idp.uca.fr/idp/shibboleth">
@@ -205,11 +205,11 @@
       <OrganizationURL xml:lang="fr">http://www.uca.fr</OrganizationURL>
     </Organization>
     <ContactPerson contactType="technical">
-      <EmailAddress>mailto:support.dsi@uca.fr</EmailAddress>
+      <EmailAddress>mailto:test@test</EmailAddress>
     </ContactPerson>
     <ContactPerson contactType="other" remd:contactType="http://refeds.org/metadata/contactType/security">
-      <GivenName>DSI UCA</GivenName>
-      <EmailAddress>mailto:support.dsi@uca.fr</EmailAddress>
+      <GivenName>Test Test</GivenName>
+      <EmailAddress>mailto:test@test</EmailAddress>
     </ContactPerson>
   </EntityDescriptor>
 <EntityDescriptor entityID="urn:mace:incommon:nmu.edu">
@@ -255,24 +255,24 @@
     <OrganizationURL xml:lang="en">http://www.nmu.edu</OrganizationURL>
   </Organization>
   <ContactPerson contactType="technical">
-    <GivenName>Karl Mulder</GivenName>
-    <EmailAddress>mailto:kmulder@nmu.edu</EmailAddress>
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
   </ContactPerson>
   <ContactPerson contactType="technical">
-    <GivenName>John Marra</GivenName>
-    <EmailAddress>mailto:jmarra@nmu.edu</EmailAddress>
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
   </ContactPerson>
   <ContactPerson contactType="administrative">
-    <GivenName>John Marra</GivenName>
-    <EmailAddress>mailto:jmarra@nmu.edu</EmailAddress>
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
   </ContactPerson>
   <ContactPerson contactType="other" remd:contactType="http://refeds.org/metadata/contactType/security">
-    <GivenName>Security Contact</GivenName>
-    <EmailAddress>mailto:security@nmu.edu</EmailAddress>
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
   </ContactPerson>
   <ContactPerson contactType="technical">
-    <GivenName>James Juopperi</GivenName>
-    <EmailAddress>mailto:jajuoppe@nmu.edu</EmailAddress>
+    <GivenName>Test Test</GivenName>
+    <EmailAddress>mailto:test@test</EmailAddress>
   </ContactPerson>
 </EntityDescriptor>
 <EntityDescriptor entityID="https://login.restena.lu/simplesamlphp/saml2/idp/metadata.php">
@@ -335,13 +335,13 @@
     </Organization>
     <ContactPerson contactType="other" remd:contactType="http://refeds.org/metadata/contactType/security">
       <Company>RESTENA Foundation</Company>
-      <GivenName>RESTENA</GivenName>
+      <GivenName>Test Test</GivenName>
       <SurName>CSIRT</SurName>
-      <EmailAddress>mailto:csirt@restena.lu</EmailAddress>
+      <EmailAddress>mailto:test@test</EmailAddress>
     </ContactPerson>
     <ContactPerson contactType="technical">
-      <GivenName>RESTENA NOC</GivenName>
-      <EmailAddress>mailto:noc@restena.lu</EmailAddress>
+      <GivenName>Test Test</GivenName>
+      <EmailAddress>mailto:test@test</EmailAddress>
     </ContactPerson>
   </EntityDescriptor>
 <EntityDescriptor entityID="https://idp-proxy.ugd.edu.mk">
@@ -381,8 +381,8 @@
       <OrganizationURL xml:lang="en">https://www.ugd.edu.mk/en/</OrganizationURL>
     </Organization>
     <ContactPerson contactType="technical">
-      <GivenName>Administrator</GivenName>
-      <EmailAddress>mailto:support@ugd.edu.mk</EmailAddress>
+      <GivenName>Test Test</GivenName>
+      <EmailAddress>mailto:test@test</EmailAddress>
     </ContactPerson>
   </EntityDescriptor>
 </EntitiesDescriptor>

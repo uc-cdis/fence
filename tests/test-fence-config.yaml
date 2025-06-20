@@ -150,7 +150,7 @@ OPENID_CONNECT:
       authorization_endpoint: 'https://generic_mdq_discovery/authorization_endpoint'
     idp_discovery:
       url: 'https://generic_mdq_discovery/get-all-idps'
-      format: mdq-xml
+      format: xml-mdq-v1.0
     authorization_url_param_map:
       idp: idp_hint
       key_not_in_login_url: something

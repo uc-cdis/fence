@@ -6,7 +6,7 @@ endpoint. Each endpoint is implemented as a class (and registered as a
 blueprint resource).
 
 For generic OIDC implementations, the login and callback classes are created
-dynamically by the `createLoginClass` and `createCallbackClass` functions.
+dynamically by the `create_login_class` and `create_callback_class` functions.
 They are subclasses of the `DefaultOAuth2Login` and `DefaultOAuth2Callback`
 classes; only the provider name and settings differ.
 
@@ -303,20 +303,25 @@ def get_login_providers_info():
 
     # if several login_options are defined for this default IdP, will
     # default to the first one:
-    default_provider_info = next(
-        (info for info in all_provider_info if info["idp"] == default_idp), None
-    )
-    if not default_provider_info:
+    default_provider_matches = [
+        info for info in all_provider_info if info["idp"] == default_idp
+    ]
+    if not default_provider_matches:
         raise InternalError(
             "default provider misconfigured: DEFAULT_LOGIN_IDP is set to '{}', which is not configured in LOGIN_OPTIONS".format(
                 default_idp
             )
         )
+    default_provider_info = default_provider_matches[0]
+    if len(default_provider_matches) > 1:
+        logger.info(
+            f"Default IdP is set to '{default_idp}', which matches more than one option in LOGIN_OPTIONS. Defaulting to the first one ('{default_provider_info['name']}')."
+        )
 
     return default_provider_info, all_provider_info
 
 
-def createLoginClass(idp_name):
+def create_login_class(idp_name):
     """
     Creates and returns a new class `GenericLogin_<IdP>`, which is a subclass
     of `DefaultOAuth2Login` (only the provider name and settings differ).
@@ -336,7 +341,7 @@ def createLoginClass(idp_name):
     )
 
 
-def createCallbackClass(idp_name, settings):
+def create_callback_class(idp_name, settings):
     """
     Creates and returns a new class `GenericCallback_<IdP>`, which is a subclass
     of `DefaultOAuth2Callback` (only the provider name and settings differ).
@@ -420,8 +425,8 @@ def make_login_blueprint():
             login_class = CilogonLogin
             callback_class = CilogonCallback
         else:  # generic OIDC implementation
-            login_class = createLoginClass(idp.lower())
-            callback_class = createCallbackClass(idp.lower(), configured_idps[idp])
+            login_class = create_login_class(idp.lower())
+            callback_class = create_callback_class(idp.lower(), configured_idps[idp])
 
         # create IdP routes
         blueprint_api.add_resource(
@@ -457,10 +462,26 @@ def get_all_upstream_idps(idp_name: str, discovery_url: str, format: str) -> lis
     """
     if format == "shibboleth":
         return get_all_shib_idps(discovery_url)
-    elif format == "mdq-xml":  # InCommon Metadata Query Protocol
+    elif format == "xml-mdq-v1.0":  # InCommon Metadata Query Protocol version 1.0
+        """
+        According to https://spaces.at.internet2.edu/display/federation/metadata-saml,
+        "The SAML representation of InCommon metadata is defined in:"
+        - https://groups.oasis-open.org/higherlogic/ws/public/document?document_id=56785
+        - https://wiki.oasis-open.org/security/SAML2MetadataAttr
+        - https://wiki.oasis-open.org/security/SAML2MetadataUI
+        As of June 2025, the last link says "Version 1.0" "Final standardization occurred on
+        24 October 2019."
+        """
         all_idps = []
         xml_data = fetch_url_data(discovery_url, "text")
-        for element in ElementTree.fromstring(xml_data).iter():
+        try:
+            tree = ElementTree.fromstring(xml_data)
+        except ElementTree.ParseError as e:
+            logger.error(
+                f"Unable to parse data received from '{discovery_url}'. Error: {e}. Received data:\n{xml_data}"
+            )
+            raise e
+        for element in tree.iter():
             if (
                 not element.tag.endswith("EntityDescriptor")
                 or "entityID" not in element.keys()

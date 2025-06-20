@@ -121,7 +121,7 @@ OPENID_CONNECT:
     # `LOGIN_OPTIONS` for this IdP must include `upstream_idps`.
     idp_discovery:
       url: 'https://server.com/disco'
-      format: mdq-xml
+      format: xml-mdq-v1.0
     # use `authorization_url_param_map` to set parameters when redirecting to the IdP.
     # for the example config below, if the login URL includes `idp=google`, the redirect URL will
     # include `upstream_idp_parameter=google`.

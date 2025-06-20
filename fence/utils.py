@@ -50,7 +50,7 @@ def fetch_url_data(url: str, format: str, expected_status_code: int = 200) -> st
     assert res.status_code == expected_status_code, f"Unable to fetch data from '{url}'"
     if format == "text":
         return res.text
-    if format == "json":
+    elif format == "json":
         return res.json()
     raise Exception(f"Unknown 'fetch_url_data' format '{format}'")
 
