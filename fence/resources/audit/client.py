@@ -182,6 +182,7 @@ class AuditServiceClient:
         upstream_idp=None,
         shib_idp=None,
         client_id=None,
+        ip=None,
     ):
         """
         Create a login audit log, or do nothing if auditing is disabled.
@@ -206,5 +207,6 @@ class AuditServiceClient:
             "fence_idp": upstream_idp,
             "shib_idp": shib_idp,
             "client_id": client_id,
+            "ip": ip,
         }
         self._create_audit_log("login", data)
