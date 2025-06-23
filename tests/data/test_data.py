@@ -1667,8 +1667,6 @@ def test_blank_index_upload_failed(
 ):
     """Test that data/upload does not return a pre-signed url if blank creation failed."""
 
-    print("\nstarting new test")
-
     class MockResponse(object):
         def __init__(self, data, status_code=200):
             self.data = data
@@ -1685,7 +1683,6 @@ def test_blank_index_upload_failed(
     )
     with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
         # user is authorized by arborist
-        print("\nSetting auth")
         arborist_requests.return_value = MockResponse({"auth": True})
         arborist_requests.return_value.status_code = 200
         headers = {
@@ -1716,8 +1713,6 @@ def test_blank_index_upload_missing_did(
     if blank creation does not have a 'did' key.
     """
 
-    print("\nstarting new test")
-
     class MockResponse(object):
         def __init__(self, data, status_code=200):
             self.data = data
@@ -1734,7 +1729,6 @@ def test_blank_index_upload_missing_did(
     )
     with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
         # user is authorized by arborist
-        print("\nSetting auth")
         arborist_requests.return_value = MockResponse({"auth": True})
         arborist_requests.return_value.status_code = 200
         headers = {
