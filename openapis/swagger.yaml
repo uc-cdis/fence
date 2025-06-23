@@ -1854,7 +1854,7 @@ components:
         passports:
           type: array
           items:
-            type: object
+            type: string
           required: true
           description: The list of GA4GH passports containing the authorizations for a given user to access the requested file. NOTE - the key "passports" is configurable in fence via the GA4GH_DRS_POSTED_PASSPORT_FIELD field. The default of "passports" has been provided.
     RequestUploadBlank:
