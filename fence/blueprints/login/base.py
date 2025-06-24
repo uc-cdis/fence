@@ -7,7 +7,7 @@ from flask import current_app
 import flask
 from cdislogging import get_logger
 from flask_restful import Resource
-from fence.auth import login_user, get_ip_information_string
+from fence.auth import login_user
 from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
 from fence.errors import UserError
@@ -303,7 +303,6 @@ def prepare_login_log(idp_name):
         "upstream_idp": flask.session.get("upstream_idp"),
         "shib_idp": flask.session.get("shib_idp"),
         "client_id": flask.session.get("client_id"),
-        "ip": get_ip_information_string(),
     }
 
 
