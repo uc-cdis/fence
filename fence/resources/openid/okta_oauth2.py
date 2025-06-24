@@ -37,7 +37,9 @@ class OktaOauth2Client(Oauth2ClientBase):
                 "jwks_uri",
                 "",
             )
-            claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
+            claims, refresh_token, access_token = self.get_jwt_claims_identity(
+                token_endpoint, jwks_endpoint, code
+            )
 
             if claims.get("email"):
                 return {"email": claims["email"], "sub": claims.get("sub")}

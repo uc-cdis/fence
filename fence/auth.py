@@ -62,8 +62,23 @@ def build_redirect_url(hostname, path):
     return redirect_base + path
 
 
+def get_ip_information_string():
+    """
+    Returns a string containing the client's IP address and any X-Forwarded headers.
+
+    Returns:
+        str: A formatted string containing the client's IP address and X-Forwarded headers.
+    """
+    x_forwarded_headers = [
+        f"{header}: {value}"
+        for header, value in flask.request.headers
+        if "X-Forwarded" in header
+    ]
+    return f"flask.request.remote_addr={flask.request.remote_addr} x_forwarded_headers={x_forwarded_headers}"
+
+
 def login_user(
-    username, provider, fence_idp=None, shib_idp=None, email=None, id_from_idp=None
+    username, provider, upstream_idp=None, shib_idp=None, email=None, id_from_idp=None
 ):
     """
     Login a user with the given username and provider. Set values in Flask
@@ -73,13 +88,21 @@ def login_user(
     Args:
         username (str): specific username of user to be logged in
         provider (str): specfic idp of user to be logged in
-        fence_idp (str, optional): Downstreawm fence IdP
-        shib_idp (str, optional): Downstreawm shibboleth IdP
+        upstream_idp (str, optional): upstream fence IdP
+        shib_idp (str, optional): upstream shibboleth IdP
         email (str, optional): email of user (may or may not match username depending
             on the IdP)
         id_from_idp (str, optional): id from the IDP (which may be different than
             the username)
     """
+
+    def set_flask_session_values_and_log_ip(user):
+        set_flask_session_values(user)
+
+        ip_info = get_ip_information_string()
+        logger.info(
+            f"User logged in. user.id={user.id} user.username={user.username} {ip_info}"
+        )
 
     def set_flask_session_values(user):
         """
@@ -91,8 +114,8 @@ def login_user(
         flask.session["username"] = user.username
         flask.session["user_id"] = str(user.id)
         flask.session["provider"] = user.identity_provider.name
-        if fence_idp:
-            flask.session["fence_idp"] = fence_idp
+        if upstream_idp:
+            flask.session["upstream_idp"] = upstream_idp
         if shib_idp:
             flask.session["shib_idp"] = shib_idp
         flask.g.user = user
@@ -115,7 +138,7 @@ def login_user(
         #  idp info persisted to the database. We return early to avoid
         #  unnecessarily re-saving that user and idp info.
         if user.identity_provider and user.identity_provider.name == provider:
-            set_flask_session_values(user)
+            set_flask_session_values_and_log_ip(user)
             return
     else:
         if not config["ALLOW_NEW_USER_ON_LOGIN"]:
@@ -146,7 +169,7 @@ def login_user(
     current_app.scoped_session().add(user)
     current_app.scoped_session().commit()
 
-    set_flask_session_values(user)
+    set_flask_session_values_and_log_ip(user)
 
 
 def logout(next_url, force_era_global_logout=False):

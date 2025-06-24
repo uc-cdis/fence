@@ -1,3 +1,11 @@
+# Override the default_digest_method for Signer before flask and flask_wtf are loaded. 
+import hashlib
+from itsdangerous import Signer
+# Explicitly set to sha256 as the default (sha1) will break in FIPS environments when flask_wtf attempts to process a user registration form. 
+# This is a known issue with itsdangerous defaults (see: https://github.com/pgadmin-org/pgadmin4/issues/7979 for a similar issue with pgadmin)
+# According to: https://itsdangerous.palletsprojects.com/en/latest/concepts/#digest-method-security and https://stackoverflow.com/a/27669587, we can override the default here:
+Signer.default_digest_method = hashlib.sha256 
+
 from collections import OrderedDict
 import os
 from urllib.parse import urljoin
@@ -465,11 +473,16 @@ def _setup_oidc_clients(app):
             # https://docs.authlib.org/en/latest/client/frameworks.html
             app.fence_client.register(**settings)
         else:  # generic OIDC implementation
+            if hasattr(app, "arborist"):
+                app_arborist = app.arborist
+            else:
+                app_arborist = None
             client = Oauth2ClientBase(
                 settings=settings,
                 logger=logger,
                 HTTP_PROXY=config.get("HTTP_PROXY"),
                 idp=settings.get("name") or idp.title(),
+                arborist=app_arborist,
             )
             clean_idp = idp.lower().replace(" ", "")
             setattr(app, f"{clean_idp}_client", client)
