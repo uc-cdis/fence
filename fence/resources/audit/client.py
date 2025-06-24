@@ -179,7 +179,7 @@ class AuditServiceClient:
         username,
         sub,
         idp,
-        fence_idp=None,
+        upstream_idp=None,
         shib_idp=None,
         client_id=None,
     ):
@@ -192,7 +192,7 @@ class AuditServiceClient:
             return
 
         # special case for idp=fence when falling back on
-        # fence_idp=shibboleth and shib_idp=NIH
+        # upstream_idp=shibboleth and shib_idp=NIH
         if shib_idp == "None":
             shib_idp = None
 
@@ -202,7 +202,8 @@ class AuditServiceClient:
             "username": username,
             "sub": sub,
             "idp": idp,
-            "fence_idp": fence_idp,
+            # NOTE: audit-service still registers `upstream_idp` as `fence_idp`
+            "fence_idp": upstream_idp,
             "shib_idp": shib_idp,
             "client_id": client_id,
         }
