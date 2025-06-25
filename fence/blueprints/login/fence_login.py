@@ -50,7 +50,7 @@ class FenceLogin(DefaultOAuth2Login):
         # add idp parameter to the authorization URL
         if "idp" in flask.request.args:
             idp = flask.request.args["idp"]
-            flask.session["fence_idp"] = idp
+            flask.session["upstream_idp"] = idp
             params = {"idp": idp}
             # if requesting to login through Shibboleth, also add shib_idp
             # parameter to the authorization URL
@@ -124,7 +124,7 @@ class FenceCallback(DefaultOAuth2Callback):
         login_user(
             username,
             IdentityProvider.fence,
-            fence_idp=flask.session.get("fence_idp"),
+            upstream_idp=flask.session.get("upstream_idp"),
             shib_idp=flask.session.get("shib_idp"),
             email=email,
         )

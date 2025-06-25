@@ -1,8 +1,10 @@
+from authlib.common.urls import add_params_to_uri
 from authlib.integrations.requests_client import OAuth2Session
 from cached_property import cached_property
+import flask
 from flask import current_app
 
-from jose.exceptions import JWTError, JWTClaimsError
+from jose.exceptions import JWTError
 import requests
 import time
 import datetime
@@ -215,6 +217,19 @@ class Oauth2ClientBase(object):
         uri, _ = self.session.create_authorization_url(
             authorization_endpoint, prompt="login"
         )
+
+        if "idp" in flask.request.args:
+            flask.session["upstream_idp"] = flask.request.args["idp"]
+
+        # add query parameters to the url as configured in `authorization_url_param_map`
+        params = {}
+        for in_param, out_param in self.settings.get(
+            "authorization_url_param_map", {}
+        ).items():
+            if in_param in flask.request.args:
+                params[out_param] = flask.request.args[in_param]
+        uri = add_params_to_uri(uri, params)
+
         return uri
 
     def get_auth_info(self, code):
@@ -389,7 +404,7 @@ class Oauth2ClientBase(object):
         """
         Store refresh token in db.
         """
-        db_session = db_session or current_app.scoped_session()
+        db_session = db_session or flask.current_app.scoped_session()
         user.upstream_refresh_tokens = []
         upstream_refresh_token = UpstreamRefreshToken(
             user=user,
@@ -468,7 +483,7 @@ class Oauth2ClientBase(object):
         - If groups are not received from the IdP but group synchronization is enabled, logs a warning.
 
         """
-        db_session = db_session or current_app.scoped_session()
+        db_session = db_session or flask.current_app.scoped_session()
 
         expires_at = None
 
