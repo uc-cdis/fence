@@ -155,8 +155,8 @@ class Oauth2ClientBase(object):
             self.logger.debug(f"Using {self.discovery_url} to get discovery doc")
             return_value = default_value
             if self.discovery_doc.status_code == requests.codes.ok:
+                self.logger.debug(f"discovery doc is {self.discovery_doc}")
                 return_value = self.discovery_doc.json().get(key)
-                self.logger.debug(f"Using { self.discovery_doc} to get discovery doc")
                 if not return_value:
                     self.logger.warning(
                         "could not retrieve `{}` from {} response {}. "
