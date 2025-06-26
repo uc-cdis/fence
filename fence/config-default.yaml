@@ -812,7 +812,8 @@ AZ_BLOB_CONTAINER_URL: 'https://myfakeblob.blob.core.windows.net/my-fake-contain
 
 # url where authz microservice is running
 ARBORIST: null
-
+# time in seconds to wait for arborist to respond to requests from fence
+ARBORIST_TIMEOUT: 30
 # url where the audit-service is running
 AUDIT_SERVICE: 'http://audit-service'
 ENABLE_AUDIT_LOGS:
