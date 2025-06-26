@@ -2,12 +2,21 @@ name: Integration Tests
 
 on: pull_request
 
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+  issues: write
+
 jobs:
   integration_tests:
     name: Integration tests
-    uses: uc-cdis/.github/.github/workflows/integration_tests.yaml@master
+    uses: uc-cdis/gen3-code-vigil/.github/workflows/shared_integration_tests.yaml@feat/GPE-1747
     with:
+      TEST_REPO_BRANCH: feat/GPE-1747
+      GEN3_INSTANCE_TYPE: HELM_LOCAL
       SERVICE_TO_TEST: fence
+      WORKING_DIR: gen3-code-vigil/gen3-integration-tests
     secrets:
       CI_AWS_ACCESS_KEY_ID: ${{ secrets.CI_AWS_ACCESS_KEY_ID }}
       CI_AWS_SECRET_ACCESS_KEY: ${{ secrets.CI_AWS_SECRET_ACCESS_KEY }}
@@ -21,3 +30,4 @@ jobs:
       CI_TEST_RAS_2_PASSWORD: ${{ secrets.CI_TEST_RAS_2_PASSWORD }}
       CI_SLACK_BOT_TOKEN: ${{ secrets.CI_SLACK_BOT_TOKEN }}
       CI_SLACK_CHANNEL_ID: ${{ secrets.CI_SLACK_CHANNEL_ID }}
+      EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
