@@ -89,8 +89,9 @@ class Oauth2ClientBase(object):
         Get jwt keys from provider's api
         Return None if there is an error while retrieving keys from the api
         """
+        self.logger.info(f"uri is {jwks_uri}")
         resp = requests.get(url=jwks_uri, proxies=self.get_proxies())
-
+        self.logger.info(f"Request completed")
         if resp.status_code != requests.codes.ok:
             self.logger.error(
                 "{} ERROR: Can not retrieve jwt keys from IdP's API {}".format(
@@ -154,6 +155,10 @@ class Oauth2ClientBase(object):
         """
         if self.discovery_url:
             self.logger.debug(f"Using {self.discovery_url} to get discovery doc")
+            self.logger.debug(f"discovery doc is {self.discovery_doc}")
+            self.logger.debug(self.discovery_doc.status_code)
+            self.logger.debug(self.discovery_doc.text)
+
             return_value = default_value
             if self.discovery_doc.status_code == requests.codes.ok:
                 return_value = self.discovery_doc.json().get(key)
