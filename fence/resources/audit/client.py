@@ -3,11 +3,15 @@ import boto3
 import json
 import requests
 import traceback
+from cachelib import SimpleCache
 
 from fence.config import config
 from fence.errors import InternalError
 from fence.resources.audit.utils import is_audit_enabled
 from fence.utils import DEFAULT_BACKOFF_SETTINGS
+
+
+AUDIT_SCHEMA_CACHE = SimpleCache(default_timeout=86400)  # cached for 24h
 
 
 class AuditServiceClient:
@@ -32,6 +36,7 @@ class AuditServiceClient:
                     self.logger.warning(
                         "Audit logs are enabled but audit-service is unreachable. Continuing anyway..."
                     )
+            self._set_schema_models_cache()
         else:
             self.logger.warning("NOT enabling audit logs")
             return
@@ -69,6 +74,40 @@ class AuditServiceClient:
         status_url = f"{self.service_url}/_status"
         self.logger.debug(f"Checking audit-service availability at {status_url}")
         requests.get(status_url)
+
+    @backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
+    def _get_audit_schema(self):
+        """
+        Hit the audit-service _schema endpoint.
+        """
+        status_url = f"{self.service_url}/_schema"
+        self.logger.info(f"Getting audit-service schema version at {status_url}")
+        return requests.get(status_url)
+
+    def _set_schema_models_cache(self):
+        """
+        Set schema versions/models in schema model cache if expired.
+        """
+        cache_key = "audit_schema"
+        if not AUDIT_SCHEMA_CACHE.has(cache_key):
+            resp = self._get_audit_schema()
+            if resp.status_code == 200:
+                schema = resp.json()
+                self.logger.info(f"Setting audit schema cache: {schema}")
+                AUDIT_SCHEMA_CACHE.set(cache_key, schema)
+            else:  # if not 200, should be 404
+                schema = {
+                    "login": {
+                        "version": 1,
+                    },
+                    "presigned_url": {
+                        "version": 1,
+                    },
+                }
+                self.logger.info(
+                    f"/_schema endpoint {resp.status_code} – assuming version 1 for all audit log models: {schema}"
+                )
+                AUDIT_SCHEMA_CACHE.set(cache_key, schema)
 
     def _validate_config(self):
         """
@@ -160,6 +199,8 @@ class AuditServiceClient:
         if not is_audit_enabled("presigned_url"):
             return
 
+        self._set_schema_models_cache()
+
         data = {
             "request_url": request_url,
             "status_code": status_code,
@@ -192,6 +233,8 @@ class AuditServiceClient:
         if not is_audit_enabled("login"):
             return
 
+        self._set_schema_models_cache()
+
         # special case for idp=fence when falling back on
         # fence_idp=shibboleth and shib_idp=NIH
         if shib_idp == "None":
@@ -206,6 +249,9 @@ class AuditServiceClient:
             "fence_idp": fence_idp,
             "shib_idp": shib_idp,
             "client_id": client_id,
-            "ip": ip,
         }
+
+        if AUDIT_SCHEMA_CACHE.get("audit_schema").get("login").get("version") >= 2:
+            data["ip"] = ip
+
         self._create_audit_log("login", data)
