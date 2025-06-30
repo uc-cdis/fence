@@ -3,7 +3,7 @@ Tests for the metrics features (Audit Service and Prometheus)
 
 Tests for the Audit Service integration:
 - test the creation of presigned URL audit logs
-- test the creation of login audit logs
+- test the creation of login audit logs, with multiple audit schema model versions
 - test the SQS flow
 
 In Audit Service tests where it makes sense, we also test that Prometheus
@@ -38,6 +38,7 @@ from fence.config import config
 from fence.blueprints.data.indexd import get_bucket_from_urls
 from fence.models import User
 from fence.resources.audit.utils import _clean_authorization_request_url
+from fence.resources.audit.client import AUDIT_SCHEMA_CACHE
 from tests import utils
 from tests.conftest import LOGIN_IDPS
 
@@ -450,6 +451,7 @@ def test_presigned_url_log_unauthorized(
 
 
 @pytest.mark.parametrize("idp", LOGIN_IDPS)
+@pytest.mark.parametrize("login_schema_version", [1, 2])
 def test_login_log_login_endpoint(
     client,
     idp,
@@ -458,6 +460,7 @@ def test_login_log_login_endpoint(
     db_session,  # do not remove :-) See note at top of file
     monkeypatch,
     prometheus_metrics_before,
+    login_schema_version,
 ):
     """
     Test that logging in via any of the existing IDPs triggers the creation
@@ -545,6 +548,14 @@ def test_login_log_login_endpoint(
         get_auth_info_patch.start()
 
     with audit_service_mocker as audit_service_requests:
+        AUDIT_SCHEMA_CACHE.clear()
+        AUDIT_SCHEMA_CACHE.set(
+            "audit_schema",
+            {
+                "login": {"version": login_schema_version},
+                "presigned_url": {"version": 1},
+            },
+        )
         audit_service_requests.post.return_value = MockResponse(
             data={},
             status_code=201,
@@ -565,7 +576,13 @@ def test_login_log_login_endpoint(
                 "fence_idp": None,
                 "shib_idp": None,
                 "client_id": None,
-                "ip": "flask.request.remote_addr=127.0.0.1 x_forwarded_headers=[]",
+                **(
+                    {}
+                    if login_schema_version == 1
+                    else {
+                        "ip": "flask.request.remote_addr=127.0.0.1 x_forwarded_headers=[]"
+                    }
+                ),
             },
         )
 
