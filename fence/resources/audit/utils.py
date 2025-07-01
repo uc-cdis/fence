@@ -6,6 +6,9 @@ from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 from cdislogging import get_logger
 
 from fence.config import config
+from flask.wrappers import Request
+from fence.jwt.validate import validate_jwt
+from fence.auth import get_user_from_claims
 
 
 logger = get_logger(__name__)
@@ -20,14 +23,17 @@ def is_audit_enabled(category=None):
 
 def _clean_authorization_request_url(request_url):
     """
-    Remove sensitive data from a login request URL.
+    Remove sensitive data from request URLs.
     """
     parsed_url = urlparse(request_url)
     query_params = dict(parse_qsl(parsed_url.query, keep_blank_values=True))
+    # specifically look for code and state parameters (commonly used in OAuth redirects)
+    # and replace their values with "redacted":
     for param in ["code", "state"]:
         if param in query_params:
             query_params[param] = "redacted"
-    url_parts = list(parsed_url)  # cast to list to override query params
+    # rebuild the URL with the sanitized query params:
+    url_parts = list(parsed_url)
     url_parts[4] = urlencode(query=query_params)
     request_url = urlunparse(url_parts)
     return request_url
@@ -88,11 +94,53 @@ def create_audit_log_for_request(response):
     return response
 
 
+def create_log_for_request(request: Request):
+    """
+    Right before processing the request (see `enable_request_logging` decorator),
+    record a log entry.
+    """
+    claims = validate_jwt()
+    username = get_user_from_claims(claims).username
+    method = request.method
+    endpoint = request.path
+    request_url = endpoint
+    if request.query_string:
+        # could use `request.url` but we don't want the root URL
+        request_url += f"?{request.query_string.decode('utf-8')}"
+    request_url = _clean_authorization_request_url(request_url)
+    logger.info(
+        f"Incoming request: user=%s, method=%s, endpoint=%s, request_url=%s",
+        username,
+        method,
+        endpoint,
+        request_url,
+    )
+
+
+def enable_request_logging(f):
+    """
+    This decorator should be added to any API endpoint for which we want to
+    write a log entry to the local fence logs.
+    """
+
+    @wraps(f)
+    def wrapper(*args, **kwargs):
+        create_log_for_request(flask.request)
+        return f(*args, **kwargs)
+
+    return wrapper
+
+
 def enable_audit_logging(f):
     """
-    This decorator should be added to any API endpoint for which we
-    record audit logs. It should not be added to non-audited endpoints,
-    so that performance is not impacted.
+    This decorator should be added to any API endpoint for which we want to
+    push audit logs into the **audit-service**. The audit-service logs serve a very
+    specific use case where we need some of the audit log entries available via audit-service.
+    For most of the cases, local logs will suffice, and therefore one should consider using
+    the enable_request_logging decorator instead.
+
+    This decorator should also not be added to non-audited endpoints, so that performance is not impacted.
+
     The `create_audit_log_for_request_decorator` decorator is only added
     if auditing is enabled, so that performance is not impacted when auditing
     is disabled.

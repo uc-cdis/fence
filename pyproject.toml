@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fence"
-version = "11.1.1"
+version = "11.3.0"
 description = "Gen3 AuthN/AuthZ OIDC Service"
 authors = ["CTDS UChicago <cdis@uchicago.edu>"]
 license = "Apache-2.0"
@@ -22,9 +22,10 @@ cached_property = "^1.5.1"
 cdiserrors = "<2.0.0"
 cdislogging = "^1.0.0"
 cdispyutils = "^2.0.1"
+defusedxml = "<1"
 flask = ">=3.0.0"
 cryptography = ">=44.0.1"
-flask-cors = "<6"
+flask-cors = "<7"
 flask-restful = ">=0.3.8"
 email_validator = "^1.1.1"
 gen3authz = "^1.5.1"
@@ -53,10 +54,12 @@ werkzeug = ">=3.0.0"
 cachelib = "^0.2.0"
 azure-storage-blob = "^12.6.0"
 Flask-WTF = "^1.0.0"
+itsdangerous = '*' # Use Flask-WTF's itsdangerous
 boto = "*"
 # NOTE:
 # for testing with updated libaries as git repos:
 # foobar = {git = "https://github.com/uc-cdis/some-repo", rev = "feat/test"}
+jinja2 = "^3.1.6"
 
 [tool.poetry.group.dev.dependencies]
 addict = "^2.2.1"

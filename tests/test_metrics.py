@@ -32,6 +32,7 @@ import time
 from unittest.mock import ANY, MagicMock, patch
 
 import fence
+from fence.blueprints.login import get_idp_route_name
 from fence.metrics import metrics
 from fence.config import config
 from fence.blueprints.data.indexd import get_bucket_from_urls
@@ -101,7 +102,7 @@ def test_disabled_audit(
     )
     with audit_decorator_mocker as audit_decorator:
         response = client.get(path, headers=headers)
-        assert response.status_code == 200, response
+        assert response.status_code == 200, response.text
         assert response.json.get("url")
         audit_decorator.assert_not_called()
 
@@ -179,7 +180,7 @@ def test_presigned_url_log(
             status_code=201,
         )
         response = client.get(path, headers=headers)
-        assert response.status_code == 200, response
+        assert response.status_code == 200, response.text
         assert response.json.get("url")
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/presigned_url",
@@ -281,7 +282,7 @@ def test_presigned_url_log_acl(
             status_code=201,
         )
         response = client.get(path, headers=headers)
-        assert response.status_code == 200, response
+        assert response.status_code == 200, response.text
         assert response.json.get("url")
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/presigned_url",
@@ -323,7 +324,7 @@ def test_presigned_url_log_public(endpoint, client, public_indexd_client, monkey
             status_code=201,
         )
         response = client.get(path)
-        assert response.status_code == 200, response
+        assert response.status_code == 200, response.text
         assert response.json.get("url")
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/presigned_url",
@@ -395,7 +396,7 @@ def test_presigned_url_log_disabled(
             status_code=201,
         )
         response = client.get(path, headers=headers)
-        assert response.status_code == 200, response
+        assert response.status_code == 200, response.text
         assert response.json.get("url")
         audit_service_requests.post.assert_not_called()
 
@@ -488,7 +489,7 @@ def test_login_log_login_endpoint(
         get_auth_info_value = {"orcid": username}
     elif idp == "cilogon":
         get_auth_info_value = {"sub": username}
-    elif idp == "shib":
+    elif idp == "shibboleth":
         headers["persistent_id"] = username
         idp_name = "itrust"
     elif idp == "okta":
@@ -515,9 +516,21 @@ def test_login_log_login_endpoint(
             "id_token": jwt_string,
         }
         flask.g.encoded_visas = ""
-    elif idp == "generic1":
-        get_auth_info_value = {"generic1_username": username}
-    elif idp == "generic2":
+    elif idp == "generic_with_discovery_url":
+        get_auth_info_value = {"generic_with_discovery_url_username": username}
+    elif idp == "generic_additional_params":
+        # get_auth_info_value specific to generic_additional_params
+        # TODO: Need test when is_authz_groups_sync_enabled == true
+        get_auth_info_value = {
+            "username": username,
+            "sub": username,
+            "email_verified": True,
+            "iat": 1609459200,
+            "exp": 1609462800,
+            "refresh_token": "mock_refresh_token",
+            "groups": ["group1", "group2"],
+        }
+    elif idp.startswith("generic_"):
         get_auth_info_value = {"sub": username}
 
     if idp in ["google", "microsoft", "okta", "synapse", "cognito"]:
@@ -536,9 +549,10 @@ def test_login_log_login_endpoint(
             data={},
             status_code=201,
         )
-        path = f"/login/{idp}/{callback_endpoint}"  # SEE fence/blueprints/login/fence_login.py L91
+        path = f"/login/{get_idp_route_name(idp)}/{callback_endpoint}"
         response = client.get(path, headers=headers)
-        assert response.status_code == 200, response
+        print(f"Response: {response.status_code}, Body: {response.data}")
+        assert response.status_code == 200, response.text
         user_sub = db_session.query(User).filter(User.username == username).first().id
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/login",
@@ -655,7 +669,7 @@ def test_presigned_url_log_push_to_sqs(
         )
     }
     response = client.get(path, headers=headers)
-    assert response.status_code == 200, response
+    assert response.status_code == 200, response.text
     assert response.json.get("url")
 
     expected_audit_data = {
@@ -697,7 +711,7 @@ def test_login_log_push_to_sqs(
 
     path = "/login/google/login"
     response = client.get(path)
-    assert response.status_code == 200, response
+    assert response.status_code == 200, response.text
     # not checking the parameters here because we can't json.dumps "sub: ANY"
     mocked_sqs.send_message.assert_called_once()
 
@@ -718,7 +732,7 @@ def test_disabled_prometheus_metrics(client, monkeypatch):
     metrics.add_login_event(
         user_sub="123",
         idp="test_idp",
-        fence_idp="shib",
+        upstream_idp="shib",
         shib_idp="university",
         client_id="test_azp",
     )
@@ -740,11 +754,11 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
 
     # record a login event and check that we get both a metric for the specific IDP, and an
     # IDP-agnostic metric for the total number of login events. The latter should have no IDP
-    # information (no `fence_idp` or `shib_idp`).
+    # information (no `upstream_idp` or `shib_idp`).
     metrics.add_login_event(
         user_sub="123",
         idp="test_idp",
-        fence_idp="shib",
+        upstream_idp="shib",
         shib_idp="university",
         client_id="test_azp",
     )
@@ -756,7 +770,7 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
             "labels": {
                 "user_sub": "123",
                 "idp": "test_idp",
-                "fence_idp": "shib",
+                "upstream_idp": "shib",
                 "shib_idp": "university",
                 "client_id": "test_azp",
             },
@@ -767,7 +781,7 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
             "labels": {
                 "user_sub": "123",
                 "idp": "all",
-                "fence_idp": "None",
+                "upstream_idp": "None",
                 "shib_idp": "None",
                 "client_id": "test_azp",
             },
@@ -780,7 +794,7 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
     metrics.add_login_event(
         user_sub="123",
         idp="test_idp",
-        fence_idp="shib",
+        upstream_idp="shib",
         shib_idp="university",
         client_id="test_azp",
     )
@@ -788,7 +802,7 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
     metrics.add_login_event(
         user_sub="123",
         idp="another_idp",
-        fence_idp=None,
+        upstream_idp=None,
         shib_idp=None,
         client_id="test_azp",
     )
@@ -812,7 +826,7 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
             "labels": {
                 "user_sub": "123",
                 "idp": "all",
-                "fence_idp": "None",
+                "upstream_idp": "None",
                 "shib_idp": "None",
                 "client_id": "test_azp",
             },
@@ -823,18 +837,18 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
             "labels": {
                 "user_sub": "123",
                 "idp": "test_idp",
-                "fence_idp": "shib",
+                "upstream_idp": "shib",
                 "shib_idp": "university",
                 "client_id": "test_azp",
             },
-            "value": 2.0,  # recorded login events for this idp, fence_idp and shib_idp combo
+            "value": 2.0,  # recorded login events for this idp, upstream_idp and shib_idp combo
         },
         {
             "name": "gen3_fence_login_total",
             "labels": {
                 "user_sub": "123",
                 "idp": "another_idp",
-                "fence_idp": "None",
+                "upstream_idp": "None",
                 "shib_idp": "None",
                 "client_id": "test_azp",
             },
