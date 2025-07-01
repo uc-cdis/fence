@@ -2002,13 +2002,10 @@ class UserSyncer(object):
         if to_add:
             try:
                 self.logger.info(f"Bulk granting user {username} policies {to_add}.")
-                response_json = self.arborist_client.grant_bulk_user_policy(
-                    username, list(to_add)
-                )
                 # TODO: When gen3authz 2.3.0 is released, uncomment this and delete the above call.
-                # response_json = self.arborist_client.grant_bulk_user_policy(
-                #     username, policy_ids, expires
-                # )
+                response_json = self.arborist_client.grant_bulk_user_policy(
+                    username, list(to_add), expires
+                )
             except ArboristError as e:
                 self.logger.error(
                     f"Could not grant user {username} policies {to_add}. Error: {e}"
