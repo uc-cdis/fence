@@ -126,7 +126,7 @@ def login_user(
 
     user = query_for_user(session=current_app.scoped_session(), username=username)
     # print('login_user - flask.g.user', flask.g.user)
-    print("login_user - ", 'REGISTER_USERS_ON =', config["REGISTER_USERS_ON"], '; user.registration_info =', user and user.additional_info.get("registration_info"))
+    print("login_user -", 'REGISTER_USERS_ON =', config["REGISTER_USERS_ON"], '; user.registration_info =', user and user.additional_info.get("registration_info"))
     perform_actual_login = not config["REGISTER_USERS_ON"] or (user is not None and user.additional_info.get("registration_info", {}) != {})
     print('login_user perform_actual_login =', perform_actual_login)
     if perform_actual_login:
@@ -135,8 +135,8 @@ def login_user(
         print("     NOT LOGGING USER IN")
 
     if user:
-        # don't just use `flask.session["username"]` because other code relies on it to know
-        # whether a user is logged in.
+        # not using `flask.session["username"]` because other code relies on it to know
+        # whether a user is logged in; in this case the user isn't logged in yet.
         flask.session["login_in_progress_username"] = user.username
         if user.active == False:
             # Abort login if user.active == False:
@@ -161,8 +161,8 @@ def login_user(
 
         # add the new user
         user = User(username=username)
-        # don't just use `flask.session["username"]` because other code relies on it to know
-        # whether a user is logged in.
+        # not using `flask.session["username"]` because other code relies on it to know
+        # whether a user is logged in; in this case the user isn't logged in yet.
         flask.session["login_in_progress_username"] = user.username
 
         if email:

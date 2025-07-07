@@ -67,6 +67,10 @@ def get_user(current_session, username):
 
 
 def get_current_user_info():
+    if not hasattr(flask.g, "user") or not flask.g.user:
+        # edge case where the session has a user but the user doesn't exist in the DB
+        # (for example, the user was deleted from the DB while logged in)
+        raise Unauthorized("User not logged in")
     with flask.current_app.db.session as session:
         return get_user_info(session, session.merge(flask.g.user).username)
 

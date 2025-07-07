@@ -2,7 +2,7 @@ from authlib.common.urls import add_params_to_uri
 import flask
 
 from fence.auth import login_user
-from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
+from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback, _login
 from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
 from fence.errors import Unauthorized
@@ -121,21 +121,41 @@ class FenceCallback(DefaultOAuth2Callback):
             )
         username = id_token_claims["context"]["user"]["name"]
         email = id_token_claims["context"]["user"].get("email")
-        login_user(
-            username,
-            IdentityProvider.fence,
-            fence_idp=flask.session.get("fence_idp"),
-            shib_idp=flask.session.get("shib_idp"),
-            email=email,
-        )
+        # login_user(
+        #     username,
+        #     IdentityProvider.fence,
+        #     fence_idp=flask.session.get("fence_idp"),
+        #     shib_idp=flask.session.get("shib_idp"),
+        #     email=email,
+        # )
+
+        # TODO all idps should have the registration logic...
+        try:
+            resp, user_is_logged_in = _login(
+                username,
+                IdentityProvider.fence,
+                fence_idp=flask.session.get("fence_idp"),
+                shib_idp=flask.session.get("shib_idp"),
+                email=email,
+            )
+        except Exception as e:
+            import traceback
+            traceback.print_exc()
+            raise
+
+        if not user_is_logged_in:
+            return resp
+
         self.post_login()
 
-        if config["REGISTER_USERS_ON"]:
-            if not flask.g.user.additional_info.get("registration_info"):
-                return flask.redirect(
-                    config["BASE_URL"] + flask.url_for("register.register_user")
-                )
+        # if config["REGISTER_USERS_ON"]:
+        #     if not flask.g.user.additional_info.get("registration_info"):
+        #         return flask.redirect(
+        #             config["BASE_URL"] + flask.url_for("register.register_user")
+        #         )
 
-        if "redirect" in flask.session:
-            return flask.redirect(flask.session.get("redirect"))
-        return flask.jsonify({"username": username})
+        # if "redirect" in flask.session:
+        #     return flask.redirect(flask.session.get("redirect"))
+        # return flask.jsonify({"username": username})
+
+        return resp

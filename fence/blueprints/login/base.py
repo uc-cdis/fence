@@ -40,6 +40,7 @@ class DefaultOAuth2Login(Resource):
             flask.redirect_url = redirect_url
             if flask.redirect_url:
                 flask.session["redirect"] = flask.redirect_url
+            print("start of DefaultOAuth2Login --- redirect_url =", redirect_url)
 
             mock_login = (
                 config["OPENID_CONNECT"].get(self.idp_name.lower(), {}).get("mock", False)
@@ -61,7 +62,7 @@ class DefaultOAuth2Login(Resource):
                 username = flask.request.cookies.get(
                     config.get("DEV_LOGIN_COOKIE_NAME"), mock_default_user
                 )
-                resp = _login(username, self.idp_name)  # logs in mocked user
+                resp = _login(username, self.idp_name)  # logs in the mocked user
                 prepare_login_log(self.idp_name)
                 return resp
 
@@ -198,9 +199,9 @@ class DefaultOAuth2Callback(Resource):
             return resp
 
         try:
-            # TODO where to move this?
-            # if not flask.g.user:
-            #     raise UserError("Authentication failed: flask.g.user is missing.")
+            if not flask.g.user:
+            # maybe need this? `if not hasattr(flask.g, "user") or not flask.g.user`
+                raise UserError("Authentication failed: flask.g.user is missing.")
 
             expires = self.extract_exp(refresh_token)
 
@@ -344,23 +345,26 @@ def prepare_login_log(idp_name):
     }
 
 
-def _login(
+def _login(  # TODO rename something like "login_and_registration_flow"?
     username,
     idp_name,
     email=None,
     id_from_idp=None,
     token_result=None,
+    fence_idp=None,
+    shib_idp=None,
 ):
     """
     Login user with given username, then automatically register if needed,
     and finally redirect if session has a saved redirect.
     """
+    # TODO test flow when registration is disabled
     from fence.models import query_for_user
     user = query_for_user(session=current_app.scoped_session(), username=username)
     # only log the user in if registration is disabled of if they are already registered
     # log_user_in_now = not config["REGISTER_USERS_ON"] or (user is not None and user.additional_info.get("registration_info"))
     # print("_login", 'REGISTER_USERS_ON =', config["REGISTER_USERS_ON"], '; user.registration_info =', user and user.additional_info.get("registration_info"))
-    user_is_logged_in = login_user(username, idp_name, email=email, id_from_idp=id_from_idp)
+    user_is_logged_in = login_user(username, idp_name, fence_idp=fence_idp, shib_idp=shib_idp, email=email, id_from_idp=id_from_idp)
     print("_login user_is_logged_in = ", user_is_logged_in)
     # print('_login - user', flask.g.user)
 
@@ -391,7 +395,7 @@ def _login(
         from fence.models import query_for_user
         user = query_for_user(session=current_app.scoped_session(), username=username)
         if not user.additional_info.get("registration_info"):
-            # If enabled, automatically register user from Idp
+            # If enabled, automatically register user from IdP
             if auto_register_users:
                 # NOTE: the token fields where we get the user's info are hardcoded, as well
                 # as which ones are required and what the optional fields' default values are.
@@ -418,7 +422,8 @@ def _login(
                 )
             else:
                 from flask import request
-                flask.session["post_registration_redirect"] = request.url
+                # TODO build url with urllib instead
+                flask.session["post_registration_redirect"] = config["BASE_URL"] + "/" + request.url
                 # return flask.redirect("http://localhost:8000/register"), user_is_logged_in  # TODO remove
                 return flask.redirect(
                     config["BASE_URL"] + flask.url_for("register.register_user")
@@ -426,5 +431,6 @@ def _login(
 
     print("end of _login --- session.redirect =", flask.session.get("redirect"))
     if flask.session.get("redirect"):
-        return flask.redirect(flask.session.get("redirect")), user_is_logged_in
+        return flask.redirect(flask.session["redirect"]), user_is_logged_in
+    # TODO remove `"registered": True` from responses if only used in unit tests
     return flask.jsonify({"username": username, "registered": True}), user_is_logged_in

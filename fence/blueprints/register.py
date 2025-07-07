@@ -83,12 +83,18 @@ def register_user():
     """
     try:
         # TODO what happens if registration fails? infinite redirects between login and registration?
-        import os; flask.current_app.config['WTF_CSRF_SECRET_KEY'] = os.urandom(32)
+        import os; flask.current_app.config['WTF_CSRF_SECRET_KEY'] = os.urandom(32)  # TODO remove
         try:
             form = RegistrationForm()
         except Exception as e:
             print(e)
+            raise
 
+        # can't use the @login_required() decorator here to enforce logging in, because at this
+        # point in the flow the user should have _started_ logging in, but may not be logged in
+        # yet
+        # TODO ensure the page is reachable for users who are already logged in and want to update
+        # their registration info
         username = flask.session.get("login_in_progress_username")
         if not username:
             from fence.errors import Unauthorized
@@ -106,6 +112,7 @@ def register_user():
                 form=form,
             )
 
+        # TODO fix: doesn’t accept email addresses if they have leading or trailing spaces
         # if not form.validate():
         #     raise UserError("Form validation failed: {}".format(str(form.errors)))
 
