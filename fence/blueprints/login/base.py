@@ -306,7 +306,7 @@ class DefaultOAuth2Callback(Resource):
         metrics.add_login_event(
             user_sub=flask.g.user.id,
             idp=self.idp_name,
-            fence_idp=flask.session.get("fence_idp"),
+            upstream_idp=flask.session.get("upstream_idp"),
             shib_idp=flask.session.get("shib_idp"),
             client_id=flask.session.get("client_id"),
         )
@@ -339,7 +339,7 @@ def prepare_login_log(idp_name):
         "username": flask.g.user.username,
         "sub": flask.g.user.id,
         "idp": idp_name,
-        "fence_idp": flask.session.get("fence_idp"),
+        "upstream_idp": flask.session.get("upstream_idp"),
         "shib_idp": flask.session.get("shib_idp"),
         "client_id": flask.session.get("client_id"),
     }
@@ -351,7 +351,7 @@ def _login(  # TODO rename something like "login_and_registration_flow"?
     email=None,
     id_from_idp=None,
     token_result=None,
-    fence_idp=None,
+    upstream_idp=None,
     shib_idp=None,
 ):
     """
@@ -364,7 +364,7 @@ def _login(  # TODO rename something like "login_and_registration_flow"?
     # only log the user in if registration is disabled of if they are already registered
     # log_user_in_now = not config["REGISTER_USERS_ON"] or (user is not None and user.additional_info.get("registration_info"))
     # print("_login", 'REGISTER_USERS_ON =', config["REGISTER_USERS_ON"], '; user.registration_info =', user and user.additional_info.get("registration_info"))
-    user_is_logged_in = login_user(username, idp_name, fence_idp=fence_idp, shib_idp=shib_idp, email=email, id_from_idp=id_from_idp)
+    user_is_logged_in = login_user(username, idp_name, upstream_idp=upstream_idp, shib_idp=shib_idp, email=email, id_from_idp=id_from_idp)
     print("_login user_is_logged_in = ", user_is_logged_in)
     # print('_login - user', flask.g.user)
 

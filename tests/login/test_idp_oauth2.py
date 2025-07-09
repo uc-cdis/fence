@@ -332,7 +332,7 @@ def test_post_login_with_group_prefix(mock_get_auth_info, app):
 
             # Create the callback object with the mock app
             callback = DefaultOAuth2Callback(
-                idp_name="generic3", client=MagicMock(), app=app
+                idp_name="generic_additional_params", client=MagicMock(), app=app
             )
 
             # Mock user and call post_login
