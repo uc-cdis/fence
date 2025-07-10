@@ -2,7 +2,11 @@ from authlib.common.urls import add_params_to_uri
 import flask
 
 from fence.auth import login_user
-from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback, _login
+from fence.blueprints.login.base import (
+    DefaultOAuth2Login,
+    DefaultOAuth2Callback,
+    _login,
+)
 from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
 from fence.errors import Unauthorized
@@ -129,19 +133,13 @@ class FenceCallback(DefaultOAuth2Callback):
         #     email=email,
         # )
 
-        # TODO all idps should have the registration logic...
-        try:
-            resp, user_is_logged_in = _login(
-                username,
-                IdentityProvider.fence,
-                upstream_idp=flask.session.get("upstream_idp"),
-                shib_idp=flask.session.get("shib_idp"),
-                email=email,
-            )
-        except Exception as e:
-            import traceback
-            traceback.print_exc()
-            raise
+        resp, user_is_logged_in = _login(
+            username,
+            IdentityProvider.fence,
+            upstream_idp=flask.session.get("upstream_idp"),
+            shib_idp=flask.session.get("shib_idp"),
+            email=email,
+        )
 
         if not user_is_logged_in:
             return resp

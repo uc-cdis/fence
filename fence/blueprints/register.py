@@ -13,8 +13,8 @@ from wtforms.validators import DataRequired, Email, StopValidation, ValidationEr
 from cdislogging import get_logger
 
 from fence import config
-from fence.auth import login_required, login_user
-from fence.errors import UserError
+from fence.errors import Unauthorized, UserError
+from fence.models import query_for_user
 
 
 logger = get_logger(__name__)
@@ -58,7 +58,6 @@ class RegistrationForm(FlaskForm):
 
 
 @blueprint.route("/", methods=["GET", "POST"])
-# @login_required()
 def register_user():
     """
     - If config["REGISTER_USERS_ON"] is True, then unregistered users are redirected
@@ -81,65 +80,55 @@ def register_user():
     but actual verification (for example, checking organization info against some trusted
     authority's records) has been deemed out of scope.
     """
+    # TODO what happens if registration fails? infinite redirects between login and registration?
+    import os; flask.current_app.config['WTF_CSRF_SECRET_KEY'] = os.urandom(32)  # TODO remove
     try:
-        # TODO what happens if registration fails? infinite redirects between login and registration?
-        import os; flask.current_app.config['WTF_CSRF_SECRET_KEY'] = os.urandom(32)  # TODO remove
-        try:
-            form = RegistrationForm()
-        except Exception as e:
-            print(e)
-            raise
-
-        # can't use the @login_required() decorator here to enforce logging in, because at this
-        # point in the flow the user should have _started_ logging in, but may not be logged in
-        # yet
-        # TODO ensure the page is reachable for users who are already logged in and want to update
-        # their registration info
-        username = flask.session.get("login_in_progress_username")
-        if not username:
-            from fence.errors import Unauthorized
-            raise Unauthorized("Please login")
-
-        if flask.request.method == "GET":
-            from fence.models import query_for_user
-            user = query_for_user(session=current_app.scoped_session(), username=username)
-            print('register_user - user', user.username)
-            # flask.g.user.additional_info = {}
-            print('register_user - additional_info', user.additional_info)
-            return flask.render_template(
-                "register_user.html",
-                user=user,
-                form=form,
-            )
-
-        # TODO fix: doesn’t accept email addresses if they have leading or trailing spaces
-        # if not form.validate():
-        #     raise UserError("Form validation failed: {}".format(str(form.errors)))
-
-        # Validation passed--don't check form data here.
-        firstname = flask.request.form["firstname"]
-        lastname = "x"# flask.request.form["lastname"]
-        org = "x"# flask.request.form["organization"]
-        email = "x"# flask.g.user.email or flask.request.form["email"]
-
-        registration_info = add_user_registration_info_to_database(username, firstname, lastname, org, email)
-        # TODO why is access token being set?
-
-        # Respect session redirect--important when redirected here from login flow
-        # print('register_user - redirect', flask.session.get("redirect"))
-        print('register_user - post_registration_redirect', flask.session.get("post_registration_redirect"))
-        if flask.session.get("post_registration_redirect"):
-            return flask.redirect(flask.session.get("post_registration_redirect"))
-        return flask.jsonify(registration_info)
+        form = RegistrationForm()
     except Exception as e:
-        import traceback
-        traceback.print_exc()
         print(e)
         raise
 
+    # can't use the @login_required() decorator here to enforce logging in, because at this
+    # point in the flow the user should have _started_ logging in, but may not be logged in
+    # yet
+    # TODO ensure the page is reachable for users who are already logged in and want to update
+    # their registration info
+    username = flask.session.get("login_in_progress_username")
+    if not username:
+        raise Unauthorized("Please login")
 
-def add_user_registration_info_to_database(username, firstname, lastname, organization, email):
-    from fence.models import query_for_user
+    if flask.request.method == "GET":
+        user = query_for_user(session=current_app.scoped_session(), username=username)
+        return flask.render_template(
+            "register_user.html",
+            user=user,
+            form=form,
+        )
+
+    # TODO fix: doesn’t accept email addresses if they have leading or trailing spaces
+    # if not form.validate():
+    #     raise UserError("Form validation failed: {}".format(str(form.errors)))
+
+    # Validation passed--don't check form data here.
+    firstname = flask.request.form["firstname"]
+    lastname = "x"  # flask.request.form["lastname"]
+    org = "x"  # flask.request.form["organization"]
+    email = "x"  # flask.g.user.email or flask.request.form["email"]
+
+    registration_info = add_user_registration_info_to_database(
+        username, firstname, lastname, org, email
+    )
+    # TODO why is access token being set?
+
+    # Respect session redirect--important when redirected here from login flow
+    if flask.session.get("post_registration_redirect"):
+        return flask.redirect(flask.session.get("post_registration_redirect"))
+    return flask.jsonify(registration_info)
+
+
+def add_user_registration_info_to_database(
+    username, firstname, lastname, organization, email
+):
     user = query_for_user(session=current_app.scoped_session(), username=username)
     user.additional_info = user.additional_info or {}
     registration_info = {
@@ -166,13 +155,13 @@ def add_user_registration_info_to_database(username, firstname, lastname, organi
                     logger.debug(
                         f"Configured REGISTERED_USERS_GROUP '{config['REGISTERED_USERS_GROUP']}' does not exist yet. Creating it (it will have no policies)."
                     )
-                    flask.current_app.arborist.put_group(config["REGISTERED_USERS_GROUP"])
+                    flask.current_app.arborist.put_group(
+                        config["REGISTERED_USERS_GROUP"]
+                    )
                 success = flask.current_app.arborist.add_user_to_group(
                     user.username,
                     config["REGISTERED_USERS_GROUP"],
                 )
                 assert success is True, "Unable to add user to group"
-
-    # login_user(username, idp_name, email=email, id_from_idp=id_from_idp)
 
     return registration_info

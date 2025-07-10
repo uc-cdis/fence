@@ -1862,3 +1862,93 @@ def mock_authn_user_flask_context(app):
 
     g = g_before
     session = session_before
+
+
+@pytest.fixture
+def mocks_for_idp_oauth2_callbacks(idp, rsa_private_key, mock_arborist_requests):
+    """
+    Setup mocks necessary to make calls to OAuth2 callback endpoints, depending on which IdP
+    is being used. Return values needed by the calling test.
+
+    This fixture requires the calling test to have an `idp` parameter.
+    """
+    username = "test@test"
+    callback_endpoint = "login"
+    idp_name = idp
+    headers = {}
+    get_auth_info_value = {}
+    jwt_string = jwt.encode(
+        {"iat": int(time.time())}, key=rsa_private_key, algorithm="RS256"
+    )
+
+    if idp == "synapse":
+        mock_arborist_requests()
+        get_auth_info_value = {
+            "fence_username": username,
+            "sub": username,
+            "given_name": username,
+            "family_name": username,
+        }
+    elif idp == "orcid":
+        get_auth_info_value = {"orcid": username}
+    elif idp == "cilogon":
+        get_auth_info_value = {"sub": username}
+    elif idp == "shibboleth":
+        headers["persistent_id"] = username
+        idp_name = "itrust"
+    elif idp == "okta":
+        get_auth_info_value = {"okta": username}
+    elif idp == "fence":
+        mocked_fetch_access_token = MagicMock(return_value={"id_token": jwt_string})
+        patch(
+            f"authlib.integrations.flask_client.apps.FlaskOAuth2App.fetch_access_token",
+            mocked_fetch_access_token,
+        ).start()
+        mocked_validate_jwt = MagicMock(
+            return_value={"context": {"user": {"name": username}}}
+        )
+        patch(
+            f"fence.blueprints.login.fence_login.validate_jwt", mocked_validate_jwt
+        ).start()
+    elif idp == "ras":
+        get_auth_info_value = {"username": username}
+        callback_endpoint = "callback"
+        # these should be populated by a /login/<idp> call that we're skipping:
+        flask.g.userinfo = {"sub": "testSub123"}
+        flask.g.tokens = {
+            "refresh_token": jwt_string,
+            "id_token": jwt_string,
+        }
+        flask.g.encoded_visas = ""
+    elif idp == "generic_with_discovery_url":
+        get_auth_info_value = {"generic_with_discovery_url_username": username}
+    elif idp == "generic_additional_params":
+        # get_auth_info_value specific to generic_additional_params
+        # TODO: Need test when is_authz_groups_sync_enabled == true
+        get_auth_info_value = {
+            "username": username,
+            "sub": username,
+            "email_verified": True,
+            "iat": 1609459200,
+            "exp": 1609462800,
+            "refresh_token": "mock_refresh_token",
+            "groups": ["group1", "group2"],
+        }
+    elif idp.startswith("generic_"):
+        get_auth_info_value = {"sub": username}
+
+    if idp in ["google", "microsoft", "okta", "synapse", "cognito"]:
+        get_auth_info_value["email"] = username
+
+    get_auth_info_patch = None
+    if get_auth_info_value:
+        mocked_get_auth_info = MagicMock(return_value=get_auth_info_value)
+        get_auth_info_patch = patch(
+            f"flask.current_app.{idp}_client.get_auth_info", mocked_get_auth_info
+        )
+        get_auth_info_patch.start()
+
+    yield idp_name, username, callback_endpoint, headers
+
+    if get_auth_info_patch:
+        get_auth_info_patch.stop()

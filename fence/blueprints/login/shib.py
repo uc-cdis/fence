@@ -2,7 +2,11 @@ from cdislogging import get_logger
 import flask
 
 from fence.auth import login_user
-from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
+from fence.blueprints.login.base import (
+    DefaultOAuth2Login,
+    DefaultOAuth2Callback,
+    _login,
+)
 from fence.blueprints.login.redirect import validate_redirect
 from fence.errors import InternalError, Unauthorized
 from fence.models import IdentityProvider
@@ -93,6 +97,11 @@ class ShibbolethCallback(DefaultOAuth2Callback):
         if entityID:
             idp = entityID
         login_user(username, idp)
+
+        resp, user_is_logged_in = _login(username, idp)
+        if not user_is_logged_in:
+            return resp
+
         self.post_login()
 
         if flask.session.get("redirect"):

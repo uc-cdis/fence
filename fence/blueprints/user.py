@@ -19,17 +19,13 @@ blueprint = flask.Blueprint("user", __name__)
 @blueprint.route("/", methods=["GET", "POST"])
 @login_required({"user"})
 def user_info():
-    try:
-        client_id = None
-        if current_token and current_token["azp"]:
-            client_id = current_token["azp"]
-        info = get_current_user_info()
-        info["azp"] = client_id
+    client_id = None
+    if current_token and current_token["azp"]:
+        client_id = current_token["azp"]
+    info = get_current_user_info()
+    info["azp"] = client_id
 
-        return flask.jsonify(info)
-    except Exception:
-        import traceback; traceback.print_exc()
-        raise
+    return flask.jsonify(info)
 
 
 @blueprint.route("/anyaccess", methods=["GET"])

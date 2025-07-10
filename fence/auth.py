@@ -78,7 +78,7 @@ def get_ip_information_string():
 
 
 def login_user(
-    username, provider, upstream_idp=None, shib_idp=None, email=None, id_from_idp=None #, perform_actual_login=True
+    username, provider, upstream_idp=None, shib_idp=None, email=None, id_from_idp=None
 ) -> bool:
     """
     Login a user with the given username and provider. Set values in Flask
@@ -125,14 +125,18 @@ def login_user(
         flask.g.token = None
 
     user = query_for_user(session=current_app.scoped_session(), username=username)
-    # print('login_user - flask.g.user', flask.g.user)
-    print("login_user -", 'REGISTER_USERS_ON =', config["REGISTER_USERS_ON"], '; user.registration_info =', user and user.additional_info.get("registration_info"))
-    perform_actual_login = not config["REGISTER_USERS_ON"] or (user is not None and user.additional_info.get("registration_info", {}) != {})
-    print('login_user perform_actual_login =', perform_actual_login)
-    if perform_actual_login:
-        print("     LOGGING USER IN")
-    else:
-        print("     NOT LOGGING USER IN")
+    auto_register_users = (
+        config["OPENID_CONNECT"]
+        .get(provider, {})
+        .get("enable_idp_users_registration", False)
+    )
+    perform_actual_login = (
+        not config["REGISTER_USERS_ON"]
+        or auto_register_users
+        or (
+            user is not None and user.additional_info.get("registration_info", {}) != {}
+        )
+    )
 
     if user:
         # not using `flask.session["username"]` because other code relies on it to know
@@ -151,7 +155,11 @@ def login_user(
         #  This expression is relevant to those users who already have user and
         #  idp info persisted to the database. We return early to avoid
         #  unnecessarily re-saving that user and idp info.
-        if perform_actual_login and user.identity_provider and user.identity_provider.name == provider:
+        if (
+            perform_actual_login
+            and user.identity_provider
+            and user.identity_provider.name == provider
+        ):
             set_flask_session_values_and_log_ip(user)
             return perform_actual_login
     else:
@@ -244,44 +252,40 @@ def login_required(scope=None):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
-            try:
-                if flask.session.get("username"):
-                    login_user(flask.session["username"], flask.session["provider"])
-                    return f(*args, **kwargs)
+            if flask.session.get("username"):
+                login_user(flask.session["username"], flask.session["provider"])
+                return f(*args, **kwargs)
 
-                eppn = None
-                if config["LOGIN_OPTIONS"]:
-                    enable_shib = "shibboleth" in [
-                        option["idp"] for option in config["LOGIN_OPTIONS"]
-                    ]
-                else:
-                    # fall back on "providers"
-                    enable_shib = "shibboleth" in (
-                        config.get("ENABLED_IDENTITY_PROVIDERS") or {}
-                    ).get("providers", {})
+            eppn = None
+            if config["LOGIN_OPTIONS"]:
+                enable_shib = "shibboleth" in [
+                    option["idp"] for option in config["LOGIN_OPTIONS"]
+                ]
+            else:
+                # fall back on "providers"
+                enable_shib = "shibboleth" in (
+                    config.get("ENABLED_IDENTITY_PROVIDERS") or {}
+                ).get("providers", {})
 
-                if enable_shib and "SHIBBOLETH_HEADER" in config:
-                    eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
+            if enable_shib and "SHIBBOLETH_HEADER" in config:
+                eppn = flask.request.headers.get(config["SHIBBOLETH_HEADER"])
 
-                if config.get("MOCK_AUTH") is True:
-                    eppn = "test"
-                # if there is authorization header for oauth
-                if "Authorization" in flask.request.headers:
-                    has_oauth(scope=scope)
-                    return f(*args, **kwargs)
-                # if there is shibboleth session, then create user session and
-                # log user in
-                elif eppn:
-                    username = eppn.split("!")[-1]
-                    flask.session["username"] = username
-                    flask.session["provider"] = IdentityProvider.itrust
-                    login_user(username, flask.session["provider"])
-                    return f(*args, **kwargs)
-                else:
-                    raise Unauthorized("Please login")
-            except Exception:
-                import traceback; traceback.print_exc()
-                raise
+            if config.get("MOCK_AUTH") is True:
+                eppn = "test"
+            # if there is authorization header for oauth
+            if "Authorization" in flask.request.headers:
+                has_oauth(scope=scope)
+                return f(*args, **kwargs)
+            # if there is shibboleth session, then create user session and
+            # log user in
+            elif eppn:
+                username = eppn.split("!")[-1]
+                flask.session["username"] = username
+                flask.session["provider"] = IdentityProvider.itrust
+                login_user(username, flask.session["provider"])
+                return f(*args, **kwargs)
+            else:
+                raise Unauthorized("Please login")
 
         return wrapper
 

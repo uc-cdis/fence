@@ -159,8 +159,8 @@ OPENID_CONNECT:
     organization_claim_field: 'org'
     # default organization
     default_organization: 'Default Organization'
-    # automatically register users from Idp
-    enable_idp_users_registration: true
+    # automatically register users using the info provided by the IdP in tokens
+    enable_idp_users_registration: false
   # These Google values must be obtained from Google's Cloud Console
   # Follow: https://developers.google.com/identity/protocols/OpenIDConnect
   #
