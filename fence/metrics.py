@@ -40,9 +40,7 @@ class Metrics:
         metrics (dict): Dictionary to store Prometheus metrics
     """
 
-    def __init__(self, prometheus_dir="/var/tmp/uwsgi_flask_metrics"):
-        pathlib.Path(prometheus_dir).mkdir(parents=True, exist_ok=True)
-        os.environ["PROMETHEUS_MULTIPROC_DIR"] = prometheus_dir
+    def __init__(self):
 
         self._registry = CollectorRegistry()
         multiprocess.MultiProcessCollector(self._registry)
