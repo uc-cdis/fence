@@ -100,6 +100,7 @@ def create_client(
     auth_method = "client_secret_basic" if confidential else "none"
 
     allowed_scopes = allowed_scopes or config["CLIENT_ALLOWED_SCOPES"]
+    logger.error(f"Testing allowed_scopes: {allowed_scopes}")
     if not set(allowed_scopes).issubset(set(config["CLIENT_ALLOWED_SCOPES"])):
         raise ValueError(
             "Each allowed scope must be one of: {}".format(
