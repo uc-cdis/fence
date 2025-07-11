@@ -51,7 +51,7 @@ AMANUENSIS_PUBLIC_KEY_PATH: '/amanuensis/jwt_public_key.pem'
 # //////////////////////////////////////////////////////////////////////////////////////
 # flask's debug setting
 # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
-DEBUG: true
+DEBUG: false
 # if true, will automatically login a user with username "test"
 # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
 MOCK_AUTH: false
@@ -100,6 +100,7 @@ DB_MIGRATION_POSTGRES_LOCK_KEY: 100
 #   - WARNING: Be careful changing the *_ALLOWED_SCOPES as you can break basic
 #              and optional functionality
 # //////////////////////////////////////////////////////////////////////////////////////
+
 OPENID_CONNECT:
   # any OIDC IDP that does not differ from the generic implementation can be
   # configured without code changes
@@ -121,6 +122,40 @@ OPENID_CONNECT:
     multifactor_auth_claim_info: # optional, include if you're using arborist to enforce mfa on a per-file level
       claim: '' # claims field that indicates mfa, either the acr or acm claim.
       values: [ "" ] # possible values that indicate mfa was used. At least one value configured here is required to be in the token
+    # When true, it allows refresh tokens to be stored even if is_authz_groups_sync_enabled is set false.
+    # When false, the system will only store refresh tokens if is_authz_groups_sync_enabled is enabled
+    persist_refresh_token: false
+    # is_authz_groups_sync_enabled: A configuration flag that determines whether the application should
+    # verify and synchronize user group memberships between the identity provider (IdP)
+    # and the local authorization system (Arborist). When enabled, the refresh token is stored, the system retrieves
+    # the user's group information from their token issued by the IdP and compares it against
+    # the groups defined in the local system. Based on the comparison, the user is added to
+    # or removed from relevant groups in the local system to ensure their group memberships
+    # remain up-to-date. If this flag is disabled, no group synchronization occurs
+    is_authz_groups_sync_enabled: true
+    # Key used to retrieve group information from the token
+    group_claim_field: "groups"
+    # IdP group membership expiration (seconds).
+    group_membership_expiration_duration: 604800
+    authz_groups_sync:
+      # This defines the prefix used to identify authorization groups.
+      group_prefix: "some_prefix"
+    # This flag indicates whether the audience (aud) claim in the JWT should be verified during token validation.
+    verify_aud: true
+    # This specifies the expected audience (aud) value for the JWT, ensuring that the token is intended for use with the 'fence' service.
+    audience: fence
+    # default refresh token expiration duration
+    default_refresh_token_exp: 3600
+    # firstname claim field from idp
+    firstname_claim_field: 'firstName'
+    # lastname claim field from idp
+    lastname_claim_field: 'lastName'
+    # organization claim field from idp
+    organization_claim_field: 'org'
+    # default organization
+    default_organization: 'Default Organization'
+    # automatically register users from Idp
+    enable_idp_users_registration: true
   # These Google values must be obtained from Google's Cloud Console
   # Follow: https://developers.google.com/identity/protocols/OpenIDConnect
   #
@@ -477,6 +512,9 @@ GEN3_PASSPORT_EXPIRES_IN: 43200
 # We use the same field name for POSTs to /data/download for consistency
 GA4GH_DRS_POSTED_PASSPORT_FIELD: "passports"
 
+# The number of seconds after a refresh token from an IdP will expire if there is not
+# a specific exp configured for that IdP above in OPENID_CONNECT
+DEFAULT_REFRESH_TOKEN_EXP: 3600
 
 ########################################################################################
 #                               OPTIONAL CONFIGURATIONS                                #
