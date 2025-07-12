@@ -5,7 +5,7 @@ on: pull_request
 jobs:
   integration_tests:
     name: Integration tests
-    uses: uc-cdis/.github/.github/workflows/integration_tests.yaml@master
+    uses: uc-cdis/.github/.github/workflows/integration_tests.yaml@haraprasadj-patch-1
     with:
       SERVICE_TO_TEST: fence
     secrets:
