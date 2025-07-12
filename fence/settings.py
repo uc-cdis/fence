@@ -6,6 +6,8 @@ NOTE TO DEVELOPERS: This is NOT intended to be a place for configurable variable
 
 This exists primarily as a legacy support for old configuration, but has been
 repurposed to hold some info used when searching for a provided configuration variable.
+
+Dummy comment to trigger CI
 """
 from os.path import expanduser
 
