@@ -36,7 +36,7 @@ class DefaultOAuth2Login(Resource):
 
     def get(self):
         redirect_url = flask.request.args.get("redirect")
-        # validate_redirect(redirect_url)  # TODO re-enable
+        validate_redirect(redirect_url)
         flask.redirect_url = redirect_url
         if flask.redirect_url:
             flask.session["redirect"] = flask.redirect_url
@@ -66,7 +66,9 @@ class DefaultOAuth2Login(Resource):
             prepare_login_log(self.idp_name)
             return resp
 
-        return flask.redirect("http://localhost:8000/login/generic_oidc_idp/login") # TODO remove
+        # return flask.redirect(
+        #     "http://localhost:8000/login/generic_oidc_idp/login"
+        # )  # TODO remove
         return flask.redirect(self.client.get_auth_url())
 
 
@@ -395,7 +397,16 @@ def _login(  # TODO rename something like "login_and_registration_flow"?
                 # after registering, the user will be sent back to this endpoint to complete the
                 # login flow
                 # TODO build url with urllib instead
-                flask.session["post_registration_redirect"] = config["BASE_URL"] + "/" + request.url
+                # for some reason `request.url` is https://staging.midrc.org/login/fence/login
+                # instead of https://staging.midrc.org/user/login/fence/login
+                print(f"_login_login -- {request.url=}")
+                flask.session["post_registration_redirect"] = request.url
+                # flask.session["post_registration_redirect"] = config["BASE_URL"] + "/" + request.url
+                print(
+                    "post_registration_redirect",
+                    flask.session["post_registration_redirect"],
+                )
+
                 # return flask.redirect("http://localhost:8000/register"), user_is_logged_in  # TODO remove
                 return (
                     flask.redirect(
