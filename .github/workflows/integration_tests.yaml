@@ -2,6 +2,12 @@ name: Integration Tests
 
 on: pull_request
 
+permissions:
+  id-token: write
+  contents: read
+  pull-requests: write
+  issues: write
+
 jobs:
   integration_tests:
     name: Integration tests
