@@ -17,13 +17,12 @@ from werkzeug.datastructures import ImmutableMultiDict
 
 from fence.models import Client, User, query_for_user
 from fence.errors import NotFound, UserError
-from fence.config import config
+from fence.config import config, logger
 from authlib.oauth2.rfc6749.util import scope_to_list
 from authlib.oauth2.rfc6749.errors import InvalidScopeError
 
 rng = SystemRandom()
 alphanumeric = string.ascii_uppercase + string.ascii_lowercase + string.digits
-logger = get_logger(__name__)
 
 
 def random_str(length):
