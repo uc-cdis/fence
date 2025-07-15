@@ -11,10 +11,9 @@ permissions:
 jobs:
   integration_tests:
     name: Integration tests
-    uses: uc-cdis/gen3-code-vigil/.github/workflows/shared_integration_tests.yaml@temp/print_slack_report
+    uses: uc-cdis/.github/.github/workflows/integration_tests.yaml@chore/cleanup_integration_test_workflow
     with:
       SERVICE_TO_TEST: fence
-      GEN3_INSTANCE_TYPE: HELM_LOCAL
     secrets:
       CI_AWS_ACCESS_KEY_ID: ${{ secrets.CI_AWS_ACCESS_KEY_ID }}
       CI_AWS_SECRET_ACCESS_KEY: ${{ secrets.CI_AWS_SECRET_ACCESS_KEY }}
@@ -28,4 +27,3 @@ jobs:
       CI_TEST_RAS_2_PASSWORD: ${{ secrets.CI_TEST_RAS_2_PASSWORD }}
       CI_SLACK_BOT_TOKEN: ${{ secrets.CI_SLACK_BOT_TOKEN }}
       CI_SLACK_CHANNEL_ID: ${{ secrets.CI_SLACK_CHANNEL_ID }}
-      EKS_CLUSTER_NAME : ${{ secrets.EKS_CLUSTER_NAME }}
