@@ -2,12 +2,6 @@ name: Integration Tests
 
 on: pull_request
 
-permissions:
-  id-token: write
-  contents: read
-  pull-requests: write
-  issues: write
-
 jobs:
   integration_tests:
     name: Integration tests
@@ -27,3 +21,4 @@ jobs:
       CI_TEST_RAS_2_PASSWORD: ${{ secrets.CI_TEST_RAS_2_PASSWORD }}
       CI_SLACK_BOT_TOKEN: ${{ secrets.CI_SLACK_BOT_TOKEN }}
       CI_SLACK_CHANNEL_ID: ${{ secrets.CI_SLACK_CHANNEL_ID }}
+      EKS_CLUSTER_NAME: ${{ secrets.EKS_CLUSTER_NAME }}
