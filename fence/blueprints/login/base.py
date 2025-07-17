@@ -4,7 +4,7 @@ import json
 from urllib.parse import urlparse, urlencode, parse_qsl
 import jwt
 
-from flask import current_app, request
+from flask import current_app
 import flask
 from cdislogging import get_logger
 from flask_restful import Resource
@@ -394,18 +394,14 @@ def _login(  # TODO rename something like "login_and_registration_flow"?
                     username, firstname, lastname, organization, email
                 )
             else:
-                # after registering, the user will be sent back to this endpoint to complete the
+                # after registering, the user is sent back to this endpoint to complete the
                 # login flow
-                # TODO build url with urllib instead
-                # for some reason `request.url` is https://staging.midrc.org/login/fence/login
-                # instead of https://staging.midrc.org/user/login/fence/login
-                print(f"_login_login -- {request.url=}")
-                flask.session["post_registration_redirect"] = request.url
-                # flask.session["post_registration_redirect"] = config["BASE_URL"] + "/" + request.url
-                print(
-                    "post_registration_redirect",
-                    flask.session["post_registration_redirect"],
-                )
+
+                # We can't just use `request.url` here because it's missing the `/user` prefix. This is caused by the revproxy stripping the URL prefix before forwarding requests to Fence.
+                current_url = config["BASE_URL"] + "/" + flask.request.path
+                if flask.request.query_string:
+                    current_url += f"?{flask.request.query_string.decode('utf-8')}"
+                flask.session["post_registration_redirect"] = current_url
 
                 # return flask.redirect("http://localhost:8000/register"), user_is_logged_in  # TODO remove
                 return (
