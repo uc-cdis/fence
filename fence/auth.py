@@ -97,8 +97,10 @@ def login_user(
 
     TODO perform_actual_login - and rename/refactor function - document returned value
     """
+    print("entering login_user")
 
     def set_flask_session_values_and_log_ip(user):
+        print("entering set_flask_session_values_and_log_ip")
         set_flask_session_values(user)
 
         ip_info = get_ip_information_string()
@@ -137,6 +139,8 @@ def login_user(
             user is not None and user.additional_info.get("registration_info", {}) != {}
         )
     )
+    print(f"{perform_actual_login=}")
+    print(f"{flask.session.get('login_in_progress_username')=}")
 
     if user:
         # not using `flask.session["username"]` because other code relies on it to know
@@ -161,6 +165,7 @@ def login_user(
             and user.identity_provider.name == provider
         ):
             set_flask_session_values_and_log_ip(user)
+            print("leaving login_user")
             return perform_actual_login
     else:
         if not config["ALLOW_NEW_USER_ON_LOGIN"]:
@@ -197,6 +202,7 @@ def login_user(
     if perform_actual_login:
         set_flask_session_values_and_log_ip(user)
 
+    print("leaving login_user")
     return perform_actual_login
 
 
@@ -253,6 +259,7 @@ def login_required(scope=None):
         @wraps(f)
         def wrapper(*args, **kwargs):
             if flask.session.get("username"):
+                print(f"login_user called by login_required({scope}) -- if flask.session.get('username') -- {flask.request.url}")
                 login_user(flask.session["username"], flask.session["provider"])
                 return f(*args, **kwargs)
 
@@ -282,6 +289,7 @@ def login_required(scope=None):
                 username = eppn.split("!")[-1]
                 flask.session["username"] = username
                 flask.session["provider"] = IdentityProvider.itrust
+                print("login_user called by login_required -- elif eppn")
                 login_user(username, flask.session["provider"])
                 return f(*args, **kwargs)
             else:

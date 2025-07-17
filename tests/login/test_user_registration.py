@@ -1,6 +1,5 @@
-import jwt
-import time
-from unittest.mock import MagicMock, patch
+import os
+from unittest.mock import patch
 
 import flask
 import pytest
@@ -170,6 +169,7 @@ def test_register_endpoint(
     )
     assert r.status_code == 302, r.text
 
+    config["WTF_CSRF_SECRET_KEY"] = os.urandom(32)  # TODO remove after test
     r = client.get("/register")
     assert r.status_code == 200, r.text
     assert "<!doctype html>" in r.text and "</form>" in r.text, "Expected an HTLM form"

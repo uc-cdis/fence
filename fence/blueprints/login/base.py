@@ -35,6 +35,7 @@ class DefaultOAuth2Login(Resource):
         self.client = client
 
     def get(self):
+        print("entering DefaultOAuth2Login GET")
         redirect_url = flask.request.args.get("redirect")
         validate_redirect(redirect_url)
         flask.redirect_url = redirect_url
@@ -65,6 +66,16 @@ class DefaultOAuth2Login(Resource):
             resp = _login(username, self.idp_name)  # logs in the mocked user
             prepare_login_log(self.idp_name)
             return resp
+
+        # TODO comment flow
+        # We can't just use `request.url` here because it's missing the `/user` prefix.
+        # This is caused by the revproxy stripping the URL prefix before forwarding
+        # requests to Fence.
+        current_url = config["BASE_URL"] + "/" + flask.request.path
+        if flask.request.query_string:
+            current_url += f"?{flask.request.query_string.decode('utf-8')}"
+        flask.session["post_registration_redirect"] = current_url
+        print("leaving DefaultOAuth2Login GET post_registration_redirect=", flask.session["post_registration_redirect"])
 
         # return flask.redirect(
         #     "http://localhost:8000/login/generic_oidc_idp/login"
@@ -346,10 +357,12 @@ def _login(  # TODO rename something like "login_and_registration_flow"?
     Login user with given username, then automatically register if needed,
     and finally redirect if session has a saved redirect.
     """
+    print("entering _login")
     user = query_for_user(session=current_app.scoped_session(), username=username)
     # only log the user in if registration is disabled of if they are already registered
     # log_user_in_now = not config["REGISTER_USERS_ON"] or (user is not None and user.additional_info.get("registration_info"))
     # print("_login", 'REGISTER_USERS_ON =', config["REGISTER_USERS_ON"], '; user.registration_info =', user and user.additional_info.get("registration_info"))
+    print("login_user called by _login")
     user_is_logged_in = login_user(
         username,
         idp_name,
@@ -367,6 +380,7 @@ def _login(  # TODO rename something like "login_and_registration_flow"?
 
     if config["REGISTER_USERS_ON"]:
         user = query_for_user(session=current_app.scoped_session(), username=username)
+        print("registration_info=", user.additional_info.get("registration_info"))
         if not user.additional_info.get("registration_info"):
             # If enabled, automatically register user from IdP
             if auto_register_users:
@@ -397,11 +411,14 @@ def _login(  # TODO rename something like "login_and_registration_flow"?
                 # after registering, the user is sent back to this endpoint to complete the
                 # login flow
 
-                # We can't just use `request.url` here because it's missing the `/user` prefix. This is caused by the revproxy stripping the URL prefix before forwarding requests to Fence.
+                # We can't just use `request.url` here because it's missing the `/user` prefix.
+                # This is caused by the revproxy stripping the URL prefix before forwarding
+                # requests to Fence.
                 current_url = config["BASE_URL"] + "/" + flask.request.path
                 if flask.request.query_string:
                     current_url += f"?{flask.request.query_string.decode('utf-8')}"
-                flask.session["post_registration_redirect"] = current_url
+                print("in _login, post_registration_redirect would be:", current_url)
+                # flask.session["post_registration_redirect"] = current_url
 
                 # return flask.redirect("http://localhost:8000/register"), user_is_logged_in  # TODO remove
                 return (
@@ -412,6 +429,7 @@ def _login(  # TODO rename something like "login_and_registration_flow"?
                 )
 
     print("end of _login --- session.redirect =", flask.session.get("redirect"))
+    print("user_is_logged_in=", user_is_logged_in)
     if flask.session.get("redirect"):
         return flask.redirect(flask.session["redirect"]), user_is_logged_in
     # TODO remove `"registered": True` from responses if only used in unit tests

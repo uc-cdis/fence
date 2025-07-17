@@ -96,7 +96,7 @@ class ShibbolethCallback(DefaultOAuth2Callback):
         idp = IdentityProvider.itrust
         if entityID:
             idp = entityID
-        login_user(username, idp)
+        # login_user(username, idp)
 
         resp, user_is_logged_in = _login(username, idp)
         if not user_is_logged_in:

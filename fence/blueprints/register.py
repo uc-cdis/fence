@@ -80,8 +80,8 @@ def register_user():
     but actual verification (for example, checking organization info against some trusted
     authority's records) has been deemed out of scope.
     """
+    print("entering register_user", flask.request.method)
     # TODO what happens if registration fails? infinite redirects between login and registration?
-    import os; flask.current_app.config['WTF_CSRF_SECRET_KEY'] = os.urandom(32)  # TODO remove
     try:
         form = RegistrationForm()
     except Exception as e:
@@ -120,6 +120,7 @@ def register_user():
     )
     # TODO why is access token being set?
 
+    print("leaving register_user, post_registration_redirect=", flask.session.get("post_registration_redirect"))
     # Respect session redirect--important when redirected here from login flow
     if flask.session.get("post_registration_redirect"):
         return flask.redirect(flask.session.get("post_registration_redirect"))
