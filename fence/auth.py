@@ -95,12 +95,12 @@ def login_user(
         id_from_idp (str, optional): id from the IDP (which may be different than
             the username)
 
-    TODO perform_actual_login - and rename/refactor function - document returned value
+    Return:
+        bool: whether the user has been logged in (if registration is enabled and the user is not
+            registered, this would be False)
+        TODO rename function
     """
-    print("entering login_user")
-
     def set_flask_session_values_and_log_ip(user):
-        print("entering set_flask_session_values_and_log_ip")
         set_flask_session_values(user)
 
         ip_info = get_ip_information_string()
@@ -139,34 +139,16 @@ def login_user(
             user is not None and user.additional_info.get("registration_info", {}) != {}
         )
     )
-    print(f"{perform_actual_login=}")
-    print(f"{flask.session.get('login_in_progress_user')=}")
 
     if user:
-        # not using `flask.session["username"]` because other code relies on it to know
-        # whether a user is logged in; in this case the user isn't logged in yet.
-        # flask.session["login_in_progress_user"] = (user.id, user.username)
         if user.active == False:
             # Abort login if user.active == False:
             raise Unauthorized(
                 "User is known but not authorized/activated in the system"
             )
-
         _update_users_email(user, email)
         _update_users_id_from_idp(user, id_from_idp)
         _update_users_last_auth(user)
-
-        #  This expression is relevant to those users who already have user and
-        #  idp info persisted to the database. We return early to avoid
-        #  unnecessarily re-saving that user and idp info.
-        # if (
-        #     perform_actual_login
-        #     and user.identity_provider
-        #     and user.identity_provider.name == provider
-        # ):
-        #     set_flask_session_values_and_log_ip(user)
-        #     print("leaving login_user")
-        #     return perform_actual_login
     else:
         if not config["ALLOW_NEW_USER_ON_LOGIN"]:
             # do not create new active users automatically
@@ -185,10 +167,7 @@ def login_user(
     # This expression is relevant to those users who already have user and
     # idp info persisted to the database. We avoid unnecessarily re-saving
     # that user and idp info.
-    if (
-        not user.identity_provider
-        or not user.identity_provider.name == provider
-    ):
+    if not user.identity_provider or not user.identity_provider.name == provider:
         # setup idp connection for new user (or existing user w/o it setup)
         idp = (
             current_app.scoped_session()
@@ -210,7 +189,6 @@ def login_user(
     if perform_actual_login:
         set_flask_session_values_and_log_ip(user)
 
-    print("leaving login_user")
     return perform_actual_login
 
 
@@ -267,7 +245,6 @@ def login_required(scope=None):
         @wraps(f)
         def wrapper(*args, **kwargs):
             if flask.session.get("username"):
-                print(f"login_user called by login_required({scope}) -- if flask.session.get('username') -- {flask.request.url}")
                 login_user(flask.session["username"], flask.session["provider"])
                 return f(*args, **kwargs)
 
@@ -297,7 +274,6 @@ def login_required(scope=None):
                 username = eppn.split("!")[-1]
                 flask.session["username"] = username
                 flask.session["provider"] = IdentityProvider.itrust
-                print("login_user called by login_required -- elif eppn")
                 login_user(username, flask.session["provider"])
                 return f(*args, **kwargs)
             else:

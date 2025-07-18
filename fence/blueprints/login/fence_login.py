@@ -34,8 +34,6 @@ class FenceLogin(DefaultOAuth2Login):
 
     def get(self):
         """Handle ``GET /login/fence``."""
-        print("entering FenceLogin GET")
-
         # OAuth class can have mutliple clients
         client = flask.current_app.fence_client._clients[
             flask.current_app.config["OPENID_CONNECT"]["fence"]["name"]
@@ -74,9 +72,7 @@ class FenceLogin(DefaultOAuth2Login):
         if flask.request.query_string:
             current_url += f"?{flask.request.query_string.decode('utf-8')}"
         flask.session["post_registration_redirect"] = current_url
-        print("leaving FenceLogin GET post_registration_redirect=", flask.session["post_registration_redirect"])
 
-        flask.session["state"] = rv["state"]
         return flask.redirect(authorization_url)
 
 
@@ -96,9 +92,6 @@ class FenceCallback(DefaultOAuth2Callback):
         """Handle ``GET /login/fence/login``."""
         # Check that the state passed back from IDP fence is the same as the
         # one stored previously.
-        print("entering FenceCallback GET")
-        print(f"request.state={flask.request.args.get('state')}")
-        print(f"session.state={flask.session.get('state')}")
         mismatched_state = (
             "state" not in flask.request.args
             or "state" not in flask.session
@@ -140,13 +133,6 @@ class FenceCallback(DefaultOAuth2Callback):
             )
         username = id_token_claims["context"]["user"]["name"]
         email = id_token_claims["context"]["user"].get("email")
-        # login_user(
-        #     username,
-        #     IdentityProvider.fence,
-        #     upstream_idp=flask.session.get("upstream_idp"),
-        #     shib_idp=flask.session.get("shib_idp"),
-        #     email=email,
-        # )
 
         resp, user_is_logged_in = _login(
             username,
@@ -157,26 +143,8 @@ class FenceCallback(DefaultOAuth2Callback):
         )
 
         if not user_is_logged_in:
-            print("leaving FenceCallback GET, user_is_logged_in=False")
             return resp
 
         self.post_login()
-
-        # if config["REGISTER_USERS_ON"]:
-        #     if not flask.g.user.additional_info.get("registration_info"):
-        #         return flask.redirect(
-        #             config["BASE_URL"] + flask.url_for("register.register_user")
-        #         )
-
-        # if "redirect" in flask.session:
-        #     return flask.redirect(flask.session.get("redirect"))
-        # return flask.jsonify({"username": username})
-
-        # current_url = config["BASE_URL"] + flask.request.path
-        # if flask.request.query_string:
-        #     current_url += f"?{flask.request.query_string.decode('utf-8')}"
-        # flask.session["post_registration_redirect"] = current_url
-        # print("leaving FenceCallback GET post_registration_redirect=", flask.session["post_registration_redirect"], "session.state=", flask.session.get("state"))
-        # flask.session["state"] = flask.request.args.get("state")
 
         return resp
