@@ -1,7 +1,6 @@
 from authlib.common.urls import add_params_to_uri
 import flask
 
-from fence.auth import login_user
 from fence.blueprints.login.base import (
     DefaultOAuth2Login,
     DefaultOAuth2Callback,

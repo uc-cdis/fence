@@ -9,7 +9,7 @@ import flask
 from cdislogging import get_logger
 from flask_restful import Resource
 
-from fence.auth import login_user
+from fence.auth import login_user_unless_unregistered
 from fence.blueprints.login.redirect import validate_redirect
 from fence.blueprints.register import add_user_registration_info_to_database
 from fence.config import config
@@ -349,7 +349,7 @@ def _login(  # TODO rename something like "login_and_registration_flow"?
     and finally redirect if session has a saved redirect.
     """
     user = query_for_user(session=current_app.scoped_session(), username=username)
-    user_is_logged_in = login_user(
+    user_is_logged_in = login_user_unless_unregistered(
         username,
         idp_name,
         upstream_idp=upstream_idp,

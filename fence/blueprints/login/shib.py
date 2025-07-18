@@ -1,7 +1,6 @@
 from cdislogging import get_logger
 import flask
 
-from fence.auth import login_user
 from fence.blueprints.login.base import (
     DefaultOAuth2Login,
     DefaultOAuth2Callback,
@@ -89,14 +88,11 @@ class ShibbolethCallback(DefaultOAuth2Callback):
             if not username:
                 # some inCommon providers are not returning eppn
                 # or persistent_id. See PXP-4309
-                # print("shib_header", shib_header)
-                # print("flask.request.headers", flask.request.headers)
                 raise Unauthorized("Unable to retrieve username")
 
         idp = IdentityProvider.itrust
         if entityID:
             idp = entityID
-        # login_user(username, idp)
 
         resp, user_is_logged_in = _login(username, idp)
         if not user_is_logged_in:

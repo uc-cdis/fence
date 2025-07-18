@@ -77,69 +77,25 @@ def get_ip_information_string():
     return f"flask.request.remote_addr={flask.request.remote_addr} x_forwarded_headers={x_forwarded_headers}"
 
 
-def login_user(
-    username, provider, upstream_idp=None, shib_idp=None, email=None, id_from_idp=None
+def identify_user_and_update_database(
+    user, username, provider, email=None, id_from_idp=None
 ) -> bool:
     """
-    Login a user with the given username and provider. Set values in Flask
-    session to indicate the user being logged in. In addition, commit the user
-    and associated idp information to the db.
+    Create a new user if one doesn't already exist in the database. Commit the user
+    and associated idp information to the database.
 
     Args:
+        user (User): user to be logged in, if it already exists, None otherwise
         username (str): specific username of user to be logged in
         provider (str): specfic idp of user to be logged in
-        upstream_idp (str, optional): upstream fence IdP
-        shib_idp (str, optional): upstream shibboleth IdP
         email (str, optional): email of user (may or may not match username depending
             on the IdP)
         id_from_idp (str, optional): id from the IDP (which may be different than
             the username)
 
     Return:
-        bool: whether the user has been logged in (if registration is enabled and the user is not
-            registered, this would be False)
-        TODO rename function
+        User: the created or updated user
     """
-    def set_flask_session_values_and_log_ip(user):
-        set_flask_session_values(user)
-
-        ip_info = get_ip_information_string()
-        logger.info(
-            f"User logged in. user.id={user.id} user.username={user.username} {ip_info}"
-        )
-
-    def set_flask_session_values(user):
-        """
-        Helper fuction to set user values in the session.
-
-        Args:
-            user (User): User object
-        """
-        flask.session["username"] = user.username
-        flask.session["user_id"] = str(user.id)
-        flask.session["provider"] = user.identity_provider.name
-        if upstream_idp:
-            flask.session["upstream_idp"] = upstream_idp
-        if shib_idp:
-            flask.session["shib_idp"] = shib_idp
-        flask.g.user = user
-        flask.g.scopes = ["_all"]
-        flask.g.token = None
-
-    user = query_for_user(session=current_app.scoped_session(), username=username)
-    auto_register_users = (
-        config["OPENID_CONNECT"]
-        .get(provider, {})
-        .get("enable_idp_users_registration", False)
-    )
-    perform_actual_login = (
-        not config["REGISTER_USERS_ON"]  # registration is disabled
-        or auto_register_users  # or registration is automatic
-        or (  # or the user is already registered
-            user is not None and user.additional_info.get("registration_info", {}) != {}
-        )
-    )
-
     if user:
         if user.active == False:
             # Abort login if user.active == False:
@@ -186,10 +142,80 @@ def login_user(
     # whether a user is logged in; in this case the user isn't logged in yet.
     flask.session["login_in_progress_user"] = (user.id, user.username)
 
-    if perform_actual_login:
-        set_flask_session_values_and_log_ip(user)
+    return user
 
-    return perform_actual_login
+
+def _is_user_registration_required_before_login(user, provider) -> bool:
+    auto_register_users = (
+        config["OPENID_CONNECT"]
+        .get(provider, {})
+        .get("enable_idp_users_registration", False)
+    )
+    # we can only skip registration if registration is disabled, or registration is automatic,
+    # or the user is already registered
+    return (
+        config["REGISTER_USERS_ON"]
+        and not auto_register_users
+        and user.additional_info.get("registration_info", {}) == {}
+    )
+
+
+def login_user_unless_unregistered(
+    username, provider, upstream_idp=None, shib_idp=None, email=None, id_from_idp=None
+) -> bool:
+    """
+    Check if a user needs to go through the registration flow before being logged in. If not,
+    login the user with the given username and provider. Set values in Flask session to indicate
+    the user being logged in.
+
+    Args:
+        username (str): specific username of user to be logged in
+        provider (str): specfic idp of user to be logged in
+        upstream_idp (str, optional): upstream fence IdP
+        shib_idp (str, optional): upstream shibboleth IdP
+        email (str, optional): email of user (may or may not match username depending
+            on the IdP)
+        id_from_idp (str, optional): id from the IDP (which may be different than
+            the username)
+
+    Return:
+        bool: whether the user has been logged in (if registration is enabled and the user is not
+            registered, this would be False)
+    """
+
+    def log_ip(user):
+        ip_info = get_ip_information_string()
+        logger.info(
+            f"User logged in. user.id={user.id} user.username={user.username} {ip_info}"
+        )
+
+    def set_flask_session_values(user):
+        """
+        Helper fuction to set user values in the session.
+
+        Args:
+            user (User): User object
+        """
+        flask.session["username"] = user.username
+        flask.session["user_id"] = str(user.id)
+        flask.session["provider"] = user.identity_provider.name
+        if upstream_idp:
+            flask.session["upstream_idp"] = upstream_idp
+        if shib_idp:
+            flask.session["shib_idp"] = shib_idp
+        flask.g.user = user
+        flask.g.scopes = ["_all"]
+        flask.g.token = None
+
+    user = query_for_user(session=current_app.scoped_session(), username=username)
+    user = identify_user_and_update_database(
+        user, username, provider, email, id_from_idp
+    )
+    log_user_in = not _is_user_registration_required_before_login(user, provider)
+    if log_user_in:
+        set_flask_session_values(user)
+        log_ip(user)
+    return log_user_in
 
 
 def logout(next_url, force_era_global_logout=False):
@@ -245,7 +271,11 @@ def login_required(scope=None):
         @wraps(f)
         def wrapper(*args, **kwargs):
             if flask.session.get("username"):
-                login_user(flask.session["username"], flask.session["provider"])
+                is_logged_in = login_user_unless_unregistered(
+                    flask.session["username"], flask.session["provider"]
+                )
+                if not is_logged_in:
+                    raise Unauthorized("Please register to login")
                 return f(*args, **kwargs)
 
             eppn = None
@@ -274,7 +304,11 @@ def login_required(scope=None):
                 username = eppn.split("!")[-1]
                 flask.session["username"] = username
                 flask.session["provider"] = IdentityProvider.itrust
-                login_user(username, flask.session["provider"])
+                is_logged_in = login_user_unless_unregistered(
+                    username, flask.session["provider"]
+                )
+                if not is_logged_in:
+                    raise Unauthorized("Please register to login")
                 return f(*args, **kwargs)
             else:
                 raise Unauthorized("Please login")
