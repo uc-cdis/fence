@@ -69,7 +69,8 @@ class FenceLogin(DefaultOAuth2Login):
         # We can't just use `request.url` here because it's missing the `/user` prefix.
         # This is caused by the revproxy stripping the URL prefix before forwarding
         # requests to Fence.
-        current_url = config["BASE_URL"] + "/" + flask.request.path
+        # TODO in all IdPs
+        current_url = config["BASE_URL"] + flask.request.path
         if flask.request.query_string:
             current_url += f"?{flask.request.query_string.decode('utf-8')}"
         flask.session["post_registration_redirect"] = current_url
@@ -96,8 +97,8 @@ class FenceCallback(DefaultOAuth2Callback):
         # Check that the state passed back from IDP fence is the same as the
         # one stored previously.
         print("entering FenceCallback GET")
-        print(f"{flask.request.args=}")
-        print(f"state in flask.session={'state' in flask.session}")
+        print(f"request.state={flask.request.args.get('state')}")
+        print(f"session.state={flask.session.get('state')}")
         mismatched_state = (
             "state" not in flask.request.args
             or "state" not in flask.session
@@ -154,9 +155,9 @@ class FenceCallback(DefaultOAuth2Callback):
             shib_idp=flask.session.get("shib_idp"),
             email=email,
         )
-        print("leaving FenceCallback GET")
 
         if not user_is_logged_in:
+            print("leaving FenceCallback GET, user_is_logged_in=False")
             return resp
 
         self.post_login()
@@ -170,5 +171,12 @@ class FenceCallback(DefaultOAuth2Callback):
         # if "redirect" in flask.session:
         #     return flask.redirect(flask.session.get("redirect"))
         # return flask.jsonify({"username": username})
+
+        # current_url = config["BASE_URL"] + flask.request.path
+        # if flask.request.query_string:
+        #     current_url += f"?{flask.request.query_string.decode('utf-8')}"
+        # flask.session["post_registration_redirect"] = current_url
+        # print("leaving FenceCallback GET post_registration_redirect=", flask.session["post_registration_redirect"], "session.state=", flask.session.get("state"))
+        # flask.session["state"] = flask.request.args.get("state")
 
         return resp

@@ -160,16 +160,23 @@ def test_register_endpoint(
     Before starting the login flow, the registration endpoint should return 401.
     After starting the login flow, it should return an HTML page with a form.
     """
-    r = client.get("/register")
-    assert r.status_code == 401, r.text
+    # avoid error `A secret key is required to use CSRF` when the registration form
+    # is created
+    csrf_key_config_backup = flask.current_app.config["WTF_CSRF_SECRET_KEY"]
+    flask.current_app.config["WTF_CSRF_SECRET_KEY"] = os.urandom(32)
 
-    _, _, callback_endpoint, headers = mocks_for_idp_oauth2_callbacks
-    r = client.get(
-        f"/login/{get_idp_route_name(idp)}/{callback_endpoint}", headers=headers
-    )
-    assert r.status_code == 302, r.text
+    try:
+        r = client.get("/register")
+        assert r.status_code == 401, r.text
 
-    config["WTF_CSRF_SECRET_KEY"] = os.urandom(32)  # TODO remove after test
-    r = client.get("/register")
-    assert r.status_code == 200, r.text
-    assert "<!doctype html>" in r.text and "</form>" in r.text, "Expected an HTLM form"
+        _, _, callback_endpoint, headers = mocks_for_idp_oauth2_callbacks
+        r = client.get(
+            f"/login/{get_idp_route_name(idp)}/{callback_endpoint}", headers=headers
+        )
+        assert r.status_code == 302, r.text
+
+        r = client.get("/register")
+        assert r.status_code == 200, r.text
+        assert "<!doctype html>" in r.text and "</form>" in r.text, "Expected an HTLM form"
+    finally:
+        flask.current_app.config["WTF_CSRF_SECRET_KEY"] = csrf_key_config_backup
