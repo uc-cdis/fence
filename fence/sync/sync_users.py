@@ -1922,8 +1922,10 @@ class UserSyncer(object):
         and decide whether to add, remove, or keep policies.
 
         Args:
-            user_existing_policies (_type_): _description_
-            incoming_policies (_type_): _description_
+            username (str): the username of the user
+            incoming_policies (set): set of policies to be applied to the user
+            user_yaml (UserYAML): UserYAML object containing authz information
+            expires (int): time at which authz info in Arborist should expire
         """
         user_existing_policies = set()
         to_keep = set()
@@ -1936,6 +1938,7 @@ class UserSyncer(object):
                 policy["policy"]
                 for policy in self.arborist_client.get_user(username)["policies"]
             )
+            print("------user existing policies: ", user_existing_policies)
         except ArboristError as e:
             self.logger.error(
                 f"Could not get user {username} policies from Arborist: {e}"
@@ -2182,7 +2185,7 @@ class UserSyncer(object):
                                     )
                                 self._created_policies.add(policy_id)
                             policy_ids_to_grant.add(policy_id)
-                self._grant_arborist_policies(
+                self._grant_bulk_user_policies(
                     username, policy_ids_to_grant, expires=expires
                 )
 
@@ -2456,7 +2459,7 @@ class UserSyncer(object):
         )
         return True
 
-    def _grant_arborist_policies(self, username, policy_ids, expires=None):
+    def _grant_bulk_user_policies(self, username, policy_ids, expires=None):
         """
         Wrapper around gen3authz's grant_user_policies with additional logging
 
