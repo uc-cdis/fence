@@ -145,7 +145,7 @@ def login_user(
     if user:
         # not using `flask.session["username"]` because other code relies on it to know
         # whether a user is logged in; in this case the user isn't logged in yet.
-        flask.session["login_in_progress_user"] = (user.id, user.username)
+        # flask.session["login_in_progress_user"] = (user.id, user.username)
         if user.active == False:
             # Abort login if user.active == False:
             raise Unauthorized(
@@ -159,14 +159,14 @@ def login_user(
         #  This expression is relevant to those users who already have user and
         #  idp info persisted to the database. We return early to avoid
         #  unnecessarily re-saving that user and idp info.
-        if (
-            perform_actual_login
-            and user.identity_provider
-            and user.identity_provider.name == provider
-        ):
-            set_flask_session_values_and_log_ip(user)
-            print("leaving login_user")
-            return perform_actual_login
+        # if (
+        #     perform_actual_login
+        #     and user.identity_provider
+        #     and user.identity_provider.name == provider
+        # ):
+        #     set_flask_session_values_and_log_ip(user)
+        #     print("leaving login_user")
+        #     return perform_actual_login
     else:
         if not config["ALLOW_NEW_USER_ON_LOGIN"]:
             # do not create new active users automatically
@@ -174,9 +174,6 @@ def login_user(
 
         # add the new user
         user = User(username=username)
-        # not using `flask.session["username"]` because other code relies on it to know
-        # whether a user is logged in; in this case the user isn't logged in yet.
-        flask.session["login_in_progress_user"] = (user.id, user.username)
 
         if email:
             user.email = email
@@ -185,19 +182,30 @@ def login_user(
             user.id_from_idp = id_from_idp
             # TODO: update iss_sub mapping table?
 
-    # setup idp connection for new user (or existing user w/o it setup)
-    idp = (
-        current_app.scoped_session()
-        .query(IdentityProvider)
-        .filter(IdentityProvider.name == provider)
-        .first()
-    )
-    if not idp:
-        idp = IdentityProvider(name=provider)
+    # This expression is relevant to those users who already have user and
+    # idp info persisted to the database. We avoid unnecessarily re-saving
+    # that user and idp info.
+    if (
+        not user.identity_provider
+        or not user.identity_provider.name == provider
+    ):
+        # setup idp connection for new user (or existing user w/o it setup)
+        idp = (
+            current_app.scoped_session()
+            .query(IdentityProvider)
+            .filter(IdentityProvider.name == provider)
+            .first()
+        )
+        if not idp:
+            idp = IdentityProvider(name=provider)
 
-    user.identity_provider = idp
-    current_app.scoped_session().add(user)
-    current_app.scoped_session().commit()
+        user.identity_provider = idp
+        current_app.scoped_session().add(user)
+        current_app.scoped_session().commit()
+
+    # not using `flask.session["username"]` because other code relies on it to know
+    # whether a user is logged in; in this case the user isn't logged in yet.
+    flask.session["login_in_progress_user"] = (user.id, user.username)
 
     if perform_actual_login:
         set_flask_session_values_and_log_ip(user)
