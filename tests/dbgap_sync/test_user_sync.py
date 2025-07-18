@@ -1180,3 +1180,30 @@ def test_revoke_all_policies_preserve_mfa_ensure_revoke_on_error(
     syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
         user.username
     )
+
+
+@pytest.mark.parametrize("syncer", ["cleversafe"], indirect=True)
+def test_grant_arborist_policies(syncer):
+    """
+    Test that the arborist policies are granted correctly for a user.
+    """
+    incoming_policies = {
+        "programs.test_program-update",
+        "programs.test_program-upload",
+        "programs.test_program-delete",
+        "programs.test_program-create",
+        "programs.test_program-read",
+    }
+
+    # Call the method to grant policies
+    syncer._grant_arborist_policies(
+        username="TESTUSERA",
+        incoming_policies=incoming_policies,
+        user_yaml=None,
+        expires=10,
+    )
+
+    incoming_policies = list(incoming_policies)
+    syncer.arborist_client.grant_bulk_user_policy.assert_called_once_with(
+        "TESTUSERA", incoming_policies, 10
+    )
