@@ -43,6 +43,17 @@ class DefaultOAuth2Login(Resource):
             flask.session["redirect"] = flask.redirect_url
         print("start of DefaultOAuth2Login --- redirect_url =", redirect_url)
 
+        # TODO comment flow
+        # We can't just use `request.url` here because it's missing the `/user` prefix.
+        # This is caused by the revproxy stripping the URL prefix before forwarding
+        # requests to Fence.
+        # TODO in all IdPs
+        current_url = config["BASE_URL"] + flask.request.path
+        if flask.request.query_string:
+            current_url += f"?{flask.request.query_string.decode('utf-8')}"
+        flask.session["post_registration_redirect"] = current_url
+        print("leaving DefaultOAuth2Login GET post_registration_redirect=", flask.session["post_registration_redirect"])
+
         mock_login = (
             config["OPENID_CONNECT"].get(self.idp_name.lower(), {}).get("mock", False)
         )
@@ -63,20 +74,9 @@ class DefaultOAuth2Login(Resource):
             username = flask.request.cookies.get(
                 config.get("DEV_LOGIN_COOKIE_NAME"), mock_default_user
             )
-            resp = _login(username, self.idp_name)  # logs in the mocked user
+            resp, _ = _login(username, self.idp_name)  # logs in the mocked user
             prepare_login_log(self.idp_name)
             return resp
-
-        # TODO comment flow
-        # We can't just use `request.url` here because it's missing the `/user` prefix.
-        # This is caused by the revproxy stripping the URL prefix before forwarding
-        # requests to Fence.
-        # TODO in all IdPs
-        current_url = config["BASE_URL"] + flask.request.path
-        if flask.request.query_string:
-            current_url += f"?{flask.request.query_string.decode('utf-8')}"
-        flask.session["post_registration_redirect"] = current_url
-        print("leaving DefaultOAuth2Login GET post_registration_redirect=", flask.session["post_registration_redirect"])
 
         # return flask.redirect(
         #     "http://localhost:8000/login/generic_oidc_idp/login"
