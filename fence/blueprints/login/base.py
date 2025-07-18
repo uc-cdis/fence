@@ -335,9 +335,10 @@ class DefaultOAuth2Callback(Resource):
 
 
 def prepare_login_log(idp_name):
+    user_id, username = flask.session["login_in_progress_user"]
     flask.g.audit_data = {
-        "username": flask.g.user.username,
-        "sub": flask.g.user.id,
+        "username": username,
+        "sub": user_id,
         "idp": idp_name,
         "upstream_idp": flask.session.get("upstream_idp"),
         "shib_idp": flask.session.get("shib_idp"),

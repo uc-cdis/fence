@@ -50,11 +50,11 @@ def xor_with_user_email(form, field):
 
 class RegistrationForm(FlaskForm):
     firstname = StringField(label="First Name", validators=[DataRequired()])
-    # lastname = StringField(label="Last Name", validators=[DataRequired()])
-    # organization = StringField(label="Organization", validators=[DataRequired()])
-    # email = StringField(
-    #     label="Email", validators=[xor_with_user_email, Email(), DataRequired()]
-    # )
+    lastname = StringField(label="Last Name", validators=[DataRequired()])
+    organization = StringField(label="Organization", validators=[DataRequired()])
+    email = StringField(
+        label="Email", validators=[xor_with_user_email, Email(), DataRequired()]
+    )
 
 
 @blueprint.route("/", methods=["GET", "POST"])
@@ -82,20 +82,17 @@ def register_user():
     """
     print("entering register_user", flask.request.method)
     # TODO what happens if registration fails? infinite redirects between login and registration?
-    try:
-        form = RegistrationForm()
-    except Exception as e:
-        print(e)
-        raise
+    form = RegistrationForm()
 
     # can't use the @login_required() decorator here to enforce logging in, because at this
     # point in the flow the user should have _started_ logging in, but may not be logged in
     # yet
     # TODO ensure the page is reachable for users who are already logged in and want to update
     # their registration info
-    username = flask.session.get("login_in_progress_username")
-    if not username:
+    user_tuple = flask.session.get("login_in_progress_user")
+    if not user_tuple:
         raise Unauthorized("Please login")
+    _, username = user_tuple
 
     if flask.request.method == "GET":
         user = query_for_user(session=current_app.scoped_session(), username=username)

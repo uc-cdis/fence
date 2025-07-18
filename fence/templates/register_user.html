@@ -14,12 +14,19 @@
 
 {% block content %}
   <form method="post">
-
-    <a href="http://localhost:8000/login/generic_oidc_idp?redirect=http://localhost:8000/user">http://localhost:8000/login/generic_oidc_idp/login</a>
     <h1 class="introduction"> Register in order to get access to download data</h1>
     {{ form.csrf_token }}
     <ul>
       <li> {{ form.firstname.label }} {{ form.firstname }} </li>
+      <li> {{ form.lastname.label }} {{ form.lastname }} </li>
+      <li> {{ form.organization.label }} {{ form.organization }} </li>
+      <li>
+          {% if user.email %}
+            <p> This account is connected to the email: <strong>{{ user.email }}</strong> </p>
+          {% else %}
+            {{ form.email.label }} {{ form.email }}
+          {% endif %}
+      </li>
     </ul>
     <button class="button-primary-orange" type="submit">Register</button>
   </form>

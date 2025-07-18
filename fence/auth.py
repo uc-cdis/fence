@@ -133,19 +133,19 @@ def login_user(
         .get("enable_idp_users_registration", False)
     )
     perform_actual_login = (
-        not config["REGISTER_USERS_ON"]
-        or auto_register_users
-        or (
+        not config["REGISTER_USERS_ON"]  # registration is disabled
+        or auto_register_users  # or registration is automatic
+        or (  # or the user is already registered
             user is not None and user.additional_info.get("registration_info", {}) != {}
         )
     )
     print(f"{perform_actual_login=}")
-    print(f"{flask.session.get('login_in_progress_username')=}")
+    print(f"{flask.session.get('login_in_progress_user')=}")
 
     if user:
         # not using `flask.session["username"]` because other code relies on it to know
         # whether a user is logged in; in this case the user isn't logged in yet.
-        flask.session["login_in_progress_username"] = user.username
+        flask.session["login_in_progress_user"] = (user.id, user.username)
         if user.active == False:
             # Abort login if user.active == False:
             raise Unauthorized(
@@ -176,7 +176,7 @@ def login_user(
         user = User(username=username)
         # not using `flask.session["username"]` because other code relies on it to know
         # whether a user is logged in; in this case the user isn't logged in yet.
-        flask.session["login_in_progress_username"] = user.username
+        flask.session["login_in_progress_user"] = (user.id, user.username)
 
         if email:
             user.email = email
