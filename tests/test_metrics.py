@@ -519,6 +519,18 @@ def test_login_log_login_endpoint(
         get_auth_info_value = {"generic1_username": username}
     elif idp == "generic2":
         get_auth_info_value = {"sub": username}
+    elif idp == "generic3":
+        # get_auth_info_value specific to generic3
+        # TODO: Need test when is_authz_groups_sync_enabled == true
+        get_auth_info_value = {
+            "username": username,
+            "sub": username,
+            "email_verified": True,
+            "iat": 1609459200,
+            "exp": 1609462800,
+            "refresh_token": "mock_refresh_token",
+            "groups": ["group1", "group2"],
+        }
 
     if idp in ["google", "microsoft", "okta", "synapse", "cognito"]:
         get_auth_info_value["email"] = username
@@ -538,6 +550,7 @@ def test_login_log_login_endpoint(
         )
         path = f"/login/{idp}/{callback_endpoint}"  # SEE fence/blueprints/login/fence_login.py L91
         response = client.get(path, headers=headers)
+        print(f"Response: {response.status_code}, Body: {response.data}")
         assert response.status_code == 200, response
         user_sub = db_session.query(User).filter(User.username == username).first().id
         audit_service_requests.post.assert_called_once_with(

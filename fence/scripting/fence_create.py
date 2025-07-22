@@ -38,7 +38,7 @@ from fence.jwt.token import (
     generate_signed_refresh_token,
     issued_and_expiration_times,
 )
-from fence.job.visa_update_cronjob import Visa_Token_Update
+from fence.job.access_token_updater import TokenAndAuthUpdater
 from fence.models import (
     Client,
     GoogleServiceAccount,
@@ -1818,12 +1818,19 @@ def access_token_polling_job(
     thread_pool_size (int): number of Docker container CPU used for jwt verifcation
     buffer_size (int): max size of queue
     """
+    # Instantiating a new client here because the existing
+    # client uses authz_provider
+    arborist = ArboristClient(
+        arborist_base_url=config["ARBORIST"],
+        logger=get_logger("user_syncer.arborist_client"),
+    )
     driver = get_SQLAlchemyDriver(db)
-    job = Visa_Token_Update(
+    job = TokenAndAuthUpdater(
         chunk_size=int(chunk_size) if chunk_size else None,
         concurrency=int(concurrency) if concurrency else None,
         thread_pool_size=int(thread_pool_size) if thread_pool_size else None,
         buffer_size=int(buffer_size) if buffer_size else None,
+        arborist=arborist,
     )
     with driver.session as db_session:
         loop = asyncio.get_event_loop()

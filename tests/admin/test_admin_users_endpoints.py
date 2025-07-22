@@ -4,7 +4,8 @@ import json
 import jwt
 from mock import patch, MagicMock, PropertyMock
 import pytest
-import requests
+from fence.resources.audit.utils import logger as utils_logger
+import logging
 from unittest.mock import Mock, patch
 import mock
 from fence.config import config
@@ -174,6 +175,25 @@ def load_google_specific_user_data(db_session, test_user_d):
     db_session.commit()
 
 
+@pytest.fixture
+def log_capture():
+
+    log_records = []
+
+    class TempLogHandler(logging.Handler):
+        def emit(self, record):
+            log_records.append(record)
+
+    tmp_handler = TempLogHandler()
+    utils_logger.disabled = False
+    utils_logger.addHandler(tmp_handler)
+
+    yield log_records
+
+    # Clean up:
+    utils_logger.removeHandler(tmp_handler)
+
+
 # GET /users/<username> tests
 
 
@@ -201,16 +221,24 @@ def test_get_user_username_no_admin_auth(
 
 
 def test_get_user_long_username(
-    client, admin_user, encoded_admin_jwt, db_session, test_user_long
+    client, admin_user, encoded_admin_jwt, db_session, test_user_long, log_capture
 ):
     """GET /users/<username>: [get_user]: happy path"""
+    username = "test_amazing_user_with_an_fancy_but_extremely_long_name"
     r = client.get(
-        "/admin/users/test_amazing_user_with_an_fancy_but_extremely_long_name",
+        f"/admin/users/{username}",
         headers={"Authorization": "Bearer " + encoded_admin_jwt},
     )
     assert r.status_code == 200
-    assert (
-        r.json["username"] == "test_amazing_user_with_an_fancy_but_extremely_long_name"
+    assert r.json["username"] == username
+    # also assert that the logs were recorded:
+    assert len(log_capture) >= 1
+    # Now check for the specific message:
+    messages = [f"{r.levelname} - {r.getMessage()}" for r in log_capture]
+    expected_log_message = f"INFO - Incoming request: user=admin_user, method=GET, endpoint=/admin/users/{username}, request_url=/admin/users/{username}"
+    assert expected_log_message in messages, (
+        f"\n{expected_log_message} -> not found in INFO logs. Actual messages:\n"
+        + "\n".join(messages)
     )
 
 
@@ -225,11 +253,14 @@ def test_get_user_username_nonexistent(
     assert r.status_code == 404
 
 
-def test_get_user_username_noauth(client, db_session):
+def test_get_user_username_noauth(client, db_session, log_capture):
     """GET /users/<username>: [get_user] but without authorization"""
-    # This creates a "test" user, so don't remove db_session fixture
+    # This creates a "test" user, so don't remove db_session fixture (this will show that 401 is because of noauth and
+    # not because user doesn't exist in DB):
     r = client.get("/admin/users/test_a")
     assert r.status_code == 401
+    # also assert that the logs are not recorded if noauth:
+    assert len(log_capture) == 0
 
 
 # GET /user tests
@@ -367,7 +398,7 @@ def test_list_policies_invalid(mock_arborist_requests, client, admin_user, encod
 # POST /user tests
 
 
-def test_post_user(client, admin_user, encoded_admin_jwt, db_session):
+def test_post_user(client, admin_user, encoded_admin_jwt, db_session, log_capture):
     """POST /user: [create_user]"""
     r = client.post(
         "/admin/user",
@@ -396,6 +427,15 @@ def test_post_user(client, admin_user, encoded_admin_jwt, db_session):
     assert new_test_user.is_admin == False
     assert new_test_user.email == "new_test_user@fake.com"
     assert new_test_user.active == True
+    # also assert that the logs were recorded:
+    assert len(log_capture) >= 1
+    # Now check for the specific message:
+    messages = [f"{r.levelname} - {r.getMessage()}" for r in log_capture]
+    expected_log_message = "INFO - Incoming request: user=admin_user, method=POST, endpoint=/admin/user, request_url=/admin/user"
+    assert expected_log_message in messages, (
+        f"\n{expected_log_message} -> not found in INFO logs. Actual messages:\n"
+        + "\n".join(messages)
+    )
 
 
 def test_post_user_no_fields_defined(client, admin_user, encoded_admin_jwt, db_session):
@@ -795,9 +835,11 @@ def assert_google_proxy_group_data_deleted(db_session):
 
 def test_soft_delete_user_username(
     client,
+    admin_user,
     encoded_admin_jwt,
     db_session,
     load_non_google_user_data,
+    log_capture,
 ):
     """
     Test soft-delete user endpoint by checking that the result is an
@@ -818,12 +860,23 @@ def test_soft_delete_user_username(
     user = db_session.query(User).filter_by(username=username).one()
     assert user.username == username
     assert user.active == False
+    # also assert that the logs were recorded:
+    assert len(log_capture) >= 1
+    # Now check for the specific message:
+    messages = [f"{r.levelname} - {r.getMessage()}" for r in log_capture]
+    expected_log_message = f"INFO - Incoming request: user=admin_user, method=DELETE, endpoint=/admin/users/{username}/soft, request_url=/admin/users/{username}/soft"
+    assert expected_log_message in messages, (
+        f"\n{expected_log_message} -> not found in INFO logs. Actual messages:\n"
+        + "\n".join(messages)
+    )
 
 
 def test_soft_delete_user_user_not_found(
     client,
+    admin_user,
     encoded_admin_jwt,
     db_session,
+    log_capture,
 ):
     """
     Test soft-delete user endpoint returns error when user is not found.
@@ -837,6 +890,15 @@ def test_soft_delete_user_user_not_found(
         headers={"Authorization": "Bearer " + encoded_admin_jwt},
     )
     assert r.status_code == 404
+    # also assert that the logs were recorded:
+    assert len(log_capture) >= 1
+    # Now check for the specific message:
+    messages = [f"{r.levelname} - {r.getMessage()}" for r in log_capture]
+    expected_log_message = f"INFO - Incoming request: user=admin_user, method=DELETE, endpoint=/admin/users/{username}/soft, request_url=/admin/users/{username}/soft"
+    assert expected_log_message in messages, (
+        f"\n{expected_log_message} -> not found in INFO logs. Actual messages:\n"
+        + "\n".join(messages)
+    )
 
 
 def test_delete_user_username(

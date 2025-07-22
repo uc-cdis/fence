@@ -108,3 +108,6 @@ tests/resources/keys/*.pem
 .DS_Store
 .vscode
 .idea
+
+# snyk
+.dccache

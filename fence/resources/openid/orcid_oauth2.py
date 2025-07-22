@@ -41,7 +41,9 @@ class OrcidOauth2Client(Oauth2ClientBase):
             jwks_endpoint = self.get_value_from_discovery_doc(
                 "jwks_uri", "https://orcid.org/oauth/jwks"
             )
-            claims = self.get_jwt_claims_identity(token_endpoint, jwks_endpoint, code)
+            claims, refresh_token, access_token = self.get_jwt_claims_identity(
+                token_endpoint, jwks_endpoint, code
+            )
 
             if claims.get("sub"):
                 return {"orcid": claims["sub"], "sub": claims["sub"]}
