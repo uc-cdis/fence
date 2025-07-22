@@ -1926,6 +1926,9 @@ class UserSyncer(object):
             incoming_policies (set): set of policies to be applied to the user
             user_yaml (UserYAML): UserYAML object containing authz information
             expires (int): time at which authz info in Arborist should expire
+
+        Return:
+            bool: True if policies were successfully updated, False otherwise
         """
         user_existing_policies = set()
         to_keep = set()
@@ -1938,35 +1941,32 @@ class UserSyncer(object):
                 policy["policy"]
                 for policy in self.arborist_client.get_user(username)["policies"]
             )
-            print("------user existing policies: ", user_existing_policies)
+            self.logger.info(
+                f"Fetched user {username} existing policies: {user_existing_policies}"
+            )
         except ArboristError as e:
             self.logger.error(
-                f"Could not get user {username} policies from Arborist: {e}"
+                f"Could not get user {username} policies from Arborist: {e} Revoking all policies..."
             )
             # if getting existing policies fails, revoke all policies and re-apply
             is_revoke_all = True
 
         if is_revoke_all is False and len(incoming_policies) > 0:
-            to_keep = (
-                incoming_policies & user_existing_policies
-            )  # policies that remain unchanged
-            to_add = (
-                incoming_policies - user_existing_policies
-            )  # policies that need to be added
-            to_remove = (
-                user_existing_policies - incoming_policies
-            )  # policies that need to be removed
+            to_keep = incoming_policies & user_existing_policies
+            to_add = incoming_policies - user_existing_policies
+            to_remove = user_existing_policies - incoming_policies
 
-            anonymous_policies = set()
-            for policy in to_remove:
-                if policy in user_yaml.authz.get(
-                    "anonymous_policies", []
-                ) or policy in user_yaml.authz.get("all_users_policies", []):
-                    self.logger.warning(
-                        f"Policy {policy} is an anonymous policy, not revoking it for user {username}."
-                    )
-                    anonymous_policies.add(policy)
-            to_remove -= anonymous_policies
+            if user_yaml:
+                anonymous_policies = set()
+                for policy in to_remove:
+                    if policy in user_yaml.authz.get(
+                        "anonymous_policies", []
+                    ) or policy in user_yaml.authz.get("all_users_policies", []):
+                        self.logger.warning(
+                            f"Policy {policy} is an anonymous policy, not revoking it for user {username}."
+                        )
+                        anonymous_policies.add(policy)
+                to_remove -= anonymous_policies
         else:
             # if incoming_policies is empty, we revoke all policies
             is_revoke_all = True
@@ -2005,7 +2005,6 @@ class UserSyncer(object):
         if to_add:
             try:
                 self.logger.info(f"Bulk granting user {username} policies {to_add}.")
-                # TODO: When gen3authz 2.3.0 is released, uncomment this and delete the above call.
                 response_json = self.arborist_client.grant_bulk_user_policy(
                     username, list(to_add), expires
                 )
