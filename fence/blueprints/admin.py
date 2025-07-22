@@ -67,7 +67,7 @@ def get_all_users():
 @blueprint.route("/users/selected", methods=["POST"])
 @blueprint.route("/user/selected", methods=["POST"])
 @admin_login_required
-@debug_log
+@enable_request_logging
 def get_users():
     """
     Get the information about each user included in the submitted username list from our 
@@ -290,7 +290,7 @@ def add_user_to_projects(username):
 
 @blueprint.route("/toggle_admin", methods=["POST"])
 @admin_login_required
-@debug_log
+@enable_request_logging
 def toggle_admin():
     """
     Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/add_resource`
@@ -322,7 +322,7 @@ def toggle_admin():
 
 @blueprint.route("/update_user_authz", methods=["POST"])
 @admin_login_required
-@debug_log
+@enable_request_logging
 def update_user_authz():
     """
     run user sync to update fence anf arborist DB
@@ -357,7 +357,7 @@ def update_user_authz():
 
 @blueprint.route("/add_resource", methods=["POST"])
 @admin_login_required
-@debug_log
+@enable_request_logging
 def add_resource():
     """
     Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/add_resource`
@@ -396,7 +396,7 @@ def add_resource():
 
 @blueprint.route("/add_role", methods=["POST"])
 @admin_login_required
-@debug_log
+@enable_request_logging
 def add_role():
     """
     Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/add_role`
@@ -444,7 +444,7 @@ def add_role():
 
 @blueprint.route("/add_policy", methods=["POST"])
 @admin_login_required
-@debug_log
+@enable_request_logging
 def add_policy():
     """
     Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/add_policy`
@@ -505,7 +505,7 @@ def add_policy():
 
 @blueprint.route("/add_policy_to_user", methods=["POST"])
 @admin_login_required
-@debug_log
+@enable_request_logging
 def add_policy_to_user():
     """
     Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/add_policy_to_user`
@@ -549,7 +549,7 @@ def add_policy_to_user():
 
 @blueprint.route("/list_policies", methods=["GET"])
 @admin_login_required
-@debug_log
+@enable_request_logging
 def list_policies():
     """
     Return a list of all policies. Returns in JSON format
@@ -569,7 +569,7 @@ def list_policies():
 
 @blueprint.route("/add_authz_all", methods=["POST"])
 @admin_login_required
-@debug_log
+@enable_request_logging
 def add_authz_all():
     """
     Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/add_authz_all`
@@ -687,7 +687,7 @@ def add_authz_all():
 
 @blueprint.route("/add_document", methods=["POST"])
 @admin_login_required
-@debug_log
+@enable_request_logging
 def add_document():
     """
     Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/add_document`
@@ -715,7 +715,7 @@ def add_document():
 
 @blueprint.route("/revoke_permission", methods=["POST"])
 @admin_login_required
-@debug_log
+@enable_request_logging
 def revoke_permission():
     """
     Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/add_document`
@@ -733,7 +733,7 @@ def revoke_permission():
 #### CLIENT ####
 @blueprint.route("/add_policies_to_client", methods=["POST"])
 @admin_login_required
-@debug_log
+@enable_request_logging
 def add_policies_to_client():
     """
     Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/add_policy_to_user`
