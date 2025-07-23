@@ -41,6 +41,7 @@ class FenceConfig(Config):
             "CLIENT_CREDENTIALS_ON_DOWNLOAD_ENABLED",
             "DATA_UPLOAD_BUCKET",
             "DEFAULT_BACKOFF_SETTINGS_MAX_TRIES",
+            "ARBORIST_TIMEOUT",
         ]
         for default in defaults:
             self.force_default_if_none(default, default_cfg=default_config)

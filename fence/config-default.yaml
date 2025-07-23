@@ -116,6 +116,17 @@ OPENID_CONNECT:
     multifactor_auth_claim_info: # optional, include if you're using arborist to enforce mfa on a per-file level
       claim: '' # claims field that indicates mfa, either the acr or acm claim.
       values: [ "" ] # possible values that indicate mfa was used. At least one value configured here is required to be in the token
+    # use `idp_discovery` to configure a URL at which the list of available upstream IdPs is
+    # provided. The list will be parsed and cached by fence. When `idp_discovery` is configured,
+    # `LOGIN_OPTIONS` for this IdP must include `upstream_idps`.
+    idp_discovery:
+      url: 'https://server.com/disco'
+      format: xml-mdq-v1.0
+    # use `authorization_url_param_map` to set parameters when redirecting to the IdP.
+    # for the example config below, if the login URL includes `idp=google`, the redirect URL will
+    # include `upstream_idp_parameter=google`.
+    authorization_url_param_map:
+     idp: upstream_idp_parameter
     # When true, it allows refresh tokens to be stored even if is_authz_groups_sync_enabled is set false.
     # When false, the system will only store refresh tokens if is_authz_groups_sync_enabled is enabled
     persist_refresh_token: false
@@ -342,7 +353,7 @@ SESSION_ALLOWED_SCOPES:
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # LOGIN
-#   - Modify based on which OIDC provider(s) you configured above
+#   - Modify based on which OIDC provider(s) are configured in OPENID_CONNECT
 #   - NOTE: You can have multiple IDPs for users to login with, but one has to be set
 #           as the default
 # //////////////////////////////////////////////////////////////////////////////////////
@@ -350,14 +361,21 @@ SESSION_ALLOWED_SCOPES:
 # List of enabled login options (used by data-portal to display login buttons).
 # Each option must be configured with a "name" and an "idp".
 # - "idp" must be a configured provider in OPENID_CONNECT section.
-# Multiple options can be configured with the same idp.
-# - if provider_id is "fence", "fence_idp" can be any of the providers
-# supported by the other Fence. If not specified, will default to NIH login.
-# - if provider_id is "fence" and fence_idp is "shibboleth", a list of
-# "shib_idps" can be configured for InCommon login. If not specified, will
-# default to NIH login.
+#   Multiple options can be configured with the same idp.
+# - "name": display name for this provider
+# - "upstream_idps" can be '*' (all available IdPs) or a list of one or more IdPs supported by the
+#   upstream provider (aka "idp" above). If "*", the list of available IdPs is fetched by
+#   configuring `idp_discovery` in the `OPENID_CONNECT` section.
+#   For example, if idp is "fence" (multi-tenant Fence setup), upstream_idps can include any of the
+#   providers supported by the other Fence. For multi-tenant Fence, if upstream_idps is not
+#   specified, will default to NIH login.
+# - "shib_idps": if "idp" is "fence" and upstream_idps is ["shibboleth"], a list of
+#   "shib_idps" can be configured for InCommon login. Can be '*' (all available IdPs) or a list of
+#   one or more entity IDs. If not specified, will default to NIH login.
+# - "fence_idp": deprecated; same as a `upstream_idps` list of 1 item.
+#   ^ [Backwards compatibility for Fence multi-tenant login / Shibboleth legacy configuration]
 # - Optional parameters: "desc" (description) and "secondary" (boolean - can
-# be used by the frontend to display secondary buttons differently).
+#   be used by the frontend to display secondary buttons differently).
 LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
   # - name: 'Login from Google'
   #   desc: 'description'
@@ -376,18 +394,22 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
   #   idp: cognito
   # - name: 'Login from RAS'
   #   idp: ras
+  # - name: 'Generic OIDC Login'
+  #   idp: generic_oidc_idp
+  #   upstream_idps:
+  #     - urn:mace:incommon:nih.gov
+  #     - urn:mace:incommon:uchicago.edu
   # - name: 'NIH Login'
   #   idp: fence
-  #   fence_idp: shibboleth
+  #   upstream_idps: [shibboleth]
   # - name: 'ORCID Login through other Fence'
   #   idp: fence
-  #   fence_idp: orcid
+  #   upstream_idps: [orcid]
   # - name: 'CILogon Login'
   #   idp: cilogon
   # - name: 'InCommon Login'
   #   idp: fence
-  #   fence_idp: shibboleth
-  #   # "shib_idps" can be '*' or a list of one or more entity IDs
+  #   upstream_idps: [shibboleth]
   #   shib_idps:
   #     - urn:mace:incommon:nih.gov
   #     - urn:mace:incommon:uchicago.edu
@@ -790,7 +812,8 @@ AZ_BLOB_CONTAINER_URL: 'https://myfakeblob.blob.core.windows.net/my-fake-contain
 
 # url where authz microservice is running
 ARBORIST: null
-
+# time in seconds to wait for arborist to respond to requests from fence
+ARBORIST_TIMEOUT: 30
 # url where the audit-service is running
 AUDIT_SERVICE: 'http://audit-service'
 ENABLE_AUDIT_LOGS:
