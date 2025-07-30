@@ -1,5 +1,5 @@
 import os
-from unittest.mock import patch
+from unittest.mock import MagicMock, patch
 
 import flask
 import pytest
@@ -9,6 +9,7 @@ from fence.blueprints.login.base import _login
 from fence.config import config
 from fence.errors import UserError
 from tests.conftest import LOGIN_IDPS
+from test_login_redirect import get_value_from_discovery_doc_patcher
 
 
 @pytest.fixture
@@ -126,6 +127,36 @@ def test_login_redirect_after_login_without_registration(app):
 
 
 @pytest.mark.parametrize("idp", LOGIN_IDPS)
+def test_idp_login_stores_post_registration_redirect(
+    app, client, idp, enable_user_registration, get_value_from_discovery_doc_patcher
+):
+    """
+    Test that ALL IdPs store the `post_registration_redirect` in the current session during the
+    login flow.
+    """
+    if idp == "fence":
+        mocked_generate_authorize_redirect = MagicMock(
+            return_value={"url": "authorization_url", "state": "state"}
+        )
+        mock = patch(
+            f"authlib.integrations.flask_client.apps.FlaskOAuth2App.create_authorization_url",
+            mocked_generate_authorize_redirect,
+        ).start()
+
+    try:
+        url = f"/login/{get_idp_route_name(idp)}?redirect={app.config['BASE_URL']}"
+        r = client.get(url)
+        assert r.status_code == 302, r.text
+        assert (
+            flask.session.get("post_registration_redirect") == config["BASE_URL"] + url
+        )
+
+    finally:
+        if idp == "fence":
+            mock.stop()
+
+
+@pytest.mark.parametrize("idp", LOGIN_IDPS)
 @pytest.mark.parametrize(
     "enable_user_registration",
     [{"enable_registration": True}, {"enable_registration": False}],
@@ -177,6 +208,8 @@ def test_register_endpoint(
 
         r = client.get("/register")
         assert r.status_code == 200, r.text
-        assert "<!doctype html>" in r.text and "</form>" in r.text, "Expected an HTLM form"
+        assert (
+            "<!doctype html>" in r.text and "</form>" in r.text
+        ), "Expected an HTLM form"
     finally:
         flask.current_app.config["WTF_CSRF_SECRET_KEY"] = csrf_key_config_backup

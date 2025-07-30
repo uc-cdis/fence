@@ -66,7 +66,6 @@ class FenceLogin(DefaultOAuth2Login):
         # We can't just use `request.url` here because it's missing the `/user` prefix.
         # This is caused by the revproxy stripping the URL prefix before forwarding
         # requests to Fence.
-        # TODO in all IdPs
         current_url = config["BASE_URL"] + flask.request.path
         if flask.request.query_string:
             current_url += f"?{flask.request.query_string.decode('utf-8')}"

@@ -36,6 +36,11 @@ class ShibbolethLogin(DefaultOAuth2Login):
         if redirect_url:
             flask.session["redirect"] = redirect_url
 
+        current_url = config["BASE_URL"] + flask.request.path
+        if flask.request.query_string:
+            current_url += f"?{flask.request.query_string.decode('utf-8')}"
+        flask.session["post_registration_redirect"] = current_url
+
         # figure out which IDP to target with shibboleth
         # check out shibboleth docs here for more info:
         # https://wiki.shibboleth.net/confluence/display/SP3/SSO

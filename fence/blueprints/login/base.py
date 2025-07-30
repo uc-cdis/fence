@@ -47,7 +47,6 @@ class DefaultOAuth2Login(Resource):
         # We can't just use `request.url` here because it's missing the `/user` prefix.
         # This is caused by the revproxy stripping the URL prefix before forwarding
         # requests to Fence.
-        # TODO in all IdPs
         current_url = config["BASE_URL"] + flask.request.path
         if flask.request.query_string:
             current_url += f"?{flask.request.query_string.decode('utf-8')}"
@@ -157,9 +156,7 @@ class DefaultOAuth2Callback(Resource):
             final_query_params = urlencode(
                 redirect_query_params + received_query_params
             )
-            final_redirect_url = (
-                redirect_uri.split("?")[0] + "?" + final_query_params
-            )
+            final_redirect_url = redirect_uri.split("?")[0] + "?" + final_query_params
 
             return flask.redirect(location=final_redirect_url)
 
@@ -209,9 +206,7 @@ class DefaultOAuth2Callback(Resource):
         if should_persist_token:
             # Ensure flask.g.user exists to avoid a potential AttributeError
             if getattr(flask.g, "user", None):
-                self.client.store_refresh_token(
-                    flask.g.user, refresh_token, expires
-                )
+                self.client.store_refresh_token(flask.g.user, refresh_token, expires)
             else:
                 logger.error(
                     "User information is missing from flask.g; cannot store refresh token."
