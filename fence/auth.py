@@ -81,7 +81,7 @@ def get_ip_information_string():
 
 
 def login_user(
-    username, provider, fence_idp=None, shib_idp=None, email=None, id_from_idp=None
+    username, provider, upstream_idp=None, shib_idp=None, email=None, id_from_idp=None
 ):
     """
     Login a user with the given username and provider. Set values in Flask
@@ -91,8 +91,8 @@ def login_user(
     Args:
         username (str): specific username of user to be logged in
         provider (str): specfic idp of user to be logged in
-        fence_idp (str, optional): Downstreawm fence IdP
-        shib_idp (str, optional): Downstreawm shibboleth IdP
+        upstream_idp (str, optional): upstream fence IdP
+        shib_idp (str, optional): upstream shibboleth IdP
         email (str, optional): email of user (may or may not match username depending
             on the IdP)
         id_from_idp (str, optional): id from the IDP (which may be different than
@@ -117,8 +117,8 @@ def login_user(
         flask.session["username"] = user.username
         flask.session["user_id"] = str(user.id)
         flask.session["provider"] = user.identity_provider.name
-        if fence_idp:
-            flask.session["fence_idp"] = fence_idp
+        if upstream_idp:
+            flask.session["upstream_idp"] = upstream_idp
         if shib_idp:
             flask.session["shib_idp"] = shib_idp
         flask.g.user = user
