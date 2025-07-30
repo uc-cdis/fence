@@ -77,7 +77,7 @@ def get_ip_information_string():
     return f"flask.request.remote_addr={flask.request.remote_addr} x_forwarded_headers={x_forwarded_headers}"
 
 
-def identify_user_and_update_database(
+def _identify_user_and_update_database(
     user, username, provider, email=None, id_from_idp=None
 ) -> bool:
     """
@@ -208,7 +208,7 @@ def login_user_unless_unregistered(
         flask.g.token = None
 
     user = query_for_user(session=current_app.scoped_session(), username=username)
-    user = identify_user_and_update_database(
+    user = _identify_user_and_update_database(
         user, username, provider, email, id_from_idp
     )
     log_user_in = not _is_user_registration_required_before_login(user, provider)
