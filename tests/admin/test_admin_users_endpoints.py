@@ -349,17 +349,16 @@ def test_post_user(client, admin_user, encoded_admin_jwt, db_session, log_captur
     )
 
 
-def test_post_user_client_jwt(client, encoded_client_jwt, log_capture):
+def test_post_user_client_jwt(client, encoded_client_jwt, db_session, log_capture):
     """Test if call to an admin endpoint (in this case POST /user: [create_user] )
     with a client jwt (instead of regular jwt) gets the right information logged,
     where we expect the username to be "None" and the client name to
     be "somevalue" (according to what is in encoded_client_jwt).
     """
-    encoded_client_jwt_str = encoded_client_jwt
     r = client.post(
         "/admin/user",
         headers={
-            "Authorization": "Bearer " + encoded_client_jwt_str,
+            "Authorization": "Bearer " + encoded_client_jwt,
             "Content-Type": "application/json",
         },
         data=json.dumps(
