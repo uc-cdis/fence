@@ -4,7 +4,7 @@
 
 The user registration functionality is an optional feature. It enables a registration form for users to provide basic information (such as name, organization, and email) **after** logging in with an identity provider, but **before** being granted access to any non-public pages or resources.
 
-Once registered, users are logged in and (if configured) automatically added to a preconfigured Arborist group.
+Once registered, users are logged in and (if configured) automatically added to a preconfigured Arborist group. Note that using this group is effectively the same as granting access to the built-in "logged-in" Arborist group (== built-in "all_users_policies" user.yaml group), which applies to all logged in users.
 
 An admin endpoint `/admin/register` is available to list registered users and their information.
 
