@@ -1657,6 +1657,100 @@ def test_blank_index_upload_unauthorized(
         assert response.status_code == 403, response
 
 
+def test_blank_index_upload_failed(
+    app,
+    client,
+    auth_client,
+    encoded_creds_jwt,
+    user_client,
+    aws_signed_url,
+):
+    """Test that data/upload does not return a pre-signed url if blank creation failed."""
+
+    class MockResponse(object):
+        def __init__(self, data, status_code=200):
+            self.data = data
+            self.status_code = status_code
+
+        def json(self):
+            return self.data
+
+    data_requests_mocker = mock.patch(
+        "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
+    )
+    arborist_requests_mocker = mock.patch(
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
+    )
+    with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
+        # user is authorized by arborist
+        arborist_requests.return_value = MockResponse({"auth": True})
+        arborist_requests.return_value.status_code = 200
+        headers = {
+            "Authorization": "Bearer " + encoded_creds_jwt.jwt,
+            "Content-Type": "application/json",
+        }
+        data = json.dumps({"file_name": "doesn't matter"})
+        # failure from indexd create blank record
+        data_requests.return_value.status_code = 500
+
+        response = client.post("/data/upload", headers=headers, data=data)
+
+        data_requests.post.assert_called()
+        # assert that we do not get a pre-signed url
+        assert response.status_code == 500, response
+
+
+def test_blank_index_upload_missing_did(
+    app,
+    client,
+    auth_client,
+    encoded_creds_jwt,
+    user_client,
+    aws_signed_url,
+):
+    """
+    Test that data/upload does not return a pre-signed url
+    if blank creation does not have a 'did' key.
+    """
+
+    class MockResponse(object):
+        def __init__(self, data, status_code=200):
+            self.data = data
+            self.status_code = status_code
+
+        def json(self):
+            return self.data
+
+    data_requests_mocker = mock.patch(
+        "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
+    )
+    arborist_requests_mocker = mock.patch(
+        "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
+    )
+    with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
+        # user is authorized by arborist
+        arborist_requests.return_value = MockResponse({"auth": True})
+        arborist_requests.return_value.status_code = 200
+        headers = {
+            "Authorization": "Bearer " + encoded_creds_jwt.jwt,
+            "Content-Type": "application/json",
+        }
+        data = json.dumps({"file_name": "doesn't matter"})
+        data_requests.return_value.status_code = 200
+        # Missing 'did' in response.
+        data_requests.post.return_value = MockResponse(
+            {
+                "baseid": str(uuid.uuid4()),
+            }
+        )
+
+        response = client.post("/data/upload", headers=headers, data=data)
+
+        data_requests.post.assert_called()
+        # assert that we do not get a pre-signed url
+        assert response.status_code == 500, response
+
+
 @pytest.mark.parametrize(
     "indexd_client_with_arborist",
     ["gs", "s3", "gs_acl", "s3_acl", "s3_external"],
