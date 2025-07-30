@@ -14,7 +14,7 @@
 
 {% block content %}
   <form method="post">
-    <h1 class="introduction"> Register in order to get access to download data</h1>
+    <h1 class="introduction">To get access to download data, please register:</h1>
     {{ form.csrf_token }}
     <ul>
       <li> {{ form.firstname.label }} {{ form.firstname }} </li>
@@ -28,6 +28,7 @@
           {% endif %}
       </li>
     </ul>
+    <p>By registering and submitting this form, you hereby acknowledge and consent to be bound by our <a href="/dashboard/Public/documentation/DUA.html">data use agreement (DUA)</a>.</p><br>
     <button class="button-primary-orange" type="submit">Register</button>
   </form>
 {% endblock %}

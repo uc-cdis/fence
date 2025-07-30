@@ -86,8 +86,6 @@ def register_user():
     # can't use the @login_required() decorator here to enforce logging in, because at this
     # point in the flow the user should have _started_ logging in, but may not be logged in
     # yet
-    # TODO ensure the page is reachable for users who are already logged in and want to update
-    # their registration info
     user_tuple = flask.session.get("login_in_progress_user")
     if not user_tuple:
         raise Unauthorized("Please login")
