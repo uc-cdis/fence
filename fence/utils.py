@@ -35,6 +35,27 @@ def json_res(data):
     return flask.Response(json.dumps(data), mimetype="application/json")
 
 
+def fetch_url_data(url: str, format: str, expected_status_code: int = 200) -> str:
+    """
+    Perform a GET request and return the raw response data.
+    Using this function instead of making the request directly in the caller function allows us
+    to mock the returned data in unit tests.
+
+    Args:
+        url (str): URL to GET
+
+    Returns:
+        str: raw response data
+    """
+    res = requests.get(url)
+    assert res.status_code == expected_status_code, f"Unable to fetch data from '{url}'"
+    if format == "text":
+        return res.text
+    elif format == "json":
+        return res.json()
+    raise Exception(f"Unknown 'fetch_url_data' format '{format}'")
+
+
 def generate_client_credentials(confidential):
     """
     Generate a new client ID. If the client is confidential, also generate a new client secret.

@@ -1,10 +1,11 @@
-# Override the default_digest_method for Signer before flask and flask_wtf are loaded. 
+# Override the default_digest_method for Signer before flask and flask_wtf are loaded.
 import hashlib
 from itsdangerous import Signer
-# Explicitly set to sha256 as the default (sha1) will break in FIPS environments when flask_wtf attempts to process a user registration form. 
+
+# Explicitly set to sha256 as the default (sha1) will break in FIPS environments when flask_wtf attempts to process a user registration form.
 # This is a known issue with itsdangerous defaults (see: https://github.com/pgadmin-org/pgadmin4/issues/7979 for a similar issue with pgadmin)
 # According to: https://itsdangerous.palletsprojects.com/en/latest/concepts/#digest-method-security and https://stackoverflow.com/a/27669587, we can override the default here:
-Signer.default_digest_method = hashlib.sha256 
+Signer.default_digest_method = hashlib.sha256
 
 from collections import OrderedDict
 import os
@@ -504,7 +505,10 @@ def _setup_oidc_clients(app):
 
 def _setup_arborist_client(app):
     if app.config.get("ARBORIST"):
-        app.arborist = ArboristClient(arborist_base_url=config["ARBORIST"])
+        app.arborist = ArboristClient(
+            arborist_base_url=config["ARBORIST"],
+            timeout=app.config.get("ARBORIST_TIMEOUT", 30),
+        )
 
 def _setup_hubspot_key(app):
     if app.config.get("HUBSPOT"):

@@ -157,8 +157,11 @@ def get_user_info(current_session, username):
         "docs_to_be_reviewed": project_schema.dump(udm.get_doc_to_review(current_session, user.username)),
     }
 
-    if "fence_idp" in flask.session:
-        info["fence_idp"] = flask.session["fence_idp"]
+    if "upstream_idp" in flask.session:
+        info["upstream_idp"] = flask.session["upstream_idp"]
+        # [Backwards compatibility for Fence multi-tenant login / Shibboleth legacy configuration]
+        # also set `fence_idp`
+        info["fence_idp"] = flask.session["upstream_idp"]
     if "shib_idp" in flask.session:
         info["shib_idp"] = flask.session["shib_idp"]
 
