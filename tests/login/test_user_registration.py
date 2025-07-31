@@ -195,18 +195,17 @@ def test_register_endpoint(
     """
     # avoid error `A secret key is required to use CSRF` when the registration form
     # is created
-    csrf_key_config_backup = flask.current_app.config["WTF_CSRF_SECRET_KEY"]
-    flask.current_app.config["WTF_CSRF_SECRET_KEY"] = os.urandom(32)
+    flask.current_app.config["WTF_CSRF_ENABLED"] = False
 
     try:
         r = client.get("/register")
-        assert r.status_code == 401, r.text
+        assert r.status_code == 401
 
         _, _, callback_endpoint, headers = mocks_for_idp_oauth2_callbacks
         r = client.get(
             f"/login/{get_idp_route_name(idp)}/{callback_endpoint}", headers=headers
         )
-        assert r.status_code == 302, r.text
+        assert r.status_code == 302
 
         r = client.get("/register")
         assert r.status_code == 200, r.text
@@ -214,4 +213,4 @@ def test_register_endpoint(
             "<!doctype html>" in r.text and "</form>" in r.text
         ), "Expected an HTML form"
     finally:
-        flask.current_app.config["WTF_CSRF_SECRET_KEY"] = csrf_key_config_backup
+        flask.current_app.config["WTF_CSRF_ENABLED"] = True

@@ -342,7 +342,6 @@ def _login_and_register(
         bool: whether the user has been logged in (if registration is enabled and the user is not
             registered, this would be False)
     """
-    user = query_for_user(session=current_app.scoped_session(), username=username)
     user_is_logged_in = login_user_unless_unregistered(
         username,
         idp_name,
@@ -384,7 +383,7 @@ def _login_and_register(
                         f"User {username} missing organization. Defaulting to None."
                     )
                 add_user_registration_info_to_database(
-                    username, firstname, lastname, organization, email
+                    user, username, firstname, lastname, organization, email
                 )
             else:
                 return (
