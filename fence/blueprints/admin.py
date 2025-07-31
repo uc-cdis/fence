@@ -288,6 +288,7 @@ def add_user_to_projects(username):
         )
     )
 
+# DEPRECATED
 @blueprint.route("/toggle_admin", methods=["POST"])
 @admin_login_required
 @enable_request_logging
@@ -684,6 +685,26 @@ def add_authz_all():
 
     return jsonify(res)
 
+@blueprint.route("/revoke_permission", methods=["POST"])
+@admin_login_required
+@enable_request_logging
+def revoke_permission():
+    """
+    Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/revoke_permission`
+
+    payload:
+    `{
+        "username": "abc@gmail.com",
+        "policy_names": ["policy_1", "policy_2", ...]
+    }`
+    """
+    body = request.get_json()
+
+    policy_names = body.get('policy_names', None)
+    username = body.get('username', None)
+
+    return jsonify(remove_permission(username, policy_names))
+
 
 @blueprint.route("/add_document", methods=["POST"])
 @admin_login_required
@@ -711,24 +732,6 @@ def add_document():
 
     document_schema = DocumentSchema()
     return jsonify(document_schema.dump(admin.add_document(current_app.scoped_session(), document_json)))
-
-
-@blueprint.route("/revoke_permission", methods=["POST"])
-@admin_login_required
-@enable_request_logging
-def revoke_permission():
-    """
-    Call this endpoint: `curl -XPOST -H "Content-Type: application/json" -H "Authorization: Bearer <access_token>" <hostname>/user/admin/add_document`
-
-    payload:
-    `{
-        "policy_name": ""
-    }`
-    """
-    # body = request.get_json()
-
-    return jsonify(remove_permission())
-
 
 #### CLIENT ####
 @blueprint.route("/add_policies_to_client", methods=["POST"])
