@@ -41,12 +41,11 @@ class DefaultOAuth2Login(Resource):
         if flask.redirect_url:
             flask.session["redirect"] = flask.redirect_url
 
-        # TODO comment flow
-        # After registering, the user is sent back to this endpoint to complete the
-        # login flow.
-        # We can't just use `request.url` here because it's missing the `/user` prefix.
-        # This is caused by the revproxy stripping the URL prefix before forwarding
-        # requests to Fence.
+        # `post_registration_redirect`: After registering, the user is sent back to this endpoint
+        # to complete the login flow.
+        # Reconstruct and store the current URL - we can't just use `request.url` here because
+        # it's missing the `/user` prefix. This is caused by the revproxy stripping the URL
+        # prefix before forwarding requests to Fence.
         current_url = config["BASE_URL"] + flask.request.path
         if flask.request.query_string:
             current_url += f"?{flask.request.query_string.decode('utf-8')}"
@@ -72,13 +71,11 @@ class DefaultOAuth2Login(Resource):
             username = flask.request.cookies.get(
                 config.get("DEV_LOGIN_COOKIE_NAME"), mock_default_user
             )
-            resp, _ = _login(username, self.idp_name)  # logs in the mocked user
+            # log in the mocked user
+            resp, _ = _login_and_register(username, self.idp_name)
             prepare_login_log(self.idp_name)
             return resp
 
-        # return flask.redirect(
-        #     "http://localhost:8000/login/generic_oidc_idp/login"
-        # )  # TODO remove
         return flask.redirect(self.client.get_auth_url())
 
 
@@ -162,8 +159,6 @@ class DefaultOAuth2Callback(Resource):
 
         code = flask.request.args.get("code")
         result = self.client.get_auth_info(code)
-        # result = {"email": "pauline@ctds"}  # TODO remove
-        # self.username_field = "email"
 
         refresh_token = result.get("refresh_token")
 
@@ -176,7 +171,7 @@ class DefaultOAuth2Callback(Resource):
         email = result.get(self.email_field)
         id_from_idp = result.get(self.id_from_idp_field)
 
-        resp, user_is_logged_in = _login(
+        resp, user_is_logged_in = _login_and_register(
             username,
             self.idp_name,
             email=email,
@@ -184,7 +179,7 @@ class DefaultOAuth2Callback(Resource):
             token_result=result,
         )
 
-        if not user_is_logged_in:  # TODO move the var init to this function
+        if not user_is_logged_in:
             return resp
 
         if not flask.g.user:
@@ -330,7 +325,7 @@ def prepare_login_log(idp_name):
     }
 
 
-def _login(  # TODO rename something like "login_and_registration_flow"?
+def _login_and_register(
     username,
     idp_name,
     email=None,
@@ -342,6 +337,10 @@ def _login(  # TODO rename something like "login_and_registration_flow"?
     """
     Login user with given username, then automatically register if needed,
     and finally redirect if session has a saved redirect.
+
+    Return:
+        bool: whether the user has been logged in (if registration is enabled and the user is not
+            registered, this would be False)
     """
     user = query_for_user(session=current_app.scoped_session(), username=username)
     user_is_logged_in = login_user_unless_unregistered(
@@ -397,5 +396,5 @@ def _login(  # TODO rename something like "login_and_registration_flow"?
 
     if flask.session.get("redirect"):
         return flask.redirect(flask.session["redirect"]), user_is_logged_in
-    # TODO remove `"registered": True` from responses if only used in unit tests
-    return flask.jsonify({"username": username, "registered": True}), user_is_logged_in
+
+    return flask.jsonify({"username": username}), user_is_logged_in

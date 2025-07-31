@@ -80,7 +80,6 @@ def register_user():
     but actual verification (for example, checking organization info against some trusted
     authority's records) has been deemed out of scope.
     """
-    # TODO what happens if registration fails? infinite redirects between login and registration?
     form = RegistrationForm()
 
     # can't use the @login_required() decorator here to enforce logging in, because at this

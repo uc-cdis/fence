@@ -4,7 +4,7 @@ import flask
 from fence.blueprints.login.base import (
     DefaultOAuth2Login,
     DefaultOAuth2Callback,
-    _login,
+    _login_and_register,
 )
 from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
@@ -62,10 +62,7 @@ class FenceLogin(DefaultOAuth2Login):
                 flask.session["shib_idp"] = shib_idp
             authorization_url = add_params_to_uri(authorization_url, params)
 
-        # TODO comment flow
-        # We can't just use `request.url` here because it's missing the `/user` prefix.
-        # This is caused by the revproxy stripping the URL prefix before forwarding
-        # requests to Fence.
+        # see `post_registration_redirect` explanation in `DefaultOAuth2Login.get()`
         current_url = config["BASE_URL"] + flask.request.path
         if flask.request.query_string:
             current_url += f"?{flask.request.query_string.decode('utf-8')}"
@@ -132,7 +129,7 @@ class FenceCallback(DefaultOAuth2Callback):
         username = id_token_claims["context"]["user"]["name"]
         email = id_token_claims["context"]["user"].get("email")
 
-        resp, user_is_logged_in = _login(
+        resp, user_is_logged_in = _login_and_register(
             username,
             IdentityProvider.fence,
             upstream_idp=flask.session.get("upstream_idp"),

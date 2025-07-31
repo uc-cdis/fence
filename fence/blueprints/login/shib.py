@@ -4,7 +4,7 @@ import flask
 from fence.blueprints.login.base import (
     DefaultOAuth2Login,
     DefaultOAuth2Callback,
-    _login,
+    _login_and_register,
 )
 from fence.blueprints.login.redirect import validate_redirect
 from fence.errors import InternalError, Unauthorized
@@ -36,6 +36,7 @@ class ShibbolethLogin(DefaultOAuth2Login):
         if redirect_url:
             flask.session["redirect"] = redirect_url
 
+        # see `post_registration_redirect` explanation in `DefaultOAuth2Login.get()`
         current_url = config["BASE_URL"] + flask.request.path
         if flask.request.query_string:
             current_url += f"?{flask.request.query_string.decode('utf-8')}"
@@ -99,7 +100,7 @@ class ShibbolethCallback(DefaultOAuth2Callback):
         if entityID:
             idp = entityID
 
-        resp, user_is_logged_in = _login(username, idp)
+        resp, user_is_logged_in = _login_and_register(username, idp)
         if not user_is_logged_in:
             return resp
 

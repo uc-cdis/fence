@@ -5,7 +5,7 @@ import flask
 import pytest
 
 from fence.blueprints.login import get_idp_route_name
-from fence.blueprints.login.base import _login
+from fence.blueprints.login.base import _login_and_register
 from fence.config import config
 from fence.errors import UserError
 from tests.conftest import LOGIN_IDPS
@@ -43,10 +43,10 @@ def test_login_existing_user_without_registration(app, db_session):
     with app.app_context():
         email = "test@example.com"
         provider = "Test Provider"
-        response, user_is_logged_in = _login(email, provider)
+        response, user_is_logged_in = _login_and_register(email, provider)
 
         assert response.status_code == 200
-        assert response.json == {"username": email, "registered": True}
+        assert response.json == {"username": email}
         assert user_is_logged_in == True
 
 
@@ -70,11 +70,13 @@ def test_login_with_auto_registration(
             "email": email,
         }
 
-        response, user_is_logged_in = _login(email, provider, token_result=token_result)
+        response, user_is_logged_in = _login_and_register(
+            email, provider, token_result=token_result
+        )
 
         # Ensure response is a JSON response
         assert response.status_code == 200
-        assert response.json == {"username": email, "registered": True}
+        assert response.json == {"username": email}
         assert user_is_logged_in == True
 
         # Ensure user was added to the database
@@ -97,7 +99,7 @@ def test_login_with_auto_registration_and_missing_email(app, enable_user_registr
         }
 
         with pytest.raises(UserError, match="OAuth2 id token is missing email claim"):
-            _login("lisa", provider, token_result=token_result)
+            _login_and_register("lisa", provider, token_result=token_result)
 
 
 def test_login_redirect_after_login_with_registration(app, enable_user_registration):
@@ -105,7 +107,7 @@ def test_login_redirect_after_login_with_registration(app, enable_user_registrat
     Test that users are redirected to the registration page when IdP registration is disabled.
     """
     with app.app_context():
-        response, user_is_logged_in = _login("lisaferf", "mock_idp")
+        response, user_is_logged_in = _login_and_register("lisaferf", "mock_idp")
 
         assert response.status_code == 302
         assert response.location == "http://localhost/user/user/register/"
@@ -119,7 +121,7 @@ def test_login_redirect_after_login_without_registration(app):
     with app.app_context():
         redirect_url = "http://localhost/test-redirect"
         flask.session["redirect"] = redirect_url
-        response, user_is_logged_in = _login("lisa", "mock_idp")
+        response, user_is_logged_in = _login_and_register("lisa", "mock_idp")
 
         assert response.status_code == 302
         assert response.location == redirect_url
@@ -210,6 +212,6 @@ def test_register_endpoint(
         assert r.status_code == 200, r.text
         assert (
             "<!doctype html>" in r.text and "</form>" in r.text
-        ), "Expected an HTLM form"
+        ), "Expected an HTML form"
     finally:
         flask.current_app.config["WTF_CSRF_SECRET_KEY"] = csrf_key_config_backup
