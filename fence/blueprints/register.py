@@ -56,6 +56,7 @@ def register_user():
     but actual verification (for example, checking organization info against some trusted
     authority's records) has been deemed out of scope.
     """
+    print("register_user flask.g.user", flask.g.user)
     form = RegistrationForm()
 
     # can't use the @login_required() decorator here to enforce logging in, because at this

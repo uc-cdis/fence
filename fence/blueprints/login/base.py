@@ -356,6 +356,7 @@ def _login_and_register(
         .get("enable_idp_users_registration", False)
     )
 
+    print("_login_and_register flask.g.user", flask.g.user)
     if config["REGISTER_USERS_ON"]:
         user = query_for_user(session=current_app.scoped_session(), username=username)
         if not user.additional_info.get("registration_info"):
