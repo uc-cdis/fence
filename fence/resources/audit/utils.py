@@ -100,7 +100,8 @@ def create_log_for_request(request: Request):
     record a log entry.
     """
     claims = validate_jwt()
-    username = get_user_from_claims(claims).username
+    username = get_user_from_claims(claims).username if "sub" in claims else "None"
+    client_id = claims.get("azp", "None") or "None"
     method = request.method
     endpoint = request.path
     request_url = endpoint
@@ -109,8 +110,9 @@ def create_log_for_request(request: Request):
         request_url += f"?{request.query_string.decode('utf-8')}"
     request_url = _clean_authorization_request_url(request_url)
     logger.info(
-        f"Incoming request: user=%s, method=%s, endpoint=%s, request_url=%s",
+        f"Incoming request: user=%s, client=%s, method=%s, endpoint=%s, request_url=%s",
         username,
+        client_id,
         method,
         endpoint,
         request_url,
