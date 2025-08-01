@@ -63,6 +63,8 @@ class FenceLogin(DefaultOAuth2Login):
                 flask.session["shib_idp"] = shib_idp
             authorization_url = add_params_to_uri(authorization_url, params)
 
+        flask.session["state"] = rv["state"]
+
         # see `post_registration_redirect` explanation in `DefaultOAuth2Login.get()`
         current_url = config["BASE_URL"] + flask.request.path
         if flask.request.query_string:
