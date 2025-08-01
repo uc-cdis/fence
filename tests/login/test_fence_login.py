@@ -1,8 +1,10 @@
+import copy
+
 from addict import Dict
 from authutils.oauth2.client import OAuthClient
 from collections import OrderedDict
+import flask
 import pytest
-from unittest.mock import MagicMock, patch
 
 from fence.config import config
 from fence.jwt.keys import Keypair
@@ -29,6 +31,8 @@ def config_idp_in_client(
     saved_db_Session = app.db.Session
     app.db.Session = lambda: db_session
 
+    saved_config = copy.deepcopy(app.config)
+    saved_fence_clients = flask.current_app.fence_client._clients
     config.update(
         {
             "BASE_URL": "/",
@@ -67,6 +71,9 @@ def config_idp_in_client(
     app.keypairs = saved_keypairs
     app.jwt_public_keys = saved_jwtpks
     app.db.Session = saved_db_Session
+
+    app.config = saved_config
+    flask.current_app.fence_client._clients = saved_fence_clients
 
 
 def test_redirect_oauth2_authorize(
