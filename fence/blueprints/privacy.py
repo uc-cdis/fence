@@ -45,7 +45,7 @@ def privacy_policy():
         )
         if not file_contents:
             raise NotFound("this endpoint is not configured")
-        cache.add("privacy-policy-md", file_contents)
+        cache.set("privacy-policy-md", file_contents)
 
     if "text/markdown" in str(flask.request.accept_mimetypes).lower():
         return flask.Response(cache.get("privacy-policy-md"), mimetype="text/markdown")
@@ -54,5 +54,5 @@ def privacy_policy():
             html = Markdown().convert(cache.get("privacy-policy-md"))
             if not html:
                 raise NotFound("this endpoint is not configured")
-            cache.add("privacy-policy-html", html)
+            cache.set("privacy-policy-html", html)
         return flask.Response(cache.get("privacy-policy-html"), mimetype="text/html")
