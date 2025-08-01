@@ -143,8 +143,7 @@ def _identify_user_and_update_database(
     # whether a user is logged in; in this case the user isn't logged in yet.
     flask.session["login_in_progress_username"] = user.username
 
-    print("_identify_user_and_update_database setting flask.g.user", user)
-    flask.g.user = user  # TODO try
+    flask.g.user = user
     return user
 
 
@@ -206,7 +205,6 @@ def login_user_unless_unregistered(
             flask.session["upstream_idp"] = upstream_idp
         if shib_idp:
             flask.session["shib_idp"] = shib_idp
-        # flask.g.user = user
         flask.g.scopes = ["_all"]
         flask.g.token = None
 

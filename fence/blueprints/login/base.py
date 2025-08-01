@@ -356,9 +356,8 @@ def _login_and_register(
         .get("enable_idp_users_registration", False)
     )
 
-    print("_login_and_register flask.g.user", flask.g.user)
     if config["REGISTER_USERS_ON"]:
-        user = query_for_user(session=current_app.scoped_session(), username=username)
+        user = flask.g.user
         if not user.additional_info.get("registration_info"):
             # If enabled, automatically register user from IdP
             if auto_register_users:
@@ -383,7 +382,7 @@ def _login_and_register(
                         f"User {username} missing organization. Defaulting to None."
                     )
                 add_user_registration_info_to_database(
-                    user, username, firstname, lastname, organization, email
+                    user, firstname, lastname, organization, email
                 )
             else:
                 print(
