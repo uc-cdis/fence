@@ -168,6 +168,7 @@ class DefaultOAuth2Callback(Resource):
             raise UserError(
                 f"OAuth2 callback error: no '{self.username_field}' in {result}"
             )
+
         email = result.get(self.email_field)
         id_from_idp = result.get(self.id_from_idp_field)
 
@@ -182,8 +183,7 @@ class DefaultOAuth2Callback(Resource):
         if not user_is_logged_in:
             return resp
 
-        if not flask.g.user:
-            # maybe need this? `if not hasattr(flask.g, "user") or not flask.g.user`
+        if not hasattr(flask.g, "user") or not flask.g.user:
             raise UserError("Authentication failed: flask.g.user is missing.")
 
         expires = self.extract_exp(refresh_token)

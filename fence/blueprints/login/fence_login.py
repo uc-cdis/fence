@@ -33,7 +33,8 @@ class FenceLogin(DefaultOAuth2Login):
 
     def get(self):
         """Handle ``GET /login/fence``."""
-        # OAuth class can have mutliple clients
+
+        # OAuth class can have multiple clients
         client = flask.current_app.fence_client._clients[
             flask.current_app.config["OPENID_CONNECT"]["fence"]["name"]
         ]
