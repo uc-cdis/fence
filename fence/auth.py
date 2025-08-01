@@ -138,9 +138,10 @@ def _identify_user_and_update_database(
         current_app.scoped_session().add(user)
         current_app.scoped_session().commit()
 
+    # `login_in_progress_username` stored for use by the user registration code.
     # not using `flask.session["username"]` because other code relies on it to know
     # whether a user is logged in; in this case the user isn't logged in yet.
-    flask.session["login_in_progress_user"] = (user.id, user.username)
+    flask.session["login_in_progress_username"] = user.username
 
     return user
 

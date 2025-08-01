@@ -61,10 +61,9 @@ def register_user():
     # can't use the @login_required() decorator here to enforce logging in, because at this
     # point in the flow the user should have _started_ logging in, but may not be logged in
     # yet
-    user_tuple = flask.session.get("login_in_progress_user")
-    if not user_tuple:
+    username = flask.session.get("login_in_progress_username")
+    if not username:
         raise Unauthorized("Please login")
-    _, username = user_tuple
 
     user = query_for_user(session=current_app.scoped_session(), username=username)
     if not user:
