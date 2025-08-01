@@ -60,26 +60,23 @@ from tests.storageclient.storage_client_mock import get_client
 os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "true"
 
 
-# all the IdPs we want to test.
-# any newly added custom OIDC IdP should be added here.
-# generic OIDC IdPs should start with "generic" so the tests work
-# (see `get_value_from_discovery_doc_patcher`logic).
-LOGIN_IDPS = [
-    "fence",
-    "google",
-    "shibboleth",
-    "orcid",
-    "synapse",
-    "microsoft",
-    "okta",
-    "cognito",
-    "ras",
-    "cilogon",
-    "generic_with_discovery_url",
-    "generic_with_discovery_block",
-    "generic_mdq_discovery",
-    "generic_additional_params",
-]
+# some tests run on all the IdPs for which a login blueprint exists
+def all_available_idps():
+    idps = ["generic_with_discovery_url"]  # to test the generic implementation
+    subdir = "blueprints/login"
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+    path = os.path.join(current_dir, "../fence", subdir)
+    assert os.path.exists(path)
+    for _, _, files in os.walk(path):
+        for f in files:
+            if f.startswith("__") or f in ["base.py", "redirect.py", "utils.py"]:
+                continue
+            idp = f.split(".py")[0].split("_login")[0]
+            if idp == "shib":
+                idp = "shibboleth"  # see `get_idp_route_name` function
+            idps.append(idp)
+        break  # not getting into subdirectories
+    return idps
 
 
 def mock_get_bucket_location(self, bucket, config):

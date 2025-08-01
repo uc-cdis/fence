@@ -8,7 +8,7 @@ from fence.blueprints.login import get_idp_route_name
 from fence.blueprints.login.base import _login_and_register
 from fence.config import config
 from fence.errors import UserError
-from tests.conftest import LOGIN_IDPS
+from tests.conftest import all_available_idps
 from test_login_redirect import get_value_from_discovery_doc_patcher
 
 
@@ -128,7 +128,7 @@ def test_login_redirect_after_login_without_registration(app):
         assert user_is_logged_in == True
 
 
-@pytest.mark.parametrize("idp", LOGIN_IDPS)
+@pytest.mark.parametrize("idp", all_available_idps())
 def test_idp_login_stores_post_registration_redirect(
     app, client, idp, enable_user_registration, get_value_from_discovery_doc_patcher
 ):
@@ -158,7 +158,7 @@ def test_idp_login_stores_post_registration_redirect(
             mock.stop()
 
 
-@pytest.mark.parametrize("idp", LOGIN_IDPS)
+@pytest.mark.parametrize("idp", all_available_idps())
 @pytest.mark.parametrize(
     "enable_user_registration",
     [{"enable_registration": True}, {"enable_registration": False}],
@@ -185,7 +185,7 @@ def test_idp_callback_redirects_to_registration(
         assert r.status_code == 200, r.text
 
 
-@pytest.mark.parametrize("idp", [LOGIN_IDPS[0]])
+@pytest.mark.parametrize("idp", [all_available_idps()[0]])
 def test_register_endpoint(
     idp, client, enable_user_registration, mocks_for_idp_oauth2_callbacks
 ):

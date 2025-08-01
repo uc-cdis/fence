@@ -14,7 +14,7 @@ from unittest.mock import MagicMock, patch
 
 from fence.blueprints.login import get_idp_route_name
 from fence.config import config
-from tests.conftest import LOGIN_IDPS
+from tests.conftest import all_available_idps
 
 
 def test_get_value_from_discovery_doc(app):
@@ -78,7 +78,7 @@ def test_get_value_from_discovery_doc(app):
 @pytest.fixture(scope="function")
 def get_value_from_discovery_doc_patcher():
     mocks = []
-    to_patch = [e for e in LOGIN_IDPS if e not in ["fence", "shibboleth"]]
+    to_patch = [e for e in all_available_idps() if e not in ["fence", "shibboleth"]]
     for idp in to_patch:
         mock = MagicMock()
         mock.return_value = ""
@@ -101,7 +101,7 @@ def get_value_from_discovery_doc_patcher():
         mock.stop()
 
 
-@pytest.mark.parametrize("idp", LOGIN_IDPS)
+@pytest.mark.parametrize("idp", all_available_idps())
 def test_valid_redirect_base(app, client, idp, get_value_from_discovery_doc_patcher):
     """
     Check that a valid redirect is allowed, using the base URL for this application as
@@ -149,7 +149,7 @@ def test_valid_redirect_base(app, client, idp, get_value_from_discovery_doc_patc
             mock.stop()
 
 
-@pytest.mark.parametrize("idp", LOGIN_IDPS)
+@pytest.mark.parametrize("idp", all_available_idps())
 def test_valid_redirect_oauth(
     client,
     oauth_client,
@@ -166,7 +166,7 @@ def test_valid_redirect_oauth(
     assert response.status_code == 302
 
 
-@pytest.mark.parametrize("idp", LOGIN_IDPS)
+@pytest.mark.parametrize("idp", all_available_idps())
 def test_invalid_redirect_fails(client, idp):
     """
     Check that giving a bogus redirect to the login endpoint returns an error.
