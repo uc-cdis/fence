@@ -143,6 +143,7 @@ def _identify_user_and_update_database(
     # whether a user is logged in; in this case the user isn't logged in yet.
     flask.session["login_in_progress_username"] = user.username
 
+    flask.g.user = user
     return user
 
 

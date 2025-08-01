@@ -58,18 +58,20 @@ def register_user():
     """
     form = RegistrationForm()
 
-    # can't use the @login_required() decorator here to enforce logging in, because at this
-    # point in the flow the user should have _started_ logging in, but may not be logged in
-    # yet
-    username = flask.session.get("login_in_progress_username")
-    if not username:
-        raise Unauthorized("Please login")
-
-    user = query_for_user(session=current_app.scoped_session(), username=username)
-    if not user:
-        raise Exception(
-            "User should already exist in the database when accessing /register"
-        )
+    if hasattr(flask.g, "user") and flask.g.user:
+        user = flask.g.user
+    else:
+        username = flask.session.get("login_in_progress_username")
+        # can't use the @login_required() decorator here to enforce logging in, because at this
+        # point in the flow the user should have _started_ logging in, but may not be logged in
+        # yet
+        if not username:
+            raise Unauthorized("Please login")
+        user = query_for_user(session=current_app.scoped_session(), username=username)
+        if not user:
+            raise Exception(
+                "User should already exist in the database when accessing /register"
+            )
 
     if flask.request.method == "GET":
         return flask.render_template(
@@ -102,7 +104,7 @@ def register_user():
     email = user.email or flask.request.form["email"].strip()
 
     registration_info = add_user_registration_info_to_database(
-        user, username, firstname, lastname, org, email
+        user, firstname, lastname, org, email
     )
 
     # Respect session redirect--important when redirected here from login flow
@@ -112,7 +114,7 @@ def register_user():
 
 
 def add_user_registration_info_to_database(
-    user: User, username, firstname, lastname, organization, email
+    user: User, firstname: str, lastname: str, organization: str, email: str
 ):
     user.additional_info = user.additional_info or {}
     registration_info = {
