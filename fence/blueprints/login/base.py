@@ -386,6 +386,9 @@ def _login_and_register(
                     user, username, firstname, lastname, organization, email
                 )
             else:
+                print(
+                    "_login_and_register redirecting to registration page", flask.g.user
+                )
                 return (
                     flask.redirect(
                         config["BASE_URL"] + flask.url_for("register.register_user")
