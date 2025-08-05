@@ -87,9 +87,6 @@ class DefaultOAuth2Callback(Resource):
         username_field="email",
         email_field="email",
         id_from_idp_field="sub",
-        firstname_claim_field="given_name",
-        lastname_claim_field="family_name",
-        organization_claim_field="org",
         app=flask.current_app,
     ):
         """
@@ -361,13 +358,30 @@ def _login_and_register(
         if not user.additional_info.get("registration_info"):
             # If enabled, automatically register user from IdP
             if auto_register_users:
-                # NOTE: the token fields where we get the user's info are hardcoded, as well
-                # as which ones are required and what the optional fields' default values are.
-                # To be used in a generic manner, this should be moved to the configuration.
-                firstname = token_result.get("firstname")
-                lastname = token_result.get("lastname")
-                organization = token_result.get("org")
-                email = token_result.get("email")
+                organization_claim_field = (
+                    config["OPENID_CONNECT"]
+                    .get(idp_name, {})
+                    .get("organization_claim_field", "org")
+                )
+                firstname_claim_field = (
+                    config["OPENID_CONNECT"]
+                    .get(idp_name, {})
+                    .get("firstname_claim_field", "firstname")
+                )
+                lastname_claim_field = (
+                    config["OPENID_CONNECT"]
+                    .get(idp_name, {})
+                    .get("lastname_claim_field", "lastname")
+                )
+                email_claim_field = (
+                    config["OPENID_CONNECT"]
+                    .get(idp_name, {})
+                    .get("email_claim_field", "email")
+                )
+                firstname = token_result.get(firstname_claim_field)
+                lastname = token_result.get(lastname_claim_field)
+                organization = token_result.get(organization_claim_field)
+                email = token_result.get(email_claim_field)
                 if email is None:
                     raise UserError("OAuth2 id token is missing email claim")
                 # Log warnings and set defaults if needed
