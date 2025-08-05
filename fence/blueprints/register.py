@@ -108,8 +108,11 @@ def register_user():
     )
 
     # Respect session redirect--important when redirected here from login flow
-    if flask.session.get("post_registration_redirect"):
-        return flask.redirect(flask.session.get("post_registration_redirect"))
+    post_registration_redirect = flask.session.get("post_registration_redirect")
+    if post_registration_redirect:
+        flask.session.pop("post_registration_redirect")
+        return flask.redirect(post_registration_redirect)
+
     return flask.jsonify(registration_info)
 
 
