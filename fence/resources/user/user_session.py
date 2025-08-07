@@ -287,6 +287,11 @@ def _get_valid_access_token(app, session, request):
     except Unauthorized:
         return None
 
+    if not user:
+        # edge case where the session has a user but the user doesn't exist in the DB
+        # (for example, the user was deleted from the DB while logged in)
+        return None
+
     # check that the current user is the one from the session and access_token
     user_sess_id = _get_auth_info_from_session(session)
     token_user_id = _get_auth_info_from_access_token(valid_access_token)
