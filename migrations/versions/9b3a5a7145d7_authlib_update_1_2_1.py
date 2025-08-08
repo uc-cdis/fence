@@ -327,4 +327,6 @@ def remove_foreign_key_constraint_if_exists(op):
             type_="foreignkey",
         )
     else:
-        logger.debug("Foreign key client_id does not exist. This is expected for newer versions of the service.")
+        logger.debug(
+            "Foreign key client_id does not exist. This is expected for newer versions of the service."
+        )
