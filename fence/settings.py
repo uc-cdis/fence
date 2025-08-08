@@ -37,9 +37,16 @@ try:
 except ImportError:
     # If it doesn't, look in ``/var/www/fence``.
     try:
-        import imp
+        import importlib.util
+        import sys
 
-        imp.load_source("local_settings", "/var/www/fence/local_settings.py")
+        spec = importlib.util.spec_from_file_location(
+            "local_settings", "/var/www/fence/local_settings.py"
+        )
+        local_settings = importlib.util.module_from_spec(spec)
+        sys.modules["local_settings"] = local_settings
+        spec.loader.exec_module(local_settings)
+
         use_deprecated_settings()
     except IOError:
         pass

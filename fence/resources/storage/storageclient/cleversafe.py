@@ -2,11 +2,10 @@
 Connection manager for the Cleversafe storage system
 Since it is compatible with S3, we will be using boto.
 """
-from boto import connect_s3
-from boto.s3 import connection
-from boto.exception import S3ResponseError
-from boto.s3.acl import Grant
+import boto3
+from botocore.exceptions import ClientError, NoCredentialsError
 import requests
+
 from urllib.parse import urlencode
 import json
 from .base import StorageClient, User, Bucket, handle_request
@@ -42,12 +41,13 @@ class CleversafeClient(StorageClient):
         }
         self._permissions_value = ["disabled", "readOnly", "readWrite", "owner"]
         self._auth = requests.auth.HTTPBasicAuth(self._username, self._password)
-        self._conn = connect_s3(
+        self._conn = boto3.Session().client(
+            service_name="s3",
             aws_access_key_id=self._access_key,
             aws_secret_access_key=self._secret_key,
-            host=self._public_host,
-            calling_format=connection.OrdinaryCallingFormat(),
+            endpoint_url=self._public_host,
         )
+
         self._bucket_name_id_table = {}
         self._update_bucket_name_id_table()
         self._user_name_id_table = {}

@@ -24,7 +24,9 @@ from fence.resources.google.access_utils import (
     force_remove_service_account_from_access,
     extend_service_account_access,
     patch_user_service_account,
-    remove_white_listed_service_account_ids, update_google_groups_for_users, GoogleUpdateException
+    remove_white_listed_service_account_ids,
+    update_google_groups_for_users,
+    GoogleUpdateException,
 )
 from fence.utils import DEFAULT_BACKOFF_SETTINGS
 
@@ -538,11 +540,15 @@ def test_whitelisted_service_accounts(
     assert "test@456" not in service_account_ids
     assert "test@789" in service_account_ids
 
+
 def test_update_google_groups_for_users_get_group_members(cloud_manager):
     """
     Tests backoff for when the get_group_member google group API calls error out.
     """
-    test_mapping = {"member1": ["googlegroup@google.com"], "member2": ["googlegroup@google.com"]}
+    test_mapping = {
+        "member1": ["googlegroup@google.com"],
+        "member2": ["googlegroup@google.com"],
+    }
     cloud_manager_instance = cloud_manager.return_value.__enter__.return_value
     cloud_manager_instance.get_groups_for_user.side_effect = Exception(
         "Something's wrong with get_groups_for_user"
@@ -561,7 +567,10 @@ def test_update_google_groups_for_users_add_group_members(cloud_manager):
     """
     Tests backoff for when the add_member_to_group google group API calls error.
     """
-    test_mapping = {"member1": ["googlegroup@google.com"], "member2": ["googlegroup@google.com"]}
+    test_mapping = {
+        "member1": ["googlegroup@google.com"],
+        "member2": ["googlegroup@google.com"],
+    }
     cloud_manager_instance = cloud_manager.return_value.__enter__.return_value
     cloud_manager_instance.get_groups_for_user.return_value = []
     cloud_manager_instance.add_member_to_group.side_effect = Exception(
@@ -571,11 +580,12 @@ def test_update_google_groups_for_users_add_group_members(cloud_manager):
     with pytest.raises(Exception):
         update_google_groups_for_users(test_mapping)
 
-    assert cloud_manager_instance.get_groups_for_user.call_count == len(test_mapping.keys())
+    assert cloud_manager_instance.get_groups_for_user.call_count == len(
+        test_mapping.keys()
+    )
     assert (
         cloud_manager_instance.add_member_to_group.call_count
-        == DEFAULT_BACKOFF_SETTINGS["max_tries"]
-        * len(test_mapping.keys())
+        == DEFAULT_BACKOFF_SETTINGS["max_tries"] * len(test_mapping.keys())
     )
 
 
@@ -594,11 +604,14 @@ def test_update_google_groups_for_users_remove_group_members(cloud_manager):
     with pytest.raises(Exception):
         update_google_groups_for_users(test_mapping)
 
-    assert cloud_manager_instance.get_groups_for_user.call_count == len(test_mapping.keys())
+    assert cloud_manager_instance.get_groups_for_user.call_count == len(
+        test_mapping.keys()
+    )
     assert (
         cloud_manager_instance.remove_member_from_group.call_count
         == DEFAULT_BACKOFF_SETTINGS["max_tries"] * len(test_mapping.keys())
     )
+
 
 def test_update_google_groups_for_users_add_remove_group_members(cloud_manager):
     """
@@ -633,14 +646,18 @@ def test_update_google_groups_for_users_success(cloud_manager):
     """
     Test successful update of Google Groups for a single user.
     """
-    google_single_user_mapping = {"user@test.com": ["group1@google.com", "group2@google.com"]}
+    google_single_user_mapping = {
+        "user@test.com": ["group1@google.com", "group2@google.com"]
+    }
     mock_gcm_instance = cloud_manager.return_value.__enter__.return_value
     mock_gcm_instance.get_groups_for_user.return_value = ["group2@google.com"]
 
     update_google_groups_for_users(google_single_user_mapping)
 
     mock_gcm_instance.get_groups_for_user.assert_called_once_with("user@test.com")
-    mock_gcm_instance.add_member_to_group.assert_called_once_with("user@test.com", "group1@google.com")
+    mock_gcm_instance.add_member_to_group.assert_called_once_with(
+        "user@test.com", "group1@google.com"
+    )
     mock_gcm_instance.remove_member_from_group.assert_not_called()
 
 
@@ -650,13 +667,18 @@ def test_update_google_groups_for_users_remove_groups(cloud_manager):
     """
     google_single_user_mapping = {"user@test.com": ["group1@google.com"]}
     mock_gcm_instance = cloud_manager.return_value.__enter__.return_value
-    mock_gcm_instance.get_groups_for_user.return_value = ["group1@google.com", "group2@google.com"]
+    mock_gcm_instance.get_groups_for_user.return_value = [
+        "group1@google.com",
+        "group2@google.com",
+    ]
 
     update_google_groups_for_users(google_single_user_mapping)
 
     mock_gcm_instance.get_groups_for_user.assert_called_once_with("user@test.com")
     mock_gcm_instance.add_member_to_group.assert_not_called()
-    mock_gcm_instance.remove_member_from_group.assert_called_once_with("user@test.com", "group2@google.com")
+    mock_gcm_instance.remove_member_from_group.assert_called_once_with(
+        "user@test.com", "group2@google.com"
+    )
 
 
 def test_update_google_groups_for_multiple_users_success(cloud_manager):
@@ -665,24 +687,28 @@ def test_update_google_groups_for_multiple_users_success(cloud_manager):
     """
     google_single_user_mapping = {
         "user1@test.com": ["group1@google.com", "group2@google.com"],
-        "user2@test.com": ["group3@google.com", "group4@google.com"]
+        "user2@test.com": ["group3@google.com", "group4@google.com"],
     }
     mock_gcm_instance = cloud_manager.return_value.__enter__.return_value
     mock_gcm_instance.get_groups_for_user.side_effect = [
         ["group2@google.com"],  # user1 current groups
-        ["group3@google.com"]   # user2 current groups
+        ["group3@google.com"],  # user2 current groups
     ]
 
     update_google_groups_for_users(google_single_user_mapping)
 
     # Assertions for user1@test.com
     mock_gcm_instance.get_groups_for_user.assert_any_call("user1@test.com")
-    mock_gcm_instance.add_member_to_group.assert_any_call("user1@test.com", "group1@google.com")
+    mock_gcm_instance.add_member_to_group.assert_any_call(
+        "user1@test.com", "group1@google.com"
+    )
     mock_gcm_instance.remove_member_from_group.assert_not_called()
 
     # Assertions for user2@test.com
     mock_gcm_instance.get_groups_for_user.assert_any_call("user2@test.com")
-    mock_gcm_instance.add_member_to_group.assert_called_with("user2@test.com", "group4@google.com")
+    mock_gcm_instance.add_member_to_group.assert_called_with(
+        "user2@test.com", "group4@google.com"
+    )
     mock_gcm_instance.remove_member_from_group.assert_not_called()
 
 
@@ -692,12 +718,12 @@ def test_update_google_groups_for_multiple_users_with_removals(cloud_manager):
     """
     google_single_user_mapping = {
         "user1@test.com": ["group1@google.com"],
-        "user2@test.com": ["group3@google.com"]
+        "user2@test.com": ["group3@google.com"],
     }
     mock_gcm_instance = cloud_manager.return_value.__enter__.return_value
     mock_gcm_instance.get_groups_for_user.side_effect = [
         ["group1@google.com", "group2@google.com"],  # user1 current groups
-        ["group3@google.com", "group4@google.com"]   # user2 current groups
+        ["group3@google.com", "group4@google.com"],  # user2 current groups
     ]
 
     update_google_groups_for_users(google_single_user_mapping)
@@ -705,12 +731,16 @@ def test_update_google_groups_for_multiple_users_with_removals(cloud_manager):
     # Assertions for user1@test.com (removing group2)
     mock_gcm_instance.get_groups_for_user.assert_any_call("user1@test.com")
     mock_gcm_instance.add_member_to_group.assert_not_called()
-    mock_gcm_instance.remove_member_from_group.assert_any_call("user1@test.com", "group2@google.com")
+    mock_gcm_instance.remove_member_from_group.assert_any_call(
+        "user1@test.com", "group2@google.com"
+    )
 
     # Assertions for user2@test.com (removing group4)
     mock_gcm_instance.get_groups_for_user.assert_any_call("user2@test.com")
     mock_gcm_instance.add_member_to_group.assert_not_called()
-    mock_gcm_instance.remove_member_from_group.assert_any_call("user2@test.com", "group4@google.com")
+    mock_gcm_instance.remove_member_from_group.assert_any_call(
+        "user2@test.com", "group4@google.com"
+    )
 
 
 def test_update_google_groups_for_multiple_users_partial_failure(cloud_manager):
@@ -719,16 +749,16 @@ def test_update_google_groups_for_multiple_users_partial_failure(cloud_manager):
     """
     google_single_user_mapping = {
         "user1@test.com": ["group1@google.com", "group2@google.com"],
-        "user2@test.com": ["group3@google.com", "group4@google.com"]
+        "user2@test.com": ["group3@google.com", "group4@google.com"],
     }
     mock_gcm_instance = cloud_manager.return_value.__enter__.return_value
     mock_gcm_instance.get_groups_for_user.side_effect = [
         ["group2@google.com"],  # user1 current groups
-        ["group3@google.com"]   # user2 current groups
+        ["group3@google.com"],  # user2 current groups
     ]
     mock_gcm_instance.add_member_to_group.side_effect = [
         None,  # Success for user1 group1
-        Exception("Error adding group for user2")  # Failure for user2 group4
+        Exception("Error adding group for user2"),  # Failure for user2 group4
     ]
 
     with pytest.raises(GoogleUpdateException):
@@ -736,12 +766,16 @@ def test_update_google_groups_for_multiple_users_partial_failure(cloud_manager):
 
     # Assertions for user1@test.com (successful)
     mock_gcm_instance.get_groups_for_user.assert_any_call("user1@test.com")
-    mock_gcm_instance.add_member_to_group.assert_any_call("user1@test.com", "group1@google.com")
+    mock_gcm_instance.add_member_to_group.assert_any_call(
+        "user1@test.com", "group1@google.com"
+    )
     mock_gcm_instance.remove_member_from_group.assert_not_called()
 
     # Assertions for user2@test.com (failed)
     mock_gcm_instance.get_groups_for_user.assert_any_call("user2@test.com")
-    mock_gcm_instance.add_member_to_group.assert_any_call("user2@test.com", "group4@google.com")
+    mock_gcm_instance.add_member_to_group.assert_any_call(
+        "user2@test.com", "group4@google.com"
+    )
 
 
 def test_update_google_groups_for_multiple_users_with_removals_failure(cloud_manager):
@@ -750,16 +784,16 @@ def test_update_google_groups_for_multiple_users_with_removals_failure(cloud_man
     """
     google_single_user_mapping = {
         "user1@test.com": ["group1@google.com"],
-        "user2@test.com": ["group3@google.com"]
+        "user2@test.com": ["group3@google.com"],
     }
     mock_gcm_instance = cloud_manager.return_value.__enter__.return_value
     mock_gcm_instance.get_groups_for_user.side_effect = [
         ["group1@google.com", "group2@google.com"],  # user1 current groups
-        ["group3@google.com", "group4@google.com"]   # user2 current groups
+        ["group3@google.com", "group4@google.com"],  # user2 current groups
     ]
     mock_gcm_instance.remove_member_from_group.side_effect = [
         None,  # Success for user1 removal
-        Exception("Error removing group for user2")  # Failure for user2 removal
+        Exception("Error removing group for user2"),  # Failure for user2 removal
     ]
 
     with pytest.raises(GoogleUpdateException):
@@ -767,8 +801,12 @@ def test_update_google_groups_for_multiple_users_with_removals_failure(cloud_man
 
     # Assertions for user1@test.com (removal success)
     mock_gcm_instance.get_groups_for_user.assert_any_call("user1@test.com")
-    mock_gcm_instance.remove_member_from_group.assert_any_call("user1@test.com", "group2@google.com")
+    mock_gcm_instance.remove_member_from_group.assert_any_call(
+        "user1@test.com", "group2@google.com"
+    )
 
     # Assertions for user2@test.com (removal failure)
     mock_gcm_instance.get_groups_for_user.assert_any_call("user2@test.com")
-    mock_gcm_instance.remove_member_from_group.assert_any_call("user2@test.com", "group4@google.com")
+    mock_gcm_instance.remove_member_from_group.assert_any_call(
+        "user2@test.com", "group4@google.com"
+    )

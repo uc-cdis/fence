@@ -51,9 +51,9 @@ def test_sync_missing_file(syncer, monkeypatch, db_session):
     monkeypatch.setattr(syncer, "sync_from_local_yaml_file", "this-file-is-not-real")
     with pytest.raises(FileNotFoundError):
         syncer.sync()
-    assert syncer.arborist_client.create_resource.not_called()
-    assert syncer.arborist_client.create_role.not_called()
-    assert syncer.arborist_client.create_policy.not_called()
+    assert not syncer.arborist_client.create_resource.called
+    assert not syncer.arborist_client.create_role.called
+    assert not syncer.arborist_client.create_policy.called
 
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
@@ -68,9 +68,9 @@ def test_sync_incorrect_user_yaml_file(syncer, monkeypatch, db_session):
     monkeypatch.setattr(syncer, "sync_from_local_yaml_file", path)
     with pytest.raises(AssertionError):
         syncer.sync()
-    assert syncer.arborist_client.create_resource.not_called()
-    assert syncer.arborist_client.create_role.not_called()
-    assert syncer.arborist_client.create_policy.not_called()
+    assert not syncer.arborist_client.create_resource.called
+    assert not syncer.arborist_client.create_role.called
+    assert not syncer.arborist_client.create_policy.called
 
 
 @pytest.mark.parametrize("allow_non_dbgap_whitelist", [False, True])
@@ -789,7 +789,7 @@ def test_update_arborist(syncer, db_session):
         for permission in permissions
     ]
     for role in expect_roles:
-        assert syncer.arborist_client.create_role.called_with(role)
+        assert syncer.arborist_client.create_role.assert_called_with(role)
 
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)

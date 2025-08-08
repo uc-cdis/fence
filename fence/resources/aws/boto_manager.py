@@ -29,15 +29,15 @@ class BotoManager(object):
     def create_s3_clients(self, config, buckets):
         s3_clients = {}
         for bucket in buckets:
-            cred_name = buckets[bucket]['cred']
+            cred_name = buckets[bucket]["cred"]
             creds = {}
-            if cred_name != '*':
+            if cred_name != "*":
                 creds = config[cred_name]
-            if 'endpoint_url' in buckets[bucket]:
-                endpoint_url = buckets[bucket]['endpoint_url']
-                s3_clients[bucket] = client('s3', **creds, endpoint_url=endpoint_url)
+            if "endpoint_url" in buckets[bucket]:
+                endpoint_url = buckets[bucket]["endpoint_url"]
+                s3_clients[bucket] = client("s3", **creds, endpoint_url=endpoint_url)
             else:
-                s3_clients[bucket] = client('s3', **creds)
+                s3_clients[bucket] = client("s3", **creds)
         return s3_clients
 
     def get_s3_client(self, bucket):
