@@ -56,8 +56,7 @@ azure-storage-blob = "^12.6.0"
 Flask-WTF = "^1.0.0"
 itsdangerous = '*' # Use Flask-WTF's itsdangerous
 boto = "*"
-# NOTE:
-# for testing with updated libaries as git repos:
+# NOTE: for testing with updated libaries as git repos:
 # foobar = {git = "https://github.com/uc-cdis/some-repo", rev = "feat/test"}
 jinja2 = "^3.1.6"
 
