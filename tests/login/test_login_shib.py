@@ -1,5 +1,6 @@
 from fence.config import config
 
+
 def test_shib_redirect(client, app):
     r = client.get("/login/shib?redirect=http://localhost")
     assert r.status_code == 302
