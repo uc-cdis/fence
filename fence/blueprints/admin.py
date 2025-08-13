@@ -568,6 +568,16 @@ def list_policies():
         res = current_app.arborist.list_policies()
     return jsonify(res)
 
+@blueprint.route("/arborist_user/<username>", methods=["GET"])
+@admin_login_required
+@enable_request_logging
+def get_arborist_user(username):
+    """
+    Return a list of all policies. Returns in JSON format
+    """
+    res = current_app.arborist.get_user(username)
+    return res
+
 @blueprint.route("/add_authz_all", methods=["POST"])
 @admin_login_required
 @enable_request_logging
