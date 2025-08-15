@@ -743,6 +743,7 @@ def add_document():
     document_schema = DocumentSchema()
     return jsonify(document_schema.dump(admin.add_document(current_app.scoped_session(), document_json)))
 
+
 #### CLIENT ####
 @blueprint.route("/add_policies_to_client", methods=["POST"])
 @admin_login_required
