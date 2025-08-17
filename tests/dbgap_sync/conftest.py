@@ -19,7 +19,7 @@ from gen3authz.client.arborist.client import ArboristClient
 
 from fence.config import config
 from fence.resources.openid.ras_oauth2 import RASOauth2Client
-from fence.auth import login_user_unless_unregistered
+from fence.auth import login_user_or_require_registration
 from fence.sync.sync_users import UserSyncer
 from fence.resources import userdatamodel as udm
 from fence.models import (
@@ -362,7 +362,7 @@ def fake_ras_login(username, subject, email=None, db_session=None):
     logger.debug(
         f"subject: {subject}, username: {username}, actual_username: {actual_username}"
     )
-    is_logged_in = login_user_unless_unregistered(
+    is_logged_in = login_user_or_require_registration(
         actual_username, provider="ras", email=None, id_from_idp=subject
     )
     assert is_logged_in

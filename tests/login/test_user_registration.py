@@ -19,12 +19,11 @@ def enable_user_registration(request):
     `OPENID_CONNECT.mock_idp.enable_idp_users_registration`.
     Revert those settings after running the test.
     """
-    enable_registration = (
-        hasattr(request, "param") and request.param.get("enable_registration")
-    ) or True
-    auto_register_users = (
-        hasattr(request, "param") and request.param.get("auto_register_users")
-    ) or False
+    enable_registration = getattr(request, "param", {}).get("enable_registration", True)
+    auto_register_users = getattr(request, "param", {}).get(
+        "auto_register_users", False
+    )
+
     if enable_registration:
         config["REGISTER_USERS_ON"] = True
     if auto_register_users:

@@ -4,18 +4,18 @@ from fence.config import config
 from tests.conftest import all_available_idps
 
 
-def test_contfest_idps():
+def test_conftest_idps():
     """
     This test checks that any newly added custom OIDC IdP is in
     the list of IdPs to test (all_enabled_login_idps).
 
     If you added an IdP and this test fails, DO NOT edit this test. Either the
-    new IdP should be added to test-fence-config.yaml's OPENID_CONNECT+LOGIN_OPTIONS,
+    new IdP should be added to test-fence-config.yaml's OPENID_CONNECT and LOGIN_OPTIONS,
     or the new file names do not match the convention and cannot be parsed by this test.
     """
     all_enabled_login_idps = list(set(config["OPENID_CONNECT"].keys()))
     current_dir = os.path.dirname(os.path.realpath(__file__))
-    err_msg = "For IdP file '{}': IdP '{}' must be added to test-fence-config.yaml's OPENID_CONNECT+LOGIN_OPTIONS to be tested"
+    err_msg = "For IdP file '{}': IdP '{}' must be added to test-fence-config.yaml's OPENID_CONNECT and LOGIN_OPTIONS to be tested"
 
     subdir = "resources/openid"
     path = os.path.join(current_dir, "../../fence", subdir)

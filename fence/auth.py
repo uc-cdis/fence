@@ -148,21 +148,23 @@ def _identify_user_and_update_database(
 
 
 def _is_user_registration_required_before_login(user, provider) -> bool:
-    auto_register_users = (
+    auto_registration_enabled = (
         config["OPENID_CONNECT"]
         .get(provider, {})
         .get("enable_idp_users_registration", False)
     )
-    # we can only skip registration if registration is disabled, or registration is automatic,
-    # or the user is already registered
+    # Registration is required if:
+    # - Registration is enabled in the config, AND
+    # - Automatic registration is NOT enabled, AND
+    # - The user's registration info is empty
     return (
         config["REGISTER_USERS_ON"]
-        and not auto_register_users
+        and not auto_registration_enabled
         and user.additional_info.get("registration_info", {}) == {}
     )
 
 
-def login_user_unless_unregistered(
+def login_user_or_require_registration(
     username, provider, upstream_idp=None, shib_idp=None, email=None, id_from_idp=None
 ) -> bool:
     """
@@ -273,7 +275,7 @@ def login_required(scope=None):
         @wraps(f)
         def wrapper(*args, **kwargs):
             if flask.session.get("username"):
-                is_logged_in = login_user_unless_unregistered(
+                is_logged_in = login_user_or_require_registration(
                     flask.session["username"], flask.session["provider"]
                 )
                 if not is_logged_in:
@@ -306,7 +308,7 @@ def login_required(scope=None):
                 username = eppn.split("!")[-1]
                 flask.session["username"] = username
                 flask.session["provider"] = IdentityProvider.itrust
-                is_logged_in = login_user_unless_unregistered(
+                is_logged_in = login_user_or_require_registration(
                     username, flask.session["provider"]
                 )
                 if not is_logged_in:

@@ -70,7 +70,7 @@ def register_user():
         user = query_for_user(session=current_app.scoped_session(), username=username)
         if not user:
             raise Exception(
-                "User should already exist in the database when accessing /register"
+                "User should already exist in the database when accessing `/register`"
             )
 
     if flask.request.method == "GET":

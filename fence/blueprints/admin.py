@@ -672,9 +672,6 @@ def get_registered_users():
     - Endpoint accessible to admins only.
     - Response json structure is provisional.
     """
-    logger.warning(
-        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
-    )
     registered_users = (
         current_app.scoped_session()
         .query(User)

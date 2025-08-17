@@ -9,13 +9,12 @@ import flask
 from cdislogging import get_logger
 from flask_restful import Resource
 
-from fence.auth import login_user_unless_unregistered
+from fence.auth import login_user_or_require_registration
 from fence.blueprints.login.redirect import validate_redirect
 from fence.blueprints.register import add_user_registration_info_to_database
 from fence.config import config
 from fence.errors import UserError
 from fence.metrics import metrics
-from fence.models import query_for_user
 
 
 logger = get_logger(__name__)
@@ -338,7 +337,7 @@ def _login_and_register(
         bool: whether the user has been logged in (if registration is enabled and the user is not
             registered, this would be False)
     """
-    user_is_logged_in = login_user_unless_unregistered(
+    user_is_logged_in = login_user_or_require_registration(
         username,
         idp_name,
         upstream_idp=upstream_idp,
@@ -347,7 +346,7 @@ def _login_and_register(
         id_from_idp=id_from_idp,
     )
 
-    auto_register_users = (
+    auto_registration_enabled = (
         config["OPENID_CONNECT"]
         .get(idp_name, {})
         .get("enable_idp_users_registration", False)
@@ -357,7 +356,7 @@ def _login_and_register(
         user = flask.g.user
         if not user.additional_info.get("registration_info"):
             # If enabled, automatically register user from IdP
-            if auto_register_users:
+            if auto_registration_enabled:
                 organization_claim_field = (
                     config["OPENID_CONNECT"]
                     .get(idp_name, {})
