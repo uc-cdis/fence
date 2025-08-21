@@ -63,6 +63,18 @@ def encoded_admin_jwt(kid, rsa_private_key):
     return jwt.encode(claims, key=rsa_private_key, headers=headers, algorithm="RS256")
 
 
+@pytest.fixture(scope="function")
+def encoded_client_jwt(kid, rsa_private_key):
+    """
+    Use this fixture to simulate client connection and its jwt.
+    """
+    headers = {"kid": kid}
+    claims = utils.default_claims()
+    del claims["sub"]
+    claims["azp"] = "somevalue"
+    return jwt.encode(claims, key=rsa_private_key, headers=headers, algorithm="RS256")
+
+
 # Dictionary for all these random magic numbers that the delete user
 # tests/fixtures are using
 userd_dict = {
@@ -432,6 +444,38 @@ def test_post_user(client, admin_user, encoded_admin_jwt, db_session, log_captur
     # Now check for the specific message:
     messages = [f"{r.levelname} - {r.getMessage()}" for r in log_capture]
     expected_log_message = "INFO - Incoming request: user=admin_user, client=None, method=POST, endpoint=/admin/user, request_url=/admin/user"
+    assert expected_log_message in messages, (
+        f"\n{expected_log_message} -> not found in INFO logs. Actual messages:\n"
+        + "\n".join(messages)
+    )
+
+
+def test_post_user_client_jwt(client, encoded_client_jwt, db_session, log_capture):
+    """Test if call to an admin endpoint (in this case POST /user: [create_user] )
+    with a client jwt (instead of regular jwt) gets the right information logged,
+    where we expect the username to be "None" and the client name to
+    be "somevalue" (according to what is in encoded_client_jwt).
+    """
+    r = client.post(
+        "/admin/user",
+        headers={
+            "Authorization": "Bearer " + encoded_client_jwt,
+            "Content-Type": "application/json",
+        },
+        data=json.dumps(
+            {
+                "username": "new_test_user",
+                "role": "user",
+                "email": "new_test_user@fake.com",
+            }
+        ),
+    )
+    assert r.status_code == 200
+    # also assert that the logs were recorded:
+    assert len(log_capture) >= 1
+    # Now check for the specific message:
+    messages = [f"{r.levelname} - {r.getMessage()}" for r in log_capture]
+    expected_log_message = "INFO - Incoming request: user=None, client=somevalue, method=POST, endpoint=/admin/user, request_url=/admin/user"
     assert expected_log_message in messages, (
         f"\n{expected_log_message} -> not found in INFO logs. Actual messages:\n"
         + "\n".join(messages)
