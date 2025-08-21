@@ -198,7 +198,7 @@ def get_provider_info(login_details):
     ), f"Unable to get list of {login_details['idp']} IdPs: 'OPENID_CONNECT.{login_details['idp']}.idp_discovery.format' not configured"
     cache_key = f"all_{login_details['idp']}_upstream_idps"
     if not UPSTREAM_IDP_CACHE.has(cache_key):
-        UPSTREAM_IDP_CACHE.add(
+        UPSTREAM_IDP_CACHE.set(
             cache_key,
             get_all_upstream_idps(
                 login_details["idp"],
