@@ -296,6 +296,11 @@ class DefaultOAuth2Callback(Resource):
 
 
 def prepare_login_log(idp_name):
+    x_forwarded_headers = [
+        f"{header}:{value}"
+        for header, value in flask.request.headers
+        if "X-Forwarded" in header
+    ]
     flask.g.audit_data = {
         "username": flask.g.user.username,
         "sub": flask.g.user.id,
@@ -303,6 +308,7 @@ def prepare_login_log(idp_name):
         "upstream_idp": flask.session.get("upstream_idp"),
         "shib_idp": flask.session.get("shib_idp"),
         "client_id": flask.session.get("client_id"),
+        "additional_data": x_forwarded_headers,
     }
 
 

@@ -123,9 +123,15 @@ def get_signed_url_for_file(
                 )
         else:
             username, user = next(iter(users_from_passports.items()))
+            x_forwarded_headers = [
+                f"{header}:{value}"
+                for header, value in flask.request.headers
+                if "X-Forwarded" in header
+            ]
             flask.g.audit_data = {
                 "username": username,
                 "sub": user.id,
+                "additional_data": x_forwarded_headers,
             }
     else:
         auth_info = _get_auth_info_for_id_or_from_request(
