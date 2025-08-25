@@ -105,6 +105,12 @@ def get_signed_url_for_file(
             ga4gh_passports, db_session=db_session
         )
 
+    # Collect X-Forwarded headers
+    x_forwarded_headers = [
+        f"{header}:{value}"
+        for header, value in flask.request.headers
+        if "X-Forwarded" in header
+    ]
     # add the user details to `flask.g.audit_data` first, so they are
     # included in the audit log if `IndexedFile(file_id)` raises a 404
     if users_from_passports:
@@ -123,11 +129,6 @@ def get_signed_url_for_file(
                 )
         else:
             username, user = next(iter(users_from_passports.items()))
-            x_forwarded_headers = [
-                f"{header}:{value}"
-                for header, value in flask.request.headers
-                if "X-Forwarded" in header
-            ]
             flask.g.audit_data = {
                 "username": username,
                 "sub": user.id,
@@ -140,6 +141,7 @@ def get_signed_url_for_file(
         flask.g.audit_data = {
             "username": auth_info["username"],
             "sub": auth_info["user_id"],
+            "additional_data": x_forwarded_headers,
         }
 
     indexed_file = IndexedFile(file_id)
