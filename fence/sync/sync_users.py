@@ -434,7 +434,7 @@ class UserSyncer(object):
                 with client.open_sftp() as sftp:
                     download_dir(sftp, "./", path)
             except paramiko.ssh_exception.SSHException as e:
-                self.logger.error(f"SSH connection failed: {e}")
+                self.logger.error(f"SSH connection failed, error: {e}")
 
         if proxy:
             proxy.close()
