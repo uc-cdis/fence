@@ -123,6 +123,7 @@ def get_signed_url_for_file(
                 audit_data = {
                     "username": username,
                     "sub": user.id,
+                    "additional_data": x_forwarded_headers,
                 }
                 logger.info(
                     f"passport with multiple user ids is attempting data access. audit log: {audit_data}"
