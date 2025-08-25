@@ -193,6 +193,123 @@ def test_presigned_url_log(
                 "resource_paths": resource_paths,
                 "action": "download",
                 "protocol": expected_protocol,
+                "additional_data": [],
+            },
+        )
+
+    # check prometheus metrics
+    resp = client.get("/metrics")
+    assert resp.status_code == 200
+    bucket = get_bucket_from_urls(record["urls"], expected_protocol)
+    size_in_kibibytes = record["size"] / 1024
+    expected_metrics = [
+        {
+            "name": "gen3_fence_presigned_url_total",
+            "labels": {
+                "action": "download",
+                "authz": resource_paths,
+                "bucket": bucket,
+                "drs": endpoint == "ga4gh-drs",
+                "protocol": expected_protocol,
+                "user_sub": user_client.user_id,
+            },
+            "value": 1.0,
+        },
+        {
+            "name": "gen3_fence_presigned_url_size",
+            "labels": {
+                "action": "download",
+                "authz": resource_paths,
+                "bucket": bucket,
+                "drs": endpoint == "ga4gh-drs",
+                "protocol": expected_protocol,
+                "user_sub": user_client.user_id,
+            },
+            "value": size_in_kibibytes,
+        },
+    ]
+    assert_prometheus_metrics(prometheus_metrics_before, resp.text, expected_metrics)
+
+
+@pytest.mark.parametrize("indexd_client_with_arborist", ["s3_and_gs"], indirect=True)
+@pytest.mark.parametrize("endpoint", ["download", "ga4gh-drs"])
+def test_presigned_url_log_x_forwarded_headers(
+    endpoint,
+    prometheus_metrics_before,
+    protocol,
+    client,
+    user_client,
+    mock_arborist_requests,
+    indexd_client_with_arborist,
+    kid,
+    rsa_private_key,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+    monkeypatch,
+):
+    """
+    Get a presigned URL from Fence and make sure a call to the Audit Service
+    was made to create an audit log. Test with and without a requested
+    protocol. Also check that a prometheus metric is created.
+    """
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
+    audit_service_mocker = mock.patch(
+        "fence.resources.audit.client.requests", new_callable=mock.Mock
+    )
+    monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"presigned_url": True})
+
+    guid = "dg.hello/abc"
+    if endpoint == "download":
+        path = f"/data/download/{guid}"
+        if protocol:
+            path += f"?protocol={protocol}"
+    else:
+        path = f"/ga4gh/drs/v1/objects/{guid}/access/{protocol or 's3'}"
+    resource_paths = ["/my/resource/path1", "/path2"]
+    record = indexd_client_with_arborist(resource_paths)["record"]
+
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                # cast user_id to str because that's what we get back
+                # from the DB, but audit-service expects an int.
+                user_client.username,
+                str(user_client.user_id),
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ),
+        "X-Forwarded-For": "203.0.113.10",
+    }
+
+    # protocol=None should fall back to s3 (first indexed location):
+    expected_protocol = protocol or "s3"
+
+    with audit_service_mocker as audit_service_requests:
+        audit_service_requests.post.return_value = MockResponse(
+            data={},
+            status_code=201,
+        )
+        response = client.get(path, headers=headers)
+        assert response.status_code == 200, response.text
+        assert response.json.get("url")
+        audit_service_requests.post.assert_called_once_with(
+            "http://audit-service/log/presigned_url",
+            json={
+                "request_url": path,
+                "status_code": 200,
+                "username": user_client.username,
+                "sub": user_client.user_id,  # it's an int now
+                "guid": guid,
+                "resource_paths": resource_paths,
+                "action": "download",
+                "protocol": expected_protocol,
+                "additional_data": [
+                    "X-Forwarded-For:203.0.113.10",
+                ],
             },
         )
 
@@ -295,6 +412,7 @@ def test_presigned_url_log_acl(
                 "resource_paths": ["phs000178", "phs000218"],
                 "action": "download",
                 "protocol": protocol,
+                "additional_data": [],
             },
         )
 
@@ -337,6 +455,7 @@ def test_presigned_url_log_public(endpoint, client, public_indexd_client, monkey
                 "resource_paths": [],
                 "action": "download",
                 "protocol": protocol,
+                "additional_data": [],
             },
         )
 
@@ -440,6 +559,7 @@ def test_presigned_url_log_unauthorized(
                 "resource_paths": [],
                 "action": "download",
                 "protocol": protocol,
+                "additional_data": [],
             },
         )
 
@@ -565,6 +685,7 @@ def test_login_log_login_endpoint(
                 "fence_idp": None,
                 "shib_idp": None,
                 "client_id": None,
+                "additional_data": [],
             },
         )
 
@@ -682,6 +803,7 @@ def test_presigned_url_log_push_to_sqs(
         "action": "download",
         "protocol": protocol,
         "category": "presigned_url",
+        "additional_data": [],
     }
     mocked_sqs.send_message.assert_called_once_with(
         MessageBody=json.dumps(expected_audit_data), QueueUrl=mocked_sqs.url

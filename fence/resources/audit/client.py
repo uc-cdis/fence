@@ -150,7 +150,7 @@ class AuditServiceClient:
         action,
         resource_paths=None,
         protocol=None,
-        additional_data=None,
+        additional_data=[],
     ):
         """
         Create a presigned URL audit log, or do nothing if auditing is
@@ -184,7 +184,7 @@ class AuditServiceClient:
         upstream_idp=None,
         shib_idp=None,
         client_id=None,
-        additional_data=None,
+        additional_data=[],
     ):
         """
         Create a login audit log, or do nothing if auditing is disabled.
