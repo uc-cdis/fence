@@ -39,7 +39,7 @@ def config_idp_in_client(
                     "name": "InCommon login",
                     "idp": "fence",
                     "fence_idp": "shibboleth",
-                    "shib_idps": ["some-incommon-entity-id"],
+                    "shib_idps": ["entity-id-without-display-name"],
                 }
             ],
             "OPENID_CONNECT": {
@@ -49,6 +49,7 @@ def config_idp_in_client(
                     "client_secret": "other_fence_client_secret",
                     "api_base_url": "http://other-fence",
                     "authorize_url": "http://other-fence/oauth2/authorize",
+                    "shibboleth_discovery_url": "https://shibboleth_discovery_url/DiscoFeed",
                 }
             },
         }
@@ -69,7 +70,7 @@ def config_idp_in_client(
 
 
 def test_redirect_oauth2_authorize(
-    app, client, config_idp_in_client, get_all_shib_idps_patcher
+    app, client, config_idp_in_client, get_all_upstream_idps_data_patcher
 ):
     """
     Test that the ``/oauth2/authorize`` endpoint on the client fence redirects to the
@@ -83,7 +84,7 @@ def test_redirect_oauth2_authorize(
 
 
 def test_redirect_oauth2_authorize_default_params(
-    client, app, config_idp_in_client, get_all_shib_idps_patcher
+    client, app, config_idp_in_client, get_all_upstream_idps_data_patcher
 ):
     """
     Test that when the `/oauth2/authorize` endpoint redirects to the default
@@ -93,7 +94,7 @@ def test_redirect_oauth2_authorize_default_params(
     assert r.status_code == 302
     assert "/login/fence" in r.location
     assert "idp=shibboleth" in r.location
-    assert "shib_idp=some-incommon-entity-id" in r.location
+    assert "shib_idp=entity-id-without-display-name" in r.location
 
 
 def test_redirect_login_fence(app, client, config_idp_in_client):

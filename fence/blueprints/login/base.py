@@ -267,7 +267,7 @@ class DefaultOAuth2Callback(Resource):
         metrics.add_login_event(
             user_sub=flask.g.user.id,
             idp=self.idp_name,
-            fence_idp=flask.session.get("fence_idp"),
+            upstream_idp=flask.session.get("upstream_idp"),
             shib_idp=flask.session.get("shib_idp"),
             client_id=flask.session.get("client_id"),
         )
@@ -300,7 +300,7 @@ def prepare_login_log(idp_name):
         "username": flask.g.user.username,
         "sub": flask.g.user.id,
         "idp": idp_name,
-        "fence_idp": flask.session.get("fence_idp"),
+        "upstream_idp": flask.session.get("upstream_idp"),
         "shib_idp": flask.session.get("shib_idp"),
         "client_id": flask.session.get("client_id"),
     }

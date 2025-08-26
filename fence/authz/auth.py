@@ -126,16 +126,21 @@ def register_arborist_user(user, policies=None):
             raise ArboristError("Policy {} has not been assigned.".format(policy["id"]))
 
 
-def remove_permission(user=None, policies=None):
+def remove_permission(username=None, policies=None):
     if not hasattr(flask.current_app, "arborist"):
         raise Forbidden(
             "this fence instance is not configured with arborist;"
             " this endpoint is unavailable"
         )
 
-    users = flask.current_app.arborist.get_users()
-    # {'users': [{'name': 'graglia01@gmail.com', 'groups': [], 'policies': [{'policy': 'login_no_access', 'expires_at': None}, {'policy': 'gearbox_admin', 'expires_at': None}]}, {'name': 'shea.maunsell@gmail.com', 'groups': [], 'policies': []}, {'name': 'slv@uchicago.edu', 'groups': [], 'policies': []}, {'name': 'furner.brian@gmail.com', 'groups': [], 'policies': []}, {'name': 'bkang.dev@gmail.com', 'groups': [], 'policies': []}, {'name': 'dvenckus@uchicago.edu', 'groups': [], 'policies': []}, {'name': 'lgraglia@uchicago.edu', 'groups': [], 'policies': [{'policy': 'login_no_access', 'expires_at': None}]}, {'name': 'shea@cluelessapp.com', 'groups': [], 'policies': [{'policy': 'login_no_access', 'expires_at': None}]}]}
-    users = users.json["users"]
+    users = None
+    if username is None:
+        users = flask.current_app.arborist.get_users()
+        # {'users': [{'name': 'graglia01@gmail.com', 'groups': [], 'policies': [{'policy': 'login_no_access', 'expires_at': None}, {'policy': 'gearbox_admin', 'expires_at': None}]}, {'name': 'shea.maunsell@gmail.com', 'groups': [], 'policies': []}, {'name': 'slv@uchicago.edu', 'groups': [], 'policies': []}, {'name': 'furner.brian@gmail.com', 'groups': [], 'policies': []}, {'name': 'bkang.dev@gmail.com', 'groups': [], 'policies': []}, {'name': 'dvenckus@uchicago.edu', 'groups': [], 'policies': []}, {'name': 'lgraglia@uchicago.edu', 'groups': [], 'policies': [{'policy': 'login_no_access', 'expires_at': None}]}, {'name': 'shea@cluelessapp.com', 'groups': [], 'policies': [{'policy': 'login_no_access', 'expires_at': None}]}]}
+        users = users.json["users"]
+    else:
+        user = flask.current_app.arborist.get_user(username)
+        users = [user]
 
     if users and len(users) > 0:
         if policies is None:
