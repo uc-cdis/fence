@@ -35,7 +35,7 @@
 **Problem**: Buckets are static and tied to infrastructure deployment. Adding or rotating a bucket requires DevOps intervention.
 
 #### Today: static buckets from fence-config.yaml (Helm-driven)
-![Image](images/current-bucket-architecture.png)
+<!-- ![Image](images/current-bucket-architecture.png) -->
 
 ```mermaid
 sequenceDiagram
@@ -75,7 +75,7 @@ sequenceDiagram
 
 ### After changes: dynamic Bucket Registry + external Secrets Manager
 
-![Image](images/proposed-bucket-architecture.png)
+<!--  ![Image](images/proposed-bucket-architecture.png) -->
 
 ```mermaid
 sequenceDiagram
@@ -117,7 +117,7 @@ sequenceDiagram
         Fence-->>User: Presigned URL / upload init
     end
 
-    Note over API,DB,SM: No redeploys required for bucket changes or secret rotations.<br/>Fence caches expire and pick up new data automatically.
+    Note over API: No redeploys required for bucket changes or secret rotations.<br/>Fence caches expire and pick up new data automatically.
 
 ```
 
@@ -189,7 +189,7 @@ sequenceDiagram
 
 ### High-Level Flow
 
-![Image](images/bucket-flowchart.png)
+<!-- ![Image](images/bucket-flowchart.png) -->
 
 ```mermaid
 flowchart TD
@@ -198,13 +198,13 @@ flowchart TD
     F -->|Lookup| R[Bucket Registry DB]
     F -->|Fetch secret_ref| S[Secrets Manager]
     S --> F
-    F --> C[Cloud Client (AWS/GCP/MinIO)]
+    F --> C[Cloud Client -AWS/GCP/MinIO]
     C --> U
 ```
 
 ### Admin Workflow
 
-![Image](images/bucket-sequence.png)
+<!-- ![Image](images/bucket-sequence.png) -->
 
 ```mermaid
 sequenceDiagram
