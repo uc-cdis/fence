@@ -95,19 +95,50 @@ class AuditServiceClient:
                 schema = resp.json()
                 self.logger.info(f"Setting audit schema cache: {schema}")
                 AUDIT_SCHEMA_CACHE.set(cache_key, schema)
-            else:  # if not 200, should be 404
+            elif resp.status_code == 404:
                 schema = {
                     "login": {
-                        "version": 1,
+                        "version": 1.0,
+                        "model": {
+                            "request_url": "str",
+                            "status_code": "int",
+                            "timestamp": "int",
+                            "username": "str",
+                            "sub": "int",
+                            "idp": "str",
+                            "fence_idp": "str?",
+                            "shib_idp": "str?",
+                            "client_id": "str?",
+                        },
                     },
                     "presigned_url": {
-                        "version": 1,
+                        "version": 1.0,
+                        "model": {
+                            "request_url": "str",
+                            "status_code": "int",
+                            "timestamp": "int",
+                            "username": "str",
+                            "sub": "int",
+                            "guid": "str",
+                            "resource_paths": "list",
+                            "action": "str",
+                            "protocol": "str",
+                        },
                     },
                 }
                 self.logger.info(
                     f"/_schema endpoint {resp.status_code} – assuming version 1 for all audit log models: {schema}"
                 )
                 AUDIT_SCHEMA_CACHE.set(cache_key, schema)
+            else:
+                try:
+                    err = resp.json()
+                except Exception:
+                    err = resp.text
+                self.logger.error(
+                    f"Unexpected response from audit schema endpoint. Status code: {resp.status_code} - Details:\n{err}"
+                )
+                raise InternalError("Unable to get audit schema")
 
     def _validate_config(self):
         """

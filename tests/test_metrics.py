@@ -38,7 +38,8 @@ from fence.config import config
 from fence.blueprints.data.indexd import get_bucket_from_urls
 from fence.models import User
 from fence.resources.audit.utils import _clean_authorization_request_url
-from fence.resources.audit.client import AUDIT_SCHEMA_CACHE
+from fence.resources.audit.client import AUDIT_SCHEMA_CACHE, AuditServiceClient
+from fence.errors import InternalError
 from tests import utils
 from tests.conftest import LOGIN_IDPS
 
@@ -451,7 +452,7 @@ def test_presigned_url_log_unauthorized(
 
 
 @pytest.mark.parametrize("idp", LOGIN_IDPS)
-@pytest.mark.parametrize("login_schema_version", [1, 2])
+@pytest.mark.parametrize("login_schema_version", [1.0, 2.0])
 def test_login_log_login_endpoint(
     client,
     idp,
@@ -553,7 +554,7 @@ def test_login_log_login_endpoint(
             "audit_schema",
             {
                 "login": {"version": login_schema_version},
-                "presigned_url": {"version": 1},
+                "presigned_url": {"version": 1.0},
             },
         )
         audit_service_requests.post.return_value = MockResponse(
@@ -578,7 +579,7 @@ def test_login_log_login_endpoint(
                 "client_id": None,
                 **(
                     {}
-                    if login_schema_version == 1
+                    if login_schema_version == 1.0
                     else {
                         "ip": "flask.request.remote_addr=127.0.0.1 x_forwarded_headers=[]"
                     }
