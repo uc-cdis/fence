@@ -118,6 +118,77 @@ class MockResponse(object):
     def __init__(self, data, status_code=200):
         self.data = data
         self.status_code = status_code
+        # mimic requests.Response enough for the _set_schema_models_cache code
+        self._json = data
+        try:
+            import json as _json
+
+            self.text = (
+                _json.dumps(data) if isinstance(data, (dict, list)) else str(data)
+            )
+        except Exception:
+            self.text = str(data)
+
+    def json(self):
+        return self._json
+
+
+@pytest.mark.parametrize(
+    "status_code,payload",
+    [
+        (200, {"login": {"version": 2.0}, "presigned_url": {"version": 1.0}}),
+        (404, {}),  # fall back to default v1 schema (no error)
+        (500, {}),  # should raise InternalError
+    ],
+)
+def test_set_schema_models_cache_and_get_audit_schema(app, status_code, payload):
+    """
+    Unit test AuditServiceClient._set_schema_models_cache and _get_audit_schema
+    for 200/404/500 responses from the audit-service /_schema endpoint.
+    """
+    with app.app_context():
+        AUDIT_SCHEMA_CACHE.clear()
+        client_obj = flask.current_app.audit_service_client
+
+        with mock.patch(
+            "fence.resources.audit.client.requests.get",
+            return_value=MockResponse(payload, status_code),
+        ) as get_mock:
+            if status_code == 500:
+                # 500 => InternalError and cache should remain empty
+                with pytest.raises(InternalError):
+                    client_obj._set_schema_models_cache()
+                assert AUDIT_SCHEMA_CACHE.get("audit_schema") is None
+                resp = client_obj._get_audit_schema()
+                assert resp.status_code == 500
+            else:
+                # 200 or 404 should not raise
+                client_obj._set_schema_models_cache()
+                cached = AUDIT_SCHEMA_CACHE.get("audit_schema")
+                assert cached is not None
+
+                if status_code == 200:
+                    assert cached == payload
+                else:  # 404 -> default v1 schema
+                    assert "login" in cached and "presigned_url" in cached
+                    assert cached["login"]["version"] == 1.0
+                    assert cached["presigned_url"]["version"] == 1.0
+                    for k in ("request_url", "status_code", "timestamp", "username"):
+                        assert k in cached["login"]["model"]
+                    for k in (
+                        "request_url",
+                        "status_code",
+                        "timestamp",
+                        "username",
+                        "guid",
+                        "resource_paths",
+                        "action",
+                        "protocol",
+                    ):
+                        assert k in cached["presigned_url"]["model"]
+
+                resp = client_obj._get_audit_schema()
+                assert resp.status_code == status_code
 
 
 @pytest.mark.parametrize("indexd_client_with_arborist", ["s3_and_gs"], indirect=True)
@@ -177,6 +248,9 @@ def test_presigned_url_log(
     expected_protocol = protocol or "s3"
 
     with audit_service_mocker as audit_service_requests:
+        audit_service_requests.get.return_value = MockResponse(
+            {"presigned_url": {"version": 1.0}}, 200
+        )
         audit_service_requests.post.return_value = MockResponse(
             data={},
             status_code=201,
