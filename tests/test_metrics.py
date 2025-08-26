@@ -776,11 +776,11 @@ def test_presigned_url_log_push_to_sqs(
         "resource_paths": resource_paths,
         "action": "download",
         "protocol": protocol,
-        "category": "presigned_url",
         "additional_data": [],
+        "category": "presigned_url",
     }
     mocked_sqs.send_message.assert_called_once_with(
-        MessageBody=json.dumps(expected_audit_data), QueueUrl=mocked_sqs.url
+        QueueUrl=mocked_sqs.url, MessageBody=json.dumps(expected_audit_data)
     )
 
 
