@@ -24,13 +24,6 @@ def enable_user_registration(request):
         "auto_register_users", False
     )
 
-    # enable_registration = (
-    #     hasattr(request, "param") and request.param.get("enable_registration")
-    # ) or True
-    # auto_register_users = (
-    #     hasattr(request, "param") and request.param.get("auto_register_users")
-    # ) or False
-
     if enable_registration:
         config["REGISTER_USERS_ON"] = True
     if auto_register_users:
@@ -164,18 +157,20 @@ def test_idp_login_stores_post_registration_redirect(
             mock.stop()
 
 
-# Causing unit tests to fail, -- test_store_refresh_token
 @pytest.mark.parametrize("idp", all_available_idps())
 @pytest.mark.parametrize(
     "enable_user_registration",
-    # [{"enable_registration": True}, {"enable_registration": False}],
-    # ids=["enable_registration", "disable_registration"],
-    [{"enable_registration": True}],
-    ids=["enable_registration"],
+    [{"enable_registration": True}, {"enable_registration": False}],
+    ids=["enable_registration", "disable_registration"],
     indirect=True,
 )
 def test_idp_callback_redirects_to_registration(
-    app, client, idp, enable_user_registration, mocks_for_idp_oauth2_callbacks
+    app,
+    client,
+    idp,
+    enable_user_registration,
+    mocks_for_idp_oauth2_callbacks,
+    db_session,
 ):
     """
     Test that ALL IdPs redirect users to the registration page when `REGISTER_USERS_ON` is enabled
