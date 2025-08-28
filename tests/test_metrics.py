@@ -22,6 +22,7 @@ tests and we need the DB session to be cleared after they run, so other
 tests looking at users are not affected.
 """
 
+import flask
 import boto3
 import json
 import jwt
