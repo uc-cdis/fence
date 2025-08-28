@@ -67,6 +67,10 @@ def get_user(current_session, username):
 
 
 def get_current_user_info():
+    if not hasattr(flask.g, "user") or not flask.g.user:
+        # edge case where the session has a user but the user doesn't exist in the DB
+        # (for example, the user was deleted from the DB while logged in)
+        raise Unauthorized("User not logged in")
     with flask.current_app.db.session as session:
         return get_user_info(session, session.merge(flask.g.user).username)
 
@@ -116,18 +120,21 @@ def get_user_info(current_session, username):
     primary_service_account_email = getattr(primary_service_account, "email", None)
     info["primary_google_service_account"] = primary_service_account_email
 
-    if hasattr(flask.current_app, "arborist"):
-        try:
-            auth_mapping = flask.current_app.arborist.auth_mapping(user.username)
-            resources = list(auth_mapping.keys())
-        except ArboristError as exc:
-            logger.error(
-                f"request to arborist for user's resources failed; going to list empty. Error: {exc}"
-            )
-            resources = []
-            auth_mapping = {}
-        info["resources"] = resources
-        info["authz"] = auth_mapping
+    try:
+        auth_mapping = (
+            flask.current_app.arborist.auth_mapping(user.username)
+            if flask.current_app.arborist
+            else {}
+        )
+        resources = list(auth_mapping.keys())
+    except ArboristError as exc:
+        logger.error(
+            f"request to arborist for user's resources failed; going to list empty. Error: {exc}"
+        )
+        resources = []
+        auth_mapping = {}
+    info["resources"] = resources
+    info["authz"] = auth_mapping
 
     if user.tags is not None and len(user.tags) > 0:
         info["tags"] = {tag.key: tag.value for tag in user.tags}

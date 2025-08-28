@@ -668,15 +668,10 @@ def delete_cloud_provider(providername):
 @enable_request_logging
 def get_registered_users():
     """
-    DEPRECATED: This endpoint is deprecated and will be removed in a future release.
-
     - List registration info for every user for which there exists registration info.
     - Endpoint accessible to admins only.
     - Response json structure is provisional.
     """
-    logger.warning(
-        f"Deprecated endpoint accessed: {request.path}. This endpoint is deprecated and will be removed in a future release."
-    )
     registered_users = (
         current_app.scoped_session()
         .query(User)

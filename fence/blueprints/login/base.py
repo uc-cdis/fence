@@ -3,12 +3,15 @@ import base64
 import json
 from urllib.parse import urlparse, urlencode, parse_qsl
 import jwt
+
 from flask import current_app
 import flask
 from cdislogging import get_logger
 from flask_restful import Resource
-from fence.auth import login_user, get_ip_information_string
+
+from fence.auth import login_user_or_require_registration, get_ip_information_string
 from fence.blueprints.login.redirect import validate_redirect
+from fence.blueprints.register import add_user_registration_info_to_database
 from fence.config import config
 from fence.errors import UserError
 from fence.metrics import metrics
@@ -37,6 +40,16 @@ class DefaultOAuth2Login(Resource):
         if flask.redirect_url:
             flask.session["redirect"] = flask.redirect_url
 
+        # `post_registration_redirect`: After registering, the user is sent back to this endpoint
+        # to complete the login flow.
+        # Reconstruct and store the current URL - we can't just use `request.url` here because
+        # it's missing the `/user` prefix. This is caused by the revproxy stripping the URL
+        # prefix before forwarding requests to Fence.
+        current_url = config["BASE_URL"] + flask.request.path
+        if flask.request.query_string:
+            current_url += f"?{flask.request.query_string.decode('utf-8')}"
+        flask.session["post_registration_redirect"] = current_url
+
         mock_login = (
             config["OPENID_CONNECT"].get(self.idp_name.lower(), {}).get("mock", False)
         )
@@ -57,7 +70,8 @@ class DefaultOAuth2Login(Resource):
             username = flask.request.cookies.get(
                 config.get("DEV_LOGIN_COOKIE_NAME"), mock_default_user
             )
-            resp = _login(username, self.idp_name)
+            # log in the mocked user
+            resp, _ = _login_and_register(username, self.idp_name)
             prepare_login_log(self.idp_name)
             return resp
 
@@ -72,9 +86,6 @@ class DefaultOAuth2Callback(Resource):
         username_field="email",
         email_field="email",
         id_from_idp_field="sub",
-        firstname_claim_field="given_name",
-        lastname_claim_field="family_name",
-        organization_claim_field="org",
         app=flask.current_app,
     ):
         """
@@ -157,7 +168,7 @@ class DefaultOAuth2Callback(Resource):
         email = result.get(self.email_field)
         id_from_idp = result.get(self.id_from_idp_field)
 
-        resp = _login(
+        resp, user_is_logged_in = _login_and_register(
             username,
             self.idp_name,
             email=email,
@@ -165,7 +176,10 @@ class DefaultOAuth2Callback(Resource):
             token_result=result,
         )
 
-        if not flask.g.user:
+        if not user_is_logged_in:
+            return resp
+
+        if not hasattr(flask.g, "user") or not flask.g.user:
             raise UserError("Authentication failed: flask.g.user is missing.")
 
         expires = self.extract_exp(refresh_token)
@@ -279,7 +293,7 @@ class DefaultOAuth2Callback(Resource):
 
         if token_result:
             username = token_result.get(self.username_field)
-            if self.is_mfa_enabled:
+            if self.app.arborist and self.is_mfa_enabled:
                 if token_result.get("mfa"):
                     logger.info(f"Adding mfa_policy for {username}")
                     self.app.arborist.grant_user_policy(
@@ -307,20 +321,33 @@ def prepare_login_log(idp_name):
     }
 
 
-def _login(
+def _login_and_register(
     username,
     idp_name,
     email=None,
     id_from_idp=None,
     token_result=None,
+    upstream_idp=None,
+    shib_idp=None,
 ):
     """
     Login user with given username, then automatically register if needed,
     and finally redirect if session has a saved redirect.
-    """
-    login_user(username, idp_name, email=email, id_from_idp=id_from_idp)
 
-    register_idp_users = (
+    Return:
+        bool: whether the user has been logged in (if registration is enabled and the user is not
+            registered, this would be False)
+    """
+    user_is_logged_in = login_user_or_require_registration(
+        username,
+        idp_name,
+        upstream_idp=upstream_idp,
+        shib_idp=shib_idp,
+        email=email,
+        id_from_idp=id_from_idp,
+    )
+
+    auto_registration_enabled = (
         config["OPENID_CONNECT"]
         .get(idp_name, {})
         .get("enable_idp_users_registration", False)
@@ -329,12 +356,32 @@ def _login(
     if config["REGISTER_USERS_ON"]:
         user = flask.g.user
         if not user.additional_info.get("registration_info"):
-            # If enabled, automatically register user from Idp
-            if register_idp_users:
-                firstname = token_result.get("firstname")
-                lastname = token_result.get("lastname")
-                organization = token_result.get("org")
-                email = token_result.get("email")
+            # If enabled, automatically register user from IdP
+            if auto_registration_enabled:
+                organization_claim_field = (
+                    config["OPENID_CONNECT"]
+                    .get(idp_name, {})
+                    .get("organization_claim_field", "org")
+                )
+                firstname_claim_field = (
+                    config["OPENID_CONNECT"]
+                    .get(idp_name, {})
+                    .get("firstname_claim_field", "firstname")
+                )
+                lastname_claim_field = (
+                    config["OPENID_CONNECT"]
+                    .get(idp_name, {})
+                    .get("lastname_claim_field", "lastname")
+                )
+                email_claim_field = (
+                    config["OPENID_CONNECT"]
+                    .get(idp_name, {})
+                    .get("email_claim_field", "email")
+                )
+                firstname = token_result.get(firstname_claim_field)
+                lastname = token_result.get(lastname_claim_field)
+                organization = token_result.get(organization_claim_field)
+                email = token_result.get(email_claim_field)
                 if email is None:
                     raise UserError("OAuth2 id token is missing email claim")
                 # Log warnings and set defaults if needed
@@ -343,40 +390,23 @@ def _login(
                         f"User {username} missing name fields. Proceeding with minimal info."
                     )
                     firstname = firstname or "Unknown"
-                    lastname = lastname or "User"
-
+                    lastname = lastname or "Unknown"
                 if not organization:
-                    organization = None
                     logger.info(
                         f"User {username} missing organization. Defaulting to None."
                     )
-
-                # Store registration info
-                registration_info = {
-                    "firstname": firstname,
-                    "lastname": lastname,
-                    "org": organization,
-                    "email": email,
-                }
-                user.additional_info = user.additional_info or {}
-                user.additional_info["registration_info"] = registration_info
-
-                # Persist to database
-                current_app.scoped_session().add(user)
-                current_app.scoped_session().commit()
-
-                # Ensure user exists in Arborist and assign to group
-                with current_app.arborist.context():
-                    current_app.arborist.create_user(dict(name=username))
-                    current_app.arborist.add_user_to_group(
-                        username=username,
-                        group_name=config["REGISTERED_USERS_GROUP"],
-                    )
+                add_user_registration_info_to_database(
+                    user, firstname, lastname, organization, email
+                )
             else:
-                return flask.redirect(
-                    config["BASE_URL"] + flask.url_for("register.register_user")
+                return (
+                    flask.redirect(
+                        config["BASE_URL"] + flask.url_for("register.register_user")
+                    ),
+                    user_is_logged_in,
                 )
 
     if flask.session.get("redirect"):
-        return flask.redirect(flask.session.get("redirect"))
-    return flask.jsonify({"username": username, "registered": True})
+        return flask.redirect(flask.session["redirect"]), user_is_logged_in
+
+    return flask.jsonify({"username": username}), user_is_logged_in

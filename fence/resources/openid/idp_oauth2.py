@@ -252,11 +252,9 @@ class Oauth2ClientBase(object):
                 "organization_claim_field", "org"
             )
             firstname_claim_field = self.settings.get(
-                "firstname_claim_field", "given_name"
+                "firstname_claim_field", "firstname"
             )
-            lastname_claim_field = self.settings.get(
-                "lastname_claim_field", "family_name"
-            )
+            lastname_claim_field = self.settings.get("lastname_claim_field", "lastname")
             email_claim_field = self.settings.get("email_claim_field", "email")
 
             if self.read_authz_groups_from_tokens:
