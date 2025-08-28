@@ -9,7 +9,7 @@ import flask
 from cdislogging import get_logger
 from flask_restful import Resource
 
-from fence.auth import login_user_or_require_registration
+from fence.auth import login_user_or_require_registration, get_ip_information_string
 from fence.blueprints.login.redirect import validate_redirect
 from fence.blueprints.register import add_user_registration_info_to_database
 from fence.config import config
@@ -317,6 +317,7 @@ def prepare_login_log(idp_name):
         "upstream_idp": flask.session.get("upstream_idp"),
         "shib_idp": flask.session.get("shib_idp"),
         "client_id": flask.session.get("client_id"),
+        "ip": get_ip_information_string(),
     }
 
 
