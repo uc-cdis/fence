@@ -13,4 +13,9 @@ def get_current_user(flask_session=None):
         username = "test"
     if not username:
         raise Unauthorized("User not logged in")
-    return query_for_user(session=current_app.scoped_session(), username=username)
+    user = query_for_user(session=current_app.scoped_session(), username=username)
+    if not user:
+        # edge case where the session has a user but the user doesn't exist in the DB
+        # (for example, the user was deleted from the DB while logged in)
+        raise Unauthorized("User not logged in")
+    return user

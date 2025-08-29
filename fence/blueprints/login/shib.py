@@ -1,8 +1,11 @@
 from cdislogging import get_logger
 import flask
 
-from fence.auth import login_user
-from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
+from fence.blueprints.login.base import (
+    DefaultOAuth2Login,
+    DefaultOAuth2Callback,
+    _login_and_register,
+)
 from fence.blueprints.login.redirect import validate_redirect
 from fence.errors import InternalError, Unauthorized
 from fence.models import IdentityProvider
@@ -32,6 +35,12 @@ class ShibbolethLogin(DefaultOAuth2Login):
         validate_redirect(redirect_url)
         if redirect_url:
             flask.session["redirect"] = redirect_url
+
+        # see `post_registration_redirect` explanation in `DefaultOAuth2Login.get()`
+        current_url = config["BASE_URL"] + flask.request.path
+        if flask.request.query_string:
+            current_url += f"?{flask.request.query_string.decode('utf-8')}"
+        flask.session["post_registration_redirect"] = current_url
 
         # figure out which IDP to target with shibboleth
         # check out shibboleth docs here for more info:
@@ -85,14 +94,16 @@ class ShibbolethCallback(DefaultOAuth2Callback):
             if not username:
                 # some inCommon providers are not returning eppn
                 # or persistent_id. See PXP-4309
-                # print("shib_header", shib_header)
-                # print("flask.request.headers", flask.request.headers)
                 raise Unauthorized("Unable to retrieve username")
 
         idp = IdentityProvider.itrust
         if entityID:
             idp = entityID
-        login_user(username, idp)
+
+        resp, user_is_logged_in = _login_and_register(username, idp)
+        if not user_is_logged_in:
+            return resp
+
         self.post_login()
 
         if flask.session.get("redirect"):
