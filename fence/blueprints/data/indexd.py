@@ -307,7 +307,12 @@ class BlankIndex(object):
 
         if self.guid:
             index_url = self.indexd.rstrip("/") + "/index/" + self.guid
-            indexd_response = requests.get(index_url)
+
+            # Get the bearer token from the current Flask request
+            token = get_jwt()
+            headers = {"Authorization": f"bearer {token}"}
+
+            indexd_response = requests.get(index_url, headers=headers)
             if indexd_response.status_code == 200:
                 document = indexd_response.json()
                 self.logger.info(f"Record with {self.guid} id found in Indexd.")
@@ -495,7 +500,12 @@ class IndexedFile(object):
         indexd_server = config.get("INDEXD") or config["BASE_URL"] + "/index"
         url = indexd_server + "/index/"
         try:
-            res = requests.get(url + self.file_id)
+
+            # Get the bearer token from the current Flask request
+            token = get_jwt()
+            headers = {"Authorization": f"bearer {token}"}
+
+            res = requests.get(url + self.file_id, headers=headers)
         except Exception as e:
             logger.error(
                 "failed to reach indexd at {0}: {1}".format(url + self.file_id, e)
