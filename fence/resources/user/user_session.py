@@ -141,7 +141,7 @@ class UserSession(SessionMixin):
         return self.session_token["context"][key]
 
     def __setitem__(self, key, value):
-        # If token doesn't exists, create the first session token when
+        # If token doesn't exist, create the first session token when
         # data in the session is attempting to be set
         if not self._encoded_token:
             self.create_initial_token()
@@ -285,6 +285,11 @@ def _get_valid_access_token(app, session, request):
     try:
         user = get_current_user(flask_session=session)
     except Unauthorized:
+        return None
+
+    if not user:
+        # edge case where the session has a user but the user doesn't exist in the DB
+        # (for example, the user was deleted from the DB while logged in)
         return None
 
     # check that the current user is the one from the session and access_token

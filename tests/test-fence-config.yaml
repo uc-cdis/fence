@@ -44,7 +44,7 @@ ENCRYPTION_KEY: ''
 # //////////////////////////////////////////////////////////////////////////////////////
 # flask's debug setting
 # WARNING: DO NOT ENABLE IN PRODUCTION
-DEBUG: true
+DEBUG: false
 # if true, will automatically login a user with username "test"
 MOCK_AUTH: true
 # if true, will only fake a successful login response from Google in /login/google
@@ -124,23 +124,56 @@ OPENID_CONNECT:
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/fence/login'
+    shibboleth_discovery_url: 'https://shibboleth_discovery_url/DiscoFeed'
   shibboleth:
     client_id: ''
     client_secret: ''
     redirect_url: '{{BASE_URL}}/login/shib/login'
-  generic1:
+  generic_with_discovery_url:
     name: 'Generic OIDC IDP 1'
     client_id: ''
     client_secret: ''
-    redirect_url: '{{BASE_URL}}/login/generic1/login'
-    user_id_field: 'generic1_username'
-    discovery_url: 'https://generic1/.well-known'
-  generic2:
+    redirect_url: '{{BASE_URL}}/login/generic_with_discovery_url/login'
+    user_id_field: 'generic_with_discovery_url_username'
+    discovery_url: 'https://generic_with_discovery_url/.well-known'
+  generic_with_discovery_block:
     client_id: ''
     client_secret: ''
-    redirect_url: '{{BASE_URL}}/login/generic2/login'
+    redirect_url: '{{BASE_URL}}/login/generic_with_discovery_block/login'
     discovery:
-      authorization_endpoint: 'https://generic2/authorization_endpoint'
+      authorization_endpoint: 'https://generic_with_discovery_block/authorization_endpoint'
+  generic_mdq_discovery:
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/generic_mdq_discovery/login'
+    discovery:
+      authorization_endpoint: 'https://generic_mdq_discovery/authorization_endpoint'
+    idp_discovery:
+      url: 'https://generic_mdq_discovery/get-all-idps'
+      format: xml-mdq-v1.0
+    authorization_url_param_map:
+      idp: idp_hint
+      key_not_in_login_url: something
+  generic_mdq_discovery_without_idp_discovery:
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/generic_mdq_discovery_without_idp_discovery/login'
+    discovery:
+      authorization_endpoint: 'https://generic_mdq_discovery_without_idp_discovery/authorization_endpoint'
+  generic_additional_params:
+    client_id: ''
+    client_secret: ''
+    redirect_url: '{{BASE_URL}}/login/generic_additional_params/login'
+    discovery_url: 'https://generic_additional_params/.well-known/openid-configuration'
+    persist_refresh_token: false
+    is_authz_groups_sync_enabled: false
+    group_claim_field: "groups"
+    group_membership_expiration_duration: 604800
+    authz_groups_sync:
+      group_prefix: /covid
+    verify_aud: false
+    audience: fence
+    default_refresh_token_exp: 3600
 
 # these are the *possible* scopes a client can be given, NOT scopes that are
 # given to all clients. You can be more restrictive during client creation
@@ -208,15 +241,29 @@ LOGIN_OPTIONS:
     secondary: True # optional parameter
   - name: 'Fence Multi-Tenant Login'
     idp: fence
-  - name: 'InCommon Login'
+  - name: 'Shibboleth Login all providers'
+    idp: fence
+    fence_idp: shibboleth
+    shib_idps: "*"
+  - name: 'Shibboleth Login some providers'
     idp: fence
     fence_idp: shibboleth
     shib_idps:
-      - urn:mace:incommon:nih.gov
-      - urn:mace:incommon:uchicago.edu
-  - name: 'Orcid Login'
+    - urn:mace:incommon:uchicago.edu
+    - https://idp.uca.fr/idp/shibboleth
+  - name: 'Shibboleth Login with upstream_idps'
+    idp: fence
+    upstream_idps:
+    - shibboleth
+    shib_idps:
+    - urn:mace:incommon:uchicago.edu
+  - name: 'Orcid Login with deprecated fence_idp'
     idp: fence
     fence_idp: orcid
+  - name: 'Orcid Login with upstream_idps'
+    idp: fence
+    upstream_idps:
+    - orcid
   - name: 'CILogon Login'
     idp: cilogon
   - name: 'Microsoft Login'
@@ -228,9 +275,21 @@ LOGIN_OPTIONS:
   - name: 'RAS Login'
     idp: ras
   - name: 'Generic login 1'
-    idp: generic1
+    idp: generic_with_discovery_url
   - name: 'Generic login 2'
-    idp: generic2
+    idp: generic_with_discovery_block
+  - name: 'MDQ discovery all providers'
+    idp: generic_mdq_discovery
+    upstream_idps: "*"
+  - name: 'MDQ discovery some providers'
+    idp: generic_mdq_discovery
+    upstream_idps:
+    - urn:mace:incommon:uchicago.edu
+    - https://idp.uca.fr/idp/shibboleth
+  - name: 'MDQ discovery without idp_discovery some providers'
+    idp: generic_mdq_discovery_without_idp_discovery
+    upstream_idps:
+    - urn:mace:incommon:uchicago.edu
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # LIBRARY CONFIGURATION (flask)

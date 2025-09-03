@@ -41,6 +41,7 @@ class FenceConfig(Config):
             "CLIENT_CREDENTIALS_ON_DOWNLOAD_ENABLED",
             "DATA_UPLOAD_BUCKET",
             "DEFAULT_BACKOFF_SETTINGS_MAX_TRIES",
+            "ARBORIST_TIMEOUT",
         ]
         for default in defaults:
             self.force_default_if_none(default, default_cfg=default_config)
@@ -139,11 +140,27 @@ class FenceConfig(Config):
             )
 
         for idp_id, idp in self._configs.get("OPENID_CONNECT", {}).items():
+            if not isinstance(idp, dict):
+                raise TypeError(
+                    "Expected 'OPENID_CONNECT' configuration to be a dictionary."
+                )
             mfa_info = idp.get("multifactor_auth_claim_info")
             if mfa_info and mfa_info["claim"] not in ["amr", "acr"]:
                 logger.warning(
                     f"IdP '{idp_id}' is using multifactor_auth_claim_info '{mfa_info['claim']}', which is neither AMR or ACR. Unable to determine if a user used MFA. Fence will continue and assume they have not used MFA."
                 )
+
+            groups_sync_enabled = idp.get("is_authz_groups_sync_enabled", False)
+            # when is_authz_groups_sync_enabled, then you must provide authz_groups_sync, with group prefix
+            if groups_sync_enabled:
+                if not idp.get("authz_groups_sync"):
+                    error = f"Error: is_authz_groups_sync_enabled is enabled, required values not configured, for idp: {idp_id}"
+                    logger.error(error)
+                    raise Exception(error)
+                if not self._configs.get("ARBORIST"):
+                    error = f"Error: is_authz_groups_sync_enabled is enabled for idp '{idp_id}' but ARBORIST url is not configured"
+                    logger.error(error)
+                    raise Exception(error)
 
         self._validate_parent_child_studies(self._configs["dbGaP"])
 
