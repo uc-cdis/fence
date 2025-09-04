@@ -1040,14 +1040,14 @@ email = ["email-validator"]
 
 [[package]]
 name = "gen3authz"
-version = "2.3.0"
+version = "2.3.1"
 description = "Gen3 authz client"
 optional = false
 python-versions = "<4.0,>=3.6"
 groups = ["main"]
 files = [
-    {file = "gen3authz-2.3.0-py3-none-any.whl", hash = "sha256:4b8dc202fff8bb3080a6e7c545dda5700ca87a1c7e2f9ca100a5d22c0684cca1"},
-    {file = "gen3authz-2.3.0.tar.gz", hash = "sha256:e34ccd243b0593e68539ae8929f91a33e35464b46379c47d1659f3c161262f73"},
+    {file = "gen3authz-2.3.1-py3-none-any.whl", hash = "sha256:830cd9f4b5508c7c11a3d16ad7e50efa8feef9c5b52eb5d5e83481f4e9ca56f1"},
+    {file = "gen3authz-2.3.1.tar.gz", hash = "sha256:babcf8cdc228ecc4f7e09de94913c185e76ea85e42ddf1aa12f3e300103bc5c0"},
 ]
 
 [package.dependencies]
@@ -2850,4 +2850,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9.2,<4.0.0"
-content-hash = "e003e0f0b21e49b7f75d122c8fa5842a4448ecbe634cf802d7a6922785eaeb8b"
+content-hash = "5cdc933481efcd020e140a2a57a7b1a8eb82c7f06fca7053256dfe2dd1067cfa"

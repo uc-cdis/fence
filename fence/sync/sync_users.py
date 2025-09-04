@@ -1,5 +1,7 @@
 import backoff
 import glob
+
+import httpx
 import jwt
 import os
 import re
@@ -20,7 +22,7 @@ from stat import S_ISDIR
 import paramiko
 from cdislogging import get_logger
 from email_validator import validate_email, EmailNotValidError
-from gen3authz.client.arborist.errors import ArboristError
+from gen3authz.client.arborist.errors import ArboristError, ArboristTimeoutError
 from gen3users.validation import validate_user_yaml
 from paramiko.proxy import ProxyCommand
 from sqlalchemy.exc import IntegrityError
@@ -1931,7 +1933,6 @@ class UserSyncer(object):
             bool: True if policies were successfully updated, False otherwise
         """
         user_existing_policies = set()
-        to_keep = set()
         to_add = set()
         to_remove = set()
         is_revoke_all = False
@@ -1952,7 +1953,6 @@ class UserSyncer(object):
             is_revoke_all = True
 
         if is_revoke_all is False and len(incoming_policies) > 0:
-            to_keep = incoming_policies & user_existing_policies
             to_add = incoming_policies - user_existing_policies
             to_remove = user_existing_policies - incoming_policies
 
@@ -2003,16 +2003,8 @@ class UserSyncer(object):
             to_add.add("mfa_policy")
 
         if to_add:
-            try:
-                self.logger.info(f"Bulk granting user {username} policies {to_add}.")
-                response_json = self.arborist_client.grant_bulk_user_policy(
-                    username, list(to_add), expires
-                )
-            except ArboristError as e:
-                self.logger.error(
-                    f"Could not grant user {username} policies {to_add}. Error: {e}"
-                )
-                return False
+            self.logger.info(f"Bulk granting user {username} policies {to_add}.")
+            return self._grant_bulk_user_policies(username, to_add, expires)
 
         return True
 
@@ -2184,8 +2176,8 @@ class UserSyncer(object):
                                     )
                                 self._created_policies.add(policy_id)
                             policy_ids_to_grant.add(policy_id)
-                self._grant_bulk_user_policies(
-                    username, policy_ids_to_grant, expires=expires
+                self._grant_arborist_policies(
+                    username, policy_ids_to_grant, user_yaml=None, expires=expires
                 )
 
             if user_yaml:
@@ -2477,6 +2469,13 @@ class UserSyncer(object):
         except ArboristError as e:
             self.logger.error(
                 "could not grant bulk policies  to user `{}`: {}".format(username, e)
+            )
+            return False
+        except ArboristTimeoutError as e:
+            self.logger.error(
+                f"Timeout waiting for response to grant bulk policies  to user `{username}`: {e}"
+                "This user will be skipped and usersync will continue."
+                "As long as the timeout is not a pool/connection timeout, then "
             )
             return False
         return True
