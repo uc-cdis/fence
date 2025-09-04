@@ -1227,7 +1227,7 @@ def test_sync_grant_arborist_policies_check_add_and_revoke(
     }
 
     syncer.arborist_client.grant_bulk_user_policy.assert_called_once_with(
-        "TESTUSERB", list(expected_added_policies), 10
+        "TESTUSERB", expected_added_policies, 10
     )
 
     # Check if correct policies were revoked
@@ -1356,7 +1356,7 @@ def test_sync_grant_arborist_policies_arborist_errors(
     # Ensure no policies were granted or revoked due to the error
     syncer.arborist_client.grant_bulk_user_policy.assert_called_once_with(
         "TESTUSERB",
-        list(user_policies),
+        user_policies,
         10,
     )
     syncer.arborist_client.revoke_user_policy.assert_not_called()
