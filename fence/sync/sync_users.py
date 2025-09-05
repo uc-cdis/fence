@@ -408,7 +408,7 @@ class UserSyncer(object):
             if os.path.exists(known_hosts_path):
                 client.load_host_keys(known_hosts_path)
             else:
-                self.logger.warning(
+                self.logger.error(
                     "No known_hosts file found — rejecting unknown hosts - make sure the SFTP host key is present in known_hosts before attempting connection."
                 )
 
