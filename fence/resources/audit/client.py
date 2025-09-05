@@ -220,6 +220,7 @@ class AuditServiceClient:
         action,
         resource_paths=None,
         protocol=None,
+        additional_data=[],
     ):
         """
         Create a presigned URL audit log, or do nothing if auditing is
@@ -241,6 +242,7 @@ class AuditServiceClient:
             "resource_paths": resource_paths,
             "action": action,
             "protocol": protocol,
+            "additional_data": additional_data,
         }
         self._create_audit_log("presigned_url", data)
 
@@ -254,6 +256,7 @@ class AuditServiceClient:
         upstream_idp=None,
         shib_idp=None,
         client_id=None,
+        additional_data=[],
         ip=None,
     ):
         """
@@ -281,6 +284,7 @@ class AuditServiceClient:
             "fence_idp": upstream_idp,
             "shib_idp": shib_idp,
             "client_id": client_id,
+            "additional_data": additional_data,
         }
 
         if AUDIT_SCHEMA_CACHE.get("audit_schema").get("login").get("version") >= 2:
