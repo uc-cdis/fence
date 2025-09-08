@@ -67,6 +67,8 @@ COPY --chown=gen3:gen3 --from=builder /$appname /$appname
 
 RUN mkdir -p /var/www/fence && chown gen3:gen3 /var/www/fence
 
+RUN mkdir -p /fence/keys/key && chown gen3:gen3 /fence/keys/key
+
 USER gen3
 
 CMD ["/bin/bash", "-c", "/fence/dockerrun.bash"]
