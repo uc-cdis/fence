@@ -65,4 +65,8 @@ RUN echo "Upgrading dnf"; \
 
 COPY --chown=gen3:gen3 --from=builder /$appname /$appname
 
+RUN chown gen3:gen3 /var/www/fence
+
+USER gen3
+
 CMD ["/bin/bash", "-c", "/fence/dockerrun.bash"]
