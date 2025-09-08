@@ -65,7 +65,7 @@ RUN echo "Upgrading dnf"; \
 
 COPY --chown=gen3:gen3 --from=builder /$appname /$appname
 
-RUN chown gen3:gen3 /var/www/fence
+RUN mkdir -p /var/www/fence && chown gen3:gen3 /var/www/fence
 
 USER gen3
 
