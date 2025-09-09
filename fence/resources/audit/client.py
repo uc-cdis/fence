@@ -244,7 +244,12 @@ class AuditServiceClient:
             "protocol": protocol,
         }
 
-        if AUDIT_SCHEMA_CACHE.get("audit_schema").get("login").get("version") >= 1.1:
+        if (
+            AUDIT_SCHEMA_CACHE.get("audit_schema", {})
+            .get("presigned_url", {})
+            .get("version")
+            >= 1.1
+        ):
             data["additional_data"] = additional_data
 
         self._create_audit_log("presigned_url", data)
@@ -289,10 +294,16 @@ class AuditServiceClient:
             "client_id": client_id,
         }
 
-        if AUDIT_SCHEMA_CACHE.get("audit_schema").get("login").get("version") >= 2.1:
+        if (
+            AUDIT_SCHEMA_CACHE.get("audit_schema", {}).get("login", {}).get("version")
+            >= 2.1
+        ):
             data["addional_data"] = additional_data
 
-        if AUDIT_SCHEMA_CACHE.get("audit_schema").get("login").get("version") >= 2:
+        if (
+            AUDIT_SCHEMA_CACHE.get("audit_schema", {}).get("login", {}).get("version")
+            >= 2
+        ):
             data["ip"] = ip
 
         self._create_audit_log("login", data)
