@@ -242,8 +242,11 @@ class AuditServiceClient:
             "resource_paths": resource_paths,
             "action": action,
             "protocol": protocol,
-            "additional_data": additional_data,
         }
+
+        if AUDIT_SCHEMA_CACHE.get("audit_schema").get("login").get("version") >= 1.1:
+            data["additional_data"] = additional_data
+
         self._create_audit_log("presigned_url", data)
 
     def create_login_log(
@@ -284,8 +287,10 @@ class AuditServiceClient:
             "fence_idp": upstream_idp,
             "shib_idp": shib_idp,
             "client_id": client_id,
-            "additional_data": additional_data,
         }
+
+        if AUDIT_SCHEMA_CACHE.get("audit_schema").get("login").get("version") >= 2.1:
+            data["addional_data"] = additional_data
 
         if AUDIT_SCHEMA_CACHE.get("audit_schema").get("login").get("version") >= 2:
             data["ip"] = ip
