@@ -3,7 +3,7 @@
 #   docker run -v ~/.gen3/fence/fence-config.yaml:/var/www/fence/fence-config.yaml -v ./keys/:/fence/keys/ fence:latest
 # To check running container do: docker exec -it CONTAINER bash
 
-ARG AZLINUX_BASE_VERSION=master
+ARG AZLINUX_BASE_VERSION=fix_increase-buffer-size
 
 # ------ Base stage ------
 FROM quay.io/cdis/python-nginx-al:${AZLINUX_BASE_VERSION} AS base
