@@ -42,6 +42,11 @@ RUN groupadd -g 1000 gen3 && \
 
 RUN chown -R gen3:gen3 /${appname}
 
+USER gen3
+# Install Poetry via pipx
+RUN pipx install 'poetry<2.0'
+ENV PATH="/home/gen3/.local/bin:${PATH}"
+
 # ------ Builder stage ------
 FROM base AS builder
 
