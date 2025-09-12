@@ -14,8 +14,6 @@ ENV appname=fence
 
 WORKDIR /${appname}
 
-RUN chown -R gen3:gen3 /${appname}
-
 ENV PYTHONUNBUFFERED=1 \
     PYTHONIOENCODING=UTF-8 \
     POETRY_NO_INTERACTION=1 \
@@ -41,6 +39,8 @@ RUN python3 -m pip install pipx && \
 # Create gen3 user
 RUN groupadd -g 1000 gen3 && \
     useradd -m -s /bin/bash -u 1000 -g gen3 gen3
+
+RUN chown -R gen3:gen3 /${appname}
 
 # ------ Builder stage ------
 FROM base AS builder
