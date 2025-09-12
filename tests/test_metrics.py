@@ -438,8 +438,8 @@ def test_presigned_url_log_x_forwarded_headers(
         AUDIT_SCHEMA_CACHE.set(
             "audit_schema",
             {
-                "login": {"version": login_schema_version},
-                "presigned_url": {"version": 1.0},
+                "login": {"version": 2.1},
+                "presigned_url": {"version": 1.1},
             },
         )
         # Mock audit-service POST response
@@ -492,6 +492,7 @@ def test_presigned_url_log_public(endpoint, client, public_indexd_client, monkey
         path = f"/ga4gh/drs/v1/objects/{guid}/access/{protocol}"
 
     with audit_service_mocker as audit_service_requests:
+        AUDIT_SCHEMA_CACHE.clear()
         audit_service_requests.post.return_value = MockResponse(
             data={},
             status_code=201,
