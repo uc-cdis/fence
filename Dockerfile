@@ -16,6 +16,32 @@ WORKDIR /${appname}
 
 RUN chown -R gen3:gen3 /${appname}
 
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONIOENCODING=UTF-8 \
+    POETRY_NO_INTERACTION=1 \
+    POETRY_VIRTUALENVS_IN_PROJECT=1 \
+    POETRY_VIRTUALENVS_CREATE=1
+
+# Install python build dependencies
+RUN dnf update \
+        --assumeyes \
+    && dnf install \
+        --assumeyes \
+        --setopt=install_weak_deps=False \
+        --setopt=tsflags=nodocs \
+        git \
+        python3-pip \
+    && dnf clean all \
+    && rm -rf /var/cache/yum
+
+# Install pipx
+RUN python3 -m pip install pipx && \
+    python3 -m pipx ensurepath
+
+# Create gen3 user
+RUN groupadd -g 1000 gen3 && \
+    useradd -m -s /bin/bash -u 1000 -g gen3 gen3
+
 # ------ Builder stage ------
 FROM base AS builder
 
