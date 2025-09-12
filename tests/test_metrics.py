@@ -268,7 +268,6 @@ def test_presigned_url_log(
                 "resource_paths": resource_paths,
                 "action": "download",
                 "protocol": expected_protocol,
-                "additional_data": [],
             },
         )
 
@@ -371,7 +370,6 @@ def test_presigned_url_log_acl(
                 "resource_paths": ["phs000178", "phs000218"],
                 "action": "download",
                 "protocol": protocol,
-                "additional_data": [],
             },
         )
 
@@ -436,6 +434,14 @@ def test_presigned_url_log_x_forwarded_headers(
     }
 
     with audit_service_mocker as audit_service_requests:
+        AUDIT_SCHEMA_CACHE.clear()
+        AUDIT_SCHEMA_CACHE.set(
+            "audit_schema",
+            {
+                "login": {"version": login_schema_version},
+                "presigned_url": {"version": 1.0},
+            },
+        )
         # Mock audit-service POST response
         audit_service_requests.post.return_value = MockResponse(
             data={},
@@ -504,7 +510,6 @@ def test_presigned_url_log_public(endpoint, client, public_indexd_client, monkey
                 "resource_paths": [],
                 "action": "download",
                 "protocol": protocol,
-                "additional_data": [],
             },
         )
 
@@ -608,7 +613,6 @@ def test_presigned_url_log_unauthorized(
                 "resource_paths": [],
                 "action": "download",
                 "protocol": protocol,
-                "additional_data": [],
             },
         )
 
@@ -669,7 +673,6 @@ def test_login_log_login_endpoint(
                 "fence_idp": None,
                 "shib_idp": None,
                 "client_id": None,
-                "additional_data": [],
                 **(
                     {}
                     if login_schema_version == 1.0
@@ -790,7 +793,6 @@ def test_presigned_url_log_push_to_sqs(
         "resource_paths": resource_paths,
         "action": "download",
         "protocol": protocol,
-        "additional_data": [],
         "category": "presigned_url",
     }
     mocked_sqs.send_message.assert_called_once_with(
