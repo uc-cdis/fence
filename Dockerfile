@@ -47,6 +47,8 @@ USER gen3
 RUN pipx install 'poetry<2.0'
 ENV PATH="/home/gen3/.local/bin:${PATH}"
 
+USER root
+
 # ------ Builder stage ------
 FROM base AS builder
 
