@@ -244,7 +244,10 @@ class AuditServiceClient:
             "protocol": protocol,
         }
 
-        try:
+        if ("presigned_url" in AUDIT_SCHEMA_CACHE.get("audit_schema").keys()) and (
+            "version"
+            in AUDIT_SCHEMA_CACHE.get("audit_schema").get("presigned_url").keys()
+        ):
 
             if (
                 AUDIT_SCHEMA_CACHE.get("audit_schema")
@@ -254,7 +257,7 @@ class AuditServiceClient:
             ):
                 data["additional_data"] = additional_data
 
-        except AttributeError:
+        else:
             self.logger.log(
                 "Could not retrieve presigned_url version from audit schema"
             )
@@ -301,7 +304,10 @@ class AuditServiceClient:
             "client_id": client_id,
         }
 
-        try:
+        if ("login" in AUDIT_SCHEMA_CACHE.get("audit_schema").keys()) and (
+            "version" in AUDIT_SCHEMA_CACHE.get("audit_schema").get("login").keys()
+        ):
+
             if (
                 AUDIT_SCHEMA_CACHE.get("audit_schema").get("login").get("version")
                 >= 2.1
@@ -310,7 +316,7 @@ class AuditServiceClient:
 
             if AUDIT_SCHEMA_CACHE.get("audit_schema").get("login").get("version") >= 2:
                 data["ip"] = ip
-        except AttributeError:
+        else:
             self.logger.log("Could not retrieve login version from audit schema")
             pass
 
