@@ -6,7 +6,9 @@
 ARG AZLINUX_BASE_VERSION=master
 
 # ------ Base stage ------
-FROM quay.io/cdis/python-nginx-al:${AZLINUX_BASE_VERSION} AS base
+#FROM quay.io/cdis/python-nginx-al:${AZLINUX_BASE_VERSION} AS base
+# This is a temporary image with prometheus client installed for CI
+FROM quay.io/cdis/python-nginx-al:feat_add_metrics_to_base AS base
 # Comment this in, and comment out the line above, if quay is down
 # FROM 707767160287.dkr.ecr.us-east-1.amazonaws.com/gen3/python-nginx-al:${AZLINUX_BASE_VERSION} as base
 
