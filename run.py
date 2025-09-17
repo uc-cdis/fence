@@ -1,6 +1,9 @@
 import argparse
+import os
 
 from alembic.config import main as alembic_main
+
+os.environ["PROMETHEUS_MULTIPROC_DIR"] = "/var/tmp/uwsgi_flask_metrics/"
 
 from fence import app, app_init, config
 
