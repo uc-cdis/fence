@@ -312,7 +312,7 @@ class AuditServiceClient:
                 AUDIT_SCHEMA_CACHE.get("audit_schema").get("login").get("version")
                 >= 2.1
             ):
-                data["addional_data"] = additional_data
+                data["additional_data"] = additional_data
 
             if AUDIT_SCHEMA_CACHE.get("audit_schema").get("login").get("version") >= 2:
                 data["ip"] = ip
