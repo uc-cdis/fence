@@ -220,6 +220,7 @@ class AuditServiceClient:
         action,
         resource_paths=None,
         protocol=None,
+        additional_data=[],
     ):
         """
         Create a presigned URL audit log, or do nothing if auditing is
@@ -242,6 +243,25 @@ class AuditServiceClient:
             "action": action,
             "protocol": protocol,
         }
+
+        if ("presigned_url" in AUDIT_SCHEMA_CACHE.get("audit_schema").keys()) and (
+            "version"
+            in AUDIT_SCHEMA_CACHE.get("audit_schema").get("presigned_url").keys()
+        ):
+
+            if (
+                AUDIT_SCHEMA_CACHE.get("audit_schema")
+                .get("presigned_url")
+                .get("version")
+                >= 1.1
+            ):
+                data["additional_data"] = additional_data
+
+        else:
+            self.logger.log(
+                "Could not retrieve presigned_url version from audit schema"
+            )
+
         self._create_audit_log("presigned_url", data)
 
     def create_login_log(
@@ -254,6 +274,7 @@ class AuditServiceClient:
         upstream_idp=None,
         shib_idp=None,
         client_id=None,
+        additional_data=[],
         ip=None,
     ):
         """
@@ -283,7 +304,20 @@ class AuditServiceClient:
             "client_id": client_id,
         }
 
-        if AUDIT_SCHEMA_CACHE.get("audit_schema").get("login").get("version") >= 2:
-            data["ip"] = ip
+        if ("login" in AUDIT_SCHEMA_CACHE.get("audit_schema").keys()) and (
+            "version" in AUDIT_SCHEMA_CACHE.get("audit_schema").get("login").keys()
+        ):
+
+            if (
+                AUDIT_SCHEMA_CACHE.get("audit_schema").get("login").get("version")
+                >= 2.1
+            ):
+                data["additional_data"] = additional_data
+
+            if AUDIT_SCHEMA_CACHE.get("audit_schema").get("login").get("version") >= 2:
+                data["ip"] = ip
+        else:
+            self.logger.log("Could not retrieve login version from audit schema")
+            pass
 
         self._create_audit_log("login", data)
