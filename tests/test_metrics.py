@@ -3,7 +3,7 @@ Tests for the metrics features (Audit Service and Prometheus)
 
 Tests for the Audit Service integration:
 - test the creation of presigned URL audit logs
-- test the creation of login audit logs
+- test the creation of login audit logs, with multiple audit schema model versions
 - test the SQS flow
 
 In Audit Service tests where it makes sense, we also test that Prometheus
@@ -22,23 +22,25 @@ tests and we need the DB session to be cleared after they run, so other
 tests looking at users are not affected.
 """
 
-import boto3
 import flask
+import boto3
 import json
 import jwt
 import mock
 import pytest
-import time
-from unittest.mock import ANY, MagicMock, patch
+from unittest.mock import MagicMock, patch
 
 import fence
+from fence.blueprints.login import get_idp_route_name
 from fence.metrics import metrics
 from fence.config import config
 from fence.blueprints.data.indexd import get_bucket_from_urls
 from fence.models import User
 from fence.resources.audit.utils import _clean_authorization_request_url
+from fence.resources.audit.client import AUDIT_SCHEMA_CACHE, AuditServiceClient
+from fence.errors import InternalError
 from tests import utils
-from tests.conftest import LOGIN_IDPS
+from tests.conftest import all_available_idps
 
 # `reset_prometheus_metrics` must be imported even if not used so the autorun fixture gets triggered
 from tests.utils.metrics import assert_prometheus_metrics, reset_prometheus_metrics
@@ -101,7 +103,7 @@ def test_disabled_audit(
     )
     with audit_decorator_mocker as audit_decorator:
         response = client.get(path, headers=headers)
-        assert response.status_code == 200, response
+        assert response.status_code == 200, response.text
         assert response.json.get("url")
         audit_decorator.assert_not_called()
 
@@ -115,6 +117,77 @@ class MockResponse(object):
     def __init__(self, data, status_code=200):
         self.data = data
         self.status_code = status_code
+        # mimic requests.Response enough for the _set_schema_models_cache code
+        self._json = data
+        try:
+            import json as _json
+
+            self.text = (
+                _json.dumps(data) if isinstance(data, (dict, list)) else str(data)
+            )
+        except Exception:
+            self.text = str(data)
+
+    def json(self):
+        return self._json
+
+
+@pytest.mark.parametrize(
+    "status_code,payload",
+    [
+        (200, {"login": {"version": 2.0}, "presigned_url": {"version": 1.0}}),
+        (404, {}),  # fall back to default v1 schema (no error)
+        (500, {}),  # should raise InternalError
+    ],
+)
+def test_set_schema_models_cache_and_get_audit_schema(app, status_code, payload):
+    """
+    Unit test AuditServiceClient._set_schema_models_cache and _get_audit_schema
+    for 200/404/500 responses from the audit-service /_schema endpoint.
+    """
+    with app.app_context():
+        AUDIT_SCHEMA_CACHE.clear()
+        client_obj = flask.current_app.audit_service_client
+
+        with mock.patch(
+            "fence.resources.audit.client.requests.get",
+            return_value=MockResponse(payload, status_code),
+        ) as get_mock:
+            if status_code == 500:
+                # 500 => InternalError and cache should remain empty
+                with pytest.raises(InternalError):
+                    client_obj._set_schema_models_cache()
+                assert AUDIT_SCHEMA_CACHE.get("audit_schema") is None
+                resp = client_obj._get_audit_schema()
+                assert resp.status_code == 500
+            else:
+                # 200 or 404 should not raise
+                client_obj._set_schema_models_cache()
+                cached = AUDIT_SCHEMA_CACHE.get("audit_schema")
+                assert cached is not None
+
+                if status_code == 200:
+                    assert cached == payload
+                else:  # 404 -> default v1 schema
+                    assert "login" in cached and "presigned_url" in cached
+                    assert cached["login"]["version"] == 1.0
+                    assert cached["presigned_url"]["version"] == 1.0
+                    for k in ("request_url", "status_code", "timestamp", "username"):
+                        assert k in cached["login"]["model"]
+                    for k in (
+                        "request_url",
+                        "status_code",
+                        "timestamp",
+                        "username",
+                        "guid",
+                        "resource_paths",
+                        "action",
+                        "protocol",
+                    ):
+                        assert k in cached["presigned_url"]["model"]
+
+                resp = client_obj._get_audit_schema()
+                assert resp.status_code == status_code
 
 
 @pytest.mark.parametrize("indexd_client_with_arborist", ["s3_and_gs"], indirect=True)
@@ -174,12 +247,15 @@ def test_presigned_url_log(
     expected_protocol = protocol or "s3"
 
     with audit_service_mocker as audit_service_requests:
+        audit_service_requests.get.return_value = MockResponse(
+            {"presigned_url": {"version": 1.0}}, 200
+        )
         audit_service_requests.post.return_value = MockResponse(
             data={},
             status_code=201,
         )
         response = client.get(path, headers=headers)
-        assert response.status_code == 200, response
+        assert response.status_code == 200, response.text
         assert response.json.get("url")
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/presigned_url",
@@ -281,7 +357,7 @@ def test_presigned_url_log_acl(
             status_code=201,
         )
         response = client.get(path, headers=headers)
-        assert response.status_code == 200, response
+        assert response.status_code == 200, response.text
         assert response.json.get("url")
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/presigned_url",
@@ -323,7 +399,7 @@ def test_presigned_url_log_public(endpoint, client, public_indexd_client, monkey
             status_code=201,
         )
         response = client.get(path)
-        assert response.status_code == 200, response
+        assert response.status_code == 200, response.text
         assert response.json.get("url")
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/presigned_url",
@@ -395,7 +471,7 @@ def test_presigned_url_log_disabled(
             status_code=201,
         )
         response = client.get(path, headers=headers)
-        assert response.status_code == 200, response
+        assert response.status_code == 200, response.text
         assert response.json.get("url")
         audit_service_requests.post.assert_not_called()
 
@@ -448,97 +524,45 @@ def test_presigned_url_log_unauthorized(
 ####################
 
 
-@pytest.mark.parametrize("idp", LOGIN_IDPS)
+@pytest.mark.parametrize("idp", all_available_idps())
+@pytest.mark.parametrize("login_schema_version", [1.0, 2.0])
 def test_login_log_login_endpoint(
     client,
     idp,
-    mock_arborist_requests,
-    rsa_private_key,
     db_session,  # do not remove :-) See note at top of file
+    mocks_for_idp_oauth2_callbacks,
     monkeypatch,
     prometheus_metrics_before,
+    login_schema_version,
 ):
     """
     Test that logging in via any of the existing IDPs triggers the creation
     of a login audit log and of a prometheus metric.
     """
-    mock_arborist_requests()
     audit_service_mocker = mock.patch(
         "fence.resources.audit.client.requests", new_callable=mock.Mock
     )
     monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"login": True})
 
-    username = "test@test"
-    callback_endpoint = "login"
-    idp_name = idp
-    headers = {}
-    get_auth_info_value = {}
-    jwt_string = jwt.encode(
-        {"iat": int(time.time())}, key=rsa_private_key, algorithm="RS256"
-    )
-
-    if idp == "synapse":
-        get_auth_info_value = {
-            "fence_username": username,
-            "sub": username,
-            "given_name": username,
-            "family_name": username,
-        }
-    elif idp == "orcid":
-        get_auth_info_value = {"orcid": username}
-    elif idp == "cilogon":
-        get_auth_info_value = {"sub": username}
-    elif idp == "shib":
-        headers["persistent_id"] = username
-        idp_name = "itrust"
-    elif idp == "okta":
-        get_auth_info_value = {"okta": username}
-    elif idp == "fence":
-        mocked_fetch_access_token = MagicMock(return_value={"id_token": jwt_string})
-        patch(
-            f"authlib.integrations.flask_client.apps.FlaskOAuth2App.fetch_access_token",
-            mocked_fetch_access_token,
-        ).start()
-        mocked_validate_jwt = MagicMock(
-            return_value={"context": {"user": {"name": username}}}
-        )
-        patch(
-            f"fence.blueprints.login.fence_login.validate_jwt", mocked_validate_jwt
-        ).start()
-    elif idp == "ras":
-        get_auth_info_value = {"username": username}
-        callback_endpoint = "callback"
-        # these should be populated by a /login/<idp> call that we're skipping:
-        flask.g.userinfo = {"sub": "testSub123"}
-        flask.g.tokens = {
-            "refresh_token": jwt_string,
-            "id_token": jwt_string,
-        }
-        flask.g.encoded_visas = ""
-    elif idp == "generic1":
-        get_auth_info_value = {"generic1_username": username}
-    elif idp == "generic2":
-        get_auth_info_value = {"sub": username}
-
-    if idp in ["google", "microsoft", "okta", "synapse", "cognito"]:
-        get_auth_info_value["email"] = username
-
-    get_auth_info_patch = None
-    if get_auth_info_value:
-        mocked_get_auth_info = MagicMock(return_value=get_auth_info_value)
-        get_auth_info_patch = patch(
-            f"flask.current_app.{idp}_client.get_auth_info", mocked_get_auth_info
-        )
-        get_auth_info_patch.start()
+    idp_name, username, callback_endpoint, headers = mocks_for_idp_oauth2_callbacks
 
     with audit_service_mocker as audit_service_requests:
+        AUDIT_SCHEMA_CACHE.clear()
+        AUDIT_SCHEMA_CACHE.set(
+            "audit_schema",
+            {
+                "login": {"version": login_schema_version},
+                "presigned_url": {"version": 1.0},
+            },
+        )
         audit_service_requests.post.return_value = MockResponse(
             data={},
             status_code=201,
         )
-        path = f"/login/{idp}/{callback_endpoint}"  # SEE fence/blueprints/login/fence_login.py L91
+        path = f"/login/{get_idp_route_name(idp)}/{callback_endpoint}"
         response = client.get(path, headers=headers)
-        assert response.status_code == 200, response
+        print(f"Response: {response.status_code}, Body: {response.data}")
+        assert response.status_code == 200, response.text
         user_sub = db_session.query(User).filter(User.username == username).first().id
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/login",
@@ -551,11 +575,15 @@ def test_login_log_login_endpoint(
                 "fence_idp": None,
                 "shib_idp": None,
                 "client_id": None,
+                **(
+                    {}
+                    if login_schema_version == 1.0
+                    else {
+                        "ip": "flask.request.remote_addr=127.0.0.1 x_forwarded_headers=[]"
+                    }
+                ),
             },
         )
-
-    if get_auth_info_patch:
-        get_auth_info_patch.stop()
 
     # check prometheus metrics
     resp = client.get("/metrics")
@@ -655,7 +683,7 @@ def test_presigned_url_log_push_to_sqs(
         )
     }
     response = client.get(path, headers=headers)
-    assert response.status_code == 200, response
+    assert response.status_code == 200, response.text
     assert response.json.get("url")
 
     expected_audit_data = {
@@ -697,7 +725,7 @@ def test_login_log_push_to_sqs(
 
     path = "/login/google/login"
     response = client.get(path)
-    assert response.status_code == 200, response
+    assert response.status_code == 200, response.text
     # not checking the parameters here because we can't json.dumps "sub: ANY"
     mocked_sqs.send_message.assert_called_once()
 
@@ -718,7 +746,7 @@ def test_disabled_prometheus_metrics(client, monkeypatch):
     metrics.add_login_event(
         user_sub="123",
         idp="test_idp",
-        fence_idp="shib",
+        upstream_idp="shib",
         shib_idp="university",
         client_id="test_azp",
     )
@@ -740,11 +768,11 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
 
     # record a login event and check that we get both a metric for the specific IDP, and an
     # IDP-agnostic metric for the total number of login events. The latter should have no IDP
-    # information (no `fence_idp` or `shib_idp`).
+    # information (no `upstream_idp` or `shib_idp`).
     metrics.add_login_event(
         user_sub="123",
         idp="test_idp",
-        fence_idp="shib",
+        upstream_idp="shib",
         shib_idp="university",
         client_id="test_azp",
     )
@@ -756,7 +784,7 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
             "labels": {
                 "user_sub": "123",
                 "idp": "test_idp",
-                "fence_idp": "shib",
+                "upstream_idp": "shib",
                 "shib_idp": "university",
                 "client_id": "test_azp",
             },
@@ -767,7 +795,7 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
             "labels": {
                 "user_sub": "123",
                 "idp": "all",
-                "fence_idp": "None",
+                "upstream_idp": "None",
                 "shib_idp": "None",
                 "client_id": "test_azp",
             },
@@ -780,7 +808,7 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
     metrics.add_login_event(
         user_sub="123",
         idp="test_idp",
-        fence_idp="shib",
+        upstream_idp="shib",
         shib_idp="university",
         client_id="test_azp",
     )
@@ -788,7 +816,7 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
     metrics.add_login_event(
         user_sub="123",
         idp="another_idp",
-        fence_idp=None,
+        upstream_idp=None,
         shib_idp=None,
         client_id="test_azp",
     )
@@ -812,7 +840,7 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
             "labels": {
                 "user_sub": "123",
                 "idp": "all",
-                "fence_idp": "None",
+                "upstream_idp": "None",
                 "shib_idp": "None",
                 "client_id": "test_azp",
             },
@@ -823,18 +851,18 @@ def test_record_prometheus_events(prometheus_metrics_before, client):
             "labels": {
                 "user_sub": "123",
                 "idp": "test_idp",
-                "fence_idp": "shib",
+                "upstream_idp": "shib",
                 "shib_idp": "university",
                 "client_id": "test_azp",
             },
-            "value": 2.0,  # recorded login events for this idp, fence_idp and shib_idp combo
+            "value": 2.0,  # recorded login events for this idp, upstream_idp and shib_idp combo
         },
         {
             "name": "gen3_fence_login_total",
             "labels": {
                 "user_sub": "123",
                 "idp": "another_idp",
-                "fence_idp": "None",
+                "upstream_idp": "None",
                 "shib_idp": "None",
                 "client_id": "test_azp",
             },

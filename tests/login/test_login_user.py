@@ -1,6 +1,11 @@
+from unittest import mock
 import flask
 import pytest
-from fence.auth import login_user, logout
+from fence.auth import (
+    _identify_user_and_update_database,
+    login_user_or_require_registration,
+    logout,
+)
 from fence.models import User, IdentityProvider
 import time
 from datetime import datetime
@@ -8,7 +13,8 @@ from fence.config import config
 from fence.errors import Unauthorized
 
 
-def test_login_user_already_in_db(db_session):
+@mock.patch("fence.auth.get_ip_information_string")
+def test_login_user_already_in_db(get_ip_information_string_mock, db_session):
     """
     Test that if a user is already in the database and logs in, the session will contain
     the user's information (including additional information that may have been provided
@@ -25,7 +31,10 @@ def test_login_user_already_in_db(db_session):
     assert not test_user.email
     assert not test_user.id_from_idp
 
-    login_user(email, provider, email=email, id_from_idp=id_from_idp)
+    is_logged_in = login_user_or_require_registration(
+        email, provider, email=email, id_from_idp=id_from_idp
+    )
+    assert is_logged_in
 
     assert test_user.identity_provider.name == provider
     assert test_user.id_from_idp == id_from_idp
@@ -34,6 +43,8 @@ def test_login_user_already_in_db(db_session):
     assert flask.session["provider"] == provider
     assert flask.session["user_id"] == user_id
     assert flask.g.user == test_user
+
+    assert get_ip_information_string_mock.called
 
 
 def test_login_failure_for_user_already_in_db_but_inactive(db_session):
@@ -51,7 +62,9 @@ def test_login_failure_for_user_already_in_db_but_inactive(db_session):
     with pytest.raises(
         Unauthorized, match="User is known but not authorized/activated in the system"
     ):
-        login_user(email, provider, email=email, id_from_idp=id_from_idp)
+        login_user_or_require_registration(
+            email, provider, email=email, id_from_idp=id_from_idp
+        )
 
 
 def test_login_user_with_idp_already_in_db(db_session):
@@ -73,7 +86,10 @@ def test_login_user_with_idp_already_in_db(db_session):
     db_session.commit()
     user_id = str(test_user.id)
 
-    login_user(email, provider, email=email, id_from_idp=id_from_idp)
+    is_logged_in = login_user_or_require_registration(
+        email, provider, email=email, id_from_idp=id_from_idp
+    )
+    assert is_logged_in
 
     assert test_user.identity_provider.name == provider
     assert test_user.id_from_idp == id_from_idp
@@ -120,10 +136,13 @@ def test_login_user_with_denied_username(db_session, username, monkeypatch):
     db_session.commit()
 
     with pytest.raises(Exception):
-        login_user(username, provider, email=email, id_from_idp=id_from_idp)
+        _identify_user_and_update_database(
+            username, provider, email=email, id_from_idp=id_from_idp
+        )
 
 
-def test_login_new_user(db_session):
+@mock.patch("fence.auth.get_ip_information_string")
+def test_login_new_user(get_ip_information_string_mock, db_session):
     """
     Test that if a user is not in the database and logs in, the user is added to the
     database and the session will contain the user's information.
@@ -132,7 +151,10 @@ def test_login_new_user(db_session):
     provider = "Test Provider"
     id_from_idp = "Provider_ID_0001"
 
-    login_user(email, provider, email=email, id_from_idp=id_from_idp)
+    is_logged_in = login_user_or_require_registration(
+        email, provider, email=email, id_from_idp=id_from_idp
+    )
+    assert is_logged_in
 
     test_user = db_session.query(User).filter(User.username == email.lower()).first()
 
@@ -143,6 +165,8 @@ def test_login_new_user(db_session):
     assert flask.session["provider"] == provider
     assert flask.session["user_id"] == str(test_user.id)
     assert flask.g.user == test_user
+
+    assert get_ip_information_string_mock.called
 
 
 def test_login_new_user_not_allowed(db_session, monkeypatch):
@@ -158,7 +182,9 @@ def test_login_new_user_not_allowed(db_session, monkeypatch):
     with pytest.raises(
         Unauthorized, match="New user is not yet authorized/activated in the system"
     ):
-        login_user(email, provider, email=email, id_from_idp=id_from_idp)
+        login_user_or_require_registration(
+            email, provider, email=email, id_from_idp=id_from_idp
+        )
 
 
 def test_last_auth_update_in_db(db_session):
@@ -178,7 +204,10 @@ def test_last_auth_update_in_db(db_session):
 
     time.sleep(5)
 
-    login_user(email, provider, email=email, id_from_idp=id_from_idp)
+    is_logged_in = login_user_or_require_registration(
+        email, provider, email=email, id_from_idp=id_from_idp
+    )
+    assert is_logged_in
     test_user_updated = db_session.query(User).filter(User.username == email).first()
 
     assert test_user_updated._last_auth > previous_login

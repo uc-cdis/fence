@@ -1,8 +1,11 @@
 from cdislogging import get_logger
 import flask
 
-from fence.auth import login_user
-from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
+from fence.blueprints.login.base import (
+    DefaultOAuth2Login,
+    DefaultOAuth2Callback,
+    _login_and_register,
+)
 from fence.blueprints.login.redirect import validate_redirect
 from fence.errors import InternalError, Unauthorized
 from fence.models import IdentityProvider
@@ -33,6 +36,12 @@ class ShibbolethLogin(DefaultOAuth2Login):
         if redirect_url:
             flask.session["redirect"] = redirect_url
 
+        # see `post_registration_redirect` explanation in `DefaultOAuth2Login.get()`
+        current_url = config["BASE_URL"] + flask.request.path
+        if flask.request.query_string:
+            current_url += f"?{flask.request.query_string.decode('utf-8')}"
+        flask.session["post_registration_redirect"] = current_url
+
         # figure out which IDP to target with shibboleth
         # check out shibboleth docs here for more info:
         # https://wiki.shibboleth.net/confluence/display/SP3/SSO
@@ -40,7 +49,11 @@ class ShibbolethLogin(DefaultOAuth2Login):
         flask.session["entityID"] = entityID
         # TODO: use OPENID_CONNECT.shibboleth.redirect_url instead of hardcoded
         actual_redirect = config["BASE_URL"] + "/login/shib/login"
-        if not entityID or entityID == "urn:mace:incommon:nih.gov":
+        if (
+            not entityID
+            or entityID == "urn:mace:incommon:nih.gov"
+            or entityID == "https://auth.nih.gov/IDP"
+        ):
             # default to SSO_URL from the config which should be NIH login
             return flask.redirect(config["SSO_URL"] + actual_redirect)
         return flask.redirect(
@@ -70,20 +83,27 @@ class ShibbolethCallback(DefaultOAuth2Callback):
         entityID = flask.session.get("entityID")
 
         # if eppn not available or logging in through NIH
-        if not username or not entityID or entityID == "urn:mace:incommon:nih.gov":
+        if (
+            not username
+            or not entityID
+            or entityID == "urn:mace:incommon:nih.gov"
+            or entityID == "https://auth.nih.gov/IDP"
+        ):
             persistent_id = flask.request.headers.get(shib_header)
             username = persistent_id.split("!")[-1] if persistent_id else None
             if not username:
                 # some inCommon providers are not returning eppn
                 # or persistent_id. See PXP-4309
-                # print("shib_header", shib_header)
-                # print("flask.request.headers", flask.request.headers)
                 raise Unauthorized("Unable to retrieve username")
 
         idp = IdentityProvider.itrust
         if entityID:
             idp = entityID
-        login_user(username, idp)
+
+        resp, user_is_logged_in = _login_and_register(username, idp)
+        if not user_is_logged_in:
+            return resp
+
         self.post_login()
 
         if flask.session.get("redirect"):

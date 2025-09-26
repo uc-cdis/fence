@@ -1,8 +1,11 @@
 from authlib.common.urls import add_params_to_uri
 import flask
 
-from fence.auth import login_user
-from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
+from fence.blueprints.login.base import (
+    DefaultOAuth2Login,
+    DefaultOAuth2Callback,
+    _login_and_register,
+)
 from fence.blueprints.login.redirect import validate_redirect
 from fence.config import config
 from fence.errors import Unauthorized
@@ -31,7 +34,7 @@ class FenceLogin(DefaultOAuth2Login):
     def get(self):
         """Handle ``GET /login/fence``."""
 
-        # OAuth class can have mutliple clients
+        # OAuth class can have multiple clients
         client = flask.current_app.fence_client._clients[
             flask.current_app.config["OPENID_CONNECT"]["fence"]["name"]
         ]
@@ -50,7 +53,7 @@ class FenceLogin(DefaultOAuth2Login):
         # add idp parameter to the authorization URL
         if "idp" in flask.request.args:
             idp = flask.request.args["idp"]
-            flask.session["fence_idp"] = idp
+            flask.session["upstream_idp"] = idp
             params = {"idp": idp}
             # if requesting to login through Shibboleth, also add shib_idp
             # parameter to the authorization URL
@@ -61,6 +64,13 @@ class FenceLogin(DefaultOAuth2Login):
             authorization_url = add_params_to_uri(authorization_url, params)
 
         flask.session["state"] = rv["state"]
+
+        # see `post_registration_redirect` explanation in `DefaultOAuth2Login.get()`
+        current_url = config["BASE_URL"] + flask.request.path
+        if flask.request.query_string:
+            current_url += f"?{flask.request.query_string.decode('utf-8')}"
+        flask.session["post_registration_redirect"] = current_url
+
         return flask.redirect(authorization_url)
 
 
@@ -121,21 +131,18 @@ class FenceCallback(DefaultOAuth2Callback):
             )
         username = id_token_claims["context"]["user"]["name"]
         email = id_token_claims["context"]["user"].get("email")
-        login_user(
+
+        resp, user_is_logged_in = _login_and_register(
             username,
             IdentityProvider.fence,
-            fence_idp=flask.session.get("fence_idp"),
+            upstream_idp=flask.session.get("upstream_idp"),
             shib_idp=flask.session.get("shib_idp"),
             email=email,
         )
+
+        if not user_is_logged_in:
+            return resp
+
         self.post_login()
 
-        if config["REGISTER_USERS_ON"]:
-            if not flask.g.user.additional_info.get("registration_info"):
-                return flask.redirect(
-                    config["BASE_URL"] + flask.url_for("register.register_user")
-                )
-
-        if "redirect" in flask.session:
-            return flask.redirect(flask.session.get("redirect"))
-        return flask.jsonify({"username": username})
+        return resp

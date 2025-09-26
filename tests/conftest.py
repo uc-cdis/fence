@@ -51,7 +51,7 @@ from fence.jwt.validate import validate_jwt
 import tests
 from tests import test_settings
 from tests import utils
-from tests.utils import TEST_RAS_USERNAME, TEST_RAS_SUB
+from tests.utils import TEST_RAS_SUB
 from tests.utils.oauth2.client import OAuth2TestClient
 from tests.storageclient.storage_client_mock import get_client
 
@@ -60,23 +60,23 @@ from tests.storageclient.storage_client_mock import get_client
 os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "true"
 
 
-# all the IDPs we want to test.
-# any newly added custom OIDC IDP should be added here.
-# generic OIDC IDPs should start with "generic" so the tests work.
-LOGIN_IDPS = [
-    "fence",
-    "google",
-    "shib",
-    "orcid",
-    "synapse",
-    "microsoft",
-    "okta",
-    "cognito",
-    "ras",
-    "cilogon",
-    "generic1",
-    "generic2",
-]
+# some tests run on all the IdPs for which a login blueprint exists
+def all_available_idps():
+    idps = ["generic_with_discovery_url"]  # to test the generic implementation
+    subdir = "blueprints/login"
+    current_dir = os.path.dirname(os.path.realpath(__file__))
+    path = os.path.join(current_dir, "../fence", subdir)
+    assert os.path.exists(path)
+    for _, _, files in os.walk(path):
+        for f in files:
+            if f.startswith("__") or f in ["base.py", "redirect.py", "utils.py"]:
+                continue
+            idp = f.split(".py")[0].split("_login")[0]
+            if idp == "shib":
+                idp = "shibboleth"  # see `get_idp_route_name` function
+            idps.append(idp)
+        break  # not getting into subdirectories
+    return idps
 
 
 def mock_get_bucket_location(self, bucket, config):
@@ -396,6 +396,12 @@ def mock_arborist_requests(request):
         defaults = {
             "arborist/health": {"GET": ("", 200)},
             "arborist/auth/mapping": {"POST": ({}, "200")},
+            "arborist/group": {
+                "GET": (
+                    {"groups": [{"name": "data_uploaders", "users": ["test_user"]}]},
+                    200,
+                )
+            },
         }
         defaults.update(urls_to_responses)
         urls_to_responses = defaults
@@ -477,6 +483,33 @@ def app(kid, rsa_private_key, rsa_public_key):
     yield fence.app
 
     mocker.unmock_functions()
+
+
+@pytest.fixture
+def mock_app():
+    return MagicMock()
+
+
+@pytest.fixture
+def mock_user():
+    return MagicMock()
+
+
+@pytest.fixture
+def mock_db_session():
+    """Mock the database session."""
+    db_session = MagicMock()
+    return db_session
+
+
+@pytest.fixture
+def expired_mock_user():
+    """Mock a user object with upstream refresh tokens."""
+    user = MagicMock()
+    user.upstream_refresh_tokens = [
+        MagicMock(refresh_token="expired_token", expires=0),  # Expired token
+    ]
+    return user
 
 
 @pytest.fixture(scope="function")
@@ -1292,7 +1325,7 @@ def patch_app_db_session(app, monkeypatch):
 
 
 @pytest.fixture(scope="function")
-def oauth_client(app, db_session, oauth_user, get_all_shib_idps_patcher):
+def oauth_client(app, db_session, oauth_user, get_all_upstream_idps_data_patcher):
     """
     Create a confidential OAuth2 client and add it to the database along with a
     test user for the client.
@@ -1369,7 +1402,9 @@ def oauth_client_B(app, request, db_session):
 
 
 @pytest.fixture(scope="function")
-def oauth_client_public(app, db_session, oauth_user, get_all_shib_idps_patcher):
+def oauth_client_public(
+    app, db_session, oauth_user, get_all_upstream_idps_data_patcher
+):
     """
     Create a public OAuth2 client.
     """
@@ -1394,7 +1429,9 @@ def oauth_client_public(app, db_session, oauth_user, get_all_shib_idps_patcher):
 
 
 @pytest.fixture(scope="function")
-def oauth_client_with_client_credentials(db_session, get_all_shib_idps_patcher):
+def oauth_client_with_client_credentials(
+    db_session, get_all_upstream_idps_data_patcher
+):
     """
     Create a confidential OAuth2 client and add it to the database along with a
     test user for the client.
@@ -1439,7 +1476,9 @@ def oauth_test_client_B(client, oauth_client_B):
 
 
 @pytest.fixture(scope="function")
-def oauth_test_client_public(client, oauth_client_public, get_all_shib_idps_patcher):
+def oauth_test_client_public(
+    client, oauth_client_public, get_all_upstream_idps_data_patcher
+):
     return OAuth2TestClient(client, oauth_client_public, confidential=False)
 
 
@@ -1744,35 +1783,48 @@ def restore_config():
 
 
 @pytest.fixture(scope="function")
-def get_all_shib_idps_patcher():
-    """
-    Don't make real requests to the list of InCommon IDPs exposed
-    by login.bionimbus
-    """
-    mock = MagicMock()
-    mock.return_value = [
-        {
-            "idp": "some-incommon-entity-id",
-            "name": "Some InCommon Provider",
-        },
-        {
-            "idp": "urn:mace:incommon:nih.gov",
-            "name": "National Institutes of Health (NIH)",
-        },
-        {
-            "idp": "urn:mace:incommon:uchicago.edu",
-            "name": "University of Chicago",
-        },
-    ]
-    get_all_shib_idps_patch = patch(
-        "fence.blueprints.login.get_all_shib_idps",
-        mock,
+def get_all_upstream_idps_data_patcher():
+    def mocked_fetch_url_data(*args, **kwargs):
+        url = args[0] if args else ""
+        if "shibboleth" in url:
+            return [
+                {"entityID": "entity-id-without-display-name"},
+                {
+                    "entityID": "https://idp.uca.fr/idp/shibboleth",
+                    "DisplayNames": [
+                        {"value": "Université Clermont Auvergne", "lang": "fr"}
+                    ],
+                },
+                {
+                    "entityID": "urn:mace:incommon:uchicago.edu",
+                    "DisplayNames": [
+                        {"value": "University of Chicago", "lang": "en"},
+                        {"value": "Universidad de Chicago", "lang": "es"},
+                    ],
+                },
+            ]
+        elif "generic_mdq_discovery" in url:
+            with open(
+                os.path.join(
+                    os.path.dirname(os.path.realpath(__file__)),
+                    "data/incommon_mdq_data_extract.xml",
+                    # ^ subset of the data from http://mdq.incommon.org/entities/idps/all
+                ),
+                "r",
+            ) as f:
+                return f.read()
+        else:
+            return f"Update get_all_upstream_idps_data_patcher() to handle URL '{url}'"
+
+    fetch_url_data_patch = patch(
+        "fence.blueprints.login.fetch_url_data",
+        MagicMock(side_effect=mocked_fetch_url_data),
     )
-    get_all_shib_idps_patch.start()
+    fetch_url_data_patch.start()
 
     yield mock
 
-    get_all_shib_idps_patch.stop()
+    fetch_url_data_patch.stop()
 
 
 @pytest.fixture(scope="function")
@@ -1807,3 +1859,93 @@ def mock_authn_user_flask_context(app):
 
     g = g_before
     session = session_before
+
+
+@pytest.fixture
+def mocks_for_idp_oauth2_callbacks(idp, rsa_private_key, mock_arborist_requests):
+    """
+    Setup mocks necessary to make calls to OAuth2 callback endpoints, depending on which IdP
+    is being used. Return values needed by the calling test.
+
+    This fixture requires the calling test to have an `idp` parameter.
+    """
+    username = "test@test"
+    callback_endpoint = "login"
+    idp_name = idp
+    headers = {}
+    get_auth_info_value = {}
+    jwt_string = jwt.encode(
+        {"iat": int(time.time())}, key=rsa_private_key, algorithm="RS256"
+    )
+
+    if idp == "synapse":
+        mock_arborist_requests()
+        get_auth_info_value = {
+            "fence_username": username,
+            "sub": username,
+            "given_name": username,
+            "family_name": username,
+        }
+    elif idp == "orcid":
+        get_auth_info_value = {"orcid": username}
+    elif idp == "cilogon":
+        get_auth_info_value = {"sub": username}
+    elif idp == "shibboleth":
+        headers["persistent_id"] = username
+        idp_name = "itrust"
+    elif idp == "okta":
+        get_auth_info_value = {"okta": username}
+    elif idp == "fence":
+        mocked_fetch_access_token = MagicMock(return_value={"id_token": jwt_string})
+        patch(
+            f"authlib.integrations.flask_client.apps.FlaskOAuth2App.fetch_access_token",
+            mocked_fetch_access_token,
+        ).start()
+        mocked_validate_jwt = MagicMock(
+            return_value={"context": {"user": {"name": username}}}
+        )
+        patch(
+            f"fence.blueprints.login.fence_login.validate_jwt", mocked_validate_jwt
+        ).start()
+    elif idp == "ras":
+        get_auth_info_value = {"username": username}
+        callback_endpoint = "callback"
+        # these should be populated by a /login/<idp> call that we're skipping:
+        flask.g.userinfo = {"sub": "testSub123"}
+        flask.g.tokens = {
+            "refresh_token": jwt_string,
+            "id_token": jwt_string,
+        }
+        flask.g.encoded_visas = ""
+    elif idp == "generic_with_discovery_url":
+        get_auth_info_value = {"generic_with_discovery_url_username": username}
+    elif idp == "generic_additional_params":
+        # get_auth_info_value specific to generic_additional_params
+        # TODO: Need test when is_authz_groups_sync_enabled == true
+        get_auth_info_value = {
+            "username": username,
+            "sub": username,
+            "email_verified": True,
+            "iat": 1609459200,
+            "exp": 1609462800,
+            "refresh_token": "mock_refresh_token",
+            "groups": ["group1", "group2"],
+        }
+    elif idp.startswith("generic_"):
+        get_auth_info_value = {"sub": username}
+
+    if idp in ["google", "microsoft", "okta", "synapse", "cognito"]:
+        get_auth_info_value["email"] = username
+
+    get_auth_info_patch = None
+    if get_auth_info_value:
+        mocked_get_auth_info = MagicMock(return_value=get_auth_info_value)
+        get_auth_info_patch = patch(
+            f"flask.current_app.{idp}_client.get_auth_info", mocked_get_auth_info
+        )
+        get_auth_info_patch.start()
+
+    yield idp_name, username, callback_endpoint, headers
+
+    if get_auth_info_patch:
+        get_auth_info_patch.stop()

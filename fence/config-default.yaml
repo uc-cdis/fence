@@ -45,7 +45,7 @@ ENCRYPTION_KEY: ''
 # //////////////////////////////////////////////////////////////////////////////////////
 # flask's debug setting
 # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
-DEBUG: true
+DEBUG: false
 # if true, will automatically login a user with username "test"
 # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
 MOCK_AUTH: false
@@ -94,6 +94,7 @@ DB_MIGRATION_POSTGRES_LOCK_KEY: 100
 #   - WARNING: Be careful changing the *_ALLOWED_SCOPES as you can break basic
 #              and optional functionality
 # //////////////////////////////////////////////////////////////////////////////////////
+
 OPENID_CONNECT:
   # any OIDC IDP that does not differ from the generic implementation can be
   # configured without code changes
@@ -115,6 +116,51 @@ OPENID_CONNECT:
     multifactor_auth_claim_info: # optional, include if you're using arborist to enforce mfa on a per-file level
       claim: '' # claims field that indicates mfa, either the acr or acm claim.
       values: [ "" ] # possible values that indicate mfa was used. At least one value configured here is required to be in the token
+    # use `idp_discovery` to configure a URL at which the list of available upstream IdPs is
+    # provided. The list will be parsed and cached by fence. When `idp_discovery` is configured,
+    # `LOGIN_OPTIONS` for this IdP must include `upstream_idps`.
+    idp_discovery:
+      url: 'https://server.com/disco'
+      format: xml-mdq-v1.0
+    # use `authorization_url_param_map` to set parameters when redirecting to the IdP.
+    # for the example config below, if the login URL includes `idp=google`, the redirect URL will
+    # include `upstream_idp_parameter=google`.
+    authorization_url_param_map:
+     idp: upstream_idp_parameter
+    # When true, it allows refresh tokens to be stored even if is_authz_groups_sync_enabled is set false.
+    # When false, the system will only store refresh tokens if is_authz_groups_sync_enabled is enabled
+    persist_refresh_token: false
+    # is_authz_groups_sync_enabled: A configuration flag that determines whether the application should
+    # verify and synchronize user group memberships between the identity provider (IdP)
+    # and the local authorization system (Arborist). When enabled, the refresh token is stored, the system retrieves
+    # the user's group information from their token issued by the IdP and compares it against
+    # the groups defined in the local system. Based on the comparison, the user is added to
+    # or removed from relevant groups in the local system to ensure their group memberships
+    # remain up-to-date. If this flag is disabled, no group synchronization occurs
+    is_authz_groups_sync_enabled: true
+    # Key used to retrieve group information from the token
+    group_claim_field: "groups"
+    # IdP group membership expiration (seconds).
+    group_membership_expiration_duration: 604800
+    authz_groups_sync:
+      # This defines the prefix used to identify authorization groups.
+      group_prefix: "some_prefix"
+    # This flag indicates whether the audience (aud) claim in the JWT should be verified during token validation.
+    verify_aud: true
+    # This specifies the expected audience (aud) value for the JWT, ensuring that the token is intended for use with the 'fence' service.
+    audience: fence
+    # default refresh token expiration duration
+    default_refresh_token_exp: 3600
+    # email claim field from idp
+    email_claim_field: 'email'
+    # firstname claim field from idp
+    firstname_claim_field: 'firstname'
+    # lastname claim field from idp
+    lastname_claim_field: 'lastname'
+    # organization claim field from idp
+    organization_claim_field: 'org'
+    # automatically register users using the info provided by the IdP in tokens
+    enable_idp_users_registration: false
   # These Google values must be obtained from Google's Cloud Console
   # Follow: https://developers.google.com/identity/protocols/OpenIDConnect
   #
@@ -313,7 +359,7 @@ GLOBAL_USERNAME_DENY_REGEX: ""
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # LOGIN
-#   - Modify based on which OIDC provider(s) you configured above
+#   - Modify based on which OIDC provider(s) are configured in OPENID_CONNECT
 #   - NOTE: You can have multiple IDPs for users to login with, but one has to be set
 #           as the default
 # //////////////////////////////////////////////////////////////////////////////////////
@@ -321,14 +367,21 @@ GLOBAL_USERNAME_DENY_REGEX: ""
 # List of enabled login options (used by data-portal to display login buttons).
 # Each option must be configured with a "name" and an "idp".
 # - "idp" must be a configured provider in OPENID_CONNECT section.
-# Multiple options can be configured with the same idp.
-# - if provider_id is "fence", "fence_idp" can be any of the providers
-# supported by the other Fence. If not specified, will default to NIH login.
-# - if provider_id is "fence" and fence_idp is "shibboleth", a list of
-# "shib_idps" can be configured for InCommon login. If not specified, will
-# default to NIH login.
+#   Multiple options can be configured with the same idp.
+# - "name": display name for this provider
+# - "upstream_idps" can be '*' (all available IdPs) or a list of one or more IdPs supported by the
+#   upstream provider (aka "idp" above). If "*", the list of available IdPs is fetched by
+#   configuring `idp_discovery` in the `OPENID_CONNECT` section.
+#   For example, if idp is "fence" (multi-tenant Fence setup), upstream_idps can include any of the
+#   providers supported by the other Fence. For multi-tenant Fence, if upstream_idps is not
+#   specified, will default to NIH login.
+# - "shib_idps": if "idp" is "fence" and upstream_idps is ["shibboleth"], a list of
+#   "shib_idps" can be configured for InCommon login. Can be '*' (all available IdPs) or a list of
+#   one or more entity IDs. If not specified, will default to NIH login.
+# - "fence_idp": deprecated; same as a `upstream_idps` list of 1 item.
+#   ^ [Backwards compatibility for Fence multi-tenant login / Shibboleth legacy configuration]
 # - Optional parameters: "desc" (description) and "secondary" (boolean - can
-# be used by the frontend to display secondary buttons differently).
+#   be used by the frontend to display secondary buttons differently).
 LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
   # - name: 'Login from Google'
   #   desc: 'description'
@@ -347,18 +400,22 @@ LOGIN_OPTIONS: [] # !!! remove the empty list to enable login options!
   #   idp: cognito
   # - name: 'Login from RAS'
   #   idp: ras
+  # - name: 'Generic OIDC Login'
+  #   idp: generic_oidc_idp
+  #   upstream_idps:
+  #     - urn:mace:incommon:nih.gov
+  #     - urn:mace:incommon:uchicago.edu
   # - name: 'NIH Login'
   #   idp: fence
-  #   fence_idp: shibboleth
+  #   upstream_idps: [shibboleth]
   # - name: 'ORCID Login through other Fence'
   #   idp: fence
-  #   fence_idp: orcid
+  #   upstream_idps: [orcid]
   # - name: 'CILogon Login'
   #   idp: cilogon
   # - name: 'InCommon Login'
   #   idp: fence
-  #   fence_idp: shibboleth
-  #   # "shib_idps" can be '*' or a list of one or more entity IDs
+  #   upstream_idps: [shibboleth]
   #   shib_idps:
   #     - urn:mace:incommon:nih.gov
   #     - urn:mace:incommon:uchicago.edu
@@ -459,7 +516,7 @@ MAX_PRESIGNED_URL_TTL: 3600
 # The number of seconds after an API KEY is issued until it expires.
 MAX_API_KEY_TTL: 2592000
 
-# The number of seconds after an access token is issued until it expires.
+# The number of seconds after an access token is issued from an API key until it expires.
 MAX_ACCESS_TOKEN_TTL: 3600
 
 # TEMPORARY: The maximum number of projects allowed in token claims.
@@ -477,6 +534,9 @@ GEN3_PASSPORT_EXPIRES_IN: 43200
 # We use the same field name for POSTs to /data/download for consistency
 GA4GH_DRS_POSTED_PASSPORT_FIELD: "passports"
 
+# The number of seconds after a refresh token from an IdP will expire if there is not
+# a specific exp configured for that IdP above in OPENID_CONNECT
+DEFAULT_REFRESH_TOKEN_EXP: 3600
 
 ########################################################################################
 #                               OPTIONAL CONFIGURATIONS                                #
@@ -758,7 +818,8 @@ AZ_BLOB_CONTAINER_URL: 'https://myfakeblob.blob.core.windows.net/my-fake-contain
 
 # url where authz microservice is running
 ARBORIST: null
-
+# time in seconds to wait for arborist to respond to requests from fence
+ARBORIST_TIMEOUT: 30
 # url where the audit-service is running
 AUDIT_SERVICE: 'http://audit-service'
 ENABLE_AUDIT_LOGS:

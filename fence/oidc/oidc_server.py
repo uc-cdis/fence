@@ -36,7 +36,6 @@ class ClientAuthentication(AuthlibClientAuthentication):
             request, methods, endpoint
         )
 
-        logger.info("oidc_server.py clientAuthentication authenticate complete")
         # don't allow confidential clients to not use auth
         if client.is_confidential:
             m = list(methods)
