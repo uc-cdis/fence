@@ -1,10 +1,10 @@
-import flask
-from flask import current_app
+import re
+import urllib.request, urllib.parse, urllib.error
 from datetime import datetime
 from functools import wraps
-import urllib.request, urllib.parse, urllib.error
-import re
 
+import flask
+from flask import current_app
 from authutils.errors import JWTError, JWTExpiredError
 from authutils.token.validate import (
     current_token,
@@ -14,13 +14,14 @@ from authutils.token.validate import (
 )
 from cdislogging import get_logger
 
+from fence.authz.auth import check_arborist_auth
+from fence.config import config
 from fence.errors import Unauthorized, InternalError
 from fence.jwt.validate import validate_jwt
 from fence.models import User, IdentityProvider, query_for_user
 from fence.user import get_current_user
 from fence.utils import clear_cookies
 from fence.config import config
-from fence.authz.auth import check_arborist_auth
 
 logger = get_logger(__name__)
 
