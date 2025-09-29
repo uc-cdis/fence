@@ -5,7 +5,7 @@ on: pull_request
 jobs:
   integration_tests:
     name: Integration tests
-    uses: uc-cdis/gen3-code-vigil/.github/workflows/shared_integration_tests.yaml.yaml@chore/cleanup_jenkins_references
+    uses: uc-cdis/gen3-code-vigil/.github/workflows/shared_integration_tests.yaml@chore/cleanup_jenkins_references
     with:
       SERVICE_TO_TEST: fence
       TEST_REPO_BRANCH: chore/cleanup_jenkins_references
