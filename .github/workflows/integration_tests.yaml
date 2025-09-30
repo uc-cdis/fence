@@ -9,10 +9,6 @@ jobs:
     with:
       SERVICE_TO_TEST: fence
     secrets:
-      CI_AWS_ACCESS_KEY_ID: ${{ secrets.CI_AWS_ACCESS_KEY_ID }}
-      CI_AWS_SECRET_ACCESS_KEY: ${{ secrets.CI_AWS_SECRET_ACCESS_KEY }}
-      JENKINS_API_TOKEN: ${{ secrets.JENKINS_API_TOKEN }}
-      QA_DASHBOARD_S3_PATH: ${{ secrets.QA_DASHBOARD_S3_PATH }}
       CI_TEST_ORCID_USERID: ${{ secrets.CI_TEST_ORCID_USERID }}
       CI_TEST_ORCID_PASSWORD: ${{ secrets.CI_TEST_ORCID_PASSWORD }}
       CI_TEST_RAS_EMAIL: ${{ secrets.CI_TEST_RAS_EMAIL }}
