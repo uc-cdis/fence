@@ -107,9 +107,7 @@ def get_signed_url_for_file(
 
     # Collect X-Forwarded headers
     x_forwarded_headers = [
-        f"{header}:{value}"
-        for header, value in flask.request.headers
-        if "X-Forwarded" in header
+        f"{header}:{value}" for header, value in flask.request.headers if "X-" in header
     ]
     # add the user details to `flask.g.audit_data` first, so they are
     # included in the audit log if `IndexedFile(file_id)` raises a 404
@@ -1608,9 +1606,11 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
             blob_name,
             expires_in,
             azure_creds,
-            permission=AccountSasPermissions(read=True)
-            if action == "download"
-            else AccountSasPermissions(read=True, write=True),
+            permission=(
+                AccountSasPermissions(read=True)
+                if action == "download"
+                else AccountSasPermissions(read=True, write=True)
+            ),
         )
 
         return url

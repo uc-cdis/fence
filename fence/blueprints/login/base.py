@@ -311,9 +311,7 @@ class DefaultOAuth2Callback(Resource):
 
 def prepare_login_log(idp_name):
     x_forwarded_headers = [
-        f"{header}:{value}"
-        for header, value in flask.request.headers
-        if "X-Forwarded" in header
+        f"{header}:{value}" for header, value in flask.request.headers if "X-" in header
     ]
     flask.g.audit_data = {
         "username": flask.g.user.username,
