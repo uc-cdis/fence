@@ -1,7 +1,11 @@
 from unittest import mock
 import flask
 import pytest
-from fence.auth import login_user_or_require_registration, logout
+from fence.auth import (
+    _identify_user_and_update_database,
+    login_user_or_require_registration,
+    logout,
+)
 from fence.models import User, IdentityProvider
 import time
 from datetime import datetime
@@ -94,6 +98,47 @@ def test_login_user_with_idp_already_in_db(db_session):
     assert flask.session["provider"] == provider
     assert flask.session["user_id"] == user_id
     assert flask.g.user == test_user
+
+
+@pytest.mark.parametrize(
+    "username",
+    [
+        "example@gmail.com",
+        "example@gmail.org",
+        "example@subdomain.gmail.com",
+        "example@subdomain.gmail.org",
+        "example.com.org.gmail@subdomain.gmail.org",
+        "ASDALKSJD(*)!&@#(*&^DFGA@gmail.com",
+        "badactor@example.com",
+    ],
+)
+def test_login_user_with_denied_username(db_session, username, monkeypatch):
+    """
+    Test that usernames that are configured to be denied are actually denied
+    """
+    email = "example@example.com"
+    provider = "Test Provider"
+    id_from_idp = "Provider_ID_0001"
+
+    deny_regex = "badactor@example.com|(.*@.*(126|163|aol|bk|foxmail|gmail|hotmail|icloud|inbox|live|mail|mailinator|outlook|proton|qq|rambler|sina|yeah|yahoo|yandex).*)"
+
+    monkeypatch.setitem(config, "GLOBAL_USERNAME_DENY_REGEX", deny_regex)
+    test_user = User(
+        username=username,
+        email=email,
+        id_from_idp=id_from_idp,
+        is_admin=False,
+    )
+    test_idp = IdentityProvider(name=provider)
+    test_user.identity_provider = test_idp
+
+    db_session.add(test_user)
+    db_session.commit()
+
+    with pytest.raises(Exception):
+        _identify_user_and_update_database(
+            username, provider, email=email, id_from_idp=id_from_idp
+        )
 
 
 @mock.patch("fence.auth.get_ip_information_string")
