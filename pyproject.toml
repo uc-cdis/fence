@@ -1,6 +1,7 @@
 [tool.poetry]
 name = "fence"
-version = "11.2.0"
+# Dummy change to create a test branch
+version = "11.2.1"
 description = "Gen3 AuthN/AuthZ OIDC Service"
 authors = ["CTDS UChicago <cdis@uchicago.edu>"]
 license = "Apache-2.0"
