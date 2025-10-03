@@ -1,4 +1,5 @@
 import flask
+from authlib.integrations.flask_oauth2.requests import FlaskOAuth2Payload
 
 from fence.oidc.errors import InvalidClientError
 from fence.oidc.jwt_generator import generate_token
@@ -111,6 +112,7 @@ class FenceOAuth2Request(OAuth2Request):
     def __init__(self, request: Request):
         super().__init__(request.method, request.url, None, request.headers)
         self._request = request
+        self.payload = FlaskOAuth2Payload(request)
 
     @property
     def args(self):
