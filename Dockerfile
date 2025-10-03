@@ -3,12 +3,14 @@
 #   docker run -v ~/.gen3/fence/fence-config.yaml:/var/www/fence/fence-config.yaml -v ./keys/:/fence/keys/ fence:latest
 # To check running container do: docker exec -it CONTAINER bash
 
-ARG AZLINUX_BASE_VERSION=master
+ARG AZLINUX_BASE_VERSION=feat_python-build-base
 
 # ------ Base stage ------
-FROM quay.io/cdis/python-nginx-al:${AZLINUX_BASE_VERSION} AS base
+FROM quay.io/cdis/python-build-base:${AZLINUX_BASE_VERSION} AS base
 # Comment this in, and comment out the line above, if quay is down
 # FROM 707767160287.dkr.ecr.us-east-1.amazonaws.com/gen3/python-nginx-al:${AZLINUX_BASE_VERSION} as base
+
+# FROM quay.io/cdis/python-nginx-al:master AS base
 
 ENV appname=fence
 
@@ -57,8 +59,10 @@ RUN echo "Upgrading dnf"; \
         libxcrypt-compat-4.4.33 \
         libpq-15.0 \
         gcc \
-        tar xz; \
-    echo "Installing RPM"; \
+        tar xz \
+        diffutils
+
+RUN echo "Installing RPM"; \
     rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt-1.11-1.src.rpm && \
     cd /root/rpmbuild/SOURCES/ && \
     tar -zxf ccrypt-1.11.tar.gz && cd ccrypt-1.11 && ./configure --disable-libcrypt && make install && make check;
