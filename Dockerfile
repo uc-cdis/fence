@@ -65,4 +65,8 @@ RUN echo "Upgrading dnf"; \
 
 COPY --chown=gen3:gen3 --from=builder /$appname /$appname
 
+RUN dnf install -y wget ca-certificates && \
+    wget https://github.com/mikefarah/yq/releases/latest/download/yq_linux_amd64 -O /usr/local/bin/yq && \
+    chmod +x /usr/local/bin/yq
+
 CMD ["/bin/bash", "-c", "/fence/dockerrun.bash"]
