@@ -105,6 +105,10 @@ def get_signed_url_for_file(
             ga4gh_passports, db_session=db_session
         )
 
+    # Collect X-Forwarded headers
+    x_forwarded_headers = [
+        f"{header}:{value}" for header, value in flask.request.headers if "X-" in header
+    ]
     # add the user details to `flask.g.audit_data` first, so they are
     # included in the audit log if `IndexedFile(file_id)` raises a 404
     if users_from_passports:
@@ -117,6 +121,7 @@ def get_signed_url_for_file(
                 audit_data = {
                     "username": username,
                     "sub": user.id,
+                    "additional_data": x_forwarded_headers,
                 }
                 logger.info(
                     f"passport with multiple user ids is attempting data access. audit log: {audit_data}"
@@ -126,6 +131,7 @@ def get_signed_url_for_file(
             flask.g.audit_data = {
                 "username": username,
                 "sub": user.id,
+                "additional_data": x_forwarded_headers,
             }
     else:
         auth_info = _get_auth_info_for_id_or_from_request(
@@ -134,6 +140,7 @@ def get_signed_url_for_file(
         flask.g.audit_data = {
             "username": auth_info["username"],
             "sub": auth_info["user_id"],
+            "additional_data": x_forwarded_headers,
         }
 
     indexed_file = IndexedFile(file_id)
@@ -1599,9 +1606,11 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
             blob_name,
             expires_in,
             azure_creds,
-            permission=AccountSasPermissions(read=True)
-            if action == "download"
-            else AccountSasPermissions(read=True, write=True),
+            permission=(
+                AccountSasPermissions(read=True)
+                if action == "download"
+                else AccountSasPermissions(read=True, write=True)
+            ),
         )
 
         return url

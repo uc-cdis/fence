@@ -519,6 +519,104 @@ def test_presigned_url_log_unauthorized(
         )
 
 
+@pytest.mark.parametrize(
+    "indexd_client_with_arborist", ["s3_and_gs_acl_no_authz"], indirect=True
+)
+@pytest.mark.parametrize("endpoint", ["download", "ga4gh-drs"])
+def test_presigned_url_log_x_forwarded_headers(
+    endpoint,
+    client,
+    user_client,
+    mock_arborist_requests,
+    indexd_client_with_arborist,
+    kid,
+    rsa_private_key,
+    primary_google_service_account,
+    cloud_manager,
+    google_signed_url,
+    monkeypatch,
+):
+    """
+    Same as `test_presigned_url_log_acl`,but the request contains X-forwarded
+    headers.
+    """
+    # Mock Arborist authz check
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
+
+    # Mock audit-service client
+    audit_service_mocker = mock.patch(
+        "fence.resources.audit.client.requests", new_callable=mock.Mock
+    )
+
+    # Enable presigned_url audit logging
+    monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"presigned_url": True})
+
+    protocol = "gs"
+    guid = "dg.hello/abc"
+
+    # Build the request path depending on endpoint type
+    if endpoint == "download":
+        path = f"/data/download/{guid}?protocol={protocol}"
+    else:
+        path = f"/ga4gh/drs/v1/objects/{guid}/access/{protocol}"
+
+    # Create indexd record with ACLs
+    indexd_client_with_arborist(None)
+
+    # Build Authorization header with JWT
+    headers = {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, str(user_client.user_id)
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ),
+        # Simulate X-Forwarded-For coming from a proxy chain
+        "X-Forwarded-For": "1.2.3.4, 5.6.7.8",
+    }
+
+    with audit_service_mocker as audit_service_requests:
+        AUDIT_SCHEMA_CACHE.clear()
+        AUDIT_SCHEMA_CACHE.set(
+            "audit_schema",
+            {
+                "login": {"version": 2.1},
+                "presigned_url": {"version": 1.1},
+            },
+        )
+        # Mock audit-service POST response
+        audit_service_requests.post.return_value = MockResponse(
+            data={},
+            status_code=201,
+        )
+
+        # Call the endpoint
+        response = client.get(path, headers=headers)
+
+        # Validate response
+        assert response.status_code == 200, response.text
+        assert response.json.get("url")
+
+        # Validate audit-service log payload
+        audit_service_requests.post.assert_called_once_with(
+            "http://audit-service/log/presigned_url",
+            json={
+                "request_url": path,
+                "status_code": 200,
+                "username": user_client.username,
+                "sub": user_client.user_id,
+                "guid": guid,
+                "resource_paths": ["phs000178", "phs000218"],
+                "action": "download",
+                "protocol": protocol,
+                "additional_data": ["X-Forwarded-For:1.2.3.4, 5.6.7.8"],
+            },
+        )
+
+
 ####################
 # Login audit logs #
 ####################
@@ -698,7 +796,7 @@ def test_presigned_url_log_push_to_sqs(
         "category": "presigned_url",
     }
     mocked_sqs.send_message.assert_called_once_with(
-        MessageBody=json.dumps(expected_audit_data), QueueUrl=mocked_sqs.url
+        QueueUrl=mocked_sqs.url, MessageBody=json.dumps(expected_audit_data)
     )
 
 
