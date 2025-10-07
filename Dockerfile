@@ -7,7 +7,7 @@ ARG AZLINUX_BASE_VERSION=master
 
 # ------ Base stage ------
 # For local development
-FROM quay.io/cdis/amazonlinux-base:master AS base
+FROM quay.io/cdis/amazonlinux-base:master AS gen3base
 
 # FROM 707767160287.dkr.ecr.us-east-1.amazonaws.com/gen3/amazonlinux-base:${AZLINUX_BASE_VERSION}
 
@@ -61,7 +61,7 @@ USER root
 COPY nginx.conf /etc/nginx/nginx.conf
 
 # ------ Builder stage ------
-FROM base AS builder
+FROM gen3base AS builder
 
 ENV appname=fence
 
@@ -90,7 +90,7 @@ RUN git config --global --add safe.directory ${appname} && COMMIT=`git rev-parse
 
 
 # ------ Final stage ------
-FROM base
+FROM gen3base
 
 ENV PATH="/${appname}/.venv/bin:$PATH"
 
