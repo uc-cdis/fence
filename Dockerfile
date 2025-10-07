@@ -6,7 +6,7 @@
 ARG AZLINUX_BASE_VERSION=master
 
 # ------ Base stage ------
-FROM quay.io/cdis/python-nginx-al:${AZLINUX_BASE_VERSION} AS base
+FROM quay.io/cdis/python-nginx-al:master AS base
 # Comment this in, and comment out the line above, if quay is down
 # FROM 707767160287.dkr.ecr.us-east-1.amazonaws.com/gen3/python-nginx-al:${AZLINUX_BASE_VERSION} as base
 
@@ -55,7 +55,7 @@ RUN git config --global --add safe.directory ${appname} && COMMIT=`git rev-parse
 
 
 # ------ Final stage ------
-FROM quay.io/cdis/python-nginx-al:${AZLINUX_BASE_VERSION}
+FROM quay.io/cdis/python-nginx-al:master
 ENV appname=fence
 ENV PATH="/${appname}/.venv/bin:$PATH"
 
