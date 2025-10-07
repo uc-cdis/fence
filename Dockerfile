@@ -60,14 +60,14 @@ USER root
 # Copy nginx config
 COPY nginx.conf /etc/nginx/nginx.conf
 
-# ------ Builder stage ------
-FROM gen3base AS builder
-
 ENV appname=fence
 
 WORKDIR /${appname}
 
 RUN chown -R gen3:gen3 /${appname}
+
+# ------ Builder stage ------
+FROM gen3base AS builder
 
 USER gen3
 
