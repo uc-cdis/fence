@@ -16,17 +16,21 @@ ENV appname=fence
 WORKDIR /${appname}
 
 RUN set -eux; \
-    chown -R gen3:gen3 /${appname}; \
-    # change gen3 UID/GID to match OpenShift pod settings (1000970000)
-    if ! getent group 1000970000 >/dev/null 2>&1; then \
-      groupmod -g 1000970000 gen3 || awk -F: -v GNAME=gen3 -v GID=1000970000 'BEGIN{OFS=":"}{ if($1==GNAME){$3=GID} print }' /etc/group > /etc/group.tmp && mv /etc/group.tmp /etc/group; \
+  chown -R gen3:gen3 /${appname}; \
+  # change gen3 UID/GID to 1000970000 (OpenShift)
+  if ! getent group 1000970000 >/dev/null 2>&1; then \
+    if groupmod -g 1000970000 gen3; then :; else \
+      awk -F: -v GNAME=gen3 -v GID=1000970000 'BEGIN{OFS=":"}{ if($1==GNAME){$3=GID} print }' /etc/group > /etc/group.tmp; \
+      mv /etc/group.tmp /etc/group; \
     fi; \
-    if ! getent passwd 1000970000 >/dev/null 2>&1; then \
-      usermod -u 1000970000 -g 1000970000 gen3 || awk -F: -v UNAME=gen3 -v UID=1000970000 'BEGIN{OFS=":"}{ if($1==UNAME){$3=UID} print }' /etc/passwd > /etc/passwd.tmp && mv /etc/passwd.tmp /etc/passwd; \
+  fi; \
+  if ! getent passwd 1000970000 >/dev/null 2>&1; then \
+    if usermod -u 1000970000 -g 1000970000 gen3; then :; else \
+      awk -F: -v UNAME=gen3 -v UID=1000970000 'BEGIN{OFS=":"}{ if($1==UNAME){$3=UID} print }' /etc/passwd > /etc/passwd.tmp; \
+      mv /etc/passwd.tmp /etc/passwd; \
     fi; \
-    chown -R 1000970000:1000970000 /${appname}
-
-RUN chown -R gen3:gen3 /${appname}
+  fi; \
+  chown -R 1000970000:1000970000 /${appname}
 
 # ------ Builder stage ------
 FROM base AS builder
@@ -53,25 +57,32 @@ RUN git config --global --add safe.directory ${appname} && COMMIT=`git rev-parse
 
 # ------ Final stage ------
 FROM ${BASE_IMAGE}
-
+ENV appname=fence
 ENV PATH="/${appname}/.venv/bin:$PATH"
 
-# remove cap from nginx (safe when nginx listens on >1024) and ensure dirs owned by gen3 UID
 RUN set -eux; \
-    # try to remove file capability if setcap available (ignore errors); install libcap-tools if necessary
-    if command -v setcap >/dev/null 2>&1; then \
-      setcap -r /usr/sbin/nginx || true; \
-    else \
-      if yum -q list installed libcap >/dev/null 2>&1 || dnf -q list installed libcap >/dev/null 2>&1; then \
-        true; \
-      else \
-        dnf install -y libcap || true; \
-      fi; \
-      command -v setcap >/dev/null 2>&1 && setcap -r /usr/sbin/nginx || true; \
+  # ensure gen3 UID/GID are 1000970000 here too
+  if ! getent group 1000970000 >/dev/null 2>&1; then \
+    if groupmod -g 1000970000 gen3; then :; else \
+      awk -F: -v GNAME=gen3 -v GID=1000970000 'BEGIN{OFS=":"}{ if($1==GNAME){$3=GID} print }' /etc/group > /etc/group.tmp; \
+      mv /etc/group.tmp /etc/group; \
     fi; \
-    # ensure gen3 owns important runtime paths
-    chown -R 1000970000:1000970000 /var/log/nginx /var/lib/nginx /var/tmp/prometheus_metrics /${appname} || true
-# ...existing code...
+  fi; \
+  if ! getent passwd 1000970000 >/dev/null 2>&1; then \
+    if usermod -u 1000970000 -g 1000970000 gen3; then :; else \
+      awk -F: -v UNAME=gen3 -v UID=1000970000 'BEGIN{OFS=":"}{ if($1==UNAME){$3=UID} print }' /etc/passwd > /etc/passwd.tmp; \
+      mv /etc/passwd.tmp /etc/passwd; \
+    fi; \
+  fi; \
+  # remove cap from nginx (no need since we listen on 8080)
+   if command -v setcap >/dev/null 2>&1; then \
+     setcap -r /usr/sbin/nginx || true; \
+   else \
+     if yum -q list installed libcap >/dev/null 2>&1 || dnf -q list installed libcap >/dev/null 2>&1; then true; else dnf install -y libcap || true; fi; \
+     command -v setcap >/dev/null 2>&1 && setcap -r /usr/sbin/nginx || true; \
+   fi; \
+   # ensure ownerships
+   chown -R 1000970000:1000970000 /var/log/nginx /var/lib/nginx /var/tmp/prometheus_metrics /${appname} || true
 
 # FIXME: Remove this when it's in the base image
 ENV PROMETHEUS_MULTIPROC_DIR="/var/tmp/prometheus_metrics"
