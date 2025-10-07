@@ -4,10 +4,9 @@
 # To check running container do: docker exec -it CONTAINER bash
 
 ARG AZLINUX_BASE_VERSION=master
-ARG BASE_IMAGE=quay.io/cdis/python-nginx-al:${AZLINUX_BASE_VERSION}
 
 # ------ Base stage ------
-FROM ${BASE_IMAGE} AS base
+FROM quay.io/cdis/python-nginx-al:${AZLINUX_BASE_VERSION} AS base
 # Comment this in, and comment out the line above, if quay is down
 # FROM 707767160287.dkr.ecr.us-east-1.amazonaws.com/gen3/python-nginx-al:${AZLINUX_BASE_VERSION} as base
 
@@ -56,7 +55,7 @@ RUN git config --global --add safe.directory ${appname} && COMMIT=`git rev-parse
 
 
 # ------ Final stage ------
-FROM ${BASE_IMAGE}
+FROM FROM quay.io/cdis/python-nginx-al:${AZLINUX_BASE_VERSION}
 ENV appname=fence
 ENV PATH="/${appname}/.venv/bin:$PATH"
 
