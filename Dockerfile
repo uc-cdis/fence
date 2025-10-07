@@ -55,7 +55,7 @@ RUN git config --global --add safe.directory ${appname} && COMMIT=`git rev-parse
 
 
 # ------ Final stage ------
-FROM FROM quay.io/cdis/python-nginx-al:${AZLINUX_BASE_VERSION}
+FROM quay.io/cdis/python-nginx-al:${AZLINUX_BASE_VERSION}
 ENV appname=fence
 ENV PATH="/${appname}/.venv/bin:$PATH"
 
