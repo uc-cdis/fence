@@ -6,33 +6,68 @@
 ARG AZLINUX_BASE_VERSION=master
 
 # ------ Base stage ------
-FROM quay.io/cdis/python-nginx-al:master AS base
-# Comment this in, and comment out the line above, if quay is down
-# FROM 707767160287.dkr.ecr.us-east-1.amazonaws.com/gen3/python-nginx-al:${AZLINUX_BASE_VERSION} as base
+# For local development
+FROM quay.io/cdis/amazonlinux-base:master AS base
+
+# FROM 707767160287.dkr.ecr.us-east-1.amazonaws.com/gen3/amazonlinux-base:${AZLINUX_BASE_VERSION}
+
+LABEL name="python-nginx-build-base"
+LABEL version="3.9"
+
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONIOENCODING=UTF-8 \
+    POETRY_NO_INTERACTION=1 \
+    POETRY_VIRTUALENVS_IN_PROJECT=1 \
+    POETRY_VIRTUALENVS_CREATE=1
+
+# Install python build dependencies
+RUN dnf update \
+        --assumeyes \
+    && dnf install \
+        --assumeyes \
+        --setopt=install_weak_deps=False \
+        --setopt=tsflags=nodocs \
+        git \
+        python3-pip \
+    && dnf clean all \
+    && rm -rf /var/cache/yum
+
+# Install pipx
+RUN python3 -m pip install pipx && \
+    python3 -m pipx ensurepath
+
+# Create gen3 user
+RUN groupadd -g 1000970000 gen3 && \
+    useradd -m -s /bin/bash -u 1000970000 -g gen3 gen3
+
+# Install nginx
+RUN yum install nginx -y && \
+    # allows nginx to run on port 80 without being root user
+    # setcap 'cap_net_bind_service=+ep' /usr/sbin/nginx && \
+    chown -R gen3:gen3 /var/log/nginx && \
+    # pipe nginx logs to stdout/stderr
+    ln -sf /dev/stdout /var/log/nginx/access.log && \
+    ln -sf /dev/stderr /var/log/nginx/error.log && \
+    mkdir -p /var/lib/nginx/tmp/client_body && \
+    chown -R gen3:gen3 /var/lib/nginx/
+
+USER gen3
+# Install Poetry via pipx
+RUN pipx install 'poetry<2.0'
+ENV PATH="/home/gen3/.local/bin:${PATH}"
+USER root
+
+# Copy nginx config
+COPY nginx.conf /etc/nginx/nginx.conf
+
+# ------ Builder stage ------
+FROM base AS builder
 
 ENV appname=fence
 
 WORKDIR /${appname}
 
-RUN set -eux; \
-  chown -R gen3:gen3 /${appname}; \
-  # change gen3 UID/GID to 1000970000 (OpenShift)
-  if ! getent group 1000970000 >/dev/null 2>&1; then \
-    if groupmod -g 1000970000 gen3; then :; else \
-      awk -F: -v GNAME=gen3 -v GID=1000970000 'BEGIN{OFS=":"}{ if($1==GNAME){$3=GID} print }' /etc/group > /etc/group.tmp; \
-      mv /etc/group.tmp /etc/group; \
-    fi; \
-  fi; \
-  if ! getent passwd 1000970000 >/dev/null 2>&1; then \
-    if usermod -u 1000970000 -g 1000970000 gen3; then :; else \
-      awk -F: -v UNAME=gen3 -v UID=1000970000 'BEGIN{OFS=":"}{ if($1==UNAME){$3=UID} print }' /etc/passwd > /etc/passwd.tmp; \
-      mv /etc/passwd.tmp /etc/passwd; \
-    fi; \
-  fi; \
-  chown -R 1000970000:1000970000 /${appname}
-
-# ------ Builder stage ------
-FROM base AS builder
+RUN chown -R gen3:gen3 /${appname}
 
 USER gen3
 
@@ -55,33 +90,9 @@ RUN git config --global --add safe.directory ${appname} && COMMIT=`git rev-parse
 
 
 # ------ Final stage ------
-FROM quay.io/cdis/python-nginx-al:master
-ENV appname=fence
-ENV PATH="/${appname}/.venv/bin:$PATH"
+FROM base
 
-RUN set -eux; \
-  # ensure gen3 UID/GID are 1000970000 here too
-  if ! getent group 1000970000 >/dev/null 2>&1; then \
-    if groupmod -g 1000970000 gen3; then :; else \
-      awk -F: -v GNAME=gen3 -v GID=1000970000 'BEGIN{OFS=":"}{ if($1==GNAME){$3=GID} print }' /etc/group > /etc/group.tmp; \
-      mv /etc/group.tmp /etc/group; \
-    fi; \
-  fi; \
-  if ! getent passwd 1000970000 >/dev/null 2>&1; then \
-    if usermod -u 1000970000 -g 1000970000 gen3; then :; else \
-      awk -F: -v UNAME=gen3 -v UID=1000970000 'BEGIN{OFS=":"}{ if($1==UNAME){$3=UID} print }' /etc/passwd > /etc/passwd.tmp; \
-      mv /etc/passwd.tmp /etc/passwd; \
-    fi; \
-  fi; \
-  # remove cap from nginx (no need since we listen on 8080)
-   if command -v setcap >/dev/null 2>&1; then \
-     setcap -r /usr/sbin/nginx || true; \
-   else \
-     if yum -q list installed libcap >/dev/null 2>&1 || dnf -q list installed libcap >/dev/null 2>&1; then true; else dnf install -y libcap || true; fi; \
-     command -v setcap >/dev/null 2>&1 && setcap -r /usr/sbin/nginx || true; \
-   fi; \
-   # ensure ownerships
-   chown -R 1000970000:1000970000 /var/log/nginx /var/lib/nginx /var/tmp/prometheus_metrics /${appname} || true
+ENV PATH="/${appname}/.venv/bin:$PATH"
 
 # FIXME: Remove this when it's in the base image
 ENV PROMETHEUS_MULTIPROC_DIR="/var/tmp/prometheus_metrics"
