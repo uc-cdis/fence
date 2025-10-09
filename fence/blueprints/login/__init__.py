@@ -134,8 +134,7 @@ def get_provider_info(login_details):
         "secondary": login_details.get("secondary", False),
     }
 
-    # TODO: Get from config
-    hide_idps_list = ["Ohio State University", "Cornell University"]
+    hide_idps_list = config.get("HIDE_IDPS", [])
 
     # [Backwards compatibility for Fence multi-tenant login / Shibboleth legacy configuration]
     # fall back to `fence_idp` if `upstream_idps` is not specified
