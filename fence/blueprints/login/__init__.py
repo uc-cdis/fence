@@ -134,6 +134,9 @@ def get_provider_info(login_details):
         "secondary": login_details.get("secondary", False),
     }
 
+    # TODO: Get from config
+    hide_ids_list = ["Ohio State University", "Cornell University"]
+
     # [Backwards compatibility for Fence multi-tenant login / Shibboleth legacy configuration]
     # fall back to `fence_idp` if `upstream_idps` is not specified
     requested_upstream_idps = login_details.get("upstream_idps")
@@ -209,6 +212,8 @@ def get_provider_info(login_details):
 
     if requested_upstream_idps == "*":
         upstream_idps = UPSTREAM_IDP_CACHE.get(cache_key)
+        exclude_idps = [x for x in upstream_idps if x not in hide_ids_list]
+        upstream_idps = exclude_idps
     elif isinstance(requested_upstream_idps, list) and len(requested_upstream_idps):
         upstream_idps = []
         for requested_upstream_idp in set(requested_upstream_idps):
