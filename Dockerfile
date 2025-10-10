@@ -6,68 +6,19 @@
 ARG AZLINUX_BASE_VERSION=master
 
 # ------ Base stage ------
-# For local development
-FROM quay.io/cdis/amazonlinux-base:master AS gen3base
-
-# FROM 707767160287.dkr.ecr.us-east-1.amazonaws.com/gen3/amazonlinux-base:${AZLINUX_BASE_VERSION}
-
-LABEL name="python-nginx-build-base"
-LABEL version="3.9"
-
-ENV PYTHONUNBUFFERED=1 \
-    PYTHONIOENCODING=UTF-8 \
-    POETRY_NO_INTERACTION=1 \
-    POETRY_VIRTUALENVS_IN_PROJECT=1 \
-    POETRY_VIRTUALENVS_CREATE=1
-
-# Install python build dependencies
-RUN dnf update \
-        --assumeyes \
-    && dnf install \
-        --assumeyes \
-        --setopt=install_weak_deps=False \
-        --setopt=tsflags=nodocs \
-        git \
-        python3-pip \
-    && dnf clean all \
-    && rm -rf /var/cache/yum
-
-# Install pipx
-RUN python3 -m pip install pipx && \
-    python3 -m pipx ensurepath
-
-# Create gen3 user
-RUN groupadd -g 1000970000 gen3 && \
-    useradd -m -s /bin/bash -u 1000970000 -g gen3 gen3
-
-# Install nginx
-RUN yum install nginx -y && \
-    # allows nginx to run on port 80 without being root user
-    # setcap 'cap_net_bind_service=+ep' /usr/sbin/nginx && \
-    chown -R gen3:gen3 /var/log/nginx && \
-    # pipe nginx logs to stdout/stderr
-    ln -sf /dev/stdout /var/log/nginx/access.log && \
-    ln -sf /dev/stderr /var/log/nginx/error.log && \
-    mkdir -p /var/lib/nginx/tmp/client_body && \
-    chown -R gen3:gen3 /var/lib/nginx/
-
-USER gen3
-# Install Poetry via pipx
-RUN pipx install 'poetry<2.0'
-ENV PATH="/home/gen3/.local/bin:${PATH}"
-USER root
-
-# Copy nginx config
-COPY nginx.conf /etc/nginx/nginx.conf
+FROM 973342646972.dkr.ecr.us-east-1.amazonaws.com/openshift-pcdc/python-nginx:latest AS base
+# Comment this in, and comment out the line above, if quay is down
+# FROM 707767160287.dkr.ecr.us-east-1.amazonaws.com/gen3/python-nginx-al:${AZLINUX_BASE_VERSION} as base
 
 ENV appname=fence
 
 WORKDIR /${appname}
-
 RUN chown -R gen3:gen3 /${appname}
+RUN mkdir -p /amanuensis 
+
 
 # ------ Builder stage ------
-FROM gen3base AS builder
+FROM base AS builder
 
 USER gen3
 
@@ -90,7 +41,9 @@ RUN git config --global --add safe.directory ${appname} && COMMIT=`git rev-parse
 
 
 # ------ Final stage ------
-FROM gen3base
+FROM base
+
+RUN setcap -r /usr/sbin/nginx
 
 ENV PATH="/${appname}/.venv/bin:$PATH"
 
@@ -107,7 +60,8 @@ RUN echo "Upgrading dnf"; \
         libxcrypt-compat-4.4.33 \
         libpq-15.0 \
         gcc \
-        tar xz; \
+        tar \ 
+        xz; \
     echo "Installing RPM"; \
     rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt-1.11-1.src.rpm && \
     cd /root/rpmbuild/SOURCES/ && \
