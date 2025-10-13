@@ -407,28 +407,9 @@ def main():
     # get database information
     sys.path.append(args.path)
 
-    # replicate cfg loading done in flask app to maintain backwards compatibility
-    # TODO (DEPRECATE LOCAL_SETTINGS): REMOVE this when putting cfg in
-    # settings/local_settings is deprecated
-    import flask
-
-    settings_cfg = flask.Config(".")
-    settings_cfg.from_object("fence.settings")
-    config.update(dict(settings_cfg))
-
-    # END - TODO (DEPRECATE LOCAL_SETTINGS): REMOVE
-
     config.load(search_folders=CONFIG_SEARCH_FOLDERS)
 
     DB = os.environ.get("FENCE_DB") or config.get("DB")
-
-    # attempt to get from settings, this is backwards-compatibility for integration
-    # tests
-    if DB is None:
-        try:
-            from fence.settings import DB
-        except ImportError:
-            pass
 
     BASE_URL = os.environ.get("BASE_URL") or config.get("BASE_URL")
     ROOT_DIR = os.environ.get("ROOT_DIR") or os.path.dirname(
