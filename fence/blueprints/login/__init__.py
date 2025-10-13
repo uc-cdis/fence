@@ -211,8 +211,11 @@ def get_provider_info(login_details):
 
     if requested_upstream_idps == "*":
         upstream_idps = UPSTREAM_IDP_CACHE.get(cache_key)
-        exclude_idps = [x for x in upstream_idps if x.get("name") not in hide_idps_list]
-        upstream_idps = exclude_idps
+        if hide_idps_list and len(hide_idps_list) > 0:
+            hidden_idps_excluded = [
+                x for x in upstream_idps if x.get("name") not in hide_idps_list
+            ]
+            upstream_idps = hidden_idps_excluded
     elif isinstance(requested_upstream_idps, list) and len(requested_upstream_idps):
         upstream_idps = []
         for requested_upstream_idp in set(requested_upstream_idps):
