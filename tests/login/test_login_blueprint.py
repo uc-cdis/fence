@@ -134,3 +134,60 @@ def test_enabled_logins(app, client, login_option, get_all_upstream_idps_data_pa
         for url_info in response_provider["urls"]
     }
     assert all(url in app_routes for url in login_urls)
+
+
+def test_hide_idps_logins(app, client, get_all_upstream_idps_data_patcher):
+    # select a test provider with shib_idps=*
+    target_provider = "MDQ discovery all providers"
+    hide_list = ["Ohio State University", "University of Chicago"]
+
+    # empty hide list in config
+    config["HIDE_IDPS"] = []
+    r = client.get("/login")
+
+    assert r.status_code == 200, r.data
+    response_json = r.json
+    assert "providers" in response_json
+    response_providers = response_json["providers"]
+    response_provider = next(
+        (
+            provider
+            for provider in response_providers
+            if provider["name"] == target_provider
+        ),
+        None,
+    )
+    assert (
+        response_provider
+    ), 'Configured login option "{}" not in /login response: {}'.format()
+    names = [x["name"] for x in response_provider["urls"]]
+    length_no_hides = len(names)
+    assert length_no_hides >= 2, "Provider name list is shorter than expected"
+    assert all(name in names for name in hide_list)
+
+    # set the hide list in config
+    config["HIDE_IDPS"] = hide_list
+    r = client.get("/login")
+
+    assert r.status_code == 200, r.data
+    response_json = r.json
+    assert "providers" in response_json
+    response_providers = response_json["providers"]
+    response_provider = next(
+        (
+            provider
+            for provider in response_providers
+            if provider["name"] == target_provider
+        ),
+        None,
+    )
+    assert (
+        response_provider
+    ), 'Configured login option "{}" not in /login response: {}'.format()
+    new_names = [x["name"] for x in response_provider["urls"]]
+    assert len(new_names) == length_no_hides - len(
+        hide_list
+    ), "Provider name list is incorrect length"
+    # names in hide_list have been removed
+    assert all(name not in new_names for name in hide_list)
+    assert set(new_names) == set(names) - set(hide_list)
