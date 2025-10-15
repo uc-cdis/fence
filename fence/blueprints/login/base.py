@@ -285,8 +285,18 @@ class DefaultOAuth2Callback(Resource):
             shib_idp=flask.session.get("shib_idp"),
             client_id=flask.session.get("client_id"),
         )
-        # user display name on the UI
-        user.display_name = "{given_name} {family_name}".format(**token_result)
+
+        # build a friendly label, prefer token preferred_username, then email, then names, then username
+        pu = None
+        if token_result:
+            pu = token_result.get("preferred_username") \
+                 or (token_result.get("email") or "").lower() \
+                 or " ".join(filter(None, [token_result.get("given_name"), token_result.get("family_name")])).strip()
+
+        user.display_name = pu or user.username  # final fallback
+
+        flask.current_app.logger.info(f"Logged in user: {user.display_name}")
+        flask.current_app.logger.info(f"Token results: {token_result}")
 
         if self.read_authz_groups_from_tokens:
             self.client.update_user_authorization(
@@ -294,6 +304,7 @@ class DefaultOAuth2Callback(Resource):
             )
 
         if token_result:
+            print(token_result)
             username = token_result.get(self.username_field)
             if self.app.arborist and self.is_mfa_enabled:
                 if token_result.get("mfa"):
