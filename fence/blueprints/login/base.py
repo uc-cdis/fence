@@ -285,6 +285,8 @@ class DefaultOAuth2Callback(Resource):
             shib_idp=flask.session.get("shib_idp"),
             client_id=flask.session.get("client_id"),
         )
+        # user display name on the UI
+        user.display_name = "{given_name} {family_name}".format(**token_result)
 
         if self.read_authz_groups_from_tokens:
             self.client.update_user_authorization(
