@@ -285,18 +285,21 @@ class DefaultOAuth2Callback(Resource):
             shib_idp=flask.session.get("shib_idp"),
             client_id=flask.session.get("client_id"),
         )
+        # Get the config
+        idp_config = config["OPENID_CONNECT"].get(self.idp_name, {})
+
+        firstname_claim_field = idp_config.get("firstname_claim_field", "firstname")
+        lastname_claim_field = idp_config.get("lastname_claim_field", "lastname")
+        email_claim_field = idp_config.get("email_claim_field", "email")
 
         # build a friendly label, prefer token preferred_username, then email, then names, then username
-        pu = None
+        preferred_username = None
         if token_result:
-            pu = token_result.get("preferred_username") \
-                 or (token_result.get("email") or "").lower() \
-                 or " ".join(filter(None, [token_result.get("given_name"), token_result.get("family_name")])).strip()
+            preferred_username = token_result.get("preferred_username") \
+                 or (token_result.get(email_claim_field) or "").lower() \
+                 or " ".join(filter(None, [token_result.get(firstname_claim_field), token_result.get(lastname_claim_field)])).strip()
 
-        user.display_name = pu or user.username  # final fallback
-
-        flask.current_app.logger.info(f"Logged in user: {user.display_name}")
-        flask.current_app.logger.info(f"Token results: {token_result}")
+        user.display_name = preferred_username or user.username  # final fallback
 
         if self.read_authz_groups_from_tokens:
             self.client.update_user_authorization(
@@ -304,7 +307,6 @@ class DefaultOAuth2Callback(Resource):
             )
 
         if token_result:
-            print(token_result)
             username = token_result.get(self.username_field)
             if self.app.arborist and self.is_mfa_enabled:
                 if token_result.get("mfa"):
@@ -364,41 +366,26 @@ def _login_and_register(
         id_from_idp=id_from_idp,
     )
 
-    auto_registration_enabled = (
-        config["OPENID_CONNECT"]
-        .get(idp_name, {})
-        .get("enable_idp_users_registration", False)
-    )
+    # Get IdP config once
+    idp_config = config["OPENID_CONNECT"].get(idp_name, {})
+    auto_registration_enabled = idp_config.get("enable_idp_users_registration", False)
 
     if config["REGISTER_USERS_ON"]:
         user = flask.g.user
         if not user.additional_info.get("registration_info"):
             # If enabled, automatically register user from IdP
             if auto_registration_enabled:
-                organization_claim_field = (
-                    config["OPENID_CONNECT"]
-                    .get(idp_name, {})
-                    .get("organization_claim_field", "org")
-                )
-                firstname_claim_field = (
-                    config["OPENID_CONNECT"]
-                    .get(idp_name, {})
-                    .get("firstname_claim_field", "firstname")
-                )
-                lastname_claim_field = (
-                    config["OPENID_CONNECT"]
-                    .get(idp_name, {})
-                    .get("lastname_claim_field", "lastname")
-                )
-                email_claim_field = (
-                    config["OPENID_CONNECT"]
-                    .get(idp_name, {})
-                    .get("email_claim_field", "email")
-                )
+                # Get claim field names from config
+                organization_claim_field = idp_config.get("organization_claim_field", "org")
+                firstname_claim_field = idp_config.get("firstname_claim_field", "firstname")
+                lastname_claim_field = idp_config.get("lastname_claim_field", "lastname")
+                email_claim_field = idp_config.get("email_claim_field", "email")
+
                 firstname = token_result.get(firstname_claim_field)
                 lastname = token_result.get(lastname_claim_field)
                 organization = token_result.get(organization_claim_field)
                 email = token_result.get(email_claim_field)
+
                 if email is None:
                     raise UserError("OAuth2 id token is missing email claim")
                 # Log warnings and set defaults if needed
