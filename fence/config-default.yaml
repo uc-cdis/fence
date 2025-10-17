@@ -352,7 +352,7 @@ SESSION_ALLOWED_SCOPES:
   - "ga4gh_passport_v1"
 
 # this will error on authz callback from any of the above OIDC providers if the configured username field matches
-# the regex provided below
+# the search regex provided below
 # example:
 #  .*@.*(126|163|aol|bk|foxmail|gmail|hotmail|icloud|inbox|live|mail|mailinator|outlook|proton|qq|rambler|sina|yeah|yahoo|yandex).*
 GLOBAL_USERNAME_DENY_REGEX: ""
