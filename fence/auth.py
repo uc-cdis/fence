@@ -105,7 +105,7 @@ def _identify_user_and_update_database(
     """
     username_deny_regex = username_deny_regex or config["GLOBAL_USERNAME_DENY_REGEX"]
     if username_deny_regex:
-        if re.match(pattern=username_deny_regex, string=username):
+        if re.search(pattern=username_deny_regex, string=username):
             logger.info(
                 f"Blocked login of user with username {username} due to deny regex: {username_deny_regex}"
             )
