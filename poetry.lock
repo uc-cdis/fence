@@ -103,14 +103,14 @@ tests-mypy = ["mypy (>=1.11.1) ; platform_python_implementation == \"CPython\" a
 
 [[package]]
 name = "authlib"
-version = "1.3.1"
+version = "1.6.5"
 description = "The ultimate Python library in building OAuth and OpenID Connect servers and clients."
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "Authlib-1.3.1-py2.py3-none-any.whl", hash = "sha256:d35800b973099bbadc49b42b256ecb80041ad56b7fe1216a362c7943c088f377"},
-    {file = "authlib-1.3.1.tar.gz", hash = "sha256:7ae843f03c06c5c0debd63c9db91f9fda64fa62a42a77419fa15fbb7e7a58917"},
+    {file = "authlib-1.6.5-py2.py3-none-any.whl", hash = "sha256:3e0e0507807f842b02175507bdee8957a1d5707fd4afb17c32fb43fee90b6e3a"},
+    {file = "authlib-1.6.5.tar.gz", hash = "sha256:6aaf9c79b7cc96c900f0b284061691c5d4e61221640a948fe690b556a6d6d10b"},
 ]
 
 [package.dependencies]
@@ -118,18 +118,18 @@ cryptography = "*"
 
 [[package]]
 name = "authutils"
-version = "7.0.0"
+version = "7.1.0"
 description = "Gen3 auth utility functions"
 optional = false
 python-versions = "<4.0,>=3.9.2"
 groups = ["main"]
 files = [
-    {file = "authutils-7.0.0-py3-none-any.whl", hash = "sha256:3c4f899c4fe796f66c809e890a45ec87ff43ec51eeacec942bfaa1367930fed7"},
-    {file = "authutils-7.0.0.tar.gz", hash = "sha256:771edfa51b3dba37260e2e35b64b28078e3bbb9bb49ef35836930c151ce2a893"},
+    {file = "authutils-7.1.0-py3-none-any.whl", hash = "sha256:66587c01a57973da742c9d54930894e97b642e8a2ea8e2d1a0d217a916027af8"},
+    {file = "authutils-7.1.0.tar.gz", hash = "sha256:55ddff02bdd0de0df95ea0a7be46b263ec616519b2892b3f2621941af024bf7e"},
 ]
 
 [package.dependencies]
-authlib = ">=1.1.0"
+authlib = ">=1.6.4"
 cached-property = ">=1.4,<2.0"
 cdiserrors = "<2.0.0"
 cryptography = ">=44.0.1,<45.0.0"
@@ -2870,4 +2870,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9.2,<4.0.0"
-content-hash = "54f9c01e70021bbbb26cb562e035cba8325679a2d37417cd8bc77ded5821fc8d"
+content-hash = "4d7d21a790795e1fc367169854e41f943c2366483f6314752fd672acc9287909"
