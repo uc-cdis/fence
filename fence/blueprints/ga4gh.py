@@ -1,6 +1,4 @@
 import flask
-from flask import request
-
 from fence.errors import UserError
 from fence.config import config
 
