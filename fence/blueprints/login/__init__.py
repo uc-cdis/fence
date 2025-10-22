@@ -211,11 +211,6 @@ def get_provider_info(login_details):
 
     if requested_upstream_idps == "*":
         upstream_idps = UPSTREAM_IDP_CACHE.get(cache_key)
-        if hide_idps_list and len(hide_idps_list) > 0:
-            hidden_idps_excluded = [
-                x for x in upstream_idps if x.get("name") not in hide_idps_list
-            ]
-            upstream_idps = hidden_idps_excluded
     elif isinstance(requested_upstream_idps, list) and len(requested_upstream_idps):
         upstream_idps = []
         for requested_upstream_idp in set(requested_upstream_idps):
@@ -243,6 +238,12 @@ def get_provider_info(login_details):
         raise InternalError(
             f'Login option "{login_details["name"]}" misconfigured: because "OPENID_CONNECT.{login_details["idp"]}.idp_discovery" is configured, "LOGIN_OPTIONS.{login_details["name"]}.upstream_idps" must be a list or "*", got {requested_upstream_idps}'
         )
+
+    if hide_idps_list and len(hide_idps_list) > 0:
+        hidden_idps_excluded = [
+            x for x in upstream_idps if x.get("idp") not in hide_idps_list
+        ]
+        upstream_idps = hidden_idps_excluded
 
     if shib_special_case:
         info["urls"] = [
