@@ -375,6 +375,10 @@ SHIBBOLETH_HEADER: 'persistent_id'
 SSO_URL: 'https://auth.nih.gov/affwebservices/public/saml2sso?SPID={{BASE_URL}}/shibboleth&RelayState='
 ITRUST_GLOBAL_LOGOUT: 'https://auth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl='
 
+# The following names will be hidden from the InCommons drop down list when shib_idps=*
+# eg, HIDE_IDPS = ["The University of Texas Southwestern Medical Center"]
+HIDE_IDPS: []
+
 # //////////////////////////////////////////////////////////////////////////////////////
 # dbGaP USER SYNCING SUPPORT
 #   - Support syncing authorization information from dbGaP

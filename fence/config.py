@@ -42,6 +42,7 @@ class FenceConfig(Config):
             "DATA_UPLOAD_BUCKET",
             "DEFAULT_BACKOFF_SETTINGS_MAX_TRIES",
             "ARBORIST_TIMEOUT",
+            "HIDE_IDPS",
         ]
         for default in defaults:
             self.force_default_if_none(default, default_cfg=default_config)

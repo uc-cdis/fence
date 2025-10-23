@@ -134,6 +134,8 @@ def get_provider_info(login_details):
         "secondary": login_details.get("secondary", False),
     }
 
+    hide_idps_list = config.get("HIDE_IDPS", [])
+
     # [Backwards compatibility for Fence multi-tenant login / Shibboleth legacy configuration]
     # fall back to `fence_idp` if `upstream_idps` is not specified
     requested_upstream_idps = login_details.get("upstream_idps")
@@ -236,6 +238,12 @@ def get_provider_info(login_details):
         raise InternalError(
             f'Login option "{login_details["name"]}" misconfigured: because "OPENID_CONNECT.{login_details["idp"]}.idp_discovery" is configured, "LOGIN_OPTIONS.{login_details["name"]}.upstream_idps" must be a list or "*", got {requested_upstream_idps}'
         )
+
+    if hide_idps_list and len(hide_idps_list) > 0:
+        hidden_idps_excluded = [
+            x for x in upstream_idps if x.get("idp") not in hide_idps_list
+        ]
+        upstream_idps = hidden_idps_excluded
 
     if shib_special_case:
         info["urls"] = [
