@@ -3,9 +3,11 @@ import pytest
 import collections
 
 import asyncio
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, patch, call
 import mock
 from userdatamodel.user import IdentityProvider
+
+from gen3authz.client.arborist.errors import ArboristError
 
 from fence import models
 from fence.resources.google.access_utils import GoogleUpdateException
@@ -1179,4 +1181,185 @@ def test_revoke_all_policies_preserve_mfa_ensure_revoke_on_error(
     syncer._revoke_all_policies_preserve_mfa(user.username, user.identity_provider.name)
     syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
         user.username
+    )
+
+
+@pytest.mark.parametrize("syncer", ["google"], indirect=True)
+def test_sync_grant_arborist_policies_check_add_and_revoke(
+    syncer,
+    db_session,
+    monkeypatch,
+):
+    """
+    Test that the arborist policies are added and revoked correctly
+    """
+
+    syncer.arborist_client = MagicMock()
+
+    user_existing_policies = [
+        {"policy": "phs000178.c1-read"},
+        {"policy": "phs000178.c1-read-storage"},
+        {"policy": "phs000179.c1-read"},
+        {"policy": "phs000179.c1-read-storage"},
+        {"policy": "phs000180.c1-read"},
+        {"policy": "phs000180.c1-read-storage"},
+    ]
+
+    syncer.arborist_client.get_user.return_value = {"policies": user_existing_policies}
+
+    syncer._grant_arborist_policies(
+        username="TESTUSERB",
+        incoming_policies={
+            "phs000178.c1-read",
+            "phs000178.c1-read-storage",
+            "phs000179.c1-read",
+            "phs000179.c1-read-storage",
+            "phs000181.c1-read",
+            "phs000181.c1-read-storage",
+        },
+        user_yaml=None,
+        expires=10,
+    )
+    # Check if correct policies were added
+    expected_added_policies = {
+        "phs000181.c1-read",
+        "phs000181.c1-read-storage",
+    }
+
+    syncer.arborist_client.grant_bulk_user_policy.assert_called_once_with(
+        "TESTUSERB", expected_added_policies, 10
+    )
+
+    # Check if correct policies were revoked
+    expected_revoke_calls = [
+        call("TESTUSERB", "phs000180.c1-read"),
+        call("TESTUSERB", "phs000180.c1-read-storage"),
+    ]
+
+    syncer.arborist_client.revoke_user_policy.assert_has_calls(
+        expected_revoke_calls, any_order=True
+    )
+
+    assert syncer.arborist_client.revoke_user_policy.call_count == 2
+
+
+@pytest.mark.parametrize("syncer", ["google"], indirect=True)
+def test_sync_grant_arborist_policies_check_revoke_all(
+    syncer,
+    db_session,
+    monkeypatch,
+):
+    """
+    Test that all arborist policies are revoked correctly for a user.
+    """
+
+    syncer.arborist_client = MagicMock()
+
+    user_existing_policies = [
+        {"policy": "phs000178.c1-read"},
+        {"policy": "phs000178.c1-read-storage"},
+        {"policy": "phs000179.c1-read"},
+        {"policy": "phs000179.c1-read-storage"},
+    ]
+
+    syncer.arborist_client.get_user.return_value = {"policies": user_existing_policies}
+
+    syncer._grant_arborist_policies(
+        username="TESTUSERB",
+        incoming_policies=set(),
+        user_yaml=None,
+        expires=10,
+    )
+
+    # Check if all policies were revoked
+    expected_revoke_calls = [
+        call("TESTUSERB", "phs000178.c1-read"),
+        call("TESTUSERB", "phs000178.c1-read-storage"),
+        call("TESTUSERB", "phs000179.c1-read"),
+        call("TESTUSERB", "phs000179.c1-read-storage"),
+    ]
+
+    syncer.arborist_client.revoke_all_policies_for_user.assert_called_once_with(
+        "TESTUSERB"
+    )
+
+
+@pytest.mark.parametrize("syncer", ["google"], indirect=True)
+def test_sync_grant_arborist_policies_check_no_calls_made(
+    syncer,
+    db_session,
+    monkeypatch,
+):
+    """
+    Test that no calls are made to arborist if there are no policies to add or revoke.
+    """
+
+    syncer.arborist_client = MagicMock()
+
+    user_existing_policies = [
+        {"policy": "phs000178.c1-read"},
+        {"policy": "phs000178.c1-read-storage"},
+        {"policy": "phs000179.c1-read"},
+        {"policy": "phs000179.c1-read-storage"},
+    ]
+
+    syncer.arborist_client.get_user.return_value = {"policies": user_existing_policies}
+
+    syncer._grant_arborist_policies(
+        username="TESTUSERB",
+        incoming_policies={
+            "phs000178.c1-read",
+            "phs000178.c1-read-storage",
+            "phs000179.c1-read",
+            "phs000179.c1-read-storage",
+        },
+        user_yaml=None,
+        expires=10,
+    )
+
+    syncer.arborist_client.grant_bulk_user_policy.assert_not_called()
+    syncer.arborist_client.revoke_user_policy.assert_not_called()
+    syncer.arborist_client.revoke_all_policies_for_user.assert_not_called()
+
+
+@pytest.mark.parametrize("syncer", ["google"], indirect=True)
+def test_sync_grant_arborist_policies_arborist_errors(
+    syncer,
+    db_session,
+    monkeypatch,
+):
+    """
+    Test that arborist errors are handled correctly when getting user's current policies.
+    """
+
+    syncer.arborist_client = MagicMock()
+
+    user_policies = {
+        "phs000178.c1-read",
+        "phs000178.c1-read-storage",
+        "phs000179.c1-read",
+        "phs000179.c1-read-storage",
+        "phs000181.c1-read",
+        "phs000181.c1-read-storage",
+    }
+
+    # Simulate an error when trying to get user policies
+    syncer.arborist_client.get_user.side_effect = ArboristError("Arborist error", 500)
+
+    syncer._grant_arborist_policies(
+        username="TESTUSERB",
+        incoming_policies=set(user_policies),
+        user_yaml=None,
+        expires=10,
+    )
+
+    # Ensure no policies were granted or revoked due to the error
+    syncer.arborist_client.grant_bulk_user_policy.assert_called_once_with(
+        "TESTUSERB",
+        user_policies,
+        10,
+    )
+    syncer.arborist_client.revoke_user_policy.assert_not_called()
+    syncer.arborist_client.revoke_all_policies_for_user.assert_called_once_with(
+        "TESTUSERB"
     )
