@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fence"
-version = "11.3.1"
+version = "11.3.2"
 description = "Gen3 AuthN/AuthZ OIDC Service"
 authors = ["CTDS UChicago <cdis@uchicago.edu>"]
 license = "Apache-2.0"
@@ -28,9 +28,9 @@ cryptography = ">=44.0.1"
 flask-cors = "<7"
 flask-restful = ">=0.3.8"
 email_validator = "^1.1.1"
-gen3authz = "^2.3.0"
+gen3authz = "^2.3.1"
 gen3cirrus = "^3.1.0"
-gen3config = ">=1.1.0"
+gen3config = "<3"
 gen3users = "^1.0.2"
 idna = "^3.7"
 markdown = "^3.1.1"
@@ -44,8 +44,8 @@ psycopg2-binary = "<3"
 pycryptodome = "^3.21.0"
 gunicorn = ">=22.0.0"
 PyJWT = "^2.4.0"
-python_dateutil = "^2.6.1"
-python-jose = "^2.0.2"
+python_dateutil = "^2.9.0"
+python-jose = "^3.5.0"
 pyyaml = "^6.0.1"
 requests = ">=2.32.4,<3"
 retry = "^0.9.2"
@@ -60,8 +60,7 @@ Flask-WTF = "^1.0.0"
 pcdcutils = {git = "https://github.com/chicagopcdc/pcdcutils.git", rev = "0.5.1"}
 itsdangerous = '*' # Use Flask-WTF's itsdangerous
 boto = "*"
-# NOTE:
-# for testing with updated libaries as git repos:
+# NOTE: for testing with updated libaries as git repos:
 # foobar = {git = "https://github.com/uc-cdis/some-repo", rev = "feat/test"}
 jinja2 = "^3.1.6"
 
