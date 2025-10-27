@@ -509,6 +509,9 @@ def _setup_arborist_client(app):
             arborist_base_url=config["ARBORIST"],
             timeout=app.config.get("ARBORIST_TIMEOUT", 30),
         )
+    else:
+        logger.info("Arborist not configured")
+        app.arborist = None
 
 def _setup_hubspot_key(app):
     if app.config.get("HUBSPOT"):
