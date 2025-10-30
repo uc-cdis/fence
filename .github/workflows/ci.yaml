@@ -12,7 +12,7 @@ jobs:
     # https://github.com/uc-cdis/.github/blob/master/.github/workflows/image_build_push.yaml
     uses: uc-cdis/.github/.github/workflows/image_build_push_native.yaml@master
     with:
-      DOCKERFILE_LOCATION: "./DockerfileSbib"
+      DOCKERFILE_LOCATION: "./DockerfileShib"
       OVERRIDE_REPO_NAME: "fence-shib"
     secrets:
       ECR_AWS_ACCESS_KEY_ID: ${{ secrets.ECR_AWS_ACCESS_KEY_ID }}
