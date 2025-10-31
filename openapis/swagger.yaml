@@ -597,6 +597,41 @@ paths:
           description: 'Invalid input: UUID not found or invalid location'
         '404':
           description: 'No location found for this file'
+  "/download/bulk":
+    post:
+      tags:
+        - data
+      summary: Create signed URLs for bulk data download given a list of file_ids
+      description: Allow users to get signed URLs for a list of data files.
+      security:
+        - OAuth2:
+            - user
+      operationId: bulkDownloadSignedURL
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkDownloadRequest'
+      parameters:
+        - name: passports
+          required: false
+          in: query
+          description: >-
+            if set, then the request body will include a list of GA4GH Passports
+        - name: bulk_object_access_ids
+          required: false
+          in: query
+          description: >-
+            if set, then the request body will include a list of tuples of (object_id, access_id) for GA4GH DRS Access API
+      responses:
+        '200':
+          description: successful operation
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/BulkDownloadResponse'
+        '400':
+          description: 'Invalid input: UUID not found or invalid location'
   '/ga4gh/drs/v1/objects/{object_id}/access/{access_id}':
     get:
       summary: GA4GH DRS Access API to get a URL for fetching bytes.
@@ -681,6 +716,41 @@ paths:
           description: An access_id from the access_methods list of a DrsObject
       tags:
         - data
+  "/drs/v1/objects/access":
+    post:
+      tags:
+        - data
+      summary: Create signed URLs for bulk data download given a list of file_ids
+      description: Allow users to get signed URLs for a list of data files.
+      security:
+        - OAuth2:
+            - user
+      operationId: bulkDownloadSignedURL
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/BulkDownloadRequest'
+      parameters:
+        - name: passports
+          required: false
+          in: query
+          description: >-
+            if set, then the request body will include a list of GA4GH Passports
+        - name: bulk_object_access_ids
+          required: false
+          in: query
+          description: >-
+            if set, then the request body will include a list of tuples of (object_id, access_id) for GA4GH DRS Access API
+      responses:
+        '200':
+          description: successful operation
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/BulkDownloadResponse'
+        '400':
+          description: 'Invalid input: UUID not found or invalid location'
   '/data/upload':
     post:
       tags:

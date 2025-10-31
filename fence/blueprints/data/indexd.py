@@ -1,11 +1,14 @@
 import re
 import time
 import json
+import hashlib
 import boto3
 from botocore.client import Config
+from collections import defaultdict
 from urllib.parse import urlparse, ParseResult, urlunparse
 from datetime import datetime, timedelta, UTC
 from sqlalchemy import text
+from sqlalchemy.sql.functions import user
 from cached_property import cached_property
 import gen3cirrus
 from gen3cirrus import GoogleCloudManager
@@ -22,6 +25,7 @@ from azure.storage.blob import (
     generate_blob_sas,
 )
 
+from fence import auth
 from fence.auth import (
     get_ip_information_string,
     get_jwt,
@@ -52,7 +56,7 @@ from fence.utils import get_valid_expiration_from_request
 from fence.metrics import metrics
 
 from . import multipart_upload
-from ...models import AssumeRoleCacheAWS, query_for_user
+from ...models import AssumeRoleCacheAWS, query_for_user, query_for_user_by_id
 from ...models import AssumeRoleCacheGCP
 
 logger = get_logger(__name__)
@@ -63,7 +67,7 @@ ACTION_DICT = {
     "az": {"upload": "PUT", "download": "GET"},
 }
 
-SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs", "az"]
+SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs", "az", "vec"]
 PROTOCOLS_REQUIRING_GOOGLE_SYNC = {"gs"}
 SUPPORTED_ACTIONS = ["upload", "download"]
 ANONYMOUS_USER_ID = "-1"
@@ -99,13 +103,9 @@ def get_signed_url_for_file(
 
     users_from_passports = {}
     if ga4gh_passports:
-        # Note: We don't need to check for None requested_protocol here, as using a ga4gh_passport requires specifying
-        # a protocol
+        # users_from_passports = {"username": Fence.User}
         users_from_passports = sync_gen3_users_authz_from_ga4gh_passports(
-            ga4gh_passports,
-            db_session=db_session,
-            skip_google_updates=requested_protocol
-            not in PROTOCOLS_REQUIRING_GOOGLE_SYNC,
+            ga4gh_passports, db_session=db_session
         )
 
     # Collect X-Forwarded headers
@@ -185,6 +185,95 @@ def get_signed_url_for_file(
     return {"url": signed_url}
 
 
+@enable_audit_logging
+def bulk_get_signed_url_for_file(
+    file_ids,
+    requested_protocol=None,
+    db_session=None,
+    bucket=None,
+    drs="False",
+    ga4gh_passports=None,
+):
+    requested_protocol = requested_protocol or flask.request.args.get("protocol", None)
+    r_pays_project = flask.request.args.get("userProject", None)
+    db_session = db_session or current_app.scoped_session()
+
+    # default to signing the URL
+    force_signed_url = True
+    no_force_sign_param = flask.request.args.get("no_force_sign")
+    if no_force_sign_param and no_force_sign_param.lower() == "true":
+        force_signed_url = False
+
+    # Collect X-Forwarded headers
+    x_forwarded_headers = [
+        f"{header}:{value}" for header, value in flask.request.headers if "X-" in header
+    ]
+    user_agent = f"User-Agent:{flask.request.headers.get('User-Agent')}"
+    audit_headers = x_forwarded_headers + [user_agent]
+
+    users_from_passports = {}
+    if ga4gh_passports:
+        users_from_passports = sync_gen3_users_authz_from_ga4gh_passports(
+            ga4gh_passports, db_session=db_session
+        )
+    if users_from_passports:
+        if len(users_from_passports) > 1:
+            logger.warning(
+                "audit service doesn't support multiple users for a "
+                "single request yet, so just log userinfo here"
+            )
+            for username, user in users_from_passports.items():
+                audit_data = {
+                    "username": username,
+                    "sub": user.id,
+                    "additional_data": audit_headers or [],
+                }
+                logger.info(
+                    f"passport with multiple user ids is attempting data access. audit log: {audit_data}"
+                )
+        else:
+            username, user = next(iter(users_from_passports.items()))
+            flask.g.audit_data = {
+                "username": username,
+                "sub": user.id,
+                "additional_data": audit_headers or [],
+            }
+    else:
+        auth_info = _get_auth_info_for_id_or_from_request(
+            sub_type=int, db_session=db_session
+        )
+        flask.g.audit_data = {
+            "username": auth_info["username"],
+            "sub": auth_info["user_id"],
+            "additional_data": audit_headers or [],
+        }
+
+    indexed_files = BulkIndexedFiles(file_ids)
+
+    default_expires_in = config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    expires_in = get_valid_expiration_from_request(
+        max_limit=default_expires_in,
+        default=default_expires_in,
+    )
+
+    if ga4gh_passports and not config["GA4GH_PASSPORTS_TO_DRS_ENABLED"]:
+        raise NotSupported(
+            "Using GA4GH Passports as a means of authentication and authorization "
+            "is not supported by this instance of Gen3."
+        )
+
+    prepare_bulk_presigned_url_audit_log(requested_protocol, indexed_files)
+    signed_urls, users, failed_file_ids = indexed_files.get_signed_urls(
+        requested_protocol,
+        expires_in,
+        force_signed_url=force_signed_url,
+        r_pays_project=r_pays_project,
+        users_from_passports=users_from_passports,
+    )
+
+    return {"urls": signed_urls, "failed_file_ids": failed_file_ids}
+
+
 def get_bucket_from_urls(urls, protocol):
     """
     Return the bucket name from the first of the provided URLs that starts with the given protocol (usually `gs`, `s3`, `az`...)
@@ -262,6 +351,40 @@ def prepare_presigned_url_audit_log(protocol, indexed_file):
         protocol = indexed_file.indexed_file_locations[0].protocol
     flask.g.audit_data["resource_paths"] = resource_paths
     flask.g.audit_data["protocol"] = protocol
+
+
+def prepare_bulk_presigned_url_audit_log(protocol, indexed_files):
+    """
+    Store audit data for bulk signed URL requests.
+    """
+
+    all_resource_paths = []
+    per_file_info = []
+
+    for file_id, doc in indexed_files.index_document.items():
+        resource_paths = doc.get("authz") or doc.get("acl") or []
+
+        # Determine protocol fallback like single-file version
+        file_protocol = protocol
+        if not file_protocol and doc.get("urls"):
+            file_protocol = IndexedFileLocation.from_url(doc["urls"][0]).protocol
+
+        all_resource_paths.extend(resource_paths)
+
+        per_file_info.append(
+            {
+                "file_id": file_id,
+                "resource_paths": resource_paths,
+                "protocol": file_protocol,
+            }
+        )
+
+    flask.g.audit_data["resource_paths"] = list(set(all_resource_paths))
+    flask.g.audit_data["protocol"] = protocol
+    flask.g.audit_data["bulk"] = True
+
+    # Optional but VERY useful for debugging / observability
+    flask.g.audit_data["bulk_files"] = per_file_info
 
 
 class BlankIndex(object):
@@ -471,6 +594,334 @@ class BlankIndex(object):
         return S3IndexedFileLocation(s3_url).generate_presigned_url_for_part_upload(
             uploadId, partNumber, expires_in
         )
+
+
+class BulkIndexedFiles(object):
+    """
+    For bulk handling of files
+
+    Args:
+        file_ids (list(str)): A list of GUIDs coresponding to files
+    """
+
+    def __init__(self, file_ids):
+        self.file_ids = file_ids
+        self.auth_roles = []
+
+    @cached_property
+    def indexd_server(self):
+        indexd_server = (
+            flask.current_app.config.get("INDEXD")
+            or flask.current_app.config["BASE_URL"] + "/index"
+        )
+        return indexd_server.rstrip("/")
+
+    @cached_property
+    def index_document(self):
+        indexd_server = config.get("INDEXD") or config["BASE_URL"] + "/index"
+        url = indexd_server.rstrip("/") + "/bulk/documents"
+
+        index_dict = {}
+        try:
+            res = requests.post(url, json=self.file_ids)
+        except Exception as e:
+            logger.error(f"Failed to reach indexd at {url}: {e}")
+            raise UnavailableError("Fail to reach id service to find data location")
+
+        if res.status_code == 200:
+            try:
+                docs = res.json()
+                if not isinstance(docs, list):
+                    raise ValueError("Response is not a list")
+
+                # Build dict keyed by did - only returns docs that were found
+                index_dict = {doc["did"]: doc for doc in docs}
+                return index_dict
+            except (KeyError, ValueError, TypeError) as e:
+                logger.error(f"Invalid response from indexd: {e}")
+                raise InternalError("Internal error from indexd")
+        else:
+            raise UnavailableError(res.text)
+
+    def get_signed_urls(
+        self,
+        protocol,
+        expires_in,
+        force_signed_url=True,
+        r_pays_project=None,
+        users_from_passports=None,
+    ):
+        users_from_passports = users_from_passports or {}
+        signed_urls = []
+        users = []
+        failed_file_ids_map = defaultdict(list)
+
+        # BULK AUTHORIZATION: Collect all unique authz that need checking
+        authz_needing_check = set()
+        authz_to_file_ids = defaultdict(list)
+        for file_id in self.file_ids:
+            # Skip missing files - they'll be marked as 404 in STEP 2
+            if file_id not in self.index_document:
+                continue
+            file_authz = self.index_document.get(file_id).get("authz")
+            if file_authz:
+                # Convert authz list to tuple for hashing
+                if isinstance(file_authz, list):
+                    authz_key = tuple(sorted(file_authz))
+                elif isinstance(file_authz, str):
+                    authz_key = (file_authz,)
+                else:
+                    logger.error(f"Unexpected authz format for {file_id}: {file_authz}")
+                    continue
+                if authz_key not in self.auth_roles:
+                    authz_needing_check.add(authz_key)
+                    authz_to_file_ids[authz_key].append(file_id)
+
+        # BULK AUTHORIZATION: Get authorization results for all authz at once
+        authz_to_authorized_username = {}
+        if authz_needing_check:
+            if users_from_passports:
+                # Get auth_mapping for each passport user (1 call per unique user)
+                for username in users_from_passports.keys():
+                    try:
+                        auth_mapping = flask.current_app.arborist.auth_mapping(username)
+                        # Check which authz this user has access to
+                        for authz_key in authz_needing_check:
+                            if authz_key not in authz_to_authorized_username:
+                                authz_list = (
+                                    list(authz_key)
+                                    if isinstance(authz_key, tuple)
+                                    else authz_key
+                                )
+                                # Check if user has read-storage on any of the resources in this authz
+                                for resource in authz_list:
+                                    if resource in auth_mapping:
+                                        methods_list = auth_mapping[resource]
+                                        if any(
+                                            m.get("service") == "fence"
+                                            and "read-storage" in m.get("method", "")
+                                            for m in methods_list
+                                        ):
+                                            authz_to_authorized_username[authz_key] = (
+                                                username
+                                            )
+                                            break
+                    except Exception as e:
+                        logger.error(f"Failed to get auth mapping for {username}: {e}")
+            else:
+                # JWT-based authorization: reuse auth_mapping like passport flow
+                try:
+                    token = get_jwt()
+                except Unauthorized:
+                    token = None
+
+                try:
+                    auth_mapping = flask.current_app.arborist.auth_mapping(jwt=token)
+                except Exception as e:
+                    logger.error(f"Failed to get auth mapping from Arborist: {e}")
+                    auth_mapping = {}
+
+                for authz_key in authz_needing_check:
+                    authz_list = (
+                        list(authz_key) if isinstance(authz_key, tuple) else authz_key
+                    )
+
+                    for resource in authz_list:
+                        if resource in auth_mapping:
+                            methods_list = auth_mapping[resource]
+
+                            if any(
+                                m.get("service") == "fence"
+                                and "read-storage" in m.get("method", "")
+                                for m in methods_list
+                            ):
+                                authz_to_authorized_username[authz_key] = None
+                                break
+
+        # STEP 2: Process files using cached authorization results
+        for file_id in self.file_ids:
+            authorized_user = None
+            if file_id not in self.index_document:
+                failed_file_ids_map[404].append(file_id)
+                continue
+            file_authz = self.index_document.get(file_id).get("authz")
+
+            if file_authz:
+                authz_key = (
+                    tuple(sorted(file_authz))
+                    if isinstance(file_authz, list)
+                    else file_authz
+                )
+
+                if authz_key not in self.auth_roles:
+                    # Check cached authorization result
+                    if authz_key in authz_to_authorized_username:
+                        # User is authorized
+                        username = authz_to_authorized_username[authz_key]
+                        if users_from_passports:
+                            # passport flow → username maps to a real user
+                            authorized_user = users_from_passports.get(username)
+                        else:
+                            # JWT flow → no associated user object
+                            authorized_user = None
+                        self.auth_roles.append(authz_key)
+                    else:
+                        # User is not authorized
+                        error_code = 403 if users_from_passports else 401
+                        failed_file_ids_map[error_code].append(file_id)
+                        continue
+            else:
+                # Handle ACL-only files (mirroring single-file logic)
+                temp_indexed_file = IndexedFile(
+                    file_id
+                )  # Temporary instance for ACL access
+
+                if (
+                    not temp_indexed_file.public_acl
+                    and not temp_indexed_file.check_legacy_authorization("download")
+                ):
+                    failed_file_ids_map[401].append(file_id)
+                    continue
+
+                # If we reach here, ACL authorization passed; no authorized_user needed for ACL case
+                authorized_user = None
+
+            try:
+                signed_url = self._get_signed_urls(
+                    protocol,
+                    file_id,
+                    expires_in,
+                    force_signed_url,
+                    r_pays_project,
+                    authorized_user,
+                )
+
+                signed_urls.append({"drs_object_id": file_id, "url": signed_url})
+                users.append(authorized_user)
+
+            except NotFound:
+                failed_file_ids_map[404].append(file_id)
+
+            except Exception as e:
+                logger.error(
+                    f"Unexpected error generating signed URL for {file_id}: {e}"
+                )
+                failed_file_ids_map[500].append(file_id)
+
+        failed_file_ids = [
+            {
+                "error_code": error_code,
+                "object_ids": object_ids,
+            }
+            for error_code, object_ids in failed_file_ids_map.items()
+        ]
+
+        return signed_urls, users, failed_file_ids
+
+    def _get_signed_urls(
+        self,
+        protocol,
+        file_id,
+        expires_in,
+        force_signed_url,
+        r_pays_project,
+        authorized_user=None,
+    ):
+        # we only allow for download with bulk operations
+        file_urls = self.index_document.get(file_id).get("urls", [])
+        file_locations = list(map(IndexedFileLocation.from_url, file_urls))
+        if not protocol:
+            # no protocol specified, return first location as signed url
+            try:
+                return file_locations[0].get_signed_url(
+                    "download",
+                    expires_in,
+                    force_signed_url=force_signed_url,
+                    r_pays_project=r_pays_project,
+                    authorized_user=authorized_user,
+                )
+            except IndexError:
+                raise NotFound("Can't find any file locations.")
+
+        for file_location in file_locations:
+            # allow file location to be https, even if they specific http
+            if (file_location.protocol == protocol) or (
+                protocol == "http" and file_location.protocol == "https"
+            ):
+                return file_location.get_signed_url(
+                    "download",
+                    expires_in,
+                    force_signed_url=force_signed_url,
+                    r_pays_project=r_pays_project,
+                    authorized_user=authorized_user,
+                )
+
+        raise NotFound(
+            "File {} does not have a location with specified "
+            "protocol {}.".format(file_id, protocol)
+        )
+
+    def get_authorized_with_username(
+        self, action, file_id, usernames_from_passports=None
+    ):
+        """
+        Return a tuple of (boolean, str) which represents whether they're authorized
+        and their username. username is only returned if `usernames_from_passports`
+        is provided and one of the usernames from the passports is authorized.
+
+        Args:
+            action (str): Authorization action being performed
+            usernames_from_passports (list[str], optional): List of user usernames parsed
+                from validated passports
+
+        Returns:
+            tuple of (boolean, str): which represents whether they're authorized
+        and their username. username is only returned if `usernames_from_passports`
+        is provided and one of the usernames from the passports is authorized.
+        """
+        if not self.index_document.get(file_id).get("authz"):
+            raise ValueError("index record missing `authz`")
+
+        logger.debug(
+            f"authz check can user {action} on {self.index_document[file_id]['authz']} for fence? "
+            f"if passport provided, IDs parsed: {usernames_from_passports}"
+        )
+
+        # handle multiple GA4GH passports as a means of authn/z
+        if usernames_from_passports:
+            authorized = False
+            for username in usernames_from_passports:
+                authorized = flask.current_app.arborist.auth_request(
+                    jwt=None,
+                    user_id=username,
+                    service="fence",
+                    methods=action,
+                    resources=self.index_document[file_id]["authz"],
+                )
+                # if any passport provides access, user is authorized
+                if authorized:
+                    # for google proxy groups and future use: we need to know which
+                    # user_id actually gave access
+                    return authorized, username
+            return authorized, None
+        else:
+            try:
+                token = get_jwt()
+            except Unauthorized:
+                #  get_jwt raises an Unauthorized error when user is anonymous (no
+                #  available token), so to allow anonymous users possible access to
+                #  public data, we still make the request to Arborist
+                token = None
+
+            return (
+                flask.current_app.arborist.auth_request(
+                    jwt=token,
+                    service="fence",
+                    methods=action,
+                    resources=self.index_document[file_id]["authz"],
+                ),
+                None,
+            )
 
 
 class IndexedFile(object):
