@@ -481,7 +481,7 @@ def add_policy():
     # Check if role exists
     # TODO gen3authz 1.4.2 doens't support get_role, create a PR or see if future versions support that.
     roles = current_app.arborist.list_roles()
-    arborist_role_ids = [role["id"] for role in roles.json["roles"]]
+    arborist_role_ids = [role["id"] for role in roles["roles"]]
     for id in role_ids:
         if id not in arborist_role_ids:
             raise NotFound("Role {} not found.".format(id))
