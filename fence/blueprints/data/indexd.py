@@ -65,7 +65,7 @@ ACTION_DICT = {
     "az": {"upload": "PUT", "download": "GET"},
 }
 
-SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs", "az"]
+SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs", "az", "vec"]
 SUPPORTED_ACTIONS = ["upload", "download"]
 ANONYMOUS_USER_ID = "-1"
 ANONYMOUS_USERNAME = "anonymous"
@@ -643,6 +643,9 @@ class IndexedFile(object):
             except IndexError:
                 raise NotFound("Can't find any file locations.")
 
+        if protocol == "vec":
+            return file_location.get_vector(action, expires_in)
+
         for file_location in self.indexed_file_locations:
             # allow file location to be https, even if they specific http
             if (file_location.protocol == protocol) or (
@@ -864,6 +867,16 @@ class IndexedFileLocation(object):
         **kwargs,
     ):
         return self.url
+
+    def get_vector(self, action, expires_in):
+        # need to return the vector from the embedding management service
+        emsID = str(self.url).replace("vec://")
+        emsUrl = f"{config.get("BASE_URL")}/ems/{emsID}"
+        try:
+            req = requests.get(emsUrl)
+            return req.json()
+        except Exception as e:
+            raise NotFound(f"No embedding found with id {emsID}")
 
 
 class S3IndexedFileLocation(IndexedFileLocation):
