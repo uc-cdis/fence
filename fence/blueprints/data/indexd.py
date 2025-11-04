@@ -630,6 +630,17 @@ class IndexedFile(object):
                 bucket=bucket,
             )
 
+        print(
+            f"====================== THIS IS OUR PROTOCOL ======================================"
+        )
+        print(protocol)
+        print(
+            "=========================== End of Protocol ======================================="
+        )
+
+        if protocol == "vec":
+            return file_location.get_vector(action, expires_in)
+
         if not protocol:
             # no protocol specified, return first location as signed url
             try:
@@ -642,9 +653,6 @@ class IndexedFile(object):
                 )
             except IndexError:
                 raise NotFound("Can't find any file locations.")
-
-        if protocol == "vec":
-            return file_location.get_vector(action, expires_in)
 
         for file_location in self.indexed_file_locations:
             # allow file location to be https, even if they specific http
