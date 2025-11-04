@@ -901,7 +901,7 @@ class VecIndexdFileLocation(IndexedFileLocation):
     ):
         # need to return the vector from the embedding management service
         model, emsID = str(self.url).replace("vec://", "").split("/")
-        emsUrl = f"https://gen3-embedding-management-service/vector/indexes/{model}/embeddings/{emsID}"
+        emsUrl = f"http://gen3-embedding-management-service/vector/indexes/{model}/embeddings/{emsID}"
         try:
             req = requests.get(emsUrl)
             return req.json()
