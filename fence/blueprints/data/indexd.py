@@ -630,16 +630,16 @@ class IndexedFile(object):
                 bucket=bucket,
             )
 
-        print(
-            f"====================== THIS IS OUR PROTOCOL ======================================"
-        )
-        print(protocol)
-        print(
-            "=========================== End of Protocol ======================================="
-        )
+        # print(
+        #     f"====================== THIS IS OUR PROTOCOL ======================================"
+        # )
+        # print(protocol)
+        # print(
+        #     "=========================== End of Protocol ======================================="
+        # )
 
-        if protocol == "vec":
-            return file_location.get_vector(action, expires_in)
+        # if protocol == "vec":
+        #     return file_location.get_vector(action, expires_in)
 
         if not protocol:
             # no protocol specified, return first location as signed url
@@ -864,6 +864,8 @@ class IndexedFileLocation(object):
             return GoogleStorageIndexedFileLocation(url)
         elif protocol == "az":
             return AzureBlobStorageIndexedFileLocation(url)
+        elif protocol == "vec":
+            return VecIndexdFileLocation(url)
         return IndexedFileLocation(url)
 
     def get_signed_url(
@@ -877,6 +879,25 @@ class IndexedFileLocation(object):
         return self.url
 
     def get_vector(self, action, expires_in):
+        # need to return the vector from the embedding management service
+        model, emsID = str(self.url).replace("vec://", "").split("/")
+        emsUrl = f"gen3-embedding-management-service/vector/indexes/{model}/embeddings/{emsID}"
+        try:
+            req = requests.get(emsUrl)
+            return req.json()
+        except Exception as e:
+            raise NotFound(f"No embedding found with id {emsID}")
+
+
+class VecIndexdFileLocation(IndexedFileLocation):
+    def get_signed_url(
+        self,
+        action,
+        expires_in,
+        force_signed_url=True,
+        r_pays_project=None,
+        authorized_user=None,
+    ):
         # need to return the vector from the embedding management service
         model, emsID = str(self.url).replace("vec://", "").split("/")
         emsUrl = f"gen3-embedding-management-service/vector/indexes/{model}/embeddings/{emsID}"
