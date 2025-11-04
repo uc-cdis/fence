@@ -886,6 +886,7 @@ class IndexedFileLocation(object):
             req = requests.get(emsUrl)
             return req.json()
         except Exception as e:
+            print(f"error {e}")
             raise NotFound(f"No embedding found with id {emsID}")
 
 
