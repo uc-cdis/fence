@@ -870,8 +870,10 @@ class IndexedFileLocation(object):
 
     def get_vector(self, action, expires_in):
         # need to return the vector from the embedding management service
-        emsID = str(self.url).replace("vec://")
-        emsUrl = f"{config.get('BASE_URL')}/ems/{emsID}"
+        model, emsID = str(self.url).replace("vec://", "").split("/")
+        emsUrl = (
+            f"{config.get('BASE_URL')}/ems//vector/indexes/{model}/embeddings/{emsID}"
+        )
         try:
             req = requests.get(emsUrl)
             return req.json()
