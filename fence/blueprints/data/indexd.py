@@ -337,7 +337,7 @@ class EmbeddingIndex(object):
 
         params = {
             "authz": self.authz,
-            "form": "vector",
+            "form": "object",
             "hashes": {"md5": md5_hash},
             "size": 0,
             "urls": [vec_url],
