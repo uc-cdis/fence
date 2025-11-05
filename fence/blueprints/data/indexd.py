@@ -342,7 +342,6 @@ class EmbeddingIndex(object):
             "size": 0,
             "urls": [vec_url],
         }
-        params = {"uploader": self.uploader, "file_name": self.file_name}
 
         if self.authz:
             params["authz"] = self.authz
