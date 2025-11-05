@@ -303,37 +303,6 @@ def upload_vector():
         "guid": guid,
     }
 
-    # create embedding in emebedding management service
-    # embedding_management_url = "http://"
-    # embedding_management_service_url = f"http://gen3-embedding-management-service/vector/indexes/{model}/embeddings"
-
-    # blank_index = BlankIndex(
-    #     authz=authz,
-    #     uploader=uploader,
-    #     guid=guid,
-    # )
-    # default_expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
-
-    # expires_in = get_valid_expiration(
-    #     params.get("expires_in"),
-    #     max_limit=default_expires_in,
-    #     default=default_expires_in,
-    # )
-
-    protocol = params["protocol"] if "protocol" in params else None
-    bucket = params.get("bucket")
-    if bucket:
-        verify_data_upload_bucket_configuration(bucket)
-    response = {
-        "guid": blank_index.guid,
-        "url": blank_index.make_signed_url(
-            file_name=params["file_name"],
-            protocol=protocol,
-            expires_in=expires_in,
-            bucket=bucket,
-        ),
-    }
-
     return flask.jsonify(response), 201
 
 
