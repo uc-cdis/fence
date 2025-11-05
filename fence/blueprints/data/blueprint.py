@@ -296,7 +296,7 @@ def upload_vector():
     # create embedding record and get id from service
     embedding_id, md5_hash = EMS.create_embedding_record()
 
-    guid = EMS.create_index_record(embedding_id, md5_hash)
+    guid = EMS.create_indexd_record(embedding_id, md5_hash)
 
     response = {
         "message": "An embedding was successfully added to the embedding management service and inserted into indexd",
