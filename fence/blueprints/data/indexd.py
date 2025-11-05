@@ -1,6 +1,7 @@
 import re
 import time
 import json
+import hashlib
 import boto3
 from botocore.client import Config
 from urllib.parse import urlparse, ParseResult, urlunparse
@@ -259,6 +260,119 @@ def prepare_presigned_url_audit_log(protocol, indexed_file):
         protocol = indexed_file.indexed_file_locations[0].protocol
     flask.g.audit_data["resource_paths"] = resource_paths
     flask.g.audit_data["protocol"] = protocol
+
+
+class EmbeddingIndex(object):
+    def __init__(
+        self,
+        authz=None,
+        model=None,
+        embedding=None,
+        file_id=None,
+        uploader=None,
+        logger_=None,
+    ):
+        self.logger = logger_ or logger
+        self.indexd = (
+            flask.current_app.config.get("INDEXD")
+            or flask.current_app.config["BASE_URL"] + "/index"
+        )
+
+        # allow passing "" empty string to signify you do NOT want
+        # uploader to be populated. If nothing is provided, default
+        # to parsing from token
+        if uploader == "":
+            self.uploader = None
+        elif uploader:
+            self.uploader = uploader
+        else:
+            self.uploader = current_token["context"]["user"]["name"]
+
+        self.authz = authz
+        self.model = model
+        self.embedding = embedding
+        self.file_id = file_id
+
+    def create_embedding_record(self):
+        """
+        create a record in the embedding management service
+        """
+
+        embedding_management_service_url = f"http://gen3-embedding-management-service/vector/indexes/{self.model}/embeddings"
+        params = {
+            "file_id": self.file_id,
+            "vector": self.embedding,
+        }
+
+        ems_response = requests.post(embedding_management_service_url, json=params)
+        if ems_response.status_code not in [200, 201]:
+            try:
+                data = ems_response.json()
+            except ValueError:
+                data = ems_response.text
+            self.logger.error(
+                "could not create new record in embedding management service; got response: {}".format(
+                    data
+                )
+            )
+            raise InternalError("received error from embedding management service")
+        else:
+            dict_str = json.dumps(params, sort_keys=True)
+            dict_bytes = dict_str.encode("utf-8")
+            md5_hash = hashlib.md5(dict_bytes).hexdigest()
+
+            emsID = ems_response.text
+
+            return emsID, md5_hash
+
+    def create_indexd_record(self, embedding_id, md5_hash):
+        """
+        create an indexd record for a vector corresponding to the embedding_id
+        """
+        index_url = self.indexd.rstrip("/") + "/index/"
+        vec_url = f"vec://{self.model}/{embedding_id}"
+
+        params = {
+            "authz": self.authz,
+            "form": "vector",
+            "hashes": {"md5": md5_hash},
+            "size": 0,
+            "urls": [vec_url],
+        }
+        params = {"uploader": self.uploader, "file_name": self.file_name}
+
+        if self.authz:
+            params["authz"] = self.authz
+            token = get_jwt()
+
+            auth = None
+            headers = {"Authorization": f"bearer {token}"}
+            logger.info("passing users authorization header to create blank record")
+        else:
+            logger.info("using indexd basic auth to create blank record")
+            auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
+            headers = {}
+
+        indexd_response = requests.post(
+            index_url, json=params, headers=headers, auth=auth
+        )
+        if indexd_response.status_code not in [200, 201]:
+            try:
+                data = indexd_response.json()
+            except ValueError:
+                data = indexd_response.text
+            self.logger.error(
+                "could not create new record in indexd; got response: {}".format(data)
+            )
+            raise InternalError(
+                "received error from indexd trying to create blank record"
+            )
+
+        document = indexd_response.json()
+        guid = document["did"]
+        self.logger.info("created an index record with GUID {} for upload".format(guid))
+
+        return guid
 
 
 class BlankIndex(object):
