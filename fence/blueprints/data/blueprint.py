@@ -9,6 +9,7 @@ from fence.auth import login_required, require_auth_header, current_token, get_j
 from fence.authz.auth import check_arborist_auth
 from fence.blueprints.data.indexd import (
     BlankIndex,
+    EmbeddingIndex,
     IndexedFile,
     get_signed_url_for_file,
     verify_data_upload_bucket_configuration,
@@ -218,8 +219,8 @@ def upload_vector():
     #     "/programs/DEV"
     #   ],
     #   "model": "expr",
-    #   "file_id": "1234"
-    #   "embedding": [0,1,2,3,]
+    #   "file_id": "1234",
+    #   "embedding": [0,1,2,3]
     # }
 
     params = flask.request.get_json()

@@ -322,6 +322,9 @@ class EmbeddingIndex(object):
             md5_hash = hashlib.md5(dict_bytes).hexdigest()
 
             emsID = ems_response.text
+            logger.info(
+                f"successfully added vector to embedding service with id {emsID}"
+            )
 
             return emsID, md5_hash
 
