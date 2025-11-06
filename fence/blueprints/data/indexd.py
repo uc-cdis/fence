@@ -333,7 +333,7 @@ class EmbeddingIndex(object):
         create an indexd record for a vector corresponding to the embedding_id
         """
         index_url = self.indexd.rstrip("/") + "/index/"
-        vec_url = f"vec://{self.model}/{embedding_id}"
+        vec_url = f"vec://{self.model}/{embedding_id.strip('"')}"
 
         params = {
             "authz": self.authz,
