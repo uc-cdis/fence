@@ -319,7 +319,7 @@ class EmbeddingIndex(object):
         else:
             dict_str = json.dumps(params, sort_keys=True)
             dict_bytes = dict_str.encode("utf-8")
-            md5_hash = hashlib.md5(dict_bytes).hexdigest()
+            md5_hash = hashlib.md5(dict_bytes, usedforsecurity=False).hexdigest()
 
             emsID = ems_response.text
             logger.info(
