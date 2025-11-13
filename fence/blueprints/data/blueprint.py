@@ -214,21 +214,10 @@ def upload_vector():
     """
     # make new record in indexd, with just the `uploader` field (and a GUID)
 
-    # {
-    #   "authz": [
-    #     "/programs/DEV"
-    #   ],
-    #   "model": "expr",
-    #   "file_id": "1234",
-    #   "embedding": [0,1,2,3]
-    # }
-
     params = flask.request.get_json()
     if not params:
         raise UserError("wrong Content-Type; expected application/json")
 
-    # if "file_name" not in params:
-    # raise UserError("missing required argument `file_name`")
     if "model" not in params:
         raise UserError("missing required argument `model`")
 
@@ -455,6 +444,33 @@ def download_file(file_id):
     if not "redirect" in flask.request.args or not "url" in result:
         return flask.jsonify(result)
     return flask.redirect(result["url"])
+
+
+@blueprint.route("/download/bulk", methods=["POST"])
+def download_bulk_files():
+    """
+    Get a presigned url to download a file given by file_id.
+    """
+    # {"guids": ["1234", "4567"]}
+    params = flask.request.get_json()
+    if not params:
+        raise UserError("wrong Content-Type; expected application/json")
+
+    if "guids" not in params:
+        raise UserError("missing required argument `model`")
+
+    guids = params["guids"]
+    results = {}
+    results["urls"] = []
+    for g in guids:
+        result = get_signed_url_for_file("download", file_id)
+        if not "redirect" in flask.request.args or not "url" in result:
+            # return flask.jsonify(result)
+            results["urls"].append(result)
+        else:
+            results["urls"].append(result["url"])
+    return flask.jsonify(results)
+    # return flask.redirect(result["url"])
 
 
 @blueprint.route(
