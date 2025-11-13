@@ -463,7 +463,7 @@ def download_bulk_files():
     results = {}
     results["urls"] = []
     for g in guids:
-        result = get_signed_url_for_file("download", file_id)
+        result = get_signed_url_for_file("download", g)
         if not "redirect" in flask.request.args or not "url" in result:
             # return flask.jsonify(result)
             results["urls"].append(result)
