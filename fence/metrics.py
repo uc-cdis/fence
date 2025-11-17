@@ -12,7 +12,6 @@ appropriate metric name and labels.
 - Add unit tests to the `tests/test_metrics` file.
 """
 
-
 import os
 import pathlib
 

@@ -103,14 +103,14 @@ tests-mypy = ["mypy (>=1.11.1) ; platform_python_implementation == \"CPython\" a
 
 [[package]]
 name = "authlib"
-version = "1.3.1"
+version = "1.6.5"
 description = "The ultimate Python library in building OAuth and OpenID Connect servers and clients."
 optional = false
-python-versions = ">=3.8"
+python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "Authlib-1.3.1-py2.py3-none-any.whl", hash = "sha256:d35800b973099bbadc49b42b256ecb80041ad56b7fe1216a362c7943c088f377"},
-    {file = "authlib-1.3.1.tar.gz", hash = "sha256:7ae843f03c06c5c0debd63c9db91f9fda64fa62a42a77419fa15fbb7e7a58917"},
+    {file = "authlib-1.6.5-py2.py3-none-any.whl", hash = "sha256:3e0e0507807f842b02175507bdee8957a1d5707fd4afb17c32fb43fee90b6e3a"},
+    {file = "authlib-1.6.5.tar.gz", hash = "sha256:6aaf9c79b7cc96c900f0b284061691c5d4e61221640a948fe690b556a6d6d10b"},
 ]
 
 [package.dependencies]
@@ -118,18 +118,18 @@ cryptography = "*"
 
 [[package]]
 name = "authutils"
-version = "7.0.0"
+version = "7.1.0"
 description = "Gen3 auth utility functions"
 optional = false
 python-versions = "<4.0,>=3.9.2"
 groups = ["main"]
 files = [
-    {file = "authutils-7.0.0-py3-none-any.whl", hash = "sha256:3c4f899c4fe796f66c809e890a45ec87ff43ec51eeacec942bfaa1367930fed7"},
-    {file = "authutils-7.0.0.tar.gz", hash = "sha256:771edfa51b3dba37260e2e35b64b28078e3bbb9bb49ef35836930c151ce2a893"},
+    {file = "authutils-7.1.0-py3-none-any.whl", hash = "sha256:66587c01a57973da742c9d54930894e97b642e8a2ea8e2d1a0d217a916027af8"},
+    {file = "authutils-7.1.0.tar.gz", hash = "sha256:55ddff02bdd0de0df95ea0a7be46b263ec616519b2892b3f2621941af024bf7e"},
 ]
 
 [package.dependencies]
-authlib = ">=1.1.0"
+authlib = ">=1.6.4"
 cached-property = ">=1.4,<2.0"
 cdiserrors = "<2.0.0"
 cryptography = ">=44.0.1,<45.0.0"
@@ -1040,14 +1040,14 @@ email = ["email-validator"]
 
 [[package]]
 name = "gen3authz"
-version = "2.3.1"
+version = "2.3.2"
 description = "Gen3 authz client"
 optional = false
 python-versions = "<4.0,>=3.6"
 groups = ["main"]
 files = [
-    {file = "gen3authz-2.3.1-py3-none-any.whl", hash = "sha256:830cd9f4b5508c7c11a3d16ad7e50efa8feef9c5b52eb5d5e83481f4e9ca56f1"},
-    {file = "gen3authz-2.3.1.tar.gz", hash = "sha256:babcf8cdc228ecc4f7e09de94913c185e76ea85e42ddf1aa12f3e300103bc5c0"},
+    {file = "gen3authz-2.3.2-py3-none-any.whl", hash = "sha256:b09b16bfa727c5db086639d01ff54787615f4e4d18f6f84bc3a3281cd2a3618b"},
+    {file = "gen3authz-2.3.2.tar.gz", hash = "sha256:e79f5abc41bbb3aa784cf44faddd738847d94b0db6375dcec2159a3231162285"},
 ]
 
 [package.dependencies]
@@ -2386,6 +2386,26 @@ socks = ["PySocks (>=1.5.6,!=1.5.7)"]
 use-chardet-on-py3 = ["chardet (>=3.0.2,<6)"]
 
 [[package]]
+name = "responses"
+version = "0.25.8"
+description = "A utility library for mocking out the `requests` Python library."
+optional = false
+python-versions = ">=3.8"
+groups = ["dev"]
+files = [
+    {file = "responses-0.25.8-py3-none-any.whl", hash = "sha256:0c710af92def29c8352ceadff0c3fe340ace27cf5af1bbe46fb71275bcd2831c"},
+    {file = "responses-0.25.8.tar.gz", hash = "sha256:9374d047a575c8f781b94454db5cab590b6029505f488d12899ddb10a4af1cf4"},
+]
+
+[package.dependencies]
+pyyaml = "*"
+requests = ">=2.30.0,<3.0"
+urllib3 = ">=1.25.10,<3.0"
+
+[package.extras]
+tests = ["coverage (>=6.0.0)", "flake8", "mypy", "pytest (>=7.0.0)", "pytest-asyncio", "pytest-cov", "pytest-httpserver", "tomli ; python_version < \"3.11\"", "tomli-w", "types-PyYAML", "types-requests"]
+
+[[package]]
 name = "retry"
 version = "0.9.2"
 description = "Easy to use retry decorator."
@@ -2850,4 +2870,4 @@ type = ["pytest-mypy"]
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.9.2,<4.0.0"
-content-hash = "5cdc933481efcd020e140a2a57a7b1a8eb82c7f06fca7053256dfe2dd1067cfa"
+content-hash = "38507b59f4745c4bc7f46786905a30697e9b6b1c7702b23562e16c892446dbf2"
