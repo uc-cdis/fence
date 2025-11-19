@@ -12,7 +12,7 @@ include = [
 
 [tool.poetry.dependencies]
 python = ">=3.9.2,<4.0.0"
-alembic = "^1.7.7"
+alembic = ">=1.7.7"
 authlib = ">=1.6.5"
 authutils = ">=7.1.0"
 bcrypt = "^3.1.4"
