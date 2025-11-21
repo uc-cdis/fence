@@ -49,7 +49,6 @@ from fence.resources.openid.microsoft_oauth2 import MicrosoftOauth2Client
 from fence.jwt.validate import validate_jwt
 
 import tests
-from tests import test_settings
 from tests import utils
 from tests.utils import TEST_RAS_SUB
 from tests.utils.oauth2.client import OAuth2TestClient
@@ -454,7 +453,6 @@ def app(kid, rsa_private_key, rsa_public_key):
     ]
     app_init(
         fence.app,
-        test_settings,
         root_dir=root_dir,
         config_path=os.path.join(root_dir, "test-fence-config.yaml"),
     )
