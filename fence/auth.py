@@ -1,14 +1,10 @@
-import urllib.error
-import urllib.parse
-import urllib.request
-import json
-from configparser import RawConfigParser
-import flask
-from flask import current_app
+import re
+import urllib.request, urllib.parse, urllib.error
 from datetime import datetime
 from functools import wraps
-from datetime import datetime
 
+import flask
+from flask import current_app
 from authutils.errors import JWTError, JWTExpiredError
 from authutils.token.validate import (
     current_token, 
@@ -16,14 +12,16 @@ from authutils.token.validate import (
     set_current_token, 
     validate_request
 )
+
+from cdislogging import get_logger
+from fence.authz.auth import check_arborist_auth
 from fence.config import config
-from fence.errors import InternalError, Unauthorized
+from fence.errors import Unauthorized, InternalError
 from fence.jwt.validate import validate_jwt
 from fence.models import User, IdentityProvider, query_for_user
 from fence.user import get_current_user
 from fence.utils import clear_cookies
-from cdislogging import get_logger
-from fence.authz.auth import check_arborist_auth
+
 
 logger = get_logger(__name__)
 
@@ -81,7 +79,12 @@ def get_ip_information_string():
 
 
 def _identify_user_and_update_database(
-    user, username, provider, email=None, id_from_idp=None
+    user,
+    username,
+    provider,
+    email=None,
+    id_from_idp=None,
+    username_deny_regex=None,
 ) -> bool:
     """
     Create a new user if one doesn't already exist in the database. Commit the user
@@ -99,6 +102,16 @@ def _identify_user_and_update_database(
     Return:
         User: the created or updated user
     """
+    username_deny_regex = username_deny_regex or config["GLOBAL_USERNAME_DENY_REGEX"]
+    if username_deny_regex:
+        if re.search(pattern=username_deny_regex, string=username):
+            logger.info(
+                f"Blocked login of user with username {username} due to deny regex: {username_deny_regex}"
+            )
+
+            # intentionally empty message to prevent information leakage
+            raise Unauthorized(message="")
+
     if user:
         if user.active == False:
             # Abort login if user.active == False:

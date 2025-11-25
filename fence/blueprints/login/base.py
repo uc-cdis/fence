@@ -13,7 +13,7 @@ from fence.auth import login_user_or_require_registration, get_ip_information_st
 from fence.blueprints.login.redirect import validate_redirect
 from fence.blueprints.register import add_user_registration_info_to_database
 from fence.config import config
-from fence.errors import UserError
+from fence.errors import UserError, Unauthorized
 from fence.metrics import metrics
 
 
@@ -310,6 +310,9 @@ class DefaultOAuth2Callback(Resource):
 
 
 def prepare_login_log(idp_name):
+    x_forwarded_headers = [
+        f"{header}:{value}" for header, value in flask.request.headers if "X-" in header
+    ]
     flask.g.audit_data = {
         "username": flask.g.user.username,
         "sub": flask.g.user.id,
@@ -317,6 +320,7 @@ def prepare_login_log(idp_name):
         "upstream_idp": flask.session.get("upstream_idp"),
         "shib_idp": flask.session.get("shib_idp"),
         "client_id": flask.session.get("client_id"),
+        "additional_data": x_forwarded_headers,
         "ip": get_ip_information_string(),
     }
 

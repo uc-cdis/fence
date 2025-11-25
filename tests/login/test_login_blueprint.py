@@ -134,3 +134,89 @@ def test_enabled_logins(app, client, login_option, get_all_upstream_idps_data_pa
         for url_info in response_provider["urls"]
     }
     assert all(url in app_routes for url in login_urls)
+
+
+@pytest.mark.parametrize(
+    "description, target_provider, hide_idps, expected_hidden_names",
+    [
+        (
+            "Provider with shib_idps=*",
+            "MDQ discovery all providers",
+            ["https://idp.uca.fr/idp/shibboleth", "urn:mace:incommon:osu.edu"],
+            ["Université Clermont Auvergne", "Ohio State University"],
+        ),
+        (
+            "Provider with shib_idps=[list_values]",
+            "Shibboleth Login some providers",
+            ["urn:mace:incommon:uchicago.edu"],
+            ["University of Chicago"],
+        ),
+        (
+            "hide_idps value not in provider shib_idps",
+            "Shibboleth Login some providers",
+            ["https://idp-proxy.ugd.edu.mk"],
+            [],
+        ),
+    ],
+)
+def test_hide_idps_logins(
+    app,
+    client,
+    description,
+    target_provider,
+    hide_idps,
+    expected_hidden_names,
+    get_all_upstream_idps_data_patcher,
+):
+
+    # Start with empty HIDE_IDPS in config
+    config["HIDE_IDPS"] = []
+    r = client.get("/login")
+
+    assert r.status_code == 200, r.data
+    response_json = r.json
+    assert "providers" in response_json
+    response_providers = response_json["providers"]
+    response_provider = next(
+        (
+            provider
+            for provider in response_providers
+            if provider["name"] == target_provider
+        ),
+        None,
+    )
+    assert (
+        response_provider
+    ), 'Configured login option "{}" not in /login response: {}'.format()
+    all_names = [x["name"] for x in response_provider["urls"]]
+    length_no_hides = len(all_names)
+    # expected length depends on patcher values.
+    assert length_no_hides >= 2, "Provider name list is shorter than expected"
+    assert all(name in all_names for name in expected_hidden_names)
+
+    # set HIDE_IDPS in config
+    config["HIDE_IDPS"] = hide_idps
+    r = client.get("/login")
+
+    assert r.status_code == 200, r.data
+    response_json = r.json
+    assert "providers" in response_json
+    response_providers = response_json["providers"]
+    response_provider = next(
+        (
+            provider
+            for provider in response_providers
+            if provider["name"] == target_provider
+        ),
+        None,
+    )
+    assert (
+        response_provider
+    ), 'Configured login option "{}" not in /login response: {}'.format()
+    new_names = [x["name"] for x in response_provider["urls"]]
+    assert len(new_names) == length_no_hides - len(
+        expected_hidden_names
+    ), "Provider name list is incorrect length"
+    # names have been removed
+    assert all(name not in new_names for name in expected_hidden_names)
+    assert set(new_names) == set(all_names) - set(expected_hidden_names)
