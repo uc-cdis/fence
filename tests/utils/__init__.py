@@ -263,7 +263,7 @@ def default_claims():
         "iat": iat,
         "exp": exp,
         "jti": jti,
-        "azp": "",
+        "azp": "test-client",
         "scope": ["openid", "user"],
         "context": {
             "user": {
@@ -293,7 +293,7 @@ def unauthorized_context_claims(user_name, user_id):
         "iat": iat,
         "exp": exp,
         "jti": jti,
-        "azp": "",
+        "azp": "test-client",
         "scope": ["access", "data", "user", "openid"],
         "context": {
             "user": {
@@ -325,7 +325,7 @@ def authorized_download_context_claims(user_name, user_id):
         "iat": iat,
         "exp": exp,
         "jti": jti,
-        "azp": "",
+        "azp": "test-client",
         "pur": "access",
         "scope": ["access", "data", "user", "openid"],
         "context": {

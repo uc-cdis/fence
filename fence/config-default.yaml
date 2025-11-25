@@ -357,6 +357,12 @@ SESSION_ALLOWED_SCOPES:
   - "google_link"
   - "ga4gh_passport_v1"
 
+# this will error on authz callback from any of the above OIDC providers if the configured username field matches
+# the search regex provided below
+# example:
+#  .*@.*(126|163|aol|bk|foxmail|gmail|hotmail|icloud|inbox|live|mail|mailinator|outlook|proton|qq|rambler|sina|yeah|yahoo|yandex).*
+GLOBAL_USERNAME_DENY_REGEX: ""
+
 # //////////////////////////////////////////////////////////////////////////////////////
 # LOGIN
 #   - Modify based on which OIDC provider(s) are configured in OPENID_CONNECT
@@ -588,6 +594,10 @@ ALLOW_NEW_USER_ON_LOGIN: true
 SHIBBOLETH_HEADER: 'persistent_id'
 SSO_URL: 'https://auth.nih.gov/affwebservices/public/saml2sso?SPID={{BASE_URL}}/shibboleth&RelayState='
 ITRUST_GLOBAL_LOGOUT: 'https://auth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl='
+
+# Setting the HIDE_IDPS list will hide items from the InCommons drop down list
+# eg, HIDE_IDPS = ["https://idp.uca.fr/idp/shibboleth", "urn:mace:incommon:osu.edu"]
+HIDE_IDPS: []
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # dbGaP USER SYNCING SUPPORT
