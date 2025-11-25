@@ -819,7 +819,6 @@ def test_delete_expired_service_accounts_with_one_fail_first(
     from googleapiclient.errors import HttpError
     import fence
 
-    fence.settings = MagicMock()
     gen3cirrus.config.update = MagicMock()
     cloud_manager.return_value.__enter__.return_value.remove_member_from_group.side_effect = [
         HttpError(mock.Mock(status=403), bytes("Permission denied", "utf-8")),
@@ -870,7 +869,6 @@ def test_delete_expired_service_accounts_with_one_fail_second(
     from googleapiclient.errors import HttpError
     import fence
 
-    fence.settings = MagicMock()
     cloud_manager.return_value.__enter__.return_value.remove_member_from_group.side_effect = [
         {},
         HttpError(mock.Mock(status=403), bytes("Permission denied", "utf-8")),
@@ -918,7 +916,6 @@ def test_delete_expired_service_accounts(cloud_manager, app, db_session):
     """
     import fence
 
-    fence.settings = MagicMock()
     cloud_manager.return_value.__enter__.return_value.remove_member_from_group.return_value = (
         {}
     )
@@ -968,7 +965,6 @@ def test_delete_not_expired_service_account(app, db_session):
     """
     import fence
 
-    fence.settings = MagicMock()
     _setup_google_access(db_session)
     service_account = db_session.query(UserServiceAccount).first()
     google_bucket_access_grp1 = db_session.query(GoogleBucketAccessGroup).first()
@@ -999,8 +995,6 @@ def test_delete_not_expired_google_access(app, db_session):
     Test the case that there is no expired google access
     """
     import fence
-
-    fence.settings = MagicMock()
 
     current_time = int(time.time())
     # 1 not expired, 2 not expired
@@ -1039,8 +1033,6 @@ def test_delete_not_specified_expiration_google_access(app, db_session):
     """
     import fence
 
-    fence.settings = MagicMock()
-
     current_time = int(time.time())
     access_1_expires = None
     access_2_expires = None
@@ -1076,7 +1068,6 @@ def test_delete_expired_google_access(cloud_manager, app, db_session):
     """
     import fence
 
-    fence.settings = MagicMock()
     cloud_manager.return_value.__enter__.return_value.remove_member_from_group.return_value = (
         {}
     )
@@ -1130,7 +1121,6 @@ def test_delete_expired_google_access_with_one_fail_first(
     from googleapiclient.errors import HttpError
     import fence
 
-    fence.settings = MagicMock()
     gen3cirrus.config.update = MagicMock()
     cloud_manager.return_value.__enter__.return_value.remove_member_from_group.side_effect = [
         HttpError(mock.Mock(status=403), bytes("Permission denied", "utf-8")),
@@ -1214,7 +1204,6 @@ def test_verify_bucket_access_group_no_interested_accounts(
     """
     import fence
 
-    fence.settings = MagicMock()
     (
         cloud_manager.return_value.__enter__.return_value.get_group_members.return_value
     ) = [
@@ -1242,7 +1231,6 @@ def test_verify_bucket_access_group(app, cloud_manager, db_session, setup_test_d
     """
     import fence
 
-    fence.settings = MagicMock()
     (
         cloud_manager.return_value.__enter__.return_value.get_group_members.return_value
     ) = [
@@ -1419,7 +1407,6 @@ def test_delete_expired_service_account_keys_for_user(
     """
     import fence
 
-    fence.settings = MagicMock()
     cloud_manager.return_value.__enter__.return_value.delete_service_account_key.return_value = (
         {}
     )
@@ -1470,7 +1457,6 @@ def test_delete_expired_service_account_keys_for_client(
     """
     import fence
 
-    fence.settings = MagicMock()
     cloud_manager.return_value.__enter__.return_value.delete_service_account_key.return_value = (
         {}
     )
@@ -1528,7 +1514,6 @@ def test_delete_expired_service_account_keys_both_user_and_client(
     """
     import fence
 
-    fence.settings = MagicMock()
     cloud_manager.return_value.__enter__.return_value.delete_service_account_key.return_value = (
         {}
     )
