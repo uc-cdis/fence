@@ -51,6 +51,7 @@ def delete_data_file(file_id):
         # Don't fall back on uploader -- this prevents users from escalating from edit to
         # delete permissions by changing the uploader field to their own username
         # (b/c users only have edit access through arborist/authz)
+
         if has_correct_authz:
             logger.info("Deleting record and files for {}".format(file_id))
             message, status_code = record.delete_files(delete_all=True)

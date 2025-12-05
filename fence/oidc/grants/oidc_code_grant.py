@@ -85,10 +85,10 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
         code = AuthorizationCode(
             code=code,
             client_id=client.client_id,
-            redirect_uri=request.redirect_uri,
-            scope=request.scope,
+            redirect_uri=request.payload.redirect_uri,
+            scope=request.payload.scope,
             user_id=request.user.id,
-            nonce=request.data.get("nonce"),
+            nonce=request.payload.data.get("nonce"),
             refresh_token_expires_in=refresh_token_expires_in,
         )
 
@@ -191,7 +191,7 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
         """
         Override method in authlib to fix behavior with login prompt.
         """
-        prompt = self.request.data.get("prompt")
+        prompt = self.request.payload.data.get("prompt")
         if not prompt:
             if not end_user:
                 self.prompt = "login"
@@ -242,7 +242,7 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
                 f'The client is not authorized to use "grant_type={self.GRANT_TYPE}"'
             )
 
-        code = self.request.data.get("code")
+        code = self.request.payload.data.get("code")
         if code is None:
             raise InvalidRequestError('Missing "code" in request.')
 
@@ -255,7 +255,7 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
 
         # validate redirect_uri parameter
         logger.debug("Validate token redirect_uri of %r", client)
-        redirect_uri = self.request.redirect_uri
+        redirect_uri = self.request.payload.redirect_uri
         original_redirect_uri = authorization_code.get_redirect_uri()
         if original_redirect_uri and redirect_uri != original_redirect_uri:
             raise InvalidGrantError("Invalid 'redirect_uri' in request.")

@@ -1,3 +1,4 @@
+from sqlalchemy import text
 import flask
 import os
 import collections
@@ -495,7 +496,8 @@ def put_gen3_usernames_for_passport_into_cache(
     PASSPORT_CACHE[passport_hash] = user_ids_from_passports, expires_at
 
     db_session.execute(
-        """\
+        text(
+            """\
         INSERT INTO ga4gh_passport_cache (
             passport_hash,
             expires_at,
@@ -506,7 +508,8 @@ def put_gen3_usernames_for_passport_into_cache(
             :user_ids
         ) ON CONFLICT (passport_hash) DO UPDATE SET
             expires_at = EXCLUDED.expires_at,
-            user_ids = EXCLUDED.user_ids;""",
+            user_ids = EXCLUDED.user_ids;"""
+        ),
         dict(
             passport_hash=passport_hash,
             expires_at=expires_at,

@@ -7,12 +7,11 @@ configured DB URL;
 - lock the DB during migrations to ensure only 1 migration runs at a time.
 """
 
-
 from alembic import context
 import logging
 from logging.config import fileConfig
 import os
-from sqlalchemy import engine_from_config, pool
+from sqlalchemy import engine_from_config, pool, text
 
 from userdatamodel import Base
 
@@ -85,7 +84,9 @@ def run_migrations_online():
                 # Solution based on https://github.com/sqlalchemy/alembic/issues/633
                 # TODO lock the DB for all processes during migrations
                 connection.execute(
-                    f"SELECT pg_advisory_xact_lock({fence_config['DB_MIGRATION_POSTGRES_LOCK_KEY']});"
+                    text(
+                        f"SELECT pg_advisory_xact_lock({fence_config['DB_MIGRATION_POSTGRES_LOCK_KEY']});"
+                    )
                 )
             else:
                 logger.info(

@@ -1,6 +1,7 @@
 """
 Test App Config from files
 """
+
 import os
 from unittest.mock import MagicMock
 from mock import patch
@@ -103,8 +104,12 @@ def test_app_config():
         patcher.start()
         patchers.append(patcher)
 
+    # create a fresh local app
+    from flask import Flask
+
+    local_app = Flask("test_app_config")
     app_init(
-        fence.app,
+        local_app,
         test_settings,
         root_dir=root_dir,
         config_path=os.path.join(root_dir, config_path),

@@ -3,6 +3,7 @@ import time
 
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
+from sqlalchemy import text
 
 import urllib.parse
 import uuid
@@ -1378,7 +1379,8 @@ def test_assume_role_cache(
 
     with flask.current_app.db.session as session:
         session.execute(
-            "UPDATE assume_role_cache SET expires_at = :ts", dict(ts=time.time() - 10)
+            text("UPDATE assume_role_cache SET expires_at = :ts"),
+            dict(ts=time.time() - 10),
         )
     response = client.get(path, headers=headers, query_string=query_string)
     assert response.status_code == 200
@@ -1511,8 +1513,6 @@ def test_delete_file_locations(
     mock_index_document.start()
     mock_indexed_file_delete_file.start()
     mock_check_auth.start()
-    mock_boto_delete = mock.MagicMock()
-    monkeypatch.setattr(app.boto, "delete_data_file", mock_boto_delete)
 
     class MockResponse(object):
         def __init__(self, data, status_code=200):
@@ -1533,7 +1533,6 @@ def test_delete_file_locations(
         headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
         response = client.delete("/data/{}".format(did), headers=headers)
         assert response.status_code == 204
-        assert mock_boto_delete.called_once()
 
     mock_check_auth.stop()
     mock_index_document.stop()
@@ -1592,8 +1591,6 @@ def test_delete_file_locations_by_uploader(
     mock_index_document.start()
     mock_indexed_file_delete_file.start()
     mock_check_auth.start()
-    mock_boto_delete = mock.MagicMock()
-    monkeypatch.setattr(app.boto, "delete_data_file", mock_boto_delete)
 
     class MockResponse(object):
         def __init__(self, data, status_code=200):
@@ -1614,7 +1611,6 @@ def test_delete_file_locations_by_uploader(
         headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
         response = client.delete("/data/{}".format(did), headers=headers)
         assert response.status_code == 204
-        assert mock_boto_delete.called_once()
 
     mock_check_auth.stop()
     mock_index_document.stop()

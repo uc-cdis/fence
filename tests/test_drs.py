@@ -7,6 +7,7 @@ import pytest
 import requests
 import responses
 from tests import utils
+from tests.conftest import NoAsyncMagicMock
 import time
 from unittest.mock import MagicMock, patch
 
@@ -607,7 +608,7 @@ def test_get_presigned_url_with_passport_with_incorrect_authz(
         indexd_record_with_non_public_authz_and_public_acl_populated
     )
     mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": False}, 200)}})
-    mock_arborist.return_value = MagicMock(ArboristClient)
+    mock_arborist.return_value = NoAsyncMagicMock(ArboristClient)
     mock_google_proxy_group.return_value = google_proxy_group
 
     # Prepare Passport/Visa
@@ -1332,7 +1333,7 @@ def test_passport_cache_expired_in_memory_valid_in_db(
         indexd_record_with_non_public_authz_and_public_acl_populated
     )
     mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
-    mock_arborist.return_value = MagicMock(ArboristClient)
+    mock_arborist.return_value = NoAsyncMagicMock(ArboristClient)
     mock_google_proxy_group.return_value = google_proxy_group
 
     # Prepare Passport/Visa
@@ -1563,7 +1564,7 @@ def test_passport_cache_expired(
         indexd_record_with_non_public_authz_and_public_acl_populated
     )
     mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
-    mock_arborist.return_value = MagicMock(ArboristClient)
+    mock_arborist.return_value = NoAsyncMagicMock(ArboristClient)
     mock_google_proxy_group.return_value = google_proxy_group
 
     # Prepare Passport/Visa

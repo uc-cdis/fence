@@ -553,9 +553,11 @@ def create_project(s, project_data):
         for storage_access in sa_list:
             provider = storage_access["name"]
             buckets = storage_access.get("buckets", [])
+
             sa = (
                 s.query(StorageAccess)
-                .join(StorageAccess.provider, StorageAccess.project)
+                .join(StorageAccess.provider)
+                .join(StorageAccess.project)
                 .filter(Project.name == project.name)
                 .filter(CloudProvider.name == provider)
                 .first()

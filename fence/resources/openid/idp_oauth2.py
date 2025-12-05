@@ -407,8 +407,10 @@ class Oauth2ClientBase(object):
             refresh_token=refresh_token,
             expires=expires,
         )
-        current_db_session = db_session.object_session(upstream_refresh_token)
-        current_db_session.add(upstream_refresh_token)
+        # object_session returns None in python 3.13,
+        # since the UpstreamRefreshToken was not implicitly attached to any session
+        # Removing this next line since it is redundant.
+        db_session.add(upstream_refresh_token)
         db_session.commit()
         self.logger.info(
             f"Refresh token has been persisted for user: {user} , with expiration of {expires}"

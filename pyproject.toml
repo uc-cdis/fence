@@ -33,9 +33,6 @@ gen3cirrus = ">=3.1.0"
 gen3config = "<3"
 gen3users = ">=1.0.2"
 markdown = ">=3.1.1"
-
-# this markupsafe pin is due to an error somewhere between Python 3.9.6 and 3.9.16
-
 paramiko = ">=2.6.0"
 prometheus-client = "<1"
 psycopg2-binary = "<3"

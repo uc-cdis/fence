@@ -53,9 +53,9 @@ def test_sync_missing_file(syncer, monkeypatch, db_session):
     monkeypatch.setattr(syncer, "sync_from_local_yaml_file", "this-file-is-not-real")
     with pytest.raises(FileNotFoundError):
         syncer.sync()
-    assert syncer.arborist_client.create_resource.not_called()
-    assert syncer.arborist_client.create_role.not_called()
-    assert syncer.arborist_client.create_policy.not_called()
+    syncer.arborist_client.create_resource.assert_not_called()
+    syncer.arborist_client.create_role.assert_not_called()
+    syncer.arborist_client.create_policy.assert_not_called()
 
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
@@ -70,9 +70,9 @@ def test_sync_incorrect_user_yaml_file(syncer, monkeypatch, db_session):
     monkeypatch.setattr(syncer, "sync_from_local_yaml_file", path)
     with pytest.raises(AssertionError):
         syncer.sync()
-    assert syncer.arborist_client.create_resource.not_called()
-    assert syncer.arborist_client.create_role.not_called()
-    assert syncer.arborist_client.create_policy.not_called()
+    syncer.arborist_client.create_resource.assert_not_called()
+    syncer.arborist_client.create_role.assert_not_called()
+    syncer.arborist_client.create_policy.assert_not_called()
 
 
 @pytest.mark.parametrize("allow_non_dbgap_whitelist", [False, True])
@@ -785,13 +785,13 @@ def test_update_arborist(syncer, db_session):
         {
             "id": permission,
             "permissions": [
-                {"id": permission, "action": {"method": permission, "service": ""}}
+                {"id": permission, "action": {"method": permission, "service": "*"}}
             ],
         }
         for permission in permissions
     ]
     for role in expect_roles:
-        assert syncer.arborist_client.create_role.called_with(role)
+        syncer.arborist_client.create_role.assert_any_call(role)
 
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
@@ -1071,7 +1071,7 @@ def test_revoke_all_policies_no_user(db_session, syncer):
     """
     # no arborist user with that username
     user_that_doesnt_exist = "foobar"
-    syncer.arborist_client.get_user.return_value = None
+    syncer.arborist_client.get_user = MagicMock(return_value=None)
 
     syncer._revoke_all_policies_preserve_mfa(user_that_doesnt_exist, "mock_idp")
 
@@ -1096,7 +1096,9 @@ def test_revoke_all_policies_preserve_mfa(monkeypatch, db_session, syncer):
     user = User(
         username="mockuser", identity_provider=IdentityProvider(name="mock_idp")
     )
-    syncer.arborist_client.get_user.return_value = {"policies": ["mfa_policy"]}
+    syncer.arborist_client.get_user = MagicMock(
+        return_value={"policies": ["mfa_policy"]}
+    )
     syncer._revoke_all_policies_preserve_mfa(user.username, user.identity_provider.name)
     syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
         user.username
@@ -1205,7 +1207,9 @@ def test_sync_grant_arborist_policies_check_add_and_revoke(
         {"policy": "phs000180.c1-read-storage"},
     ]
 
-    syncer.arborist_client.get_user.return_value = {"policies": user_existing_policies}
+    syncer.arborist_client.get_user = MagicMock(
+        return_value={"policies": user_existing_policies}
+    )
 
     syncer._grant_arborist_policies(
         username="TESTUSERB",
@@ -1262,7 +1266,9 @@ def test_sync_grant_arborist_policies_check_revoke_all(
         {"policy": "phs000179.c1-read-storage"},
     ]
 
-    syncer.arborist_client.get_user.return_value = {"policies": user_existing_policies}
+    syncer.arborist_client.get_user = MagicMock(
+        return_value={"policies": user_existing_policies}
+    )
 
     syncer._grant_arborist_policies(
         username="TESTUSERB",
@@ -1303,7 +1309,9 @@ def test_sync_grant_arborist_policies_check_no_calls_made(
         {"policy": "phs000179.c1-read-storage"},
     ]
 
-    syncer.arborist_client.get_user.return_value = {"policies": user_existing_policies}
+    syncer.arborist_client.get_user = MagicMock(
+        return_value={"policies": user_existing_policies}
+    )
 
     syncer._grant_arborist_policies(
         username="TESTUSERB",

@@ -262,34 +262,34 @@ files = [
 
 [[package]]
 name = "boto3"
-version = "1.40.76"
+version = "1.41.1"
 description = "The AWS SDK for Python"
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "dev"]
 files = [
-    {file = "boto3-1.40.76-py3-none-any.whl", hash = "sha256:8df6df755727be40ad9e309cfda07f9a12c147e17b639430c55d4e4feee8a167"},
-    {file = "boto3-1.40.76.tar.gz", hash = "sha256:16f4cf97f8dd8e0aae015f4dc66219bd7716a91a40d1e2daa0dafa241a4761c5"},
+    {file = "boto3-1.41.1-py3-none-any.whl", hash = "sha256:05009dadcb0c63a2a4a11780f615362a811aa85e7a6950f2793ecf8055fcd1f2"},
+    {file = "boto3-1.41.1.tar.gz", hash = "sha256:fdee48cff828cfe0fb66295ae4d5f47736ee35f11e1de6be6c6dcd910f0810a4"},
 ]
 
 [package.dependencies]
-botocore = ">=1.40.76,<1.41.0"
+botocore = ">=1.41.1,<1.42.0"
 jmespath = ">=0.7.1,<2.0.0"
-s3transfer = ">=0.14.0,<0.15.0"
+s3transfer = ">=0.15.0,<0.16.0"
 
 [package.extras]
 crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.40.76"
+version = "1.41.1"
 description = "Low-level, data-driven core of boto 3."
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "dev"]
 files = [
-    {file = "botocore-1.40.76-py3-none-any.whl", hash = "sha256:fe425d386e48ac64c81cbb4a7181688d813df2e2b4c78b95ebe833c9e868c6f4"},
-    {file = "botocore-1.40.76.tar.gz", hash = "sha256:2b16024d68b29b973005adfb5039adfe9099ebe772d40a90ca89f2e165c495dc"},
+    {file = "botocore-1.41.1-py3-none-any.whl", hash = "sha256:0db40b7dbddef56fe8cfa06b5eda73b327786db9d64c09c3a616fc9b5548120d"},
+    {file = "botocore-1.41.1.tar.gz", hash = "sha256:e98095492ef8f18d0d6a02ba87d9135c663d4627322e049228143b3a4ef4c2a3"},
 ]
 
 [package.dependencies]
@@ -2251,14 +2251,14 @@ gssapi = ["gssapi (>=1.4.1) ; platform_system != \"Windows\"", "pyasn1 (>=0.1.7)
 
 [[package]]
 name = "pbs-installer"
-version = "2025.10.31"
+version = "2025.11.20"
 description = "Installer for Python Build Standalone"
 optional = false
 python-versions = ">=3.8"
 groups = ["dev"]
 files = [
-    {file = "pbs_installer-2025.10.31-py3-none-any.whl", hash = "sha256:f24e8f01f13fee9a203feb62e90c8d204d64d71ad0a3f3abfd69673b02bbc68b"},
-    {file = "pbs_installer-2025.10.31.tar.gz", hash = "sha256:8529dbac1054408ccce5fb218a85a2d4a02f3657ddbde56eff79464105bba659"},
+    {file = "pbs_installer-2025.11.20-py3-none-any.whl", hash = "sha256:5588b40a41b03101514c71cadb37ad75a3476dee43ba5fdaeec699e51ec0e94a"},
+    {file = "pbs_installer-2025.11.20.tar.gz", hash = "sha256:6469b854835fa316c24c938df4563a72adae3d14b659eb4b23fa4bb347fd45f3"},
 ]
 
 [package.dependencies]
@@ -3063,14 +3063,14 @@ pyasn1 = ">=0.1.3"
 
 [[package]]
 name = "s3transfer"
-version = "0.14.0"
+version = "0.15.0"
 description = "An Amazon S3 Transfer Manager"
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "dev"]
 files = [
-    {file = "s3transfer-0.14.0-py3-none-any.whl", hash = "sha256:ea3b790c7077558ed1f02a3072fb3cb992bbbd253392f4b6e9e8976941c7d456"},
-    {file = "s3transfer-0.14.0.tar.gz", hash = "sha256:eff12264e7c8b4985074ccce27a3b38a485bb7f7422cc8046fee9be4983e4125"},
+    {file = "s3transfer-0.15.0-py3-none-any.whl", hash = "sha256:6f8bf5caa31a0865c4081186689db1b2534cef721d104eb26101de4b9d6a5852"},
+    {file = "s3transfer-0.15.0.tar.gz", hash = "sha256:d36fac8d0e3603eff9b5bfa4282c7ce6feb0301a633566153cbd0b93d11d8379"},
 ]
 
 [package.dependencies]

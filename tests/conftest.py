@@ -60,6 +60,14 @@ from tests.storageclient.storage_client_mock import get_client
 os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "true"
 
 
+# Python 3.13+ turns async methods on spec'ed mocks into AsyncMocks.
+# Our tests expect normal MagicMocks instead, so we override `_get_child_mock`
+# to always return MagicMocks and avoid automatic AsyncMock creation.
+class NoAsyncMagicMock(MagicMock):
+    def _get_child_mock(self, **kwargs):
+        return MagicMock(**kwargs)
+
+
 # some tests run on all the IdPs for which a login blueprint exists
 def all_available_idps():
     idps = ["generic_with_discovery_url"]  # to test the generic implementation
@@ -479,9 +487,7 @@ def app(kid, rsa_private_key, rsa_public_key):
 
     config.update(BASE_URL=config["BASE_URL"])
     config.update(ENCRYPTION_KEY=Fernet.generate_key().decode("utf-8"))
-
     yield fence.app
-
     mocker.unmock_functions()
 
 
@@ -577,7 +583,7 @@ def db(app, request):
         connection.begin()
         for table in reversed(models.Base.metadata.sorted_tables):
             # Delete table only if it exists
-            if app.db.engine.dialect.has_table(connection, table):
+            if app.db.engine.dialect.has_table(connection, table.name):
                 connection.execute(table.delete())
         connection.close()
 
@@ -650,7 +656,6 @@ def db_session(db, patch_app_db_session):
     session.commit()
 
     yield session
-
     # clear out user and project tables upon function close in case unit test didn't
     session.query(models.User).delete()
     session.query(models.IssSubPairToUser).delete()
