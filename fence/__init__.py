@@ -1,10 +1,11 @@
-# Override the default_digest_method for Signer before flask and flask_wtf are loaded. 
+# Override the default_digest_method for Signer before flask and flask_wtf are loaded.
 import hashlib
 from itsdangerous import Signer
-# Explicitly set to sha256 as the default (sha1) will break in FIPS environments when flask_wtf attempts to process a user registration form. 
+
+# Explicitly set to sha256 as the default (sha1) will break in FIPS environments when flask_wtf attempts to process a user registration form.
 # This is a known issue with itsdangerous defaults (see: https://github.com/pgadmin-org/pgadmin4/issues/7979 for a similar issue with pgadmin)
 # According to: https://itsdangerous.palletsprojects.com/en/latest/concepts/#digest-method-security and https://stackoverflow.com/a/27669587, we can override the default here:
-Signer.default_digest_method = hashlib.sha256 
+Signer.default_digest_method = hashlib.sha256
 
 from collections import OrderedDict
 import os
@@ -26,8 +27,7 @@ from sqlalchemy.orm import scoped_session
 logger = get_logger(__name__, log_level="debug")
 
 # Load the configuration *before* importing modules that rely on it
-from fence.config import config
-from fence.settings import CONFIG_SEARCH_FOLDERS
+from fence.config import config, CONFIG_SEARCH_FOLDERS
 
 config.load(
     config_path=os.environ.get("FENCE_CONFIG_PATH"),
@@ -85,7 +85,6 @@ def warn_about_logger():
 
 def app_init(
     app,
-    settings="fence.settings",
     root_dir=None,
     config_path=None,
     config_file_name=None,
@@ -94,7 +93,6 @@ def app_init(
 
     app_config(
         app,
-        settings=settings,
         root_dir=root_dir,
         config_path=config_path,
         file_name=config_file_name,
@@ -341,7 +339,6 @@ def _check_buckets_aws_creds_and_region(app):
 
 def app_config(
     app,
-    settings="fence.settings",
     root_dir=None,
     config_path=None,
     file_name=None,
@@ -352,16 +349,13 @@ def app_config(
     if root_dir is None:
         root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
 
-    logger.info("Loading settings...")
-    # not using app.config.from_object because we don't want all the extra flask cfg
-    # vars inside our singleton when we pass these through in the next step
+    # logger.info("Loading settings...")
     settings_cfg = flask.Config(app.config.root_path)
-    settings_cfg.from_object(settings)
 
-    # dump the settings into the config singleton before loading a configuration file
+    # # dump the settings into the config singleton before loading a configuration file
     config.update(dict(settings_cfg))
 
-    # load the configuration file, this overwrites anything from settings/local_settings
+    # load the configuration file
     config.load(
         config_path=config_path,
         search_folders=CONFIG_SEARCH_FOLDERS,
@@ -490,7 +484,13 @@ def _setup_oidc_clients(app):
 
 def _setup_arborist_client(app):
     if app.config.get("ARBORIST"):
-        app.arborist = ArboristClient(arborist_base_url=config["ARBORIST"])
+        app.arborist = ArboristClient(
+            arborist_base_url=config["ARBORIST"],
+            timeout=app.config.get("ARBORIST_TIMEOUT", 30),
+        )
+    else:
+        logger.info("Arborist not configured")
+        app.arborist = None
 
 
 def _setup_audit_service_client(app):

@@ -1,9 +1,10 @@
-import flask
-from flask import current_app
+import re
+import urllib.request, urllib.parse, urllib.error
 from datetime import datetime
 from functools import wraps
-import urllib.request, urllib.parse, urllib.error
 
+import flask
+from flask import current_app
 from authutils.errors import JWTError, JWTExpiredError
 from authutils.token.validate import (
     current_token,
@@ -13,13 +14,14 @@ from authutils.token.validate import (
 )
 from cdislogging import get_logger
 
+from fence.authz.auth import check_arborist_auth
+from fence.config import config
 from fence.errors import Unauthorized, InternalError
 from fence.jwt.validate import validate_jwt
 from fence.models import User, IdentityProvider, query_for_user
 from fence.user import get_current_user
 from fence.utils import clear_cookies
 from fence.config import config
-from fence.authz.auth import check_arborist_auth
 
 logger = get_logger(__name__)
 
@@ -77,13 +79,115 @@ def get_ip_information_string():
     return f"flask.request.remote_addr={flask.request.remote_addr} x_forwarded_headers={x_forwarded_headers}"
 
 
-def login_user(
-    username, provider, upstream_idp=None, shib_idp=None, email=None, id_from_idp=None
-):
+def _identify_user_and_update_database(
+    user,
+    username,
+    provider,
+    email=None,
+    id_from_idp=None,
+    username_deny_regex=None,
+) -> bool:
     """
-    Login a user with the given username and provider. Set values in Flask
-    session to indicate the user being logged in. In addition, commit the user
-    and associated idp information to the db.
+    Create a new user if one doesn't already exist in the database. Commit the user
+    and associated idp information to the database.
+
+    Args:
+        user (User): user to be logged in, if it already exists, None otherwise
+        username (str): specific username of user to be logged in
+        provider (str): specfic idp of user to be logged in
+        email (str, optional): email of user (may or may not match username depending
+            on the IdP)
+        id_from_idp (str, optional): id from the IDP (which may be different than
+            the username)
+
+    Return:
+        User: the created or updated user
+    """
+    username_deny_regex = username_deny_regex or config["GLOBAL_USERNAME_DENY_REGEX"]
+    if username_deny_regex:
+        if re.search(pattern=username_deny_regex, string=username):
+            logger.info(
+                f"Blocked login of user with username {username} due to deny regex: {username_deny_regex}"
+            )
+
+            # intentionally empty message to prevent information leakage
+            raise Unauthorized(message="")
+
+    if user:
+        if user.active == False:
+            # Abort login if user.active == False:
+            raise Unauthorized(
+                "User is known but not authorized/activated in the system"
+            )
+        _update_users_email(user, email)
+        _update_users_id_from_idp(user, id_from_idp)
+        _update_users_last_auth(user)
+    else:
+        if not config["ALLOW_NEW_USER_ON_LOGIN"]:
+            # do not create new active users automatically
+            raise Unauthorized("New user is not yet authorized/activated in the system")
+
+        # add the new user
+        user = User(username=username)
+
+        if email:
+            user.email = email
+
+        if id_from_idp:
+            user.id_from_idp = id_from_idp
+            # TODO: update iss_sub mapping table?
+
+    # This expression is relevant to those users who already have user and
+    # idp info persisted to the database. We avoid unnecessarily re-saving
+    # that user and idp info.
+    if not user.identity_provider or not user.identity_provider.name == provider:
+        # setup idp connection for new user (or existing user w/o it setup)
+        idp = (
+            current_app.scoped_session()
+            .query(IdentityProvider)
+            .filter(IdentityProvider.name == provider)
+            .first()
+        )
+        if not idp:
+            idp = IdentityProvider(name=provider)
+
+        user.identity_provider = idp
+        current_app.scoped_session().add(user)
+        current_app.scoped_session().commit()
+
+    # `login_in_progress_username` stored for use by the user registration code.
+    # not using `flask.session["username"]` because other code relies on it to know
+    # whether a user is logged in; in this case the user isn't logged in yet.
+    flask.session["login_in_progress_username"] = user.username
+
+    flask.g.user = user
+    return user
+
+
+def _is_user_registration_required_before_login(user, provider) -> bool:
+    auto_registration_enabled = (
+        config["OPENID_CONNECT"]
+        .get(provider, {})
+        .get("enable_idp_users_registration", False)
+    )
+    # Registration is required if:
+    # - Registration is enabled in the config, AND
+    # - Automatic registration is NOT enabled, AND
+    # - The user's registration info is empty
+    return (
+        config["REGISTER_USERS_ON"]
+        and not auto_registration_enabled
+        and user.additional_info.get("registration_info", {}) == {}
+    )
+
+
+def login_user_or_require_registration(
+    username, provider, upstream_idp=None, shib_idp=None, email=None, id_from_idp=None
+) -> bool:
+    """
+    Check if a user needs to go through the registration flow before being logged in. If not,
+    login the user with the given username and provider. Set values in Flask session to indicate
+    the user being logged in.
 
     Args:
         username (str): specific username of user to be logged in
@@ -94,11 +198,13 @@ def login_user(
             on the IdP)
         id_from_idp (str, optional): id from the IDP (which may be different than
             the username)
+
+    Return:
+        bool: whether the user has been logged in (if registration is enabled and the user is not
+            registered, this would be False)
     """
 
-    def set_flask_session_values_and_log_ip(user):
-        set_flask_session_values(user)
-
+    def log_ip(user):
         ip_info = get_ip_information_string()
         logger.info(
             f"User logged in. user.id={user.id} user.username={user.username} {ip_info}"
@@ -123,53 +229,14 @@ def login_user(
         flask.g.token = None
 
     user = query_for_user(session=current_app.scoped_session(), username=username)
-    if user:
-        if user.active == False:
-            # Abort login if user.active == False:
-            raise Unauthorized(
-                "User is known but not authorized/activated in the system"
-            )
-
-        _update_users_email(user, email)
-        _update_users_id_from_idp(user, id_from_idp)
-        _update_users_last_auth(user)
-
-        #  This expression is relevant to those users who already have user and
-        #  idp info persisted to the database. We return early to avoid
-        #  unnecessarily re-saving that user and idp info.
-        if user.identity_provider and user.identity_provider.name == provider:
-            set_flask_session_values_and_log_ip(user)
-            return
-    else:
-        if not config["ALLOW_NEW_USER_ON_LOGIN"]:
-            # do not create new active users automatically
-            raise Unauthorized("New user is not yet authorized/activated in the system")
-
-        # add the new user
-        user = User(username=username)
-
-        if email:
-            user.email = email
-
-        if id_from_idp:
-            user.id_from_idp = id_from_idp
-            # TODO: update iss_sub mapping table?
-
-    # setup idp connection for new user (or existing user w/o it setup)
-    idp = (
-        current_app.scoped_session()
-        .query(IdentityProvider)
-        .filter(IdentityProvider.name == provider)
-        .first()
+    user = _identify_user_and_update_database(
+        user, username, provider, email, id_from_idp
     )
-    if not idp:
-        idp = IdentityProvider(name=provider)
-
-    user.identity_provider = idp
-    current_app.scoped_session().add(user)
-    current_app.scoped_session().commit()
-
-    set_flask_session_values_and_log_ip(user)
+    log_user_in = not _is_user_registration_required_before_login(user, provider)
+    if log_user_in:
+        set_flask_session_values(user)
+        log_ip(user)
+    return log_user_in
 
 
 def logout(next_url, force_era_global_logout=False):
@@ -225,7 +292,11 @@ def login_required(scope=None):
         @wraps(f)
         def wrapper(*args, **kwargs):
             if flask.session.get("username"):
-                login_user(flask.session["username"], flask.session["provider"])
+                is_logged_in = login_user_or_require_registration(
+                    flask.session["username"], flask.session["provider"]
+                )
+                if not is_logged_in:
+                    raise Unauthorized("Please register to login")
                 return f(*args, **kwargs)
 
             eppn = None
@@ -254,7 +325,11 @@ def login_required(scope=None):
                 username = eppn.split("!")[-1]
                 flask.session["username"] = username
                 flask.session["provider"] = IdentityProvider.itrust
-                login_user(username, flask.session["provider"])
+                is_logged_in = login_user_or_require_registration(
+                    username, flask.session["provider"]
+                )
+                if not is_logged_in:
+                    raise Unauthorized("Please register to login")
                 return f(*args, **kwargs)
             else:
                 raise Unauthorized("Please login")

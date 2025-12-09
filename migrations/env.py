@@ -7,7 +7,6 @@ configured DB URL;
 - lock the DB during migrations to ensure only 1 migration runs at a time.
 """
 
-
 from alembic import context
 import logging
 from logging.config import fileConfig
@@ -16,8 +15,7 @@ from sqlalchemy import engine_from_config, pool
 
 from userdatamodel import Base
 
-from fence.config import config as fence_config
-from fence.settings import CONFIG_SEARCH_FOLDERS
+from fence.config import config as fence_config, CONFIG_SEARCH_FOLDERS
 
 
 config = context.config

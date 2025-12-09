@@ -1,6 +1,6 @@
 repos:
 -   repo: https://github.com/psf/black
-    rev: 22.6.0
+    rev: 25.1.0
     hooks:
     -   id: black
 -   repo: git@github.com:Yelp/detect-secrets
@@ -9,6 +9,7 @@ repos:
     -   id: detect-secrets
         args: ['--baseline', '.secrets.baseline']
         exclude: poetry.lock
+        additional_dependencies: ['gibberish-detector']
 -   repo: https://github.com/pre-commit/pre-commit-hooks
     rev: v4.0.1
     hooks:
