@@ -2,7 +2,6 @@ from datetime import datetime
 import flask
 import re
 import time
-from setuptools._distutils.util import strtobool
 from flask_restful import Resource
 from flask import current_app
 
@@ -22,7 +21,7 @@ from fence.resources.google.utils import (
     get_or_create_proxy_group_id,
     give_service_account_billing_access_if_necessary,
 )
-from fence.utils import get_valid_expiration_from_request
+from fence.utils import get_valid_expiration_from_request, strtobool
 
 from cdislogging import get_logger
 
