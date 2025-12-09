@@ -4,7 +4,7 @@ import os
 
 # the whole fence_create module is imported to avoid issues with circular imports
 import fence.scripting.fence_create
-from distutils.util import strtobool
+from setuptools._distutils.util import strtobool
 from urllib.parse import urlparse, parse_qs
 
 from cdislogging import get_logger

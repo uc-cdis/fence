@@ -4,7 +4,6 @@ import pytest
 from fence.errors import UserError, NotFound
 
 
-@pytest.mark.skip("Random skip")
 def test_get_group(db_session, awg_users):
     info = adm.get_group_info(db_session, "test_group_2")
     assert info["name"] == "test_group_2"

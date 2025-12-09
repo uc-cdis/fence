@@ -2,7 +2,7 @@ from datetime import datetime
 import flask
 import re
 import time
-from distutils.util import strtobool
+from setuptools._distutils.util import strtobool
 from flask_restful import Resource
 from flask import current_app
 
