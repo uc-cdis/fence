@@ -15,8 +15,7 @@ from sqlalchemy import engine_from_config, pool, text
 
 from userdatamodel import Base
 
-from fence.config import config as fence_config
-from fence.settings import CONFIG_SEARCH_FOLDERS
+from fence.config import config as fence_config, CONFIG_SEARCH_FOLDERS
 
 
 config = context.config

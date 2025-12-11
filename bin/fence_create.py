@@ -8,7 +8,7 @@ import logging
 from cdislogging import get_logger
 
 from fence.jwt import keys
-from fence.config import config
+from fence.config import config, CONFIG_SEARCH_FOLDERS
 from fence.scripting.fence_create import (
     JWTCreator,
     create_client_action,
@@ -39,7 +39,6 @@ from fence.scripting.fence_create import (
     google_list_authz_groups,
     access_token_polling_job,
 )
-from fence.settings import CONFIG_SEARCH_FOLDERS
 
 from gen3authz.client.arborist.client import ArboristClient
 

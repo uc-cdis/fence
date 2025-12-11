@@ -11,7 +11,6 @@ from azure.core.exceptions import ResourceNotFoundError
 import fence
 from fence import app_init, _check_azure_storage
 from fence.config import FenceConfig
-from tests import test_settings
 from tests.conftest import FakeBlobServiceClient
 
 
@@ -110,7 +109,6 @@ def test_app_config():
     local_app = Flask("test_app_config")
     app_init(
         local_app,
-        test_settings,
         root_dir=root_dir,
         config_path=os.path.join(root_dir, config_path),
     )
