@@ -291,7 +291,7 @@ def test_passport_use_disabled(
         indexd_record_with_non_public_authz_and_public_acl_populated
     )
     mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
-    mock_arborist.return_value = MagicMock(ArboristClient)
+    mock_arborist.return_value = NoAsyncMagicMock(ArboristClient)
     mock_google_proxy_group.return_value = google_proxy_group
 
     # Prepare Passport/Visa
@@ -450,7 +450,7 @@ def test_get_presigned_url_for_non_public_data_with_passport(
         indexd_record_with_non_public_authz_and_public_acl_populated
     )
     mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
-    mock_arborist.return_value = MagicMock(ArboristClient)
+    mock_arborist.return_value = NoAsyncMagicMock(ArboristClient)
     mock_google_proxy_group.return_value = google_proxy_group
 
     # Prepare Passport/Visa
@@ -766,7 +766,7 @@ def test_get_presigned_url_for_public_data_with_no_passport(
         indexd_record_with_public_authz_and_public_acl_populated
     )
     mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
-    mock_arborist.return_value = MagicMock(ArboristClient)
+    mock_arborist.return_value = NoAsyncMagicMock(ArboristClient)
     mock_google_proxy_group.return_value = google_proxy_group
 
     access_id = indexd_client["indexed_file_location"]
@@ -826,7 +826,7 @@ def test_get_presigned_url_for_non_public_data_with_no_passport(
         indexd_record_with_public_authz_and_non_public_acl_populated
     )
     mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": False}, 200)}})
-    mock_arborist.return_value = MagicMock(ArboristClient)
+    mock_arborist.return_value = NoAsyncMagicMock(ArboristClient)
     mock_google_proxy_group.return_value = google_proxy_group
 
     access_id = indexd_client["indexed_file_location"]
@@ -903,7 +903,7 @@ def test_passport_cache_valid_passport(
         indexd_record_with_non_public_authz_and_public_acl_populated
     )
     mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
-    mock_arborist.return_value = MagicMock(ArboristClient)
+    mock_arborist.return_value = NoAsyncMagicMock(ArboristClient)
     mock_google_proxy_group.return_value = google_proxy_group
 
     # Prepare Passport/Visa
@@ -1116,7 +1116,7 @@ def test_passport_cache_invalid_passport(
         indexd_record_with_non_public_authz_and_public_acl_populated
     )
     mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": False}, 200)}})
-    mock_arborist.return_value = MagicMock(ArboristClient)
+    mock_arborist.return_value = NoAsyncMagicMock(ArboristClient)
     mock_google_proxy_group.return_value = google_proxy_group
 
     # Prepare Passport/Visa
