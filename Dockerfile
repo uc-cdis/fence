@@ -50,6 +50,8 @@ ENV PATH="/venv/bin:$PATH"
 ENV PROMETHEUS_MULTIPROC_DIR="/var/tmp/prometheus_metrics"
 RUN mkdir -p "${PROMETHEUS_MULTIPROC_DIR}" \
     && chown gen3:gen3 "${PROMETHEUS_MULTIPROC_DIR}"
+
+# Switching to root user to run dnf upgrades
 USER root
 # Install ccrypt to decrypt dbgap telmetry files
 RUN echo "Upgrading dnf"; \
@@ -65,7 +67,8 @@ RUN echo "Upgrading dnf"; \
     rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt-1.11-1.src.rpm && \
     cd /root/rpmbuild/SOURCES/ && \
     tar -zxf ccrypt-1.11.tar.gz && cd ccrypt-1.11 && ./configure --disable-libcrypt && make install && make check;
-# USER gen3
+RUN mkdir -p /var/www/fence && chown -R gen3:gen3 /var/www/fence
+USER gen3
 
 COPY --chown=gen3:gen3 --from=builder /$appname /$appname
 
