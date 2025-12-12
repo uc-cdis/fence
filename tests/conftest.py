@@ -10,7 +10,7 @@ import os
 import copy
 import time
 import flask
-from datetime import datetime
+from datetime import datetime, UTC
 import mock
 import uuid
 import random
@@ -252,7 +252,7 @@ class FakeContainerServiceClient:
         """
         return {
             "name": self.container_name,
-            "last_modified": datetime.utcnow(),
+            "last_modified": datetime.now(UTC),
             "public_access": None,
         }
 

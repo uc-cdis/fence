@@ -4,7 +4,7 @@ import json
 import boto3
 from botocore.client import Config
 from urllib.parse import urlparse, ParseResult, urlunparse
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 from sqlalchemy import text
 from sqlalchemy.sql.functions import user
 from cached_property import cached_property
@@ -1483,7 +1483,7 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
         :param str blob_name:
             Name of blob.
         :param int expires_in:
-            The SAS token will expire in a given number of seconds from datetime.utcnow()
+            The SAS token will expire in a given number of seconds from datetime.now(UTC)
         :param str azure_creds:
             The Azure Blob Storage Account connection string
         :param AccountSasPermissions permission:
@@ -1507,7 +1507,7 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
             account_key=blob_service_client.credential.account_key,
             resource_types=ResourceTypes(object=True),
             permission=permission,
-            expiry=datetime.utcnow() + timedelta(seconds=expires_in),
+            expiry=datetime.now(UTC) + timedelta(seconds=expires_in),
         )
 
         sas_url = converted_url + "?" + sas_query
@@ -1583,7 +1583,7 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
         :param str action:
             Get a signed url for an action like "upload" or "download".
         :param int expires_in:
-            The SAS token will expire in a given number of seconds from datetime.utcnow()
+            The SAS token will expire in a given number of seconds from datetime.now(UTC)
         :param bool force_signed_url:
             Enforce signing the URL for the Azure Blob Storage Account using a SAS token.
             The default is True.

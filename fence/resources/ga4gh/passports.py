@@ -326,7 +326,7 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id, db_session=None):
     logger.debug(
         f"get_or_create_gen3_user_from_iss_sub: issuer: {issuer} & subject_id: {subject_id}"
     )
-    iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get((issuer, subject_id))
+    iss_sub_pair_to_user = db_session.get(IssSubPairToUser, (issuer, subject_id))
     if not iss_sub_pair_to_user:
         username = subject_id + issuer[len("https://") :]
         gen3_user = query_for_user(session=db_session, username=username)
