@@ -68,6 +68,7 @@ RUN echo "Upgrading dnf"; \
     cd /root/rpmbuild/SOURCES/ && \
     tar -zxf ccrypt-1.11.tar.gz && cd ccrypt-1.11 && ./configure --disable-libcrypt && make install && make check;
 RUN mkdir -p /var/www/fence && chown -R gen3:gen3 /var/www/fence
+
 USER gen3
 
 COPY --chown=gen3:gen3 --from=builder /$appname /$appname
