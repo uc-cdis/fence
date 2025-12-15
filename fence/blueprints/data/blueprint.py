@@ -11,7 +11,6 @@ from fence.blueprints.data.indexd import (
     BlankIndex,
     EmbeddingIndex,
     IndexedFile,
-    BulkIndexedFile,
     get_signed_url_for_file,
     bulk_get_signed_url_for_file,
     verify_data_upload_bucket_configuration,
