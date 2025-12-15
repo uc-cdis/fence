@@ -215,7 +215,7 @@ def bulk_get_signed_url_for_file(
         "additional_data": x_forwarded_headers,
     }
 
-    indexed_files = BulkIndexedFile(file_ids)
+    indexed_files = BulkIndexedFiles(file_ids)
 
     default_expires_in = config.get("MAX_PRESIGNED_URL_TTL", 3600)
     expires_in = get_valid_expiration_from_request(
