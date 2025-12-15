@@ -715,7 +715,7 @@ class BulkIndexedFiles(object):
     ):
         users_from_passports = users_from_passports or {}
         signed_urls = []
-        for file_id in file_ids:
+        for file_id in self.file_ids:
             authorized_user = None
             file_authz = self.index_document.get(file_id).get("authz")
 
