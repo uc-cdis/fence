@@ -727,7 +727,7 @@ class BulkIndexedFiles(object):
                     }
                     is_authorized, authorized_username = (
                         self.get_authorized_with_username(
-                            action_to_permission["read-storage"],
+                            action_to_permission["download"],
                             file_id,
                             # keys are usernames
                             usernames_from_passports=list(users_from_passports.keys()),
@@ -736,7 +736,7 @@ class BulkIndexedFiles(object):
                     if not is_authorized:
                         msg = (
                             f"Either you weren't authenticated successfully or you don't have "
-                            f"{action_to_permission["read-storage"]} permission "
+                            f"{action_to_permission["download"]} permission "
                             f"on authorization resource: {self.index_document['authz']}."
                         )
                         logger.debug(
