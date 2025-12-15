@@ -461,7 +461,7 @@ def download_bulk_files():
         raise UserError("missing required argument `guids`")
 
     guids = params["guids"]
-    result = bulk_get_signed_url_for_file(guids)
+    results = bulk_get_signed_url_for_file(guids)
 
     return flask.jsonify(results)
     # results = {}
