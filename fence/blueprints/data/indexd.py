@@ -748,8 +748,6 @@ class BulkIndexedFiles(object):
                     )
                     authorized_user = users_from_passports.get(authorized_username)
 
-            if action is not None and action not in SUPPORTED_ACTIONS:
-                raise NotSupported("action {} is not supported".format(action))
             signed_url_tuple = (
                 self._get_signed_urls(
                     protocol,
