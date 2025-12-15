@@ -229,7 +229,6 @@ def bulk_get_signed_url_for_file(
         expires_in,
         force_signed_url=force_signed_url,
         r_pays_project=r_pays_project,
-        bucket=bucket,
     )
 
     return signed_urls
