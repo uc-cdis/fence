@@ -736,7 +736,7 @@ class BulkIndexedFiles(object):
                     if not is_authorized:
                         msg = (
                             f"Either you weren't authenticated successfully or you don't have "
-                            f"{action_to_permission["download"]} permission "
+                            f"read-storage permission "
                             f"on authorization resource: {self.index_document['authz']}."
                         )
                         logger.debug(
