@@ -365,11 +365,6 @@ def _remove_client_service_accounts(db_session, client):
 
 def get_default_init_syncer_inputs(authz_provider):
     DB = os.environ.get("FENCE_DB") or config.get("DB")
-    if DB is None:
-        try:
-            from fence.settings import DB
-        except ImportError:
-            pass
 
     arborist = ArboristClient(
         arborist_base_url=config["ARBORIST"],
