@@ -778,7 +778,7 @@ class BulkIndexedFiles(object):
             # no protocol specified, return first location as signed url
             try:
                 return file_locations[0].get_signed_url(
-                    action,
+                    "download",
                     expires_in,
                     force_signed_url=force_signed_url,
                     r_pays_project=r_pays_project,
@@ -793,7 +793,7 @@ class BulkIndexedFiles(object):
                 protocol == "http" and file_location.protocol == "https"
             ):
                 return file_location.get_signed_url(
-                    action,
+                    "download",
                     expires_in,
                     force_signed_url=force_signed_url,
                     r_pays_project=r_pays_project,
