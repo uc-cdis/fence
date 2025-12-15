@@ -224,14 +224,14 @@ def bulk_get_signed_url_for_file(
     )
 
     # prepare_presigned_url_audit_log(requested_protocol, indexed_file)
-    signed_urls = indexed_files.get_signed_urls(
+    signed_urls, users = indexed_files.get_signed_urls(
         requested_protocol,
         expires_in,
         force_signed_url=force_signed_url,
         r_pays_project=r_pays_project,
     )
 
-    return signed_urls
+    return {"urls": signed_urls}
 
 
 def get_bucket_from_urls(urls, protocol):
@@ -715,6 +715,7 @@ class BulkIndexedFiles(object):
     ):
         users_from_passports = users_from_passports or {}
         signed_urls = []
+        users = []
         for file_id in self.file_ids:
             authorized_user = None
             file_authz = self.index_document.get(file_id).get("authz")
@@ -748,7 +749,7 @@ class BulkIndexedFiles(object):
                     )
                     authorized_user = users_from_passports.get(authorized_username)
 
-            signed_url_tuple = (
+            signed_url, user = (
                 self._get_signed_urls(
                     protocol,
                     file_id,
@@ -759,8 +760,10 @@ class BulkIndexedFiles(object):
                 ),
                 authorized_user,
             )
-            signed_urls.append(signed_url_tuple)
-        return signed_urls
+            signed_urls.append(signed_url)
+            users.append(user)
+
+        return signed_urls, users
 
     def _get_signed_urls(
         self,
