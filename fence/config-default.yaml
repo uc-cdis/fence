@@ -586,6 +586,10 @@ SHIBBOLETH_HEADER: 'persistent_id'
 SSO_URL: 'https://auth.nih.gov/affwebservices/public/saml2sso?SPID={{BASE_URL}}/shibboleth&RelayState='
 ITRUST_GLOBAL_LOGOUT: 'https://auth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl='
 
+# Setting the HIDE_IDPS list will hide items from the InCommons drop down list
+# eg, HIDE_IDPS = ["https://idp.uca.fr/idp/shibboleth", "urn:mace:incommon:osu.edu"]
+HIDE_IDPS: []
+
 # //////////////////////////////////////////////////////////////////////////////////////
 # dbGaP USER SYNCING SUPPORT
 #   - Support syncing authorization information from dbGaP
@@ -817,7 +821,8 @@ AZ_BLOB_CREDENTIALS:
 AZ_BLOB_CONTAINER_URL: 'https://myfakeblob.blob.core.windows.net/my-fake-container/'
 
 # url where authz microservice is running
-ARBORIST: null
+ARBORIST: 'http://arborist-service'
+
 # time in seconds to wait for arborist to respond to requests from fence
 ARBORIST_TIMEOUT: 30
 # url where the audit-service is running
