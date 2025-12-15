@@ -183,6 +183,58 @@ def get_signed_url_for_file(
     return {"url": signed_url}
 
 
+@enable_audit_logging
+def bulk_get_signed_url_for_file(
+    file_ids,
+    requested_protocol=None,
+    db_session=None,
+    bucket=None,
+    drs="False",
+):
+    requested_protocol = requested_protocol or flask.request.args.get("protocol", None)
+    r_pays_project = flask.request.args.get("userProject", None)
+    db_session = db_session or current_app.scoped_session()
+
+    # default to signing the URL
+    force_signed_url = True
+    no_force_sign_param = flask.request.args.get("no_force_sign")
+    if no_force_sign_param and no_force_sign_param.lower() == "true":
+        force_signed_url = False
+
+    # Collect X-Forwarded headers
+    x_forwarded_headers = [
+        f"{header}:{value}" for header, value in flask.request.headers if "X-" in header
+    ]
+
+    auth_info = _get_auth_info_for_id_or_from_request(
+        sub_type=int, db_session=db_session
+    )
+    flask.g.audit_data = {
+        "username": auth_info["username"],
+        "sub": auth_info["user_id"],
+        "additional_data": x_forwarded_headers,
+    }
+
+    indexed_files = BulkIndexedFile(file_ids)
+
+    default_expires_in = config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    expires_in = get_valid_expiration_from_request(
+        max_limit=default_expires_in,
+        default=default_expires_in,
+    )
+
+    # prepare_presigned_url_audit_log(requested_protocol, indexed_file)
+    signed_urls = indexed_files.get_signed_urls(
+        requested_protocol,
+        expires_in,
+        force_signed_url=force_signed_url,
+        r_pays_project=r_pays_project,
+        bucket=bucket,
+    )
+
+    return signed_urls
+
+
 def get_bucket_from_urls(urls, protocol):
     """
     Return the bucket name from the first of the provided URLs that starts with the given protocol (usually `gs`, `s3`, `az`...)
@@ -587,6 +639,238 @@ class BlankIndex(object):
         )
 
 
+class BulkIndexedFiles(object):
+    """
+    For bulk handeling of files
+
+    Args:
+        file_ids (list(str)): A list of GUIDs coresponding to files
+    """
+
+    def __init__(self, file_ids):
+        self.file_ids = file_ids
+        self.auth_roles = []
+
+    @cached_property
+    def indexd_server(self):
+        indexd_server = (
+            flask.current_app.config.get("INDEXD")
+            or flask.current_app.config["BASE_URL"] + "/index"
+        )
+        return indexd_server.rstrip("/")
+
+    @cached_property
+    def index_document(self):
+        index_dict = {}
+        for file_id in self.file_ids:
+            indexd_server = config.get("INDEXD") or config["BASE_URL"] + "/index"
+            url = indexd_server + "/index/"
+            try:
+                res = requests.get(url + file_id)
+            except Exception as e:
+                logger.error(
+                    "failed to reach indexd at {0}: {1}".format(url + file_id, e)
+                )
+                raise UnavailableError("Fail to reach id service to find data location")
+            if res.status_code == 200:
+                try:
+                    json_response = res.json()
+                    if "urls" not in json_response:
+                        logger.error(
+                            "URLs are not included in response from "
+                            "indexd: {}".format(url + file_id)
+                        )
+                        raise InternalError("URLs and metadata not found")
+
+                    # indexd can resolve GUIDs without prefix, but cannot perform other operations
+                    # (such as delete) without the prefix, so make sure `file_id` is the whole GUID
+                    real_guid = json_response.get("did")
+                    if real_guid and real_guid != file_id:
+                        file_id = real_guid
+
+                    index_dict[file_id] = json_response
+                except Exception as e:
+                    logger.error(
+                        "indexd response missing JSON field {}".format(url + file_id)
+                    )
+                    raise InternalError("internal error from indexd: {}".format(e))
+            elif res.status_code == 404:
+                logger.error(
+                    "Not Found. indexd could not find {}: {}".format(
+                        url + file_id, res.text
+                    )
+                )
+                raise NotFound("No indexed document found with id {}".format(file_id))
+            else:
+                raise UnavailableError(res.text)
+
+        return index_dict
+
+    def get_signed_urls(
+        self,
+        protocol,
+        expires_in,
+        force_signed_url=True,
+        r_pays_project=None,
+        users_from_passports=None,
+    ):
+        users_from_passports = users_from_passports or {}
+        signed_urls = []
+        for file_id in file_ids:
+            authorized_user = None
+            file_authz = self.index_document.get(file_id).get("authz")
+
+            if file_authz:
+                # check if user has already been authorized in this bulk operation
+                if self.index_document.get(file_id).get("authz") not in self.auth_roles:
+                    action_to_permission = {
+                        "download": "read-storage",
+                    }
+                    is_authorized, authorized_username = (
+                        self.get_authorized_with_username(
+                            action_to_permission[action],
+                            file_id,
+                            # keys are usernames
+                            usernames_from_passports=list(users_from_passports.keys()),
+                        )
+                    )
+                    if not is_authorized:
+                        msg = (
+                            f"Either you weren't authenticated successfully or you don't have "
+                            f"{action_to_permission[action]} permission "
+                            f"on authorization resource: {self.index_document['authz']}."
+                        )
+                        logger.debug(
+                            f"denied. authorized_username: {authorized_username}\nmsg:\n{msg}"
+                        )
+                        raise Unauthorized(msg)
+                    self.auth_roles.append(
+                        self.index_document.get(file_id).get("authz")
+                    )
+                    authorized_user = users_from_passports.get(authorized_username)
+
+            if action is not None and action not in SUPPORTED_ACTIONS:
+                raise NotSupported("action {} is not supported".format(action))
+            signed_url_tuple = (
+                self._get_signed_urls(
+                    protocol,
+                    file_id,
+                    expires_in,
+                    force_signed_url,
+                    r_pays_project,
+                    authorized_user,
+                ),
+                authorized_user,
+            )
+            signed_urls.append(signed_url_tuple)
+        return signed_urls
+
+    def _get_signed_urls(
+        self,
+        protocol,
+        file_id,
+        expires_in,
+        force_signed_url,
+        r_pays_project,
+        authorized_user=None,
+    ):
+        # we only allow for download with bulk operations
+        file_urls = self.index_document.get(file_id).get("urls", [])
+        file_locations = list(map(IndexedFileLocation.from_url, file_urls))
+        if not protocol:
+            # no protocol specified, return first location as signed url
+            try:
+                return file_locations[0].get_signed_url(
+                    action,
+                    expires_in,
+                    force_signed_url=force_signed_url,
+                    r_pays_project=r_pays_project,
+                    authorized_user=authorized_user,
+                )
+            except IndexError:
+                raise NotFound("Can't find any file locations.")
+
+        for file_location in file_locations:
+            # allow file location to be https, even if they specific http
+            if (file_location.protocol == protocol) or (
+                protocol == "http" and file_location.protocol == "https"
+            ):
+                return file_location.get_signed_url(
+                    action,
+                    expires_in,
+                    force_signed_url=force_signed_url,
+                    r_pays_project=r_pays_project,
+                    authorized_user=authorized_user,
+                )
+
+        raise NotFound(
+            "File {} does not have a location with specified "
+            "protocol {}.".format(file_id, protocol)
+        )
+
+    def get_authorized_with_username(
+        self, action, file_id, usernames_from_passports=None
+    ):
+        """
+        Return a tuple of (boolean, str) which represents whether they're authorized
+        and their username. username is only returned if `usernames_from_passports`
+        is provided and one of the usernames from the passports is authorized.
+
+        Args:
+            action (str): Authorization action being performed
+            usernames_from_passports (list[str], optional): List of user usernames parsed
+                from validated passports
+
+        Returns:
+            tuple of (boolean, str): which represents whether they're authorized
+        and their username. username is only returned if `usernames_from_passports`
+        is provided and one of the usernames from the passports is authorized.
+        """
+        if not self.index_document.get(file_id).get("authz"):
+            raise ValueError("index record missing `authz`")
+
+        logger.debug(
+            f"authz check can user {action} on {self.index_document[file_id]['authz']} for fence? "
+            f"if passport provided, IDs parsed: {usernames_from_passports}"
+        )
+
+        # handle multiple GA4GH passports as a means of authn/z
+        if usernames_from_passports:
+            authorized = False
+            for username in usernames_from_passports:
+                authorized = flask.current_app.arborist.auth_request(
+                    jwt=None,
+                    user_id=username,
+                    service="fence",
+                    methods=action,
+                    resources=self.index_document[file_id]["authz"],
+                )
+                # if any passport provides access, user is authorized
+                if authorized:
+                    # for google proxy groups and future use: we need to know which
+                    # user_id actually gave access
+                    return authorized, username
+            return authorized, None
+        else:
+            try:
+                token = get_jwt()
+            except Unauthorized:
+                #  get_jwt raises an Unauthorized error when user is anonymous (no
+                #  available token), so to allow anonymous users possible access to
+                #  public data, we still make the request to Arborist
+                token = None
+
+            return (
+                flask.current_app.arborist.auth_request(
+                    jwt=token,
+                    service="fence",
+                    methods=action,
+                    resources=self.index_document[file_id]["authz"],
+                ),
+                None,
+            )
+
+
 class IndexedFile(object):
     """
     A file from the index service that will contain information about access and where
@@ -746,17 +1030,6 @@ class IndexedFile(object):
                 expires_in=expires_in,
                 bucket=bucket,
             )
-
-        # print(
-        #     f"====================== THIS IS OUR PROTOCOL ======================================"
-        # )
-        # print(protocol)
-        # print(
-        #     "=========================== End of Protocol ======================================="
-        # )
-
-        # if protocol == "vec":
-        #     return file_location.get_vector(action, expires_in)
 
         if not protocol:
             # no protocol specified, return first location as signed url

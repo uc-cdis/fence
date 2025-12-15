@@ -457,20 +457,22 @@ def download_bulk_files():
         raise UserError("wrong Content-Type; expected application/json")
 
     if "guids" not in params:
-        raise UserError("missing required argument `model`")
+        raise UserError("missing required argument `guids`")
 
     guids = params["guids"]
-    results = {}
-    results["urls"] = []
-    for g in guids:
-        result = get_signed_url_for_file("download", g)
-        if not "redirect" in flask.request.args or not "url" in result:
-            # return flask.jsonify(result)
-            results["urls"].append(result)
-        else:
-            results["urls"].append(result["url"])
+    result = bulk_get_signed_url_for_file(guids)
+
     return flask.jsonify(results)
-    # return flask.redirect(result["url"])
+    # results = {}
+    # results["urls"] = []
+    # for g in guids:
+    #     result = get_signed_url_for_file("download", g)
+    #     if not "redirect" in flask.request.args or not "url" in result:
+    #         # return flask.jsonify(result)
+    #         results["urls"].append(result)
+    #     else:
+    #         results["urls"].append(result["url"])
+    # return flask.jsonify(results)
 
 
 @blueprint.route(
