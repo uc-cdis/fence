@@ -68,7 +68,8 @@ RUN echo "Upgrading dnf"; \
     cd /root/rpmbuild/SOURCES/ && \
     tar -zxf ccrypt-1.11.tar.gz && cd ccrypt-1.11 && ./configure --disable-libcrypt && make install && make check;
 RUN mkdir -p /var/www/fence && chown -R gen3:gen3 /var/www/fence
-
+# Alternative to updating KexAlgorithms in usersync-cron here -- https://github.com/uc-cdis/gen3-helm/blob/e5f49978ac16364374252b8dfd9cfa28df4baf9a/helm/fence/templates/usersync-cron.yaml#L249C17-L249C192
+RUN update-crypto-policies --set DEFAULT:SHA1
 USER gen3
 COPY --chown=gen3:gen3 --from=builder /$appname /$appname
 
