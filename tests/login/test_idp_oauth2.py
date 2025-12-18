@@ -117,9 +117,6 @@ def test_store_refresh_token(mock_user, mock_app):
     with patch(
         "fence.resources.openid.idp_oauth2.UpstreamRefreshToken", autospec=True
     ) as MockUpstreamRefreshToken:
-        # # Mock the db_session's object_session method to return a mocked session object
-        # mock_session = MagicMock()
-        # mock_app.arborist.object_session.return_value = mock_session
 
         # Call the method to test
         oauth_client.store_refresh_token(
@@ -133,7 +130,7 @@ def test_store_refresh_token(mock_user, mock_app):
             expires=expires,
         )
 
-        # Check if the session's `add` and `commit` methods were called
+        # Check if the mock_app.arborist sent as a db_session's `add` and `commit` methods were called
         mock_app.arborist.add.assert_called_once_with(
             MockUpstreamRefreshToken.return_value
         )

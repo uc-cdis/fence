@@ -778,7 +778,6 @@ class IndexedFile(object):
         else:
             locations_to_delete = list(map(IndexedFileLocation.from_url, urls))
         response = ("No URLs to delete", 200)
-
         for location in locations_to_delete:
             bucket = location.bucket_name()
 
@@ -1237,7 +1236,6 @@ class S3IndexedFileLocation(IndexedFileLocation):
 
     def delete(self, bucket, file_id):
         try:
-
             return flask.current_app.boto.delete_data_file(bucket, file_id)
         except Exception as e:
             logger.error(e)

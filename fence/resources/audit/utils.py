@@ -134,7 +134,7 @@ def enable_request_logging(f):
 
 
 def enable_audit_logging(f):
-    """
+    r"""
     This decorator should be added to any API endpoint for which we want to
     push audit logs into the **audit-service**. The audit-service logs serve a very
     specific use case where we need some of the audit log entries available via audit-service.

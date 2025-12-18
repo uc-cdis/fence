@@ -688,10 +688,6 @@ def test_delete_files_unable_to_get_file_name(app, public_bucket_indexd_client):
             """
             raise Exception("url not available")
 
-    # Since flask is coming from a fixture, flask.current_app is already set to `app`,
-    # Setting this patch, was making everything internally to MagicMock,
-    # leaving this patch as is tests the logic better
-    # with patch("fence.blueprints.data.indexd.flask.current_app", return_value=app):
     with patch(
         "fence.blueprints.data.indexd.S3IndexedFileLocation.file_name",
         side_effect=Exception("url not available"),
@@ -818,7 +814,6 @@ def test_delete_files_fails_invalid_connection_string(app, public_bucket_indexd_
             """
             raise ValueError("Connection string is either blank or malformed.")
 
-    # with patch("fence.blueprints.data.indexd.flask.current_app", return_value=app):
     with patch("fence.resources.user.user_session.UserSession.create_initial_token"):
         with patch(
             "fence.blueprints.data.indexd.flask.current_app.boto.delete_data_file",

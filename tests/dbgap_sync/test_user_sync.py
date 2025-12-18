@@ -1019,8 +1019,14 @@ def test_user_sync_with_visa_sync_job(
             kid: rsa_public_key,
         }
     }
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(job.update_tokens(db_session))
+    loop = asyncio.new_event_loop()
+
+    try:
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(job.update_tokens(db_session))
+    finally:
+        loop.close()
+        asyncio.set_event_loop(None)
 
     users_after_visas_sync = db_session.query(models.User).all()
 
@@ -1071,7 +1077,7 @@ def test_revoke_all_policies_no_user(db_session, syncer):
     """
     # no arborist user with that username
     user_that_doesnt_exist = "foobar"
-    syncer.arborist_client.get_user = MagicMock(return_value=None)
+    syncer.arborist_client.get_user.return_value = None
 
     syncer._revoke_all_policies_preserve_mfa(user_that_doesnt_exist, "mock_idp")
 
@@ -1096,9 +1102,7 @@ def test_revoke_all_policies_preserve_mfa(monkeypatch, db_session, syncer):
     user = User(
         username="mockuser", identity_provider=IdentityProvider(name="mock_idp")
     )
-    syncer.arborist_client.get_user = MagicMock(
-        return_value={"policies": ["mfa_policy"]}
-    )
+    syncer.arborist_client.get_user.return_value = {"policies": ["mfa_policy"]}
     syncer._revoke_all_policies_preserve_mfa(user.username, user.identity_provider.name)
     syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
         user.username
@@ -1207,9 +1211,7 @@ def test_sync_grant_arborist_policies_check_add_and_revoke(
         {"policy": "phs000180.c1-read-storage"},
     ]
 
-    syncer.arborist_client.get_user = MagicMock(
-        return_value={"policies": user_existing_policies}
-    )
+    syncer.arborist_client.get_user.return_value = {"policies": user_existing_policies}
 
     syncer._grant_arborist_policies(
         username="TESTUSERB",
@@ -1266,9 +1268,7 @@ def test_sync_grant_arborist_policies_check_revoke_all(
         {"policy": "phs000179.c1-read-storage"},
     ]
 
-    syncer.arborist_client.get_user = MagicMock(
-        return_value={"policies": user_existing_policies}
-    )
+    syncer.arborist_client.get_user.return_value = {"policies": user_existing_policies}
 
     syncer._grant_arborist_policies(
         username="TESTUSERB",
@@ -1309,9 +1309,7 @@ def test_sync_grant_arborist_policies_check_no_calls_made(
         {"policy": "phs000179.c1-read-storage"},
     ]
 
-    syncer.arborist_client.get_user = MagicMock(
-        return_value={"policies": user_existing_policies}
-    )
+    syncer.arborist_client.get_user.return_value = {"policies": user_existing_policies}
 
     syncer._grant_arborist_policies(
         username="TESTUSERB",
