@@ -3,8 +3,8 @@ from flask import current_app
 
 from fence.auth import login_required, current_token
 from fence.errors import Unauthorized, UserError, NotFound
-from fence.models import Application, Certificate
-from fence.resources.user import send_mail, get_current_user_info
+from fence.models import Application, Certificate, DocumentSchema
+from fence.resources.user import send_mail, get_current_user_info, update_user, user_review_document, get_doc_to_be_reviewed, get_up_to_date_doc
 from fence.config import config
 
 
@@ -26,6 +26,28 @@ def user_info():
     info["azp"] = client_id
 
     return flask.jsonify(info)
+
+
+@blueprint.route("/", methods=["PUT"])
+@login_required({"user"})
+def update_user_info():
+    firstName = flask.request.get_json().get("firstName", None)
+    lastName = flask.request.get_json().get("lastName", None)
+    institution = flask.request.get_json().get("institution", None)
+    role = flask.request.get_json().get("role", None)
+    additional_info = {}
+
+    if firstName:
+        additional_info["firstName"] = firstName
+    if lastName:
+        additional_info["lastName"] = lastName
+    if institution:
+        additional_info["institution"] = institution
+    if role:
+        additional_info["role"] = role
+
+    #TODO make sure institution is present at all times at least for now
+    return flask.jsonify(update_user(current_app.scoped_session(), additional_info))
 
 
 @blueprint.route("/anyaccess", methods=["GET"])
@@ -145,3 +167,40 @@ def download_certificate(certificate):
         return resp
     else:
         raise NotFound("No certificate with name {} found".format(certificate))
+
+
+@blueprint.route("/documents", methods=["POST"])
+@login_required({"user"})
+def review_document():
+    # Confirm one or more document have been reviewed and accepted
+    body = flask.request.get_json()
+    documents = {}
+    # key is supposed to be the id of the Document and value a true/false check
+    for key, value in body.items():
+        documents[key] = value
+
+    project_schema = DocumentSchema(many=True)
+
+    ret = {}
+    ret["reviewed"] = project_schema.dump(user_review_document(current_app.scoped_session(), documents))
+    ret["missing"] = project_schema.dump(get_doc_to_be_reviewed(current_app.scoped_session()))
+
+    return flask.jsonify(ret)
+
+
+@blueprint.route("/documents", methods=["GET"])
+@login_required({"user"})
+def get_document():
+    # Returns a list of documents that need to be reviewed and accepted
+
+    project_schema = DocumentSchema(many=True)
+    return flask.jsonify(project_schema.dump(get_doc_to_be_reviewed(current_app.scoped_session())))
+
+@blueprint.route("/documents/latest", methods=["GET"])
+def get_latest_document():
+    # Returns the latest version for each document
+
+    project_schema = DocumentSchema(many=True)
+    return flask.jsonify(project_schema.dump(get_up_to_date_doc(current_app.scoped_session())))
+
+

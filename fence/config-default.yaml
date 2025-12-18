@@ -25,6 +25,9 @@
 APP_NAME: 'Gen3 Data Commons'
 # Where fence microservice is deployed
 BASE_URL: 'http://localhost/user'
+# a standardized name unique to each app for service-to-service interaction
+# so the service receiving the request knows it came from another Gen3 service
+SERVICE_NAME: 'fence'
 # postgres db to connect to
 # connection url format:
 #     postgresql://[user[:password]@][netloc][:port][/dbname]
@@ -38,6 +41,9 @@ DB: 'postgresql://test:test@localhost:5432/fence'
 #     key = base64.urlsafe_b64encode(os.urandom(32))
 #     print(key)
 ENCRYPTION_KEY: ''
+
+# Cross-service keys
+AMANUENSIS_PUBLIC_KEY_PATH: '/amanuensis/jwt_public_key.pem'
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # DEBUG & SECURITY SETTINGS
@@ -351,6 +357,12 @@ SESSION_ALLOWED_SCOPES:
   - "google_link"
   - "ga4gh_passport_v1"
 
+# this will error on authz callback from any of the above OIDC providers if the configured username field matches
+# the search regex provided below
+# example:
+#  .*@.*(126|163|aol|bk|foxmail|gmail|hotmail|icloud|inbox|live|mail|mailinator|outlook|proton|qq|rambler|sina|yeah|yahoo|yandex).*
+GLOBAL_USERNAME_DENY_REGEX: ""
+
 # //////////////////////////////////////////////////////////////////////////////////////
 # LOGIN
 #   - Modify based on which OIDC provider(s) are configured in OPENID_CONNECT
@@ -540,6 +552,9 @@ DEFAULT_REFRESH_TOKEN_EXP: 3600
 # PRIVACY_POLICY_URL, or default to the `static/privacy_policy.md` file in fence.
 PRIVACY_POLICY_URL: null
 
+DOCUMENT_TYPES: ['privacy-policy', 'terms-and-conditions', 'survival-user-agreement', 'data-portal-user-guide']
+INITIAL_DOCUMENTS: {}
+
 # //////////////////////////////////////////////////////////////////////////////////////
 # RELIABILITY OPTS
 # //////////////////////////////////////////////////////////////////////////////////////
@@ -579,6 +594,10 @@ ALLOW_NEW_USER_ON_LOGIN: true
 SHIBBOLETH_HEADER: 'persistent_id'
 SSO_URL: 'https://auth.nih.gov/affwebservices/public/saml2sso?SPID={{BASE_URL}}/shibboleth&RelayState='
 ITRUST_GLOBAL_LOGOUT: 'https://auth.nih.gov/siteminderagent/smlogout.asp?mode=nih&AppReturnUrl='
+
+# Setting the HIDE_IDPS list will hide items from the InCommons drop down list
+# eg, HIDE_IDPS = ["https://idp.uca.fr/idp/shibboleth", "urn:mace:incommon:osu.edu"]
+HIDE_IDPS: []
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # dbGaP USER SYNCING SUPPORT
@@ -814,6 +833,10 @@ AZ_BLOB_CONTAINER_URL: 'https://myfakeblob.blob.core.windows.net/my-fake-contain
 ARBORIST: null
 # time in seconds to wait for arborist to respond to requests from fence
 ARBORIST_TIMEOUT: 30
+
+BASIC_REGISTRATION_ACCESS_POLICY: [login_no_access, analysis]
+
+
 # url where the audit-service is running
 AUDIT_SERVICE: 'http://audit-service'
 ENABLE_AUDIT_LOGS:
@@ -910,6 +933,23 @@ EMAIL_SERVER: 'localhost'
 SEND_FROM: 'example@gmail.com'
 SEND_TO: 'example@gmail.com'
 
+# //////////////////////////////////////////////////////////////////////////////////////
+# EMAIL
+#   - Support for sending hubspot API work updates to project management team
+# //////////////////////////////////////////////////////////////////////////////////////
+# Simple Email Service (for sending emails from fence)
+#
+# NOTE: Example in comments below
+AWS_SES:
+  SENDER: ""
+  RECIPIENT: ""
+  AWS_REGION: "us-east-1"
+  AWS_ACCESS_KEY: ""
+  AWS_SECRET_KEY: ""
+
+HUBSPOT:
+  API_KEY: "DEV_KEY"
+  
 # //////////////////////////////////////////////////////////////////////////////////////
 # DATA ACCESS: GOOGLE LINKING & SERVICE ACCOUNT REGISTRATION
 #   - Support `/google/service_accounts` endpoints

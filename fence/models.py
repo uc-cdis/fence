@@ -8,7 +8,7 @@ database migrations.
 """
 
 from enum import Enum
-
+from marshmallow_sqlalchemy import SQLAlchemyAutoSchema
 from authlib.integrations.sqla_oauth2 import (
     OAuth2AuthorizationCodeMixin,
     OAuth2ClientMixin,
@@ -27,7 +27,9 @@ from sqlalchemy import (
     Boolean,
     Text,
     text,
+    UniqueConstraint,
     event,
+    DateTime,
 )
 from sqlalchemy.dialects.postgresql import ARRAY, JSONB
 from sqlalchemy.orm import relationship, backref
@@ -188,6 +190,42 @@ class GrantType(Enum):
     refresh = "refresh_token"
     implicit = "implicit"
     client_credentials = "client_credentials"
+
+
+class Document(Base):
+    __tablename__ = "document"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+    type = Column(String, nullable=False)
+    version = Column(Integer, nullable=False)
+    name = Column(String, nullable=False)
+    required = Column(Boolean)
+    raw = Column(String, nullable=False)
+    formatted = Column(String)
+
+    __table_args__ = (UniqueConstraint('type', 'version', name='doc_type_version_uc'),)
+
+
+class DocumentSchema(SQLAlchemyAutoSchema):
+    class Meta:
+        model = Document
+
+
+class UserDocument(Base):
+    __tablename__ = "user_document"
+
+    id = Column(Integer, primary_key=True, autoincrement=True)
+
+    user_id = Column(Integer, ForeignKey(User.id), nullable=False)
+    user = relationship("User", backref=backref("documents"),)
+
+    document_id = Column(Integer, ForeignKey(Document.id), nullable=False)
+    document = relationship("Document",backref=backref("users"),)
+
+    accepted = Column(Boolean)
+    reviewed_on = Column(DateTime(timezone=False), server_default=func.now())
+
+    __table_args__ = (UniqueConstraint('user_id', 'document_id', name='user_doc_uc'),)
 
 
 class Client(Base, OAuth2ClientMixin):
@@ -825,3 +863,4 @@ def populate_iss_sub_pair_to_user_table(target, connection, **kw):
         else:
             transaction.commit()
             logger.info("Population was successful")
+

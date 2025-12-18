@@ -19,10 +19,14 @@ from fence.resources import group as gp, project as pj, user as us, userdatamode
 from flask import current_app as capp
 
 
+
 __all__ = [
     "connect_user_to_project",
     "get_user_info",
     "get_all_users",
+    "get_users",
+    "get_users_by_id",
+    "toggle_admin",
     "get_user_groups",
     "create_user",
     "update_user",
@@ -79,12 +83,45 @@ def get_all_users(current_session):
     for user in users:
         new_user = {}
         new_user["username"] = user.username
+        new_user["id"] = user.id
+        new_user["last_auth"] = user._last_auth
+        new_user["first_name"] = user.additional_info["firstName"] if user.additional_info and "firstName" in user.additional_info else ""
+        new_user["last_name"] = user.additional_info["lastName"] if user.additional_info and "lastName" in user.additional_info else ""
+        new_user["institution"] = user.additional_info["institution"] if user.additional_info and "institution" in user.additional_info else ""
+
         if user.is_admin:
             new_user["role"] = "admin"
         else:
             new_user["role"] = "user"
         users_names.append(new_user)
     return {"users": users_names}
+
+
+def get_users(current_session, usernames):
+    users_found = udm.get_users(current_session, usernames)
+    users = []
+    for user in users_found:
+        new_user = {}
+        new_user['id'] = user.id
+        new_user["username"] = user.username
+        new_user["first_name"] = user.additional_info["firstName"] if user.additional_info and "firstName" in user.additional_info else ""
+        new_user["last_name"] = user.additional_info["lastName"] if user.additional_info and "lastName" in user.additional_info else ""
+        new_user["institution"] = user.additional_info["institution"] if user.additional_info and "institution" in user.additional_info else ""
+        users.append(new_user)
+    return {"users": users}
+
+def get_users_by_id(current_session, ids):
+    users_found = udm.get_users_by_id(current_session, ids)
+    users = []
+    for user in users_found:
+        new_user = {}
+        new_user['id'] = user.id
+        new_user["username"] = user.username
+        new_user["first_name"] = user.additional_info["firstName"] if user.additional_info and "firstName" in user.additional_info else ""
+        new_user["last_name"] = user.additional_info["lastName"] if user.additional_info and "lastName" in user.additional_info else ""
+        new_user["institution"] = user.additional_info["institution"] if user.additional_info and "institution" in user.additional_info else ""
+        users.append(new_user)
+    return {"users": users}
 
 
 def get_user_groups(current_session, username):
@@ -185,6 +222,17 @@ def update_user(current_session, username, role, email, new_name):
         usr.is_admin = role == "admin"
     usr.username = new_name or usr.username
     return us.get_user_info(current_session, usr.username)
+
+def toggle_admin(current_session, user_id):
+    user_ids = []
+    user_ids.append(user_id)
+    users = udm.get_users_by_id(current_session, user_ids)
+
+    ret = []
+    for user in users:
+        ret.append(udm.toggle_admin(current_session, user.id, user.is_admin))
+
+    return ret
 
 
 def add_user_to_projects(current_session, username, projects=None):

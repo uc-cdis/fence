@@ -71,6 +71,8 @@ import fence.blueprints.google
 import fence.blueprints.privacy
 import fence.blueprints.register
 import fence.blueprints.ga4gh
+from pcdcutils.signature import SignatureManager
+from pcdcutils.errors import KeyPathInvalidError, NoKeyError
 
 
 app = flask.Flask(__name__)
@@ -373,6 +375,7 @@ def app_config(
     # directly from the fence config singleton in the code though.
     app.config.update(**config._configs)
 
+    _setup_hubspot_key(app)
     _setup_arborist_client(app)
     _setup_audit_service_client(app)
     _setup_data_endpoint_and_boto(app)
@@ -389,6 +392,17 @@ def app_config(
     with app.app_context():
         _check_buckets_aws_creds_and_region(app)
         _check_azure_storage(app)
+
+    # load amanuensis public key for cross-service access
+    key_path = config.get("AMANUENSIS_PUBLIC_KEY_PATH", None)
+    try:
+        config["AMANUENSIS_PUBLIC_KEY"] = SignatureManager(key_path=key_path).get_key()
+    except NoKeyError:
+        logger.warn('AMANUENSIS_PUBLIC_KEY not found.')
+        pass
+    except KeyPathInvalidError:
+        logger.warn('AMANUENSIS_PUBLIC_KEY_PATH invalid.')
+        pass
 
 
 def _setup_data_endpoint_and_boto(app):
@@ -499,6 +513,12 @@ def _setup_arborist_client(app):
         logger.info("Arborist not configured")
         app.arborist = None
 
+def _setup_hubspot_key(app):
+    if app.config.get("HUBSPOT"):
+        if "API_KEY" in config["HUBSPOT"]:
+            app.hubspot_api_key = config["HUBSPOT"]["API_KEY"]
+        # else:
+            #TODO throw error
 
 def _setup_audit_service_client(app):
     # Initialize the client regardless of whether audit logs are enabled. This

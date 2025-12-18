@@ -8,6 +8,7 @@ import os
 import re
 import subprocess as sp
 import yaml
+import json
 import copy
 import datetime
 import uuid
@@ -306,6 +307,7 @@ class UserSyncer(object):
         is_sync_from_dbgap_server=False,
         sync_from_local_csv_dir=None,
         sync_from_local_yaml_file=None,
+        json_from_api=None,
         arborist=None,
         folder=None,
     ):
@@ -337,6 +339,7 @@ class UserSyncer(object):
         self.logger = get_logger(
             "user_syncer", log_level="debug" if config["DEBUG"] is True else "info"
         )
+        self.json_from_api = json_from_api
         self.arborist_client = arborist
         self.folder = folder
 
@@ -353,6 +356,33 @@ class UserSyncer(object):
                 storage_credentials, logger=self.logger
             )
         self.id_patterns = []
+
+
+        self.logger.warning("projects Luca init init")
+        self.logger.warning(dbGaP)
+        self.logger.warning(DB)
+        self.logger.warning(project_mapping)
+        self.logger.warning(storage_credentials)
+        self.logger.warning(is_sync_from_dbgap_server)
+        self.logger.warning(sync_from_local_csv_dir)
+        self.logger.warning(sync_from_local_yaml_file)
+        self.logger.warning(db_session)
+        self.logger.warning(arborist)
+        self.logger.warning(json_from_api)
+
+        if self.json_from_api:
+            self.logger.warning(self.json_from_api.get("project_to_resource"))
+            self.json_from_api["projects"] = self.adapt_json_object_permission(self.json_from_api.get("projects"))
+            self.json_from_api["user_abac"] = self.adapt_json_object_permission(self.json_from_api.get("user_abac"))
+
+    def adapt_json_object_permission(self, projects):
+        """
+        helper function for adapting json object
+        """
+        for username, project_list in projects.items():
+            for project, permissions in project_list.items():
+                projects[username][project] = set(permissions)
+        return projects
 
     @staticmethod
     def _match_pattern(filepath, id_patterns, encrypted=True):
@@ -834,6 +864,44 @@ class UserSyncer(object):
                     phsids2[user][phsid1].update(privilege1)
             elif source2:
                 self.auth_source[user].add(source2)
+
+    @staticmethod
+    def sync_two_authz(phsids1, phsids2):
+        #policies
+        #TODO should it filter by role instead of id?
+        # for policy1 in phsids1["policies"]:
+        #   commons = [x for x in phsids2["policies"] if x["id"] == policy1["id"]]
+        #   not_commons = [x for x in phsids2["policies"] if x["id"] != policy1["id"]]
+        #   if len(commons) == 0:
+        #       phsids2["policies"].append(policy1)
+        #   else:
+        #       phsids2["policies"] = not_commons
+        #       phsids2["policies"].append(policy1)
+
+        if len(phsids1["policies"]) > 0:
+            phsids2["policies"] = phsids1["policies"]
+
+        if len(phsids1["resources"]) > 0:
+            phsids2["resources"] = phsids1["resources"]
+
+        if len(phsids1["roles"]) > 0:
+            phsids2["roles"] = phsids1["roles"]
+
+    @staticmethod
+    def sync_two_policies(phsids1, phsids2):
+
+        for user, policies in phsids1.items():
+            phsids2[user] = policies
+            
+    @staticmethod
+    def sync_two_clients(phsids1, phsids2):
+
+        phsids2 = phsids1
+
+    @staticmethod
+    def sync_two_proj_resource(phsids1, phsids2):
+
+        phsids2 = phsids1
 
     def sync_to_db_and_storage_backend(
         self,
@@ -1605,6 +1673,7 @@ class UserSyncer(object):
             dbgap_configs=self.dbGaP,
         )
 
+        # TODO Make sure to avoid aborting if useryaml is missing
         try:
             user_yaml = UserYAML.from_file(
                 self.sync_from_local_yaml_file, encrypted=False, logger=self.logger
@@ -1614,16 +1683,22 @@ class UserSyncer(object):
             self.logger.error("aborting early")
             raise
 
+        print("PASSED USER YAML UPLOAD")
         # parse all projects
         user_projects_csv = self.parse_projects(user_projects_csv)
         user_projects = self.parse_projects(user_projects)
         user_yaml.projects = self.parse_projects(user_yaml.projects)
+        if self.json_from_api:
+            self.json_from_api["projects"] = self.parse_projects(self.json_from_api["projects"])
 
         # merge all user info dicts into "user_info".
         # the user info (such as email) in the user.yaml files
         # overrides the user info from the CSV files.
         self.sync_two_user_info_dict(user_info_csv, user_info)
         self.sync_two_user_info_dict(user_yaml.user_info, user_info)
+        if self.json_from_api:
+            self.sync_two_user_info_dict(self.json_from_api["user_info"], user_info)
+
 
         # merge all access info dicts into "user_projects".
         # the access info is combined - if the user.yaml access is
@@ -1635,6 +1710,30 @@ class UserSyncer(object):
         self.sync_two_phsids_dict(
             user_yaml.projects, user_projects, source1="user_yaml", source2="dbgap"
         )
+
+        if self.json_from_api:
+            self.sync_two_phsids_dict(self.json_from_api["projects"], user_projects)
+            self.sync_two_phsids_dict(self.json_from_api.get("user_abac"), user_yaml.user_abac)
+            self.sync_two_authz(self.json_from_api.get("authz"), user_yaml.authz)
+            self.sync_two_policies(self.json_from_api.get("policies"), user_yaml.policies)
+            self.sync_two_clients(self.json_from_api.get("clients"), user_yaml.clients)
+            self.sync_two_proj_resource(self.json_from_api.get("project_to_resource"), user_yaml.project_to_resource)
+            user_yaml.project_to_resource = self.json_from_api.get("project_to_resource")
+
+        #TODO add sync clients
+        self.logger.warning("projects Luca test")
+        if self.json_from_api:
+            self.logger.warning(self.json_from_api)
+        self.logger.warning(user_projects)
+        self.logger.warning(user_yaml.user_abac)
+        self.logger.warning(user_info)
+        self.logger.warning(user_yaml.authz)
+        self.logger.warning(user_yaml.policies)
+        self.logger.warning(user_yaml.clients)
+        if self.json_from_api:
+            self.logger.warning(self.json_from_api.get("project_to_resource"))
+        self.logger.warning(user_yaml.project_to_resource)
+
 
         # Note: if there are multiple dbgap sftp servers configured
         # this parameter is always from the config for the first dbgap sftp server
@@ -2091,7 +2190,11 @@ class UserSyncer(object):
                 )
 
             # update the project info with users from arborist
+            self.logger.warning("UPDATE USER")
+            self.logger.warning(arborist_user_projects)
+            self.logger.warning(user_projects)
             self.sync_two_phsids_dict(arborist_user_projects, user_projects)
+
 
         # prefer in-memory if available from user_yaml, if not, get from database
         if user_yaml and user_yaml.project_to_resource:

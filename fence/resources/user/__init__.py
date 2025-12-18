@@ -8,6 +8,7 @@ from fence.jwt.token import issued_and_expiration_times
 import flask
 import jwt
 import smtplib
+import json
 import time
 from authlib.common.encoding import to_unicode
 from cdislogging import get_logger
@@ -22,9 +23,11 @@ from fence.resources.google.utils import (
 from fence.resources.userdatamodel import get_user_groups
 
 from fence.config import config
-from fence.errors import NotFound, Unauthorized, UserError, InternalError
+from fence.errors import NotFound, Unauthorized, UserError, InternalError, Forbidden
 from fence.jwt.utils import get_jwt_header
-from fence.models import query_for_user
+from fence.models import query_for_user, DocumentSchema
+from fence.authz.auth import register_arborist_user
+from fence.crm import hubspot
 
 
 logger = get_logger(__name__)
@@ -50,6 +53,46 @@ def update_user_resource(username, resource):
                 server=config["EMAIL_SERVER"],
             )
         return get_user_info(user, session)
+
+
+def update_user(current_session, additional_info):
+    if not flask.current_app.hubspot_api_key:
+        raise Exception(
+            "The Hubspot API key is missing."
+        )
+
+    #TODO revert comments for Hubspot
+    additional_info_tmp = flask.g.user.additional_info.copy() if flask.g.user.additional_info else {}
+    additional_info_tmp.update(additional_info)
+    # if flask.current_app.hubspot_api_key == "DEV_KEY":
+    #   use only fence, otherwise use hubspot
+    # hubspot_id = hubspot.update_user_info(flask.g.user.username, additional_info)
+    # additional_info_tmp = flask.g.user.additional_info or {}    
+    # additional_info_tmp["hubspot_id"] = hubspot_id
+
+
+    # TODO This is in case we want to maintain a double record in fence
+    # def merge_two_dicts(x, y):
+    #     z = x.copy()   # start with x's keys and values
+    #     z.update(y)    # modifies z with y's keys and values & returns None
+    #     return z
+    # additional_info_tmp = flask.g.user.additional_info or {}    
+    # additional_info_tmp = merge_two_dicts(additional_info_tmp, additional_info)
+    # additional_info_tmp["hubspot_id"] = 1
+
+    udm.update_user(current_session, flask.g.user.username, additional_info_tmp)
+
+    #TODO check if user is already in the system - you can get create_user_if_not_exist with new gen3authz version. 
+    # See if when you try to create a user with an email already in the system, it may throw an error
+    if additional_info_tmp == {}:
+        raise Exception(
+            "The user hasn't shared its information."
+        )
+    else:
+        register_arborist_user(flask.g.user)
+        
+
+    return get_user_info(current_session, flask.g.user.username)
 
 
 def find_user(username, session):
@@ -82,6 +125,18 @@ def get_user_info(current_session, username):
     else:
         role = "user"
 
+    # logger.error(type(user.additional_info))
+    additional_info_merged = {}
+    if user.additional_info:
+        additional_info_merged = user.additional_info.copy()
+    #TODO revert comments when hubspot is working
+    # if flask.current_app.hubspot_api_key and user.additional_info and ("hubspot_id" in user.additional_info) and user.additional_info["hubspot_id"] is not None:
+    #     user_info = hubspot.get_user(user.username, user.additional_info["hubspot_id"])
+    #     if user_info:
+    #         additional_info_merged.update(user_info)
+
+    project_schema = DocumentSchema(many=True)
+
     groups = udm.get_user_groups(current_session, username)["groups"]
     info = {
         "user_id": user.id,  # TODO deprecated, use 'sub'
@@ -90,6 +145,7 @@ def get_user_info(current_session, username):
         "idp": getattr(user.identity_provider, "name", ""),
         "username": user.username,  # TODO deprecated, use 'name'
         "name": user.username,
+        "additional_info": additional_info_merged,
         "display_name": user.display_name,  # TODO deprecated, use 'preferred_username'
         "preferred_username": user.display_name,
         "phone_number": user.phone_number,
@@ -102,6 +158,7 @@ def get_user_info(current_session, username):
         "resources_granted": [],
         "groups": groups,
         "message": "",
+        "docs_to_be_reviewed": project_schema.dump(udm.get_doc_to_review(current_session, user.username)),
     }
 
     if "upstream_idp" in flask.session:
@@ -266,3 +323,18 @@ def remove_user_from_project(current_session, user, project):
         raise NotFound(
             "Project {0} not connected to user {1}".format(project.name, user.username)
         )
+
+
+def user_review_document(current_session, documents):
+    return udm.review_document(current_session, flask.g.user.username, documents) 
+
+
+def get_doc_to_be_reviewed(current_session):
+    return udm.get_doc_to_review(current_session, flask.g.user.username)
+
+def get_up_to_date_doc(current_session):
+    return udm.get_docs(current_session)
+
+
+
+

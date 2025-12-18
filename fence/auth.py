@@ -1,25 +1,27 @@
-import flask
-from flask import current_app
+import re
+import urllib.request, urllib.parse, urllib.error
 from datetime import datetime
 from functools import wraps
-import urllib.request, urllib.parse, urllib.error
 
+import flask
+from flask import current_app
 from authutils.errors import JWTError, JWTExpiredError
 from authutils.token.validate import (
-    current_token,
+    current_token, 
     require_auth_header,
-    set_current_token,
-    validate_request,
+    set_current_token, 
+    validate_request
 )
-from cdislogging import get_logger
 
+from cdislogging import get_logger
+from fence.authz.auth import check_arborist_auth
+from fence.config import config
 from fence.errors import Unauthorized, InternalError
 from fence.jwt.validate import validate_jwt
 from fence.models import User, IdentityProvider, query_for_user
 from fence.user import get_current_user
 from fence.utils import clear_cookies
-from fence.config import config
-from fence.authz.auth import check_arborist_auth
+
 
 logger = get_logger(__name__)
 
@@ -43,7 +45,6 @@ def get_jwt():
     if bearer.lower() != "bearer":
         raise Unauthorized("expected bearer token in auth header")
     return token
-
 
 def build_redirect_url(hostname, path):
     """
@@ -78,7 +79,12 @@ def get_ip_information_string():
 
 
 def _identify_user_and_update_database(
-    user, username, provider, email=None, id_from_idp=None
+    user,
+    username,
+    provider,
+    email=None,
+    id_from_idp=None,
+    username_deny_regex=None,
 ) -> bool:
     """
     Create a new user if one doesn't already exist in the database. Commit the user
@@ -96,6 +102,16 @@ def _identify_user_and_update_database(
     Return:
         User: the created or updated user
     """
+    username_deny_regex = username_deny_regex or config["GLOBAL_USERNAME_DENY_REGEX"]
+    if username_deny_regex:
+        if re.search(pattern=username_deny_regex, string=username):
+            logger.info(
+                f"Blocked login of user with username {username} due to deny regex: {username_deny_regex}"
+            )
+
+            # intentionally empty message to prevent information leakage
+            raise Unauthorized(message="")
+
     if user:
         if user.active == False:
             # Abort login if user.active == False:
@@ -274,6 +290,8 @@ def login_required(scope=None):
     def decorator(f):
         @wraps(f)
         def wrapper(*args, **kwargs):
+            # logger.debug("Decorator login_required wrapper")
+
             if flask.session.get("username"):
                 is_logged_in = login_user_or_require_registration(
                     flask.session["username"], flask.session["provider"]
@@ -300,11 +318,13 @@ def login_required(scope=None):
                 eppn = "test"
             # if there is authorization header for oauth
             if "Authorization" in flask.request.headers:
+                # logger.debug("Decorator login_required wrapper, if 'Authorization'")
                 has_oauth(scope=scope)
                 return f(*args, **kwargs)
             # if there is shibboleth session, then create user session and
             # log user in
             elif eppn:
+                # logger.debug("Decorator login_required wrapper, if eppn")
                 username = eppn.split("!")[-1]
                 flask.session["username"] = username
                 flask.session["provider"] = IdentityProvider.itrust
@@ -315,6 +335,8 @@ def login_required(scope=None):
                     raise Unauthorized("Please register to login")
                 return f(*args, **kwargs)
             else:
+                # logger.debug("Decorator login_required wrapper, all else failed")
+                # logger.debug(f"Decorator login_required wrapper, headers: {str(flask.request.headers)}")
                 raise Unauthorized("Please login")
 
         return wrapper
@@ -358,7 +380,7 @@ def get_user_from_claims(claims):
 
 def admin_login_required(function):
     """Use the check_arborist_auth decorator checking on admin authorization."""
-    return check_arborist_auth(["/services/fence/admin"], "*")(function)
+    return check_arborist_auth(["/services/fence/admin"], "*", check_signature=True)(function)
 
 
 def _update_users_email(user, email):
@@ -393,7 +415,9 @@ def _update_users_last_auth(user):
     """
     Update _last_auth.
     """
-    logger.info(f"Updating username {user.username}'s _last_auth.")
+    logger.info(
+        f"Updating username {user.username}'s _last_auth."
+    )
     user._last_auth = datetime.now()
 
     current_app.scoped_session().add(user)
