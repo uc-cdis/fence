@@ -43,8 +43,6 @@ RUN git config --global --add safe.directory ${appname} && COMMIT=`git rev-parse
 # ------ Final stage ------
 FROM base
 
-RUN setcap -r /usr/sbin/nginx
-
 ENV PATH="/${appname}/.venv/bin:$PATH"
 
 # FIXME: Remove this when it's in the base image
@@ -60,8 +58,7 @@ RUN echo "Upgrading dnf"; \
         libxcrypt-compat-4.4.33 \
         libpq-15.0 \
         gcc \
-        tar \ 
-        xz; \
+        tar xz; \
     echo "Installing RPM"; \
     rpm -i https://ccrypt.sourceforge.net/download/1.11/ccrypt-1.11-1.src.rpm && \
     cd /root/rpmbuild/SOURCES/ && \
