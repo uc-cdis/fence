@@ -14,5 +14,9 @@ if [ -f /fence/jwt-keys.tar ]; then
   )
 fi
 
-nginx
+if [ "${OPENSHIFT}" = "true" ]; then
+  /usr/bin/nginx
+else
+  nginx
+fi
 poetry run gunicorn -c "/fence/deployment/wsgi/gunicorn.conf.py"
