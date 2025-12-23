@@ -84,7 +84,7 @@ def run_migrations_online():
                 # TODO lock the DB for all processes during migrations
                 connection.execute(
                     text(
-                        f"SELECT pg_advisory_xact_lock({fence_config['DB_MIGRATION_POSTGRES_LOCK_KEY']});"
+                        f"SELECT pg_advisory_xact_lock({fence_config['DB_MIGRATION_POSTGRES_LOCK_KEY']})"
                     )
                 )
             else:

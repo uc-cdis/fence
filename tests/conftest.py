@@ -485,7 +485,9 @@ def app(kid, rsa_private_key, rsa_public_key):
 
     config.update(BASE_URL=config["BASE_URL"])
     config.update(ENCRYPTION_KEY=Fernet.generate_key().decode("utf-8"))
+
     yield fence.app
+
     mocker.unmock_functions()
 
 
@@ -654,6 +656,7 @@ def db_session(db, patch_app_db_session):
     session.commit()
 
     yield session
+
     # clear out user and project tables upon function close in case unit test didn't
     session.query(models.User).delete()
     session.query(models.IssSubPairToUser).delete()

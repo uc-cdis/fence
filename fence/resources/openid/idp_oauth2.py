@@ -407,9 +407,6 @@ class Oauth2ClientBase(object):
             refresh_token=refresh_token,
             expires=expires,
         )
-        # object_session returns None in python 3.13,
-        # since the UpstreamRefreshToken was not implicitly attached to any session
-        # Removing this next line since it is redundant.
         db_session.add(upstream_refresh_token)
         db_session.commit()
         self.logger.info(

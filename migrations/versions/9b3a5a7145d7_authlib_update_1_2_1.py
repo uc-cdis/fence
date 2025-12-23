@@ -152,12 +152,10 @@ def copy_client_to_temp_table_and_clear_data(op, temp_table_name: str):
     session = Session(bind=conn)
     # Drop temp table if it already exists
     # copy client table with all table metadata then copy all row data
-    session.execute(text("DROP TABLE IF EXISTS " + temp_table_name + ";"))
-    session.execute(
-        text("CREATE TABLE " + temp_table_name + " (LIKE client INCLUDING ALL);")
-    )
-    session.execute(text("INSERT INTO " + temp_table_name + " SELECT * FROM client;"))
-    session.execute(text("Truncate client;"))
+    session.execute(text(f"DROP TABLE IF EXISTS {temp_table_name}"))
+    session.execute(text(f"CREATE TABLE {temp_table_name} (LIKE client INCLUDING ALL)"))
+    session.execute(text(f"INSERT INTO {temp_table_name} SELECT * FROM client"))
+    session.execute(text("Truncate client"))
     session.commit()
 
 

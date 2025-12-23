@@ -148,14 +148,14 @@ aio = ["azure-core[aio] (>=1.30.0)"]
 
 [[package]]
 name = "backoff"
-version = "1.11.1"
+version = "2.2.1"
 description = "Function decoration for backoff and retry"
 optional = false
-python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, !=3.4.*"
+python-versions = ">=3.7,<4.0"
 groups = ["main"]
 files = [
-    {file = "backoff-1.11.1-py2.py3-none-any.whl", hash = "sha256:61928f8fa48d52e4faa81875eecf308eccfb1016b018bb6bd21e05b5d90a96c5"},
-    {file = "backoff-1.11.1.tar.gz", hash = "sha256:ccb962a2378418c667b3c979b504fdeb7d9e0d29c0579e3b13b86467177728cb"},
+    {file = "backoff-2.2.1-py3-none-any.whl", hash = "sha256:63579f9a0628e06278f7e47b7d7d5b6ce20dc65c5e96a6f3ca99a6adca0396e8"},
+    {file = "backoff-2.2.1.tar.gz", hash = "sha256:03f829f5bb1923180821643f8753b0502c3b682293992485b0eef2807afa5cba"},
 ]
 
 [[package]]
@@ -1239,21 +1239,22 @@ email = ["email-validator"]
 
 [[package]]
 name = "gen3authz"
-version = "2.3.2"
+version = "3.0.0"
 description = "Gen3 authz client"
 optional = false
-python-versions = "<4.0,>=3.6"
+python-versions = "<4.0,>=3.13"
 groups = ["main"]
 files = [
-    {file = "gen3authz-2.3.2-py3-none-any.whl", hash = "sha256:b09b16bfa727c5db086639d01ff54787615f4e4d18f6f84bc3a3281cd2a3618b"},
-    {file = "gen3authz-2.3.2.tar.gz", hash = "sha256:e79f5abc41bbb3aa784cf44faddd738847d94b0db6375dcec2159a3231162285"},
+    {file = "gen3authz-3.0.0-py3-none-any.whl", hash = "sha256:33c6847dab5182e777b565fdab52c2db51fa1aaa68cb7ca68bdedb9985d88e08"},
+    {file = "gen3authz-3.0.0.tar.gz", hash = "sha256:dd16a5f41de0e2cfcdf893febb64b79f7889f791ecfdbe9a15e4dedb59f67718"},
 ]
 
 [package.dependencies]
-backoff = ">=1.6,<2.0"
+backoff = ">=2.2.1,<3.0.0"
 cdiserrors = "<2.0.0"
 httpx = ">=0.20.0,<1.0.0"
 six = ">=1.16.0,<2.0.0"
+sniffio = ">=1.3.1"
 
 [[package]]
 name = "gen3cirrus"
@@ -2608,14 +2609,14 @@ tests = ["hypothesis (>=3.27.0)", "pytest (>=7.4.0)", "pytest-cov (>=2.10.1)", "
 
 [[package]]
 name = "pyparsing"
-version = "3.3.0"
+version = "3.3.1"
 description = "pyparsing - Classes and methods to define and execute parsing grammars"
 optional = false
 python-versions = ">=3.9"
 groups = ["main"]
 files = [
-    {file = "pyparsing-3.3.0-py3-none-any.whl", hash = "sha256:d15038408e0097d3a01e7e0846731f7f2450c5b6e4a75a52baabd6bbf24585be"},
-    {file = "pyparsing-3.3.0.tar.gz", hash = "sha256:0de16f2661afbab11fe6645d9472c3b96968d2fffea5b0cc9da88f5be286f039"},
+    {file = "pyparsing-3.3.1-py3-none-any.whl", hash = "sha256:023b5e7e5520ad96642e2c6db4cb683d3970bd640cdf7115049a6e9c3682df82"},
+    {file = "pyparsing-3.3.1.tar.gz", hash = "sha256:47fad0f17ac1e2cad3de3b458570fbc9b03560aa029ed5e16ee5554da9a2251c"},
 ]
 
 [package.extras]
@@ -3535,4 +3536,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0.0"
-content-hash = "0ffd6746a10952190d81d092ff0e2477cf04962a1a951d72ba1fe90104b6ea7e"
+content-hash = "ef6a9383472bf14739a1a6a1d8a29f401c02d2a360e74bc43f90b8d66265c276"

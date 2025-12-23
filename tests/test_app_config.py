@@ -4,6 +4,7 @@ Test App Config from files
 
 import os
 from unittest.mock import MagicMock
+from flask import Flask
 from mock import patch
 import pytest
 
@@ -104,8 +105,6 @@ def test_app_config():
         patchers.append(patcher)
 
     # create a fresh local app
-    from flask import Flask
-
     local_app = Flask("test_app_config")
     app_init(
         local_app,

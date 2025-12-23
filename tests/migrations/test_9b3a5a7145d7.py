@@ -45,7 +45,7 @@ def test_upgrade(app):
                 text(
                     """
                 ALTER TABLE google_service_account
-                DROP CONSTRAINT google_service_account_client_id_fkey;
+                DROP CONSTRAINT google_service_account_client_id_fkey
                 """
                 )
             )
@@ -57,7 +57,7 @@ def test_upgrade(app):
             ALTER TABLE google_service_account
             ADD CONSTRAINT google_service_account_client_id_fkey
             FOREIGN KEY (client_id)
-            REFERENCES client(client_id);
+            REFERENCES client(client_id)
             """
             )
         )
@@ -128,7 +128,7 @@ def test_upgrade_without_fk_constraint(app):
                 text(
                     """
                 ALTER TABLE google_service_account
-                DROP CONSTRAINT google_service_account_client_id_fkey;
+                DROP CONSTRAINT google_service_account_client_id_fkey
                 """
                 )
             )

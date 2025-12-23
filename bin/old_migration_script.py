@@ -64,7 +64,7 @@ def migrate(driver):
         with driver.session as session:
             session.execute(
                 text(
-                    f"ALTER TABLE {UserRefreshToken.__tablename__} ALTER COLUMN expires TYPE BIGINT USING pc_datetime_to_timestamp(expires);"
+                    f"ALTER TABLE {UserRefreshToken.__tablename__} ALTER COLUMN expires TYPE BIGINT USING pc_datetime_to_timestamp(expires)"
                 )
             )
 
@@ -79,7 +79,7 @@ def migrate(driver):
         with driver.session as session:
             session.execute(
                 text(
-                    f'ALTER TABLE "{User.__tablename__}" ALTER COLUMN username TYPE {str(User.username.type)};'
+                    f'ALTER TABLE "{User.__tablename__}" ALTER COLUMN username TYPE {str(User.username.type)}'
                 )
             )
 
@@ -90,7 +90,7 @@ def migrate(driver):
         with driver.session as session:
             session.execute(
                 text(
-                    f"ALTER TABLE {Client.__tablename__} ADD constraint ix_name unique (name);"
+                    f"ALTER TABLE {Client.__tablename__} ADD constraint ix_name unique (name)"
                 )
             )
 
@@ -103,7 +103,7 @@ def migrate(driver):
         with driver.session as session:
             session.execute(
                 text(
-                    f"ALTER TABLE {Client.__tablename__} ADD COLUMN _allowed_scopes VARCHAR;"
+                    f"ALTER TABLE {Client.__tablename__} ADD COLUMN _allowed_scopes VARCHAR"
                 )
             )
             for client in session.query(Client):
@@ -113,7 +113,7 @@ def migrate(driver):
             session.commit()
             session.execute(
                 text(
-                    "ALTER TABLE {Client.__tablename__} ALTER COLUMN _allowed_scopes SET NOT NULL;"
+                    f"ALTER TABLE {Client.__tablename__} ALTER COLUMN _allowed_scopes SET NOT NULL"
                 )
             )
 
@@ -346,8 +346,8 @@ def add_column_if_not_exist(table_name, column, driver, metadata, default=None):
     table = Table(table_name, metadata, autoload=True, autoload_with=driver.engine)
     if str(column_name) not in table.c:
         with driver.session as session:
-            command = 'ALTER TABLE "{}" ADD COLUMN {} {}'.format(
-                table_name, column_name, column_type
+            command = (
+                f'ALTER TABLE "{table_name}" ADD COLUMN {column_name} {column_type}'
             )
             if not column.nullable:
                 command += " NOT NULL"
@@ -367,7 +367,7 @@ def drop_column_if_exist(table_name, column_name, driver, metadata):
     if column_name in table.c:
         with driver.session as session:
             session.execute(
-                text('ALTER TABLE "{}" DROP COLUMN {};'.format(table_name, column_name))
+                text(f'ALTER TABLE "{table_name}" DROP COLUMN {column_name}')
             )
             session.commit()
 
@@ -384,14 +384,7 @@ def add_foreign_key_constraint_if_not_exist(
             with driver.session as session:
                 session.execute(
                     text(
-                        'ALTER TABLE "{}" ADD CONSTRAINT {} '
-                        'FOREIGN KEY({}) REFERENCES "{}" ({});'.format(
-                            table_name,
-                            foreign_key_name,
-                            column_name,
-                            fk_table_name,
-                            fk_column_name,
-                        )
+                        f'ALTER TABLE "{table_name}" ADD CONSTRAINT {foreign_key_name} FOREIGN KEY({column_name}) REFERENCES "{fk_table_name}" ({fk_column_name})'
                     )
                 )
                 session.commit()
@@ -449,16 +442,7 @@ def set_foreign_key_constraint_on_delete(
     if column_name in table.c:
         session.execute(
             text(
-                'ALTER TABLE ONLY "{}" DROP CONSTRAINT IF EXISTS {}, '
-                'ADD CONSTRAINT {} FOREIGN KEY ({}) REFERENCES "{}" ({}) ON DELETE {};'.format(
-                    table_name,
-                    foreign_key_name,
-                    foreign_key_name,
-                    column_name,
-                    fk_table_name,
-                    fk_column_name,
-                    ondelete,
-                )
+                f'ALTER TABLE ONLY "{table_name}" DROP CONSTRAINT IF EXISTS {foreign_key_name}, ADD CONSTRAINT {foreign_key_name} FOREIGN KEY ({column_name}) REFERENCES "{fk_table_name}" ({fk_column_name}) ON DELETE {ondelete}'
             )
         )
 
@@ -473,9 +457,7 @@ def drop_foreign_key_constraint_if_exist(table_name, column_name, driver, metada
             with driver.session as session:
                 session.execute(
                     text(
-                        'ALTER TABLE "{}" DROP CONSTRAINT {};'.format(
-                            table_name, foreign_key_name
-                        )
+                        f'ALTER TABLE "{table_name}" DROP CONSTRAINT {foreign_key_name}'
                     )
                 )
                 session.commit()
@@ -492,9 +474,7 @@ def add_unique_constraint_if_not_exist(table_name, column_name, driver, metadata
             with driver.session as session:
                 session.execute(
                     text(
-                        'ALTER TABLE "{}" ADD CONSTRAINT {} UNIQUE ({});'.format(
-                            table_name, index_name, column_name
-                        )
+                        f'ALTER TABLE "{table_name}" ADD CONSTRAINT {index_name} UNIQUE ({column_name})'
                     )
                 )
                 session.commit()
@@ -518,9 +498,7 @@ def drop_unique_constraint_if_exist(table_name, column_name, driver, metadata):
             with driver.session as session:
                 session.execute(
                     text(
-                        'ALTER TABLE "{}" DROP CONSTRAINT {};'.format(
-                            table_name, constraint_name
-                        )
+                        f'ALTER TABLE "{table_name}" DROP CONSTRAINT {constraint_name}'
                     )
                 )
                 session.commit()
@@ -533,9 +511,7 @@ def drop_default_value(table_name, column_name, driver, metadata):
         with driver.session as session:
             session.execute(
                 text(
-                    'ALTER TABLE "{}" ALTER COLUMN "{}" DROP DEFAULT;'.format(
-                        table_name, column_name
-                    )
+                    f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" DROP DEFAULT'
                 )
             )
             session.commit()
@@ -548,9 +524,7 @@ def add_not_null_constraint(table_name, column_name, driver, metadata):
         with driver.session as session:
             session.execute(
                 text(
-                    'ALTER TABLE "{}" ALTER COLUMN "{}" SET NOT NULL;'.format(
-                        table_name, column_name
-                    )
+                    f'ALTER TABLE "{table_name}" ALTER COLUMN "{column_name}" SET NOT NULL'
                 )
             )
             session.commit()
@@ -672,31 +646,23 @@ def _update_for_authlib(driver, md):
     # delete expires_at column
     if "{}.expires_at".format(tablename) in auth_code_columns:
         with driver.session as session:
-            session.execute(
-                text("ALTER TABLE {} DROP COLUMN expires_at;".format(tablename))
-            )
+            session.execute(text(f"ALTER TABLE {tablename} DROP COLUMN expires_at"))
             session.commit()
     # add auth_time column
     if "{}.auth_time".format(tablename) not in auth_code_columns:
         with driver.session as session:
-            command = "ALTER TABLE {} ADD COLUMN auth_time Integer NOT NULL DEFAULT extract(epoch from now());".format(
-                tablename
-            )
+            command = f"ALTER TABLE {tablename} ADD COLUMN auth_time Integer NOT NULL DEFAULT extract(epoch from now())"
             session.execute(text(command))
             session.commit()
     # make sure modifiers on auth_time column are correct
     with driver.session as session:
         session.execute(
-            text(
-                "ALTER TABLE {} ALTER COLUMN auth_time SET NOT NULL;".format(tablename)
-            )
+            text(f"ALTER TABLE {tablename} ALTER COLUMN auth_time SET NOT NULL")
         )
         session.commit()
         session.execute(
             text(
-                "ALTER TABLE {} ALTER COLUMN auth_time SET DEFAULT extract(epoch from now());".format(
-                    tablename
-                )
+                f"ALTER TABLE {tablename} ALTER COLUMN auth_time SET DEFAULT extract(epoch from now())"
             )
         )
         session.commit()

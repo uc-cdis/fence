@@ -814,7 +814,6 @@ def test_map_iss_sub_pair_to_user_with_prior_DRS_access(
     assert username_to_log_in == username
     iss_sub_pair_to_user_records = db_session.query(IssSubPairToUser).all()
     assert len(iss_sub_pair_to_user_records) == 1
-    # LegacyAPIWarning: The Query.get() method is considered legacy as of the 1.x series of SQLAlchemy and becomes a legacy construct in 2.0. The method is now available as Session.get() (deprecated since: 2.0) (Background on SQLAlchemy 2.0 at: https://sqlalche.me/e/b8d9)
     iss_sub_pair_to_user = db_session.get(IssSubPairToUser, (iss, sub))
     assert iss_sub_pair_to_user.user.username == username
     assert iss_sub_pair_to_user.user.email == email

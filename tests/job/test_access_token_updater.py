@@ -144,7 +144,6 @@ def test_updater(
     run_async(updater_queue.put(mock_users[0]))
 
     # Mock the client to return a valid update process
-    # The method `update_user_authorization` (https://github.com/uc-cdis/fence/blob/e288114ca81d31c2abd28dbd20d2d64e18ed87e0/fence/resources/openid/idp_oauth2.py#L446C20-L446C20) is not Async to use AsyncMock
     mock_oidc_clients[0].update_user_authorization = MagicMock()
 
     # Ensure _pick_client returns the correct client
