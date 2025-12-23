@@ -21,6 +21,7 @@ from io import StringIO
 from stat import S_ISDIR
 
 import paramiko
+from paramiko import RSAKey, Ed25519Key, ECDSAKey, DSSKey
 from cdislogging import get_logger
 from email_validator import validate_email, EmailNotValidError
 from gen3authz.client.arborist.errors import ArboristError, ArboristTimeoutError
@@ -379,6 +380,69 @@ class UserSyncer(object):
                 return True
         return False
 
+    def _load_ssh_key_from_env(self, env_var_name):
+        """
+        Load SSH private key from environment variable.
+
+        Args:
+            env_var_name (str): Name of the environment variable containing the key
+
+        Returns:
+            paramiko.PKey or None: The loaded private key, or None if not found/invalid
+        """
+        if not env_var_name:
+            return None
+
+        key_content = os.environ.get(env_var_name)
+        if not key_content:
+            return None
+
+        # Try to load as key content (string) first
+        key_content = key_content.strip()
+        
+        # Try different key types
+        key_types = [
+            (RSAKey, "RSA"),
+            (Ed25519Key, "Ed25519"),
+            (ECDSAKey, "ECDSA"),
+            (DSSKey, "DSS"),
+        ]
+
+        # First, try loading as key content (PEM format string)
+        for key_class, key_name in key_types:
+            key_file_like = None
+            try:
+                key_file_like = StringIO(key_content)
+                key = key_class.from_private_key(key_file_like)
+                self.logger.info(f"Successfully loaded {key_name} key from environment variable {env_var_name}")
+                return key
+            except (paramiko.ssh_exception.SSHException, ValueError, TypeError):
+                # Try next key type
+                if key_file_like:
+                    key_file_like.close()
+                continue
+            except Exception as e:
+                self.logger.debug(f"Error loading {key_name} key: {e}")
+                if key_file_like:
+                    key_file_like.close()
+                continue
+
+        # If key content didn't work, try as file path
+        if os.path.exists(key_content):
+            try:
+                for key_class, key_name in key_types:
+                    try:
+                        key = key_class.from_private_key_file(key_content)
+                        self.logger.info(f"Successfully loaded {key_name} key from file path in {env_var_name}")
+                        return key
+                    except (paramiko.ssh_exception.SSHException, ValueError, TypeError):
+                        continue
+            except Exception as e:
+                self.logger.error(f"Error loading key from file path {key_content}: {e}")
+
+        self.logger.error(f"Failed to load SSH key from environment variable {env_var_name}")
+        return None
+
     def _get_from_sftp_with_proxy(self, server, path):
         """
         Download all data from sftp sever to a local dir
@@ -418,9 +482,26 @@ class UserSyncer(object):
             parameters = {
                 "hostname": str(server.get("host", "")),
                 "username": str(server.get("username", "")),
-                "password": str(server.get("password", "")),
                 "port": int(server.get("port", 22)),
             }
+
+            # Try to load SSH key from environment variable
+            # Check for key_env_var in server config, or use default
+            key_env_var = server.get("key_env_var") or "DBGAP_SFTP_PRIVATE_KEY"
+            pkey = self._load_ssh_key_from_env(key_env_var)
+
+            # Use key if available, otherwise fall back to password
+            if pkey:
+                parameters["pkey"] = pkey
+                self.logger.info("Using SSH key authentication from environment variable")
+            else:
+                password = server.get("password", "")
+                if password:
+                    parameters["password"] = str(password)
+                    self.logger.info("Using password authentication")
+                else:
+                    self.logger.warning("No SSH key or password provided for SFTP authentication")
+
             if proxy:
                 parameters["sock"] = proxy
 

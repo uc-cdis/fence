@@ -607,6 +607,13 @@ dbGaP:
       port: 22
       proxy: ''
       proxy_user: ''
+      # Optional: Name of environment variable containing SSH private key for authentication.
+      # If not specified, defaults to 'DBGAP_SFTP_PRIVATE_KEY'.
+      # The env var can contain either:
+      #   - The private key content directly (PEM format)
+      #   - A file path to the private key file
+      # If the key is found in the env var, it will be used instead of password.
+      key_env_var: ''
     protocol: 'sftp'
     decrypt_key: ''
     # allow non_dbgap_whitelist allows you to read a non-dbgap sftp server.
