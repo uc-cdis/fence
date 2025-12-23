@@ -68,9 +68,13 @@ RUN echo "Upgrading dnf"; \
     cd /root/rpmbuild/SOURCES/ && \
     tar -zxf ccrypt-1.11.tar.gz && cd ccrypt-1.11 && ./configure --disable-libcrypt && make install && make check;
 RUN mkdir -p /var/www/fence && chown -R gen3:gen3 /var/www/fence
-# Alternative to updating KexAlgorithms in usersync-cron here -- https://github.com/uc-cdis/gen3-helm/blob/e5f49978ac16364374252b8dfd9cfa28df4baf9a/helm/fence/templates/usersync-cron.yaml#L249C17-L249C192
-# Since this change is static, but root privileges
+# This `sed` command was previously executed in the usersync CronJob as it is required for DBGaP sync:
+# https://github.com/uc-cdis/gen3-helm/blob/e5f49978ac16364374252b8dfd9cfa28df4baf9a/helm/fence/templates/usersync-cron.yaml#L249C17-L249C192
+#
+# The logic has been moved into the Dockerfile because it requires root privileges,
+# while the usersync CronJob now runs as a non-root user.
 RUN sed -i 's/KexAlgorithms curve25519-sha256,curve25519-sha256@libssh.org,ecdh-sha2-nistp256,/KexAlgorithms ecdh-sha2-nistp256,/g' /etc/crypto-policies/back-ends/openssh.config
+
 USER gen3
 COPY --chown=gen3:gen3 --from=builder /$appname /$appname
 
