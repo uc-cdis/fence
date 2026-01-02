@@ -22,7 +22,8 @@ botocore = "*"
 cached_property = ">=1.5.1"
 #cdiserrors = "<2.0.0"
 cdiserrors = {git = "https://github.com/uc-cdis/cdiserrors", rev = "feat/3.13"}
-cdislogging = ">=1.0.0"
+#cdislogging = ">=1.0.0"
+cdislogging = {git = "https://github.com/uc-cdis/cdislogging", rev = "feat/3.13"}
 cdispyutils = ">=2.0.1"
 defusedxml = "<1"
 flask = ">=3.0.0"

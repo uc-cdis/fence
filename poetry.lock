@@ -123,7 +123,7 @@ flask = ["Flask (<=2.3.3)"]
 type = "git"
 url = "https://github.com/uc-cdis/authutils"
 reference = "feat/3.13"
-resolved_reference = "4503528a0beff371d49a2219b07f412f6895be4d"
+resolved_reference = "10d635307184956b4964fb7c3e003cf19cf5d3bb"
 
 [[package]]
 name = "azure-core"
@@ -411,14 +411,19 @@ resolved_reference = "50f6fa78caface855c00ab22657854c42c766962"
 
 [[package]]
 name = "cdislogging"
-version = "1.1.1"
-description = "Standardized logging tool and format for cdis applications"
+version = "1.2.0"
+description = "Standardized logging tool and format for CTDS applications"
 optional = false
-python-versions = "*"
+python-versions = ">=3.13,<4"
 groups = ["main"]
-files = [
-    {file = "cdislogging-1.1.1.tar.gz", hash = "sha256:77e11648244cda3a8094b8ae6081435a2303f259612846c49ef8825c7be141e3"},
-]
+files = []
+develop = false
+
+[package.source]
+type = "git"
+url = "https://github.com/uc-cdis/cdislogging"
+reference = "feat/3.13"
+resolved_reference = "74c269cdda03557b1f43e0274ab93be985502f84"
 
 [[package]]
 name = "cdispyutils"
@@ -3886,4 +3891,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0.0"
-content-hash = "bc6f23b13b72b0d9cd058a8b43246f5d9447b35808e167e91b453ea2f96b781a"
+content-hash = "080530db079024d10e4a8c434acf4e3bae2055d86e3e19beb53e08c185ddf409"
