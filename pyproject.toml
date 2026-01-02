@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fence"
-version = "12.3.1"
+version = "12.4.0"
 description = "Gen3 AuthN/AuthZ OIDC Service"
 authors = ["CTDS UChicago <cdis@uchicago.edu>"]
 license = "Apache-2.0"
@@ -11,7 +11,7 @@ include = [
 ]
 
 [tool.poetry.dependencies]
-python = ">=3.9.2,<4.0.0"
+python = ">=3.13,<4.0.0"
 alembic = ">=1.7.7"
 authlib = ">=1.6.5"
 authutils = ">=7.1.0"
@@ -28,14 +28,11 @@ cryptography = ">=44.0.1"
 flask-cors = "<7"
 flask-restful = ">=0.3.8"
 email_validator = ">=1.1.1"
-gen3authz = ">=2.3.2"
+gen3authz = ">=3.0.0"
 gen3cirrus = ">=3.1.0"
 gen3config = "<3"
 gen3users = ">=1.0.2"
 markdown = ">=3.1.1"
-
-# this markupsafe pin is due to an error somewhere between Python 3.9.6 and 3.9.16
-
 paramiko = ">=2.6.0"
 prometheus-client = "<1"
 psycopg2-binary = "<3"
@@ -53,15 +50,14 @@ cachelib = ">=0.2.0"
 azure-storage-blob = ">=12.6.0"
 Flask-WTF = ">=1.0.0"
 itsdangerous = '*' # Use Flask-WTF's itsdangerous
-boto = "*"
 # NOTE: for testing with updated libaries as git repos:
 # foobar = {git = "https://github.com/uc-cdis/some-repo", rev = "feat/test"}
 wtforms = ">=3.2.1"
-backoff = "<2"
+backoff = ">=2"
 pytz = ">=2025.2"
 mock = ">=2.0.0"
 httpx = ">=0.28.1"
-idna = ">=3.7"
+urllib3 = ">=2.6.0"
 
 [tool.poetry.group.dev.dependencies]
 addict = ">=2.2.1"
@@ -75,6 +71,14 @@ pytest-flask = ">=1.3.0"
 poetry = ">=2.2.1"
 deptry = ">=0.23.1"
 responses = ">=0.25.8"
+
+[tool.deptry.per_rule_ignores]
+DEP002 = [
+  "gunicorn",  # not imported but used in Dockerfile
+  "psycopg2-binary",   # not imported but used by sqlalchemy
+  "urllib3", # Needed to be pinned to a version >=2.6.0
+
+]
 
 [tool.poetry.scripts]
 fence-create = 'bin.fence_create:main'

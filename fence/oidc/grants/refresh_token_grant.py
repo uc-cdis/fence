@@ -129,7 +129,7 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
             raise InvalidRequestError('There is no "user" for this token.')
 
         client = self.request.client
-        scope = self.request.scope
+        scope = self.request.payload.scope
         if not scope:
             # scope = credential["scope"]
 
@@ -156,7 +156,7 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         # TODO: this could be handled differently, we could track last authN
         #       and still allow refreshing refresh tokens
         if self.GRANT_TYPE == "refresh_token":
-            token["refresh_token"] = self.request.data.get("refresh_token", "")
+            token["refresh_token"] = self.request.payload.data.get("refresh_token", "")
 
         self.request.user = user
         self.server.save_token(token, self.request)
@@ -170,7 +170,7 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         Why? Becuase our "token" is not a class with `check_client` method.
         So we just need to treat it like a dictionary.
         """
-        refresh_token = self.request.data.get("refresh_token")
+        refresh_token = self.request.payload.data.get("refresh_token")
         if refresh_token is None:
             raise InvalidRequestError(
                 'Missing "refresh_token" in request.',
@@ -188,7 +188,7 @@ class RefreshTokenGrant(AuthlibRefreshTokenGrant):
         Why? Becuase our "token" is not a class with `get_scope` method.
         So we just need to treat it like a dictionary.
         """
-        scope = self.request.scope
+        scope = self.request.payload.scope
         if not scope:
             return
 
