@@ -97,33 +97,29 @@ name = "authutils"
 version = "7.2.0"
 description = "Gen3 auth utility functions"
 optional = false
-python-versions = ">=3.13, <4.0"
+python-versions = "<4.0,>=3.13"
 groups = ["main"]
-files = []
-develop = false
+files = [
+    {file = "authutils-7.2.0-py3-none-any.whl", hash = "sha256:b1a5c939465be53f8ffcb4a7a2dac2bdda6028971e7d38d929a8b3b568d83093"},
+    {file = "authutils-7.2.0.tar.gz", hash = "sha256:2d94b6f1a3c8ff7db03f6ae1cc65fc374ce10351a36d6661b8ffee7cd9088993"},
+]
 
 [package.dependencies]
 authlib = ">=1.6.5"
-cached-property = "~=1.4"
+cached-property = ">=1.4,<2.0"
 cdiserrors = "*"
 cdislogging = "*"
-cryptography = "^44.0.1"
+cryptography = ">=44.0.1,<45.0.0"
 datamodelutils = "*"
 httpx = ">=0.23.0,<1.0.0"
 pyjwt = {version = ">=2.4.0,<3.0", extras = ["crypto"]}
 starlette = "*"
 werkzeug = "*"
-xmltodict = "~=0.9"
+xmltodict = ">=0.9,<1.0"
 
 [package.extras]
 fastapi = ["fastapi (>=0.65.2,<0.66.0)"]
 flask = ["Flask (<=2.3.3)"]
-
-[package.source]
-type = "git"
-url = "https://github.com/uc-cdis/authutils"
-reference = "feat/3.13"
-resolved_reference = "10d635307184956b4964fb7c3e003cf19cf5d3bb"
 
 [[package]]
 name = "azure-core"
@@ -269,18 +265,18 @@ files = [
 
 [[package]]
 name = "boto3"
-version = "1.42.20"
+version = "1.42.21"
 description = "The AWS SDK for Python"
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "dev"]
 files = [
-    {file = "boto3-1.42.20-py3-none-any.whl", hash = "sha256:d1ad862d9e4b885af55f3b4c7ab8268b95e3e38a98cf66f50693f7d7603a726e"},
-    {file = "boto3-1.42.20.tar.gz", hash = "sha256:4a642dddd4fbe98873fed3dee76f261efcd3f70808625399d1708da95b4838c5"},
+    {file = "boto3-1.42.21-py3-none-any.whl", hash = "sha256:1885f252d715a5810bb4e0c5bbebfa8e9018b025febf5be3d58540626e7b43d2"},
+    {file = "boto3-1.42.21.tar.gz", hash = "sha256:9b92943d253bc837323079fe88460e741cb2eb80abaebcb558b2446bdb4049d6"},
 ]
 
 [package.dependencies]
-botocore = ">=1.42.20,<1.43.0"
+botocore = ">=1.42.21,<1.43.0"
 jmespath = ">=0.7.1,<2.0.0"
 s3transfer = ">=0.16.0,<0.17.0"
 
@@ -289,14 +285,14 @@ crt = ["botocore[crt] (>=1.21.0,<2.0a0)"]
 
 [[package]]
 name = "botocore"
-version = "1.42.20"
+version = "1.42.21"
 description = "Low-level, data-driven core of boto 3."
 optional = false
 python-versions = ">=3.9"
 groups = ["main", "dev"]
 files = [
-    {file = "botocore-1.42.20-py3-none-any.whl", hash = "sha256:305e5b1ee237bc4d0e66643fb0961f8093667c81afd668737984a99702a9f08b"},
-    {file = "botocore-1.42.20.tar.gz", hash = "sha256:5cea428aba9ccc9f6d496e66c5acbd07eb98e95bacc85ddc8153a01caf2cd64a"},
+    {file = "botocore-1.42.21-py3-none-any.whl", hash = "sha256:6b59973a3ba8c3cfd5123f2656fef2339beee9f6483b8bc12bb00c5453ea2c6d"},
+    {file = "botocore-1.42.21.tar.gz", hash = "sha256:db8f99d186156da42feb4fd2098017383d9b155097290cc53da7258f6e652c39"},
 ]
 
 [package.dependencies]
@@ -391,10 +387,12 @@ name = "cdiserrors"
 version = "2.1.0"
 description = "Gen3 shared exceptions and utilities."
 optional = false
-python-versions = ">=3.13,<4"
+python-versions = "<4,>=3.13"
 groups = ["main"]
-files = []
-develop = false
+files = [
+    {file = "cdiserrors-2.1.0-py3-none-any.whl", hash = "sha256:702a15e3831f85b4d8b1cd4f66f8581cbe43faf6bb22d1726e657e76cf6d238b"},
+    {file = "cdiserrors-2.1.0.tar.gz", hash = "sha256:853f807111f188d26031d553bfd2b70fe7d23826304cba324aebc40e6442fd2d"},
+]
 
 [package.dependencies]
 cdislogging = "*"
@@ -403,27 +401,17 @@ werkzeug = "*"
 [package.extras]
 flask = ["Flask"]
 
-[package.source]
-type = "git"
-url = "https://github.com/uc-cdis/cdiserrors"
-reference = "feat/3.13"
-resolved_reference = "50f6fa78caface855c00ab22657854c42c766962"
-
 [[package]]
 name = "cdislogging"
 version = "1.2.0"
 description = "Standardized logging tool and format for CTDS applications"
 optional = false
-python-versions = ">=3.13,<4"
+python-versions = "<4,>=3.13"
 groups = ["main"]
-files = []
-develop = false
-
-[package.source]
-type = "git"
-url = "https://github.com/uc-cdis/cdislogging"
-reference = "feat/3.13"
-resolved_reference = "74c269cdda03557b1f43e0274ab93be985502f84"
+files = [
+    {file = "cdislogging-1.2.0-py3-none-any.whl", hash = "sha256:3596addc972c3e65c738231381244089f84466e9c6e2662e096ad53154018f54"},
+    {file = "cdislogging-1.2.0.tar.gz", hash = "sha256:ca7511b685bbf0b4727fef85ca4eab78271b4618139a621b09c2846aed6d19d1"},
+]
 
 [[package]]
 name = "cdispyutils"
@@ -462,14 +450,14 @@ resolved_reference = "74a607736ca4af5ec35f17830ab9b78b5db15837"
 
 [[package]]
 name = "certifi"
-version = "2025.11.12"
+version = "2026.1.4"
 description = "Python package for providing Mozilla's CA Bundle."
 optional = false
 python-versions = ">=3.7"
 groups = ["main", "dev"]
 files = [
-    {file = "certifi-2025.11.12-py3-none-any.whl", hash = "sha256:97de8790030bbd5c2d96b7ec782fc2f7820ef8dba6db909ccf95449f2d062d4b"},
-    {file = "certifi-2025.11.12.tar.gz", hash = "sha256:d8ab5478f2ecd78af242878415affce761ca6bc54a22a27e026d7c25357c3316"},
+    {file = "certifi-2026.1.4-py3-none-any.whl", hash = "sha256:9943707519e4add1115f44c2bc244f782c0249876bf51b6599fee1ffbedd685c"},
+    {file = "certifi-2026.1.4.tar.gz", hash = "sha256:ac726dd470482006e014ad384921ed6438c457018f4b3d204aea4281258b2120"},
 ]
 
 [[package]]
@@ -1309,23 +1297,19 @@ name = "gen3authz"
 version = "3.0.1"
 description = "Gen3 authz client"
 optional = false
-python-versions = ">=3.13,<4.0"
+python-versions = "<4.0,>=3.13"
 groups = ["main"]
-files = []
-develop = false
+files = [
+    {file = "gen3authz-3.0.1-py3-none-any.whl", hash = "sha256:792059ad0542225ee523eafd1255e05aa64b5740fa4514554ef507fff0b8c683"},
+    {file = "gen3authz-3.0.1.tar.gz", hash = "sha256:d91c3c05eabc41603630a4483a16779241ff2548e8bc566167615b342dfbb1c1"},
+]
 
 [package.dependencies]
 backoff = ">=2.2.1,<3.0.0"
 cdiserrors = "<3.0.0"
 httpx = ">=0.20.0,<1.0.0"
-six = "^1.16.0"
+six = ">=1.16.0,<2.0.0"
 sniffio = ">=1.3.1"
-
-[package.source]
-type = "git"
-url = "https://github.com/uc-cdis/gen3authz"
-reference = "feat/loosen-cdiserrors"
-resolved_reference = "57f46fa1c0f18d56e851307cff70e54ff4f0858c"
 
 [[package]]
 name = "gen3cirrus"
@@ -1354,10 +1338,12 @@ name = "gen3config"
 version = "2.1.0"
 description = "Gen3 Configuration Library"
 optional = false
-python-versions = ">=3.13,<4"
+python-versions = "<4,>=3.13"
 groups = ["main"]
-files = []
-develop = false
+files = [
+    {file = "gen3config-2.1.0-py3-none-any.whl", hash = "sha256:7cb088127eb9598ec954c10e083f50d19f6d7360780f4bbf3344443ce83a27e0"},
+    {file = "gen3config-2.1.0.tar.gz", hash = "sha256:ef31d679b841ca30cd3c285f720b1701024bb27911d327023d9fb6aa559bdef3"},
+]
 
 [package.dependencies]
 cdiserrors = "*"
@@ -1365,12 +1351,6 @@ cdislogging = "*"
 jinja2 = "*"
 pyyaml = "*"
 six = "*"
-
-[package.source]
-type = "git"
-url = "https://github.com/uc-cdis/gen3config"
-reference = "feat/3.13"
-resolved_reference = "23650f2cbfc6f6eba257a4625a0fd07971e125ac"
 
 [[package]]
 name = "gen3datamodel"
@@ -3615,14 +3595,14 @@ zstd = ["backports-zstd (>=1.0.0) ; python_version < \"3.14\""]
 
 [[package]]
 name = "userdatamodel"
-version = "3.0.1"
+version = "3.1.0"
 description = "PDC data model for user management"
 optional = false
-python-versions = "<4.0,>=3.9"
+python-versions = "<4,>=3.13"
 groups = ["main"]
 files = [
-    {file = "userdatamodel-3.0.1-py3-none-any.whl", hash = "sha256:28e34acf1998e81b32b8e35ac61d950cc48c88ef3545ac45939be0116f20d3d5"},
-    {file = "userdatamodel-3.0.1.tar.gz", hash = "sha256:775fa5d11a32c44d11322945a817ae265b7787c90ea05fefcd1742839cca111a"},
+    {file = "userdatamodel-3.1.0-py3-none-any.whl", hash = "sha256:cd24b546967e5bb3ed8dac8d912f3dbf3eea3446021273c320728413a85ec2fd"},
+    {file = "userdatamodel-3.1.0.tar.gz", hash = "sha256:f57366339112b712eea2dda4d49ee59f995b193001b6e017bb947788b8a2fca0"},
 ]
 
 [package.dependencies]
@@ -3891,4 +3871,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0.0"
-content-hash = "080530db079024d10e4a8c434acf4e3bae2055d86e3e19beb53e08c185ddf409"
+content-hash = "017a6b1f644e34918a58c2b53d52af63d786664ddbacc3caaf7ce2d692e1abd6"
