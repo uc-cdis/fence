@@ -322,9 +322,19 @@ def get_token(*args, **kwargs):
 
     See the OpenAPI documentation for detailed specification, and the OAuth2
     tests for examples of some operation and correct behavior.
+
+    Extended to call update_user_authorization in case of refresh_token request.
     """
     try:
         response = server.create_token_response()
+
+        if flask.request.form.get("grant_type") == "refresh_token":
+            user = getattr(flask.g, "current_user", None)
+            if user:
+                from fence.resources.openid.idp_oauth2 import Oauth2ClientBase
+                idp_client = Oauth2ClientBase()
+                idp_client.update_user_authorization(user)
+
     except (JWTError, JWTExpiredError) as e:
         # - in Authlib 0.11, create_token_response does not raise OAuth2Error
         # - fence.jwt.errors.JWTError: blacklisted refresh token
