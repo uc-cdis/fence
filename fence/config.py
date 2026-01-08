@@ -3,6 +3,7 @@ from yaml import safe_load as yaml_load
 import urllib.parse
 
 import gen3cirrus
+from os.path import expanduser
 from gen3config import Config
 
 from cdislogging import get_logger
@@ -12,6 +13,9 @@ logger = get_logger(__name__)
 DEFAULT_CFG_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "config-default.yaml"
 )
+
+# Folders to look in for the *config.yaml for fence
+CONFIG_SEARCH_FOLDERS = ["/var/www/fence", "{}/.gen3/fence".format(expanduser("~"))]
 
 
 class FenceConfig(Config):
@@ -42,6 +46,7 @@ class FenceConfig(Config):
             "DATA_UPLOAD_BUCKET",
             "DEFAULT_BACKOFF_SETTINGS_MAX_TRIES",
             "ARBORIST_TIMEOUT",
+            "HIDE_IDPS",
         ]
         for default in defaults:
             self.force_default_if_none(default, default_cfg=default_config)
