@@ -349,7 +349,7 @@ class EmbeddingIndex(object):
         create a record in the embedding management service
         """
 
-        embedding_management_service_url = f"http://gen3-embedding-management-service/vector/indexes/{self.model}/embeddings"
+        embedding_management_service_url = f"http://embedding-management-service/vector/indexes/{self.model}/embeddings"
         params = {
             "file_id": self.file_id,
             "vector": self.embedding,
