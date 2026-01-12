@@ -1268,17 +1268,6 @@ class IndexedFileLocation(object):
     ):
         return self.url
 
-    # def get_vector(self, action, expires_in):
-    #     # need to return the vector from the embedding management service
-    #     model, emsID = str(self.url).replace("vec://", "").split("/")
-    #     emsUrl = f"gen3-embedding-management-service/vector/indexes/{model}/embeddings/{emsID}"
-    #     try:
-    #         req = requests.get(emsUrl)
-    #         return req.json()
-    #     except Exception as e:
-    #         print(f"error {e}")
-    #         raise NotFound(f"No embedding found with id {emsID}")
-
 
 class VecIndexdFileLocation(IndexedFileLocation):
     def get_signed_url(
@@ -1291,7 +1280,7 @@ class VecIndexdFileLocation(IndexedFileLocation):
     ):
         # need to return the vector from the embedding management service
         model, emsID = str(self.url).replace("vec://", "").split("/")
-        emsUrl = f"http://gen3-embedding-management-service/vector/indexes/{model}/embeddings/{emsID}"
+        emsUrl = f"http://embedding-management-service/vector/indexes/{model}/embeddings/{emsID}"
         try:
             req = requests.get(emsUrl)
             return req.json()
