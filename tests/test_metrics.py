@@ -600,21 +600,29 @@ def test_presigned_url_log_x_forwarded_headers(
         assert response.status_code == 200, response.text
         assert response.json.get("url")
 
-        # Validate audit-service log payload
-        audit_service_requests.post.assert_called_once_with(
-            "http://audit-service/log/presigned_url",
-            json={
-                "request_url": path,
-                "status_code": 200,
-                "username": user_client.username,
-                "sub": user_client.user_id,
-                "guid": guid,
-                "resource_paths": ["phs000178", "phs000218"],
-                "action": "download",
-                "protocol": protocol,
-                "additional_data": ["X-Forwarded-For:1.2.3.4, 5.6.7.8"],
-            },
-        )
+        audit_service_requests.post.assert_called_once()
+
+        (args, kwargs) = audit_service_requests.post.call_args
+        assert args[0] == "http://audit-service/log/presigned_url"
+
+        payload = kwargs["json"]
+
+        # Assert the stable fields exactly
+        assert payload["request_url"] == path
+        assert payload["status_code"] == 200
+        assert payload["username"] == user_client.username
+        assert payload["sub"] == user_client.user_id
+        assert payload["guid"] == guid
+        assert payload["resource_paths"] == ["phs000178", "phs000218"]
+        assert payload["action"] == "download"
+        assert payload["protocol"] == protocol
+
+        additional = payload.get("additional_data", [])
+        assert "X-Forwarded-For:1.2.3.4, 5.6.7.8" in additional
+        # Check for the inclusion for User-Agent, duration and bytes, but not the actual values to make the tests less brittle
+        assert any(s.startswith("User-Agent:") for s in additional)
+        assert any(s.startswith("duration:") for s in additional)
+        assert any(s.startswith("bytes:") for s in additional)
 
 
 ####################

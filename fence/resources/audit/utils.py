@@ -1,6 +1,7 @@
 import flask
 from functools import wraps
 import traceback
+import time
 from urllib.parse import parse_qsl, urlencode, urlparse, urlunparse
 
 from cdislogging import get_logger
@@ -39,7 +40,7 @@ def _clean_authorization_request_url(request_url):
     return request_url
 
 
-def create_audit_log_for_request(response):
+def create_audit_log_for_request(response, duration):
     """
     Right before returning the response to the user (see `after_this_request`
     in `enable_audit_logging` decorator), record an audit log. The data we
@@ -71,6 +72,12 @@ def create_audit_log_for_request(response):
             else:
                 guid = endpoint[len("/ga4gh/drs/v1/objects/") :]
                 guid = guid.split("/access/")[0]
+
+            audit_data.get("additional_data", []).append(f"duration:{duration}")
+            audit_data.get("additional_data", []).append(
+                f"bytes:{response.content_length}"
+            )
+
             flask.current_app.audit_service_client.create_presigned_url_log(
                 status_code=response.status_code,
                 request_url=request_url,
@@ -155,8 +162,11 @@ def enable_audit_logging(f):
 
     @wraps(f)
     def wrapper(*args, **kwargs):
+        start_time = time.time()
+
         def create_audit_log_for_request_decorator(response):
-            return create_audit_log_for_request(response)
+            duration = time.time() - start_time
+            return create_audit_log_for_request(response, duration=duration)
 
         if is_audit_enabled():
             # we can't add the `after_this_request` and
