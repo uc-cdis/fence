@@ -10,7 +10,7 @@ import os
 import copy
 import time
 import flask
-from datetime import datetime
+from datetime import datetime, UTC
 import mock
 import uuid
 import random
@@ -57,6 +57,14 @@ from tests.storageclient.storage_client_mock import get_client
 
 # Allow authlib to use HTTP for local testing.
 os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "true"
+
+
+# Python 3.13+ turns async methods on spec'ed mocks into AsyncMocks.
+# Our tests expect normal MagicMocks instead, so we override `_get_child_mock`
+# to always return MagicMocks and avoid automatic AsyncMock creation.
+class NoAsyncMagicMock(MagicMock):
+    def _get_child_mock(self, **kwargs):
+        return MagicMock(**kwargs)
 
 
 # some tests run on all the IdPs for which a login blueprint exists
@@ -244,7 +252,7 @@ class FakeContainerServiceClient:
         """
         return {
             "name": self.container_name,
-            "last_modified": datetime.utcnow(),
+            "last_modified": datetime.now(UTC),
             "public_access": None,
         }
 
@@ -575,7 +583,7 @@ def db(app, request):
         connection.begin()
         for table in reversed(models.Base.metadata.sorted_tables):
             # Delete table only if it exists
-            if app.db.engine.dialect.has_table(connection, table):
+            if app.db.engine.dialect.has_table(connection, table.name):
                 connection.execute(table.delete())
         connection.close()
 

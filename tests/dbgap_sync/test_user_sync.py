@@ -53,9 +53,9 @@ def test_sync_missing_file(syncer, monkeypatch, db_session):
     monkeypatch.setattr(syncer, "sync_from_local_yaml_file", "this-file-is-not-real")
     with pytest.raises(FileNotFoundError):
         syncer.sync()
-    assert syncer.arborist_client.create_resource.not_called()
-    assert syncer.arborist_client.create_role.not_called()
-    assert syncer.arborist_client.create_policy.not_called()
+    syncer.arborist_client.create_resource.assert_not_called()
+    syncer.arborist_client.create_role.assert_not_called()
+    syncer.arborist_client.create_policy.assert_not_called()
 
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
@@ -70,9 +70,9 @@ def test_sync_incorrect_user_yaml_file(syncer, monkeypatch, db_session):
     monkeypatch.setattr(syncer, "sync_from_local_yaml_file", path)
     with pytest.raises(AssertionError):
         syncer.sync()
-    assert syncer.arborist_client.create_resource.not_called()
-    assert syncer.arborist_client.create_role.not_called()
-    assert syncer.arborist_client.create_policy.not_called()
+    syncer.arborist_client.create_resource.assert_not_called()
+    syncer.arborist_client.create_role.assert_not_called()
+    syncer.arborist_client.create_policy.assert_not_called()
 
 
 @pytest.mark.parametrize("allow_non_dbgap_whitelist", [False, True])
@@ -785,13 +785,13 @@ def test_update_arborist(syncer, db_session):
         {
             "id": permission,
             "permissions": [
-                {"id": permission, "action": {"method": permission, "service": ""}}
+                {"id": permission, "action": {"method": permission, "service": "*"}}
             ],
         }
         for permission in permissions
     ]
     for role in expect_roles:
-        assert syncer.arborist_client.create_role.called_with(role)
+        syncer.arborist_client.create_role.assert_any_call(role)
 
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
@@ -1019,8 +1019,14 @@ def test_user_sync_with_visa_sync_job(
             kid: rsa_public_key,
         }
     }
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(job.update_tokens(db_session))
+    loop = asyncio.new_event_loop()
+
+    try:
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(job.update_tokens(db_session))
+    finally:
+        loop.close()
+        asyncio.set_event_loop(None)
 
     users_after_visas_sync = db_session.query(models.User).all()
 

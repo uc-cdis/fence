@@ -5,6 +5,7 @@ Revises: e4c7b0ab68d3
 Create Date: 2022-07-27 16:49:52.793557
 
 """
+
 from alembic import op
 import sqlalchemy as sa
 
@@ -22,5 +23,5 @@ def upgrade():
 
 def downgrade():
     # replace null values with an empty string
-    op.execute("UPDATE client SET redirect_uri='' WHERE redirect_uri IS NULL")
+    op.execute(sa.text("UPDATE client SET redirect_uri='' WHERE redirect_uri IS NULL"))
     op.alter_column("client", "redirect_uri", nullable=False)

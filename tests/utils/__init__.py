@@ -111,7 +111,7 @@ def create_awg_user(users, db_session):
                 grp.description = group_desc
                 s.add(grp)
                 s.flush()
-            UserToGroup(group=grp, user=user)
+            s.add(UserToGroup(group=grp, user=user))
             for projectname in group["projects"]:
                 gap = (
                     s.query(AccessPrivilege)

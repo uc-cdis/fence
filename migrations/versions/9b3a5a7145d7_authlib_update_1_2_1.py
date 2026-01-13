@@ -5,6 +5,7 @@ Revises: a04a70296688
 Create Date: 2023-09-01 10:27:16.686456
 
 """
+
 from alembic import op
 import logging
 import sqlalchemy as sa
@@ -151,10 +152,10 @@ def copy_client_to_temp_table_and_clear_data(op, temp_table_name: str):
     session = Session(bind=conn)
     # Drop temp table if it already exists
     # copy client table with all table metadata then copy all row data
-    session.execute("DROP TABLE IF EXISTS " + temp_table_name + ";")
-    session.execute("CREATE TABLE " + temp_table_name + " (LIKE client INCLUDING ALL);")
-    session.execute("INSERT INTO " + temp_table_name + " SELECT * FROM client;")
-    session.execute("Truncate client;")
+    session.execute(text(f"DROP TABLE IF EXISTS {temp_table_name}"))
+    session.execute(text(f"CREATE TABLE {temp_table_name} (LIKE client INCLUDING ALL)"))
+    session.execute(text(f"INSERT INTO {temp_table_name} SELECT * FROM client"))
+    session.execute(text("Truncate client"))
     session.commit()
 
 
@@ -222,7 +223,7 @@ def set_old_column_values():
     session = Session(bind=conn)
     clientDatas = []
 
-    rs = session.execute("SELECT * FROM migration_client")
+    rs = session.execute(text("SELECT * FROM migration_client"))
     for client in rs:
         data = {}
         data["client_id"] = client.client_id
@@ -327,4 +328,6 @@ def remove_foreign_key_constraint_if_exists(op):
             type_="foreignkey",
         )
     else:
-        logger.debug("Foreign key client_id does not exist. This is expected for newer versions of the service.")
+        logger.debug(
+            "Foreign key client_id does not exist. This is expected for newer versions of the service."
+        )

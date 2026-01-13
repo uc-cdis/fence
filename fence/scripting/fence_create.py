@@ -1,4 +1,4 @@
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, UTC
 import os
 import os.path
 import requests
@@ -245,7 +245,7 @@ def delete_expired_clients_action(DB, slack_webhook=None, warning_days=None):
         warning_days = float(warning_days) if warning_days else 7
         warning_days_in_secs = warning_days * 24 * 60 * 60  # days to seconds
         warning_expiry = (
-            datetime.utcnow() + timedelta(seconds=warning_days_in_secs)
+            datetime.now(UTC) + timedelta(seconds=warning_days_in_secs)
         ).timestamp()
         expiring_clients = (
             current_session.query(Client)
@@ -553,9 +553,11 @@ def create_project(s, project_data):
         for storage_access in sa_list:
             provider = storage_access["name"]
             buckets = storage_access.get("buckets", [])
+
             sa = (
                 s.query(StorageAccess)
-                .join(StorageAccess.provider, StorageAccess.project)
+                .join(StorageAccess.provider)
+                .join(StorageAccess.project)
                 .filter(Project.name == project.name)
                 .filter(CloudProvider.name == provider)
                 .first()

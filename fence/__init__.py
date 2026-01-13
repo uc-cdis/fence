@@ -210,7 +210,7 @@ def app_register_blueprints(app):
     @app.route("/metrics")
     def metrics_endpoint():
         """
-        /!\ There is no authz control on this endpoint!
+        WARNING: There is no authz control on this endpoint!
         In cloud-automation setups, access to this endpoint is blocked at the revproxy level.
         """
         data, content_type = metrics.get_latest_metrics()

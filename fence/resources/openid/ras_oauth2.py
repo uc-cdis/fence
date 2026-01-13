@@ -217,9 +217,7 @@ class RASOauth2Client(Oauth2ClientBase):
                  exception noted above
         """
         db_session = db_session or current_app.scoped_session()
-        iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get(
-            (issuer, subject_id)
-        )
+        iss_sub_pair_to_user = db_session.get(IssSubPairToUser, (issuer, subject_id))
         user = query_for_user(db_session, username)
         if iss_sub_pair_to_user:
             if not user:

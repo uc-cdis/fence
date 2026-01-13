@@ -2,10 +2,10 @@
 Connection manager for the Cleversafe storage system
 Since it is compatible with S3, we will be using boto.
 """
-from boto import connect_s3
-from boto.s3 import connection
-from boto.exception import S3ResponseError
-from boto.s3.acl import Grant
+
+import boto3
+from botocore.client import Config
+from botocore.exceptions import ClientError
 import requests
 from urllib.parse import urlencode
 import json
@@ -42,12 +42,6 @@ class CleversafeClient(StorageClient):
         }
         self._permissions_value = ["disabled", "readOnly", "readWrite", "owner"]
         self._auth = requests.auth.HTTPBasicAuth(self._username, self._password)
-        self._conn = connect_s3(
-            aws_access_key_id=self._access_key,
-            aws_secret_access_key=self._secret_key,
-            host=self._public_host,
-            calling_format=connection.OrdinaryCallingFormat(),
-        )
         self._bucket_name_id_table = {}
         self._update_bucket_name_id_table()
         self._user_name_id_table = {}
@@ -153,9 +147,9 @@ class CleversafeClient(StorageClient):
             for vault_permission in vault_roles:
                 vault_response = self._get_bucket_by_id(vault_permission["vault"])
                 vault = json.loads(vault_response.text)
-                new_user.permissions[
-                    vault["responseData"]["vaults"][0]["name"]
-                ] = vault_permission["permission"]
+                new_user.permissions[vault["responseData"]["vaults"][0]["name"]] = (
+                    vault_permission["permission"]
+                )
             return new_user
         except KeyError as key_e:
             msg = "Failed to parse the user data. Check user fields inside the accounts section"
@@ -412,18 +406,23 @@ class CleversafeClient(StorageClient):
             access_key = self._access_key
         if not secret_key:
             secret_key = self._secret_key
-        creds = {"host": self._public_host}
+        host = self._public_host
+        creds = {"endpoint_url": f"https://{host}"}
         creds["aws_access_key_id"] = access_key
         creds["aws_secret_access_key"] = secret_key
-        conn = connect_s3(calling_format=connection.OrdinaryCallingFormat(), **creds)
+        s3_client = boto3.client(
+            "s3",
+            config=Config(s3={"addressing_style": "path"})  # Enforces path style,
+            ** creds,
+        )
         try:
-            bucket = conn.create_bucket(bucket_name)
+            bucket = s3_client.create_bucket(Bucket=bucket_name)
             self._update_bucket_name_id_table()
             return bucket
-        except S3ResponseError as exce:
-            msg = "Create bucket failed with error code: {0}"
-            self.logger.error(msg.format(exce.error_code))
-            raise RequestError(str(exce), exce.error_code)
+        except ClientError as e:
+            error_code = e.response["Error"]["Code"]
+            self.logger.error(f"Create bucket failed with error code: {error_code}")
+            raise RequestError(str(e), error_code)
 
     def edit_bucket_template(self, default_template_id, **kwargs):
         """

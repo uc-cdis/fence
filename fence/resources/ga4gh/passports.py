@@ -1,3 +1,4 @@
+from sqlalchemy import text
 import flask
 import os
 import collections
@@ -325,7 +326,7 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id, db_session=None):
     logger.debug(
         f"get_or_create_gen3_user_from_iss_sub: issuer: {issuer} & subject_id: {subject_id}"
     )
-    iss_sub_pair_to_user = db_session.query(IssSubPairToUser).get((issuer, subject_id))
+    iss_sub_pair_to_user = db_session.get(IssSubPairToUser, (issuer, subject_id))
     if not iss_sub_pair_to_user:
         username = subject_id + issuer[len("https://") :]
         gen3_user = query_for_user(session=db_session, username=username)
@@ -495,7 +496,8 @@ def put_gen3_usernames_for_passport_into_cache(
     PASSPORT_CACHE[passport_hash] = user_ids_from_passports, expires_at
 
     db_session.execute(
-        """\
+        text(
+            """\
         INSERT INTO ga4gh_passport_cache (
             passport_hash,
             expires_at,
@@ -506,7 +508,8 @@ def put_gen3_usernames_for_passport_into_cache(
             :user_ids
         ) ON CONFLICT (passport_hash) DO UPDATE SET
             expires_at = EXCLUDED.expires_at,
-            user_ids = EXCLUDED.user_ids;""",
+            user_ids = EXCLUDED.user_ids;"""
+        ),
         dict(
             passport_hash=passport_hash,
             expires_at=expires_at,

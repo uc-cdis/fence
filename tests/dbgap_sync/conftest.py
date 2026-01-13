@@ -31,7 +31,7 @@ from fence.models import (
     User,
 )
 
-from tests.conftest import random_txn
+from tests.conftest import random_txn, NoAsyncMagicMock
 
 logger = get_logger(__name__)
 
@@ -154,7 +154,7 @@ def syncer(db_session, request, rsa_private_key, kid):
         sync_from_local_csv_dir=LOCAL_CSV_DIR,
         sync_from_local_yaml_file=LOCAL_YAML_DIR,
     )
-    syncer_obj.arborist_client = MagicMock(ArboristClient)
+    syncer_obj.arborist_client = NoAsyncMagicMock(ArboristClient)
 
     def mocked_update(parent_path, resource, **kwargs):
         resource["tag"] = "123456"

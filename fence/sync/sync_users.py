@@ -1578,7 +1578,6 @@ class UserSyncer(object):
         Collect files from dbgap server(s), sync csv and yaml files to storage
         backend and fence DB
         """
-
         # get all dbgap files
         user_projects = {}
         user_info = {}
@@ -2423,7 +2422,7 @@ class UserSyncer(object):
         """
 
         def escape(s):
-            return s.replace(",", "\,")
+            return s.replace(",", "\\,")
 
         canonical_roles = ",".join(escape(r) for r in ordered_roles)
         canonical_resources = ",".join(escape(r) for r in ordered_resources)
