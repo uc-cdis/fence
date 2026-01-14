@@ -117,6 +117,11 @@ def get_provider_info(login_details):
         dict: { name, desc, idp, urls, secondary }
         - urls: list of { name, url } dictionaries
     """
+    if login_details["idp"] not in config["OPENID_CONNECT"]:
+        raise InternalError(
+            f"IdP '{login_details['idp']}' is configured as a login option, but it is not configured in the 'OPENID_CONNECT' configuration"
+        )
+
     info = {
         # "id" deprecated, replaced by "idp"
         "id": login_details["idp"],
