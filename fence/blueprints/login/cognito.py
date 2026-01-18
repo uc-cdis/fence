@@ -2,6 +2,14 @@ import flask
 
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
 from fence.models import IdentityProvider
+from cdislogging import get_logger
+
+from fence.config import config
+from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
+import fence.resources.cognito.groups
+from flask import current_app
+
+logger = get_logger(__name__)
 
 
 class CognitoLogin(DefaultOAuth2Login):
@@ -16,3 +24,27 @@ class CognitoCallback(DefaultOAuth2Callback):
         super(CognitoCallback, self).__init__(
             idp_name=IdentityProvider.cognito, client=flask.current_app.cognito_client
         )
+
+    def post_login(self, user=None, token_result=None, id_from_idp=None):
+        userinfo = flask.g.userinfo
+
+        email = userinfo.get("email")
+
+        assign_groups_as_policies = config["cognito"]["assign_groups_as_policies"]
+        assign_groups_claim_name = config["cognito"]["assign_groups_claim_name"]
+
+        if assign_groups_as_policies:
+            try:
+                groups = flask.current_app.cognito_client.get_group_claims(
+                    userinfo, assign_groups_claim_name
+                )
+            except Exception as e:
+                err_msg = "Could not retrieve groups"
+                logger.error("{}: {}".format(e, err_msg))
+                raise
+
+            fence.resources.cognito.groups.sync_gen3_users_authz_from_adfs_groups(
+                email, groups, db_session=current_app.scoped_session()
+            )
+
+        super(CognitoCallback, self).post_login(id_from_idp=id_from_idp)
