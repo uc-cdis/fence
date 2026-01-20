@@ -523,7 +523,7 @@ def test_presigned_url_log_unauthorized(
     "indexd_client_with_arborist", ["s3_and_gs_acl_no_authz"], indirect=True
 )
 @pytest.mark.parametrize("endpoint", ["download", "ga4gh-drs"])
-def test_presigned_url_log_x_forwarded_headers(
+def test_presigned_url_log_audit_headers(
     endpoint,
     client,
     user_client,
