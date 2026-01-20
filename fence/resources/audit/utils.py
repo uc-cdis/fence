@@ -77,7 +77,7 @@ def create_audit_log_for_request(response, duration):
             audit_data.get("additional_data", []).append(
                 f"bytes:{response.content_length}"
             )
-
+            audit_data.get("additional_data", []).append(f"http_method:{method}")
             flask.current_app.audit_service_client.create_presigned_url_log(
                 status_code=response.status_code,
                 request_url=request_url,
