@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fence"
-version = "13.0.0"
+version = "13.0.1"
 description = "Gen3 AuthN/AuthZ OIDC Service"
 authors = ["CTDS UChicago <cdis@uchicago.edu>"]
 license = "Apache-2.0"
@@ -57,7 +57,7 @@ backoff = ">=2"
 pytz = ">=2025.2"
 mock = ">=2.0.0"
 httpx = ">=0.28.1"
-urllib3 = ">=2.6.0"
+urllib3 = ">=2.6.3, <3"
 
 [tool.poetry.group.dev.dependencies]
 addict = ">=2.2.1"
