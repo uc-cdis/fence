@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fence"
-version = "13.0.1"
+version = "13.0.2"
 description = "Gen3 AuthN/AuthZ OIDC Service"
 authors = ["CTDS UChicago <cdis@uchicago.edu>"]
 license = "Apache-2.0"
