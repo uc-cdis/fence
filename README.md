@@ -34,7 +34,7 @@ At the moment, supported IDPs include:
 - CILogon
 - Cognito
 - Synapse
-- [Microsoft])docs/azure/azure_architecture.md)
+- [Microsoft](docs/azure/azure_architecture.md)
 - ORCID
 - RAS
 
