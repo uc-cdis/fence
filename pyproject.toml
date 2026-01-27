@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fence"
-version = "13.0.1"
+version = "13.0.2"
 description = "Gen3 AuthN/AuthZ OIDC Service"
 authors = ["CTDS UChicago <cdis@uchicago.edu>"]
 license = "Apache-2.0"
@@ -48,6 +48,12 @@ userdatamodel = ">=3,<4"
 werkzeug = ">=3.0.0"
 cachelib = ">=0.2.0"
 azure-storage-blob = ">=12.6.0"
+# azure-storage-blob sub-dependency azure-core requires a security bump but azure-storage-blob hasn't included it yet.
+# Force it for now, try removing this later.
+# TODO: Remove this explicit sub-dep when azure-storage-blob is updated beyond 12.28.0 and
+#       has azure-core >= 1.38.0
+azure-core = ">=1.38.0"
+
 Flask-WTF = ">=1.0.0"
 itsdangerous = '*' # Use Flask-WTF's itsdangerous
 # NOTE: for testing with updated libaries as git repos:
