@@ -1,4 +1,6 @@
 import flask
+import json
+import hashlib
 
 from cdislogging import get_logger
 from cdispyutils.config import get_value
@@ -7,8 +9,10 @@ from fence.auth import login_required, require_auth_header, current_token, get_j
 from fence.authz.auth import check_arborist_auth
 from fence.blueprints.data.indexd import (
     BlankIndex,
+    EmbeddingIndex,
     IndexedFile,
     get_signed_url_for_file,
+    bulk_get_signed_url_for_file,
     verify_data_upload_bucket_configuration,
 )
 from fence.config import config
@@ -196,6 +200,101 @@ def upload_data_file():
     return flask.jsonify(response), 201
 
 
+@blueprint.route("/upload/vector", methods=["POST"])
+@require_auth_header(scope={"data"})
+@login_required({"data"})
+def upload_vector():
+    """
+    Return a presigned URL for use with uploading a data file.
+
+    See the documentation on the entire flow here for more info:
+
+        https://github.com/uc-cdis/cdis-wiki/tree/master/dev/gen3/data_upload
+
+    """
+    # make new record in indexd, with just the `uploader` field (and a GUID)
+
+    params = flask.request.get_json()
+    if not params:
+        raise UserError("wrong Content-Type; expected application/json")
+
+    if "model" not in params:
+        raise UserError("missing required argument `model`")
+
+    if "embedding" not in params:
+        raise UserError("missing required argument `embedding`")
+
+    if "file_id" not in params:
+        raise UserError("missing required argument `file_id`")
+
+    if "authz" not in params:
+        raise UserError("missing required argument `authz`")
+
+    authorized = False
+    authz_err_msg = "Auth error when attempting to get a presigned URL for upload. User must have '{}' access on '{}'."
+
+    authz = params.get("authz")
+    uploader = None
+
+    guid = params.get("guid")
+
+    if authz:
+        # if requesting an authz field, using new authorization method which doesn't
+        # rely on uploader field, so clear it out
+        uploader = ""
+        authorized = flask.current_app.arborist.auth_request(
+            jwt=get_jwt(),
+            service="fence",
+            methods=["create", "write-storage"],
+            resources=authz,
+        )
+        if not authorized:
+            logger.error(authz_err_msg.format("create' and 'write-storage", authz))
+    else:
+        # no 'authz' was provided, so fall back on 'file_upload' logic
+        authorized = flask.current_app.arborist.auth_request(
+            jwt=get_jwt(),
+            service="fence",
+            methods=["file_upload"],
+            resources=["/data_file"],
+        )
+        if not authorized:
+            logger.error(authz_err_msg.format("file_upload", "/data_file"))
+
+    if not authorized:
+        raise Forbidden(
+            "You do not have access to upload data. You either need "
+            "general file uploader permissions or create and write-storage permissions "
+            "on the authz resources you specified (if you specified any)."
+        )
+
+    # token = get_jwt()
+
+    model = params.get("model")
+    embedding = params.get("embedding")
+    file_id = params.get("file_id")
+
+    EMS = EmbeddingIndex(
+        authz=authz,
+        model=model,
+        embedding=embedding,
+        file_id=file_id,
+        uploader=uploader,
+    )
+
+    # create embedding record and get id from service
+    embedding_id, md5_hash = EMS.create_embedding_record()
+
+    guid = EMS.create_indexd_record(embedding_id, md5_hash)
+
+    response = {
+        "message": "An embedding was successfully added to the embedding management service and inserted into indexd",
+        "guid": guid,
+    }
+
+    return flask.jsonify(response), 201
+
+
 @blueprint.route("/multipart/init", methods=["POST"])
 @require_auth_header(scope={"data"})
 @login_required({"data"})
@@ -345,6 +444,35 @@ def download_file(file_id):
     if not "redirect" in flask.request.args or not "url" in result:
         return flask.jsonify(result)
     return flask.redirect(result["url"])
+
+
+@blueprint.route("/download/bulk", methods=["POST"])
+def download_bulk_files():
+    """
+    Get a presigned url to download a file given by file_id.
+    """
+    # {"guids": ["1234", "4567"]}
+    params = flask.request.get_json()
+    if not params:
+        raise UserError("wrong Content-Type; expected application/json")
+
+    if "guids" not in params:
+        raise UserError("missing required argument `guids`")
+
+    guids = params["guids"]
+    results = bulk_get_signed_url_for_file(guids)
+
+    return flask.jsonify(results)
+    # results = {}
+    # results["urls"] = []
+    # for g in guids:
+    #     result = get_signed_url_for_file("download", g)
+    #     if not "redirect" in flask.request.args or not "url" in result:
+    #         # return flask.jsonify(result)
+    #         results["urls"].append(result)
+    #     else:
+    #         results["urls"].append(result["url"])
+    # return flask.jsonify(results)
 
 
 @blueprint.route(
