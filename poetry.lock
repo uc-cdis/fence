@@ -85,14 +85,16 @@ name = "authutils"
 version = "7.2.2"
 description = "Gen3 auth utility functions"
 optional = false
-python-versions = ">=3.13, <4.0"
+python-versions = "<4.0,>=3.13"
 groups = ["main"]
-files = []
-develop = false
+files = [
+    {file = "authutils-7.2.2-py3-none-any.whl", hash = "sha256:7d7b247938f7c3589fbde537bfa818ff3aec78c2f37586c47866ef1ec6ba7cab"},
+    {file = "authutils-7.2.2.tar.gz", hash = "sha256:4d3e094cf412dcefca55c708b5c86878e984bd39a1eaa22959d1d38038fff575"},
+]
 
 [package.dependencies]
 authlib = ">=1.6.5"
-cached-property = "~=1.4"
+cached-property = ">=1.4,<2.0"
 cdiserrors = "*"
 cdislogging = "*"
 cryptography = ">=46.0.0"
@@ -100,18 +102,12 @@ httpx = ">=0.23.0,<1.0.0"
 pyjwt = {version = ">=2.4.0,<3.0", extras = ["crypto"]}
 starlette = "*"
 werkzeug = "*"
-xmltodict = "~=0.9"
+xmltodict = ">=0.9,<1.0"
 
 [package.extras]
 datamodelutils = ["datamodelutils"]
 fastapi = ["fastapi"]
 flask = ["Flask"]
-
-[package.source]
-type = "git"
-url = "https://github.com/uc-cdis/authutils"
-reference = "fix/deps"
-resolved_reference = "1ae145f8ded2c8ab01f690ae9d3612540ef541d7"
 
 [[package]]
 name = "azure-core"
@@ -1286,10 +1282,12 @@ name = "gen3cirrus"
 version = "4.0.1"
 description = ""
 optional = false
-python-versions = ">=3.13,<4.0"
+python-versions = "<4.0,>=3.13"
 groups = ["main"]
-files = []
-develop = false
+files = [
+    {file = "gen3cirrus-4.0.1-py3-none-any.whl", hash = "sha256:db8aaf9b0134d1285e9d9d3efcdd29abc244b3bbc5b9410b4ad5211cd92d0b6a"},
+    {file = "gen3cirrus-4.0.1.tar.gz", hash = "sha256:afca76ac435cb765bac6f8e902e873204602494accf27860ae45805d3adca9ec"},
+]
 
 [package.dependencies]
 backoff = "*"
@@ -1302,12 +1300,6 @@ google-cloud-storage = "*"
 httplib2 = "*"
 oauth2client = "*"
 requests = "*"
-
-[package.source]
-type = "git"
-url = "https://github.com/uc-cdis/cirrus"
-reference = "feat/deps"
-resolved_reference = "179cfab733b6f4dec67d7c608d12470ed7f1a0ee"
 
 [[package]]
 name = "gen3config"
@@ -2309,14 +2301,14 @@ testing = ["pytest", "pytest-cov", "wheel"]
 
 [[package]]
 name = "platformdirs"
-version = "4.7.0"
+version = "4.7.1"
 description = "A small Python package for determining appropriate platform-specific dirs, e.g. a `user data dir`."
 optional = false
 python-versions = ">=3.10"
 groups = ["dev"]
 files = [
-    {file = "platformdirs-4.7.0-py3-none-any.whl", hash = "sha256:1ed8db354e344c5bb6039cd727f096af975194b508e37177719d562b2b540ee6"},
-    {file = "platformdirs-4.7.0.tar.gz", hash = "sha256:fd1a5f8599c85d49b9ac7d6e450bc2f1aaf4a23f1fe86d09952fe20ad365cf36"},
+    {file = "platformdirs-4.7.1-py3-none-any.whl", hash = "sha256:06ac79ae0c5025949f62711e3f7cd178736515a29bcc669f42a216016cd1dc7a"},
+    {file = "platformdirs-4.7.1.tar.gz", hash = "sha256:6f4ff8472e482af4b7e67a183fbe63da846a9b34f57d5019c4d112a181003d82"},
 ]
 
 [[package]]
@@ -3598,4 +3590,4 @@ cffi = ["cffi (>=1.17,<2.0) ; platform_python_implementation != \"PyPy\" and pyt
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0.0"
-content-hash = "086bb702da1179aadbc2654dfe32b3516a588b7aee1e14c6d72ab649b51d0249"
+content-hash = "fc6a7a912987e1264db75a696877a784f349a01e678129895369802695ccb143"
