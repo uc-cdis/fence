@@ -418,9 +418,12 @@ class UserSyncer(object):
             parameters = {
                 "hostname": str(server.get("host", "")),
                 "username": str(server.get("username", "")),
-                "password": str(server.get("password", "")),
                 "port": int(server.get("port", 22)),
             }
+            if server.get("private_key_filename"):
+                parameters["key_filename"] = str(server.get("private_key_filename"))
+            else:
+                parameters["password"] = str(server.get("password", ""))
             if proxy:
                 parameters["sock"] = proxy
 
