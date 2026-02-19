@@ -604,7 +604,7 @@ dbGaP:
       host: ''
       username: ''
       password: ''
-      private_key_filename: ''  # if set, pubkey AuthN will be used, otherwise password AuthN will be used
+      private_key_filename: ''  # use pubkey AuthN if set, otherwise use password AuthN
       port: 22
       proxy: ''
       proxy_user: ''
