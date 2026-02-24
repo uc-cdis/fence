@@ -736,10 +736,14 @@ AWS_CREDENTIALS: {}
 #     aws_access_key_id: ''
 #     aws_secret_access_key: ''
 
-# NOTE: the region is optonal for s3_buckets, however it should be specified to avoid a
-# call to GetBucketLocation which you make lack the AWS ACLs for.
-# public buckets do not need the region field.
-# the cred values should be keys in section `AWS_CREDENTIALS`.
+# S3_BUCKETS configuration: This is a bucket name to bucket credentials mapping.
+# - the cred values should be keys in section `AWS_CREDENTIALS`.
+# - the region is optional for s3_buckets, however it should be specified to avoid a
+#   call to GetBucketLocation which you make lack the AWS ACLs for.
+# - public buckets do not need the region field.
+# - regex support for bucket names: the keys are interpreted as `^<bucket name>$`.
+#   Example: `my-bucket-.*: {cred: ...}` matches "my-bucket-1", "my-bucket-12", etc
+# - set `cred: '*'` for public buckets where you do not want to try signing at all
 S3_BUCKETS: {}
 # NOTE: Remove the {} and supply buckets if needed. Example in comments below
 #   bucket1:

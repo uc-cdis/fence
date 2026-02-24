@@ -26,7 +26,7 @@ applications to use Gen3 services.
 Fence can be configured to support different Identity Providers (IdPs) for AuthN.
 At the moment, supported IDPs include:
 
-- Google
+- [Google](docs/additional_documentation/google_architecture.md)
 - [Shibboleth](docs/additional_documentation/fence_shibboleth.md)
   - NIH iTrust
   - InCommon
@@ -34,7 +34,7 @@ At the moment, supported IDPs include:
 - CILogon
 - Cognito
 - Synapse
-- Microsoft
+- [Microsoft](docs/azure/azure_architecture.md)
 - ORCID
 - RAS
 
