@@ -22,6 +22,7 @@ from fence.models import User, IdentityProvider, query_for_user
 from fence.user import get_current_user
 from fence.utils import clear_cookies
 from fence.config import config
+import requests
 
 logger = get_logger(__name__)
 
@@ -258,6 +259,16 @@ def logout(next_url, force_era_global_logout=False):
     elif provider == IdentityProvider.fence:
         base = config["OPENID_CONNECT"]["fence"]["api_base_url"]
         provider_logout = base + "/logout?" + urllib.parse.urlencode({"next": next_url})
+    elif (
+        provider == IdentityProvider.cognito
+    ):  # TODO Not just cognito? Also consider adding to the Oauth2ClientBase
+        well_known_url = config["OPENID_CONNECT"][IdentityProvider.cognito][
+            "discovery_url"
+        ]
+        well_known_resp = requests.get(well_known_url)
+        if well_known_resp.status_code == requests.codes.ok:
+            well_known = well_known_resp.json()
+            provider_logout = f"{well_known.get('end_session_endpoint')}?post_logout_redirect_uri={next_url}"
 
     flask.session.clear()
     redirect_response = flask.make_response(
