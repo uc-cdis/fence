@@ -433,13 +433,24 @@ class UserSyncer(object):
                     parameters.get("port", "unknown"),
                 )
             )
+            self.logger.info(f"Proxy: {proxy}")
             try:
-                self._connect_with_ssh(ssh_client=client, parameters=parameters)
+                self.logger.info("Begin connect_with_ssh")
+                self._connect_with_ssh(
+                    ssh_client=client, parameters=parameters
+                )  # TODO: This may be a problem for our server which doesn't allow ssh, only sftp
+                self.logger.info("Complete connect_with_ssh")
 
+                self.logger.info("Begin open_sftp")
                 with client.open_sftp() as sftp:
+                    self.logger.info("Begin download_dir")
                     download_dir(sftp, "./", path)
+                    self.logger.info("Complete download_dir")
+                self.logger.info("End open_sftp")
             except paramiko.ssh_exception.SSHException as e:
                 self.logger.error(f"SSH connection failed, error: {e}")
+            except Exception:
+                self.logger.exception("Caught base exception")
 
         if proxy:
             proxy.close()
