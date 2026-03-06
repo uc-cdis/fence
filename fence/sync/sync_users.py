@@ -449,8 +449,9 @@ class UserSyncer(object):
                 self.logger.info("End open_sftp")
             except paramiko.ssh_exception.SSHException as e:
                 self.logger.error(f"SSH connection failed, error: {e}")
-            except Exception:
+            except Exception as e:
                 self.logger.exception("Caught base exception")
+                raise e
 
         if proxy:
             proxy.close()
