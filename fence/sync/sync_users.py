@@ -435,6 +435,12 @@ class UserSyncer(object):
             )
             self.logger.info(f"Proxy: {proxy}")
             try:
+                # monkeypatch paramiko to use sha256 instead of md5 for fips compliance
+                def sha256_fingerprint(self):
+                    return hashlib.sha256(self.asbytes()).digest()
+
+                paramiko.PKey.get_fingerprint = sha256_fingerprint
+
                 self.logger.info("Begin connect_with_ssh")
                 self._connect_with_ssh(
                     ssh_client=client, parameters=parameters
