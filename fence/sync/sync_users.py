@@ -441,7 +441,6 @@ class UserSyncer(object):
                     parameters.get("port", "unknown"),
                 )
             )
-            self.logger.info(f"Proxy: {proxy}")
             try:
                 self._connect_with_ssh(ssh_client=client, parameters=parameters)
 
