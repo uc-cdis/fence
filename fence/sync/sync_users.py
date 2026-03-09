@@ -418,9 +418,20 @@ class UserSyncer(object):
             parameters = {
                 "hostname": str(server.get("host", "")),
                 "username": str(server.get("username", "")),
-                "password": str(server.get("password", "")),
                 "port": int(server.get("port", 22)),
             }
+            if server.get("private_key_filename"):
+                parameters["key_filename"] = str(server.get("private_key_filename"))
+
+                # patch paramiko to use sha256 instead of md5 for fips compliance
+                if server.get("is_fips_enabled", False):
+
+                    def sha256_fingerprint(self):
+                        return hashlib.sha256(self.asbytes()).digest()
+
+                    paramiko.PKey.get_fingerprint = sha256_fingerprint
+            else:
+                parameters["password"] = str(server.get("password", ""))
             if proxy:
                 parameters["sock"] = proxy
 
