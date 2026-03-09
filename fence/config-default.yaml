@@ -605,6 +605,7 @@ dbGaP:
       username: ''
       password: ''
       private_key_filename: ''  # use pubkey AuthN if set, otherwise use password AuthN
+      is_fips_enabled: false
       port: 22
       proxy: ''
       proxy_user: ''

@@ -423,11 +423,13 @@ class UserSyncer(object):
             if server.get("private_key_filename"):
                 parameters["key_filename"] = str(server.get("private_key_filename"))
 
-                # monkeypatch paramiko to use sha256 instead of md5 for fips compliance
-                def sha256_fingerprint(self):
-                    return hashlib.sha256(self.asbytes()).digest()
+                # patch paramiko to use sha256 instead of md5 for fips compliance
+                if server.get("if_fips_enabled", False):
 
-                paramiko.PKey.get_fingerprint = sha256_fingerprint
+                    def sha256_fingerprint(self):
+                        return hashlib.sha256(self.asbytes()).digest()
+
+                    paramiko.PKey.get_fingerprint = sha256_fingerprint
             else:
                 parameters["password"] = str(server.get("password", ""))
             if proxy:
@@ -441,24 +443,12 @@ class UserSyncer(object):
             )
             self.logger.info(f"Proxy: {proxy}")
             try:
+                self._connect_with_ssh(ssh_client=client, parameters=parameters)
 
-                self.logger.info("Begin connect_with_ssh")
-                self._connect_with_ssh(
-                    ssh_client=client, parameters=parameters
-                )  # TODO: This may be a problem for our server which doesn't allow ssh, only sftp
-                self.logger.info("Complete connect_with_ssh")
-
-                self.logger.info("Begin open_sftp")
                 with client.open_sftp() as sftp:
-                    self.logger.info("Begin download_dir")
                     download_dir(sftp, "./", path)
-                    self.logger.info("Complete download_dir")
-                self.logger.info("End open_sftp")
             except paramiko.ssh_exception.SSHException as e:
                 self.logger.error(f"SSH connection failed, error: {e}")
-            except Exception as e:
-                self.logger.exception("Caught base exception")
-                raise e
 
         if proxy:
             proxy.close()
