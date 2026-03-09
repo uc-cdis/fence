@@ -424,7 +424,7 @@ class UserSyncer(object):
                 parameters["key_filename"] = str(server.get("private_key_filename"))
 
                 # patch paramiko to use sha256 instead of md5 for fips compliance
-                if server.get("if_fips_enabled", False):
+                if server.get("is_fips_enabled", False):
 
                     def sha256_fingerprint(self):
                         return hashlib.sha256(self.asbytes()).digest()
