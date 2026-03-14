@@ -124,6 +124,7 @@ def _identify_user_and_update_database(
         _update_users_last_auth(user)
     else:
         if not config["ALLOW_NEW_USER_ON_LOGIN"]:
+            raise Unauthorized(config.get("ALLOW_NEW_USER_ON_LOGIN", False))
             # do not create new active users automatically
             raise Unauthorized("New user is not yet authorized/activated in the system")
 
