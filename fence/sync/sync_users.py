@@ -2677,3 +2677,56 @@ class UserSyncer(object):
             self.logger.error("No arborist client set; skipping arborist sync")
 
         return parsed_visas
+
+    def sync_single_user_groups(self, user, groups, sess=None):
+        """
+        Sync a single user's groups during login
+        Args:
+            user (userdatamodel.user.User): Fence user whose group
+                                            authz info is being synced
+            groups (list): a list of groups that the user is a member of
+        Return:
+            list of successfully assigned groups
+        """
+        try:
+            user_yaml = UserYAML.from_file(
+                self.sync_from_local_yaml_file, encrypted=False, logger=self.logger
+            )
+        except (EnvironmentError, AssertionError) as e:
+            self.logger.error(str(e))
+            self.logger.error("aborting early")
+            raise
+
+        user_projects = dict()
+        projects = {}
+
+        for group in groups:
+            project = {}
+            privileges = {"read-storage", "read"}
+            project[group] = privileges
+            projects = {**projects, **project}
+
+        user_projects[user.username] = projects
+        user_projects = self.parse_projects(user_projects)
+
+        # update arborist db (user access)
+        if self.arborist_client:
+            self.logger.info("Synchronizing arborist with authorization info...")
+            success = self._update_authz_in_arborist(
+                sess,
+                user_projects,
+                user_yaml=user_yaml,
+                single_user_sync=True,
+            )
+            if success:
+                self.logger.info(
+                    "Finished synchronizing authorization info to arborist"
+                )
+            else:
+                self.logger.error(
+                    "Could not synchronize authorization info successfully to arborist"
+                )
+        else:
+            self.logger.error("No arborist client set; skipping arborist sync")
+
+        return
