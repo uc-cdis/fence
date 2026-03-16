@@ -1984,21 +1984,24 @@ class UserSyncer(object):
             is_revoke_all = True
 
         if not is_revoke_all:
-            res = None
+            success = not to_remove
             try:
                 if to_remove:
                     for policy in to_remove:
                         self.logger.info(
                             f"Revoking policy {policy} for user {username}."
                         )
-                        res = self.arborist_client.revoke_user_policy(username, policy)
+                        success = self.arborist_client.revoke_user_policy(
+                            username, policy
+                        )
             except ArboristError as e:
                 self.logger.error(
                     f"Could not revoke user {username} policy {policy}: {e}"
                 )
-            if not res:  # `revoke_user_policy` returns None in case of error
+            if not success:
+                # `revoke_user_policy` returns None in case of error
                 self.logger.error(
-                    f"Could not revoke user {username} policy {policy}. Revoking all instead."
+                    f"Could not revoke user {username} policy. Revoking all instead."
                 )
                 is_revoke_all = True
 
@@ -2008,22 +2011,22 @@ class UserSyncer(object):
                 # cleanup: remove from the arborist DB so we do not check their access again every
                 # time this code runs.
                 self.logger.info(f"Deleting user {username} and their access.")
-                # TODO add this function to gen3authz:
-                # self.arborist_client.delete_user(username)
+                self.arborist_client.delete_user(username)
                 return
-            res = None
+            success = False
             try:
                 # Note: If a user only has group policies, we call `revoke_all_policies_for_user`
                 # for nothing. Could be fixed by adding a flag to the arborist "get user" endpoint
                 # to get the list of policies _excluding_ group policies, or by manually checking
                 # which policies are group policies (not worth it atm).
                 self.logger.info(f"Revoking all policies for user {username}.")
-                res = self.arborist_client.revoke_all_policies_for_user(username)
+                success = self.arborist_client.revoke_all_policies_for_user(username)
             except ArboristError as e:
                 self.logger.error(
                     f"Could not revoke all policies for user {username}. Error: {e}"
                 )
-            if not res:  # `revoke_all_policies_for_user` returns None in case of error
+            if not success:
+                # `revoke_all_policies_for_user` returns None in case of error
                 raise Exception(f"Could not revoke all policies for user {username}")
             to_add = incoming_policies  # if we revoke all, we need to add all incoming policies
 
