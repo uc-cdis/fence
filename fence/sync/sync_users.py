@@ -2010,7 +2010,9 @@ class UserSyncer(object):
                 # user without any access (other than anonymous and logged-in groups).
                 # cleanup: remove from the arborist DB so we do not check their access again every
                 # time this code runs.
-                self.logger.info(f"Deleting user {username} and their access.")
+                self.logger.info(
+                    f"Deleting user {username} since they have no policies."
+                )
                 self.arborist_client.delete_user(username)
                 return
             success = False
