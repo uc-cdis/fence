@@ -1668,7 +1668,7 @@ class UserSyncer(object):
                     " arborist client--did you run sync with --arborist <arborist client> arg?"
                 )
             self.logger.info("Synchronizing arborist...")
-            success = self._update_arborist(sess, user_yaml)
+            success = self._update_arborist(user_yaml)
             if success:
                 self.logger.info("Finished synchronizing arborist")
             else:
@@ -1759,7 +1759,7 @@ class UserSyncer(object):
                             {phsid_with_consent: {"read-storage", "read"}}
                         )
 
-    def _update_arborist(self, session, user_yaml):
+    def _update_arborist(self, user_yaml):
         """
         Create roles, resources, policies, groups in arborist from the information in
         ``user_yaml``.
@@ -1965,21 +1965,16 @@ class UserSyncer(object):
             # if getting existing policies fails, revoke all policies and re-apply
             is_revoke_all = True
 
+        if user_yaml:
+            anonymous_policies = set(
+                user_yaml.authz.get("anonymous_policies", [])
+                + user_yaml.authz.get("all_users_policies", [])
+            )
+            user_existing_policies = user_existing_policies - anonymous_policies
+
         if is_revoke_all is False and len(incoming_policies) > 0:
             to_add = incoming_policies - user_existing_policies
             to_remove = user_existing_policies - incoming_policies
-
-            if user_yaml:
-                anonymous_policies = set()
-                for policy in to_remove:
-                    if policy in user_yaml.authz.get(
-                        "anonymous_policies", []
-                    ) or policy in user_yaml.authz.get("all_users_policies", []):
-                        self.logger.warning(
-                            f"Policy {policy} is an anonymous policy, not revoking it for user {username}."
-                        )
-                        anonymous_policies.add(policy)
-                to_remove -= anonymous_policies
         else:
             # if incoming_policies is empty, we revoke all policies
             is_revoke_all = True
@@ -1999,14 +1994,25 @@ class UserSyncer(object):
                 is_revoke_all = True
 
         if is_revoke_all:
+            if not incoming_policies and not user_existing_policies:
+                # user without any access (other than anonymous and logged-in groups).
+                # cleanup: remove from the arborist DB so we do not check their access again every
+                # time this code runs.
+                self.logger.info(f"Deleting user {username} and their access.")
+                # TODO add this function to gen3authz:
+                # self.arborist_client.delete_user(username)
+                return
             try:
+                # Note: If a user only has group policies, we call `revoke_all_policies_for_user`
+                # for nothing. Could be fixed by adding a flag to the arborist "get user" endpoint
+                # to get the list of policies _excluding_ group policies, or by manually checking
+                # which policies are group policies (not worth it atm).
                 self.logger.info(f"Revoking all policies for user {username}.")
                 self.arborist_client.revoke_all_policies_for_user(username)
             except ArboristError as e:
-                self.logger.error(
+                raise Exception(
                     f"Could not revoke all policies for user {username}. Error: {e}"
                 )
-                return False
             to_add = incoming_policies  # if we revoke all, we need to add all incoming policies
 
         if (
@@ -2017,9 +2023,7 @@ class UserSyncer(object):
 
         if to_add:
             self.logger.info(f"Bulk granting user {username} policies {to_add}.")
-            return self._grant_bulk_user_policies(username, to_add, expires)
-
-        return True
+            self._grant_bulk_user_policies(username, to_add, expires)
 
     def _update_authz_in_arborist(
         self,
