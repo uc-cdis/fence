@@ -1291,7 +1291,7 @@ def test_sync_grant_arborist_policies_remove_users_with_no_policies(
     remove_users_with_no_policies,
 ):
     """
-    Test that all arborist policies are revoked correctly for a user.
+    Test that a user without any access is deleted if `remove_users_with_no_policies` is True.
     """
 
     syncer.arborist_client = MagicMock()
