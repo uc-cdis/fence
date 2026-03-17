@@ -2020,7 +2020,7 @@ class UserSyncer(object):
                 # cleanup: remove from the arborist DB so we do not check their access again every
                 # time this code runs.
                 self.logger.info(
-                    f"Deleting user {username} since they have no policies."
+                    f"Deleting user {username} from Arborist (since they have no policies)."
                 )
                 self.arborist_client.delete_user(username)
                 return
