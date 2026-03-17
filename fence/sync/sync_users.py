@@ -1934,7 +1934,12 @@ class UserSyncer(object):
             self.arborist_client.grant_user_policy(username, "mfa_policy")
 
     def _grant_arborist_policies(
-        self, username, incoming_policies, user_yaml, expires=None
+        self,
+        username,
+        incoming_policies,
+        user_yaml,
+        expires=None,
+        remove_users_with_no_policies=True,
     ):
         """
         Find the difference between the existing policies for a user and the incoming policies,
@@ -2006,7 +2011,11 @@ class UserSyncer(object):
                 is_revoke_all = True
 
         if is_revoke_all:
-            if not incoming_policies and not user_existing_policies:
+            if (
+                remove_users_with_no_policies
+                and not incoming_policies
+                and not user_existing_policies
+            ):
                 # user without any access (other than anonymous and logged-in groups).
                 # cleanup: remove from the arborist DB so we do not check their access again every
                 # time this code runs.

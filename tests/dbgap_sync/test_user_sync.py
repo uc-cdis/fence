@@ -1277,17 +1277,38 @@ def test_sync_grant_arborist_policies_check_revoke_all(
         expires=10,
     )
 
-    # Check if all policies were revoked
-    expected_revoke_calls = [
-        call("TESTUSERB", "phs000178.c1-read"),
-        call("TESTUSERB", "phs000178.c1-read-storage"),
-        call("TESTUSERB", "phs000179.c1-read"),
-        call("TESTUSERB", "phs000179.c1-read-storage"),
-    ]
-
     syncer.arborist_client.revoke_all_policies_for_user.assert_called_once_with(
         "TESTUSERB"
     )
+
+
+@pytest.mark.parametrize("syncer", ["google"], indirect=True)
+@pytest.mark.parametrize("remove_users_with_no_policies", [True, False])
+def test_sync_grant_arborist_policies_remove_users_with_no_policies(
+    syncer,
+    db_session,
+    monkeypatch,
+    remove_users_with_no_policies,
+):
+    """
+    Test that all arborist policies are revoked correctly for a user.
+    """
+
+    syncer.arborist_client = MagicMock()
+
+    # the user has no new policies and no existing policies
+    syncer.arborist_client.get_user.return_value = {"policies": []}
+    syncer._grant_arborist_policies(
+        username="TESTUSERB",
+        incoming_policies=set(),
+        user_yaml=None,
+        remove_users_with_no_policies=remove_users_with_no_policies,
+    )
+
+    if remove_users_with_no_policies:
+        syncer.arborist_client.delete_user.assert_called_once_with("TESTUSERB")
+    else:
+        syncer.arborist_client.delete_user.assert_not_called()
 
 
 @pytest.mark.parametrize("syncer", ["google"], indirect=True)
