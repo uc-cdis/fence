@@ -1950,9 +1950,8 @@ class UserSyncer(object):
             incoming_policies (set): set of policies to be applied to the user
             user_yaml (UserYAML): UserYAML object containing authz information
             expires (int): time at which authz info in Arborist should expire
-
-        Return:
-            bool: True if policies were successfully updated, False otherwise
+            remove_users_with_no_policies (bool): whether to delete users with no access from
+                the Arborist database
         """
         user_existing_policies = set()
         to_add = set()
