@@ -1155,26 +1155,6 @@ class IndexedFileLocation(object):
         return self.url
 
 
-class VecIndexdFileLocation(IndexedFileLocation):
-    def get_signed_url(
-        self,
-        action,
-        expires_in,
-        force_signed_url=True,
-        r_pays_project=None,
-        authorized_user=None,
-    ):
-        # need to return the vector from the embedding management service
-        model, emsID = str(self.url).replace("vec://", "").split("/")
-        emsUrl = f"http://embedding-management-service/vector/indexes/{model}/embeddings/{emsID}"
-        try:
-            req = requests.get(emsUrl)
-            return req.json()
-        except Exception as e:
-            print(f"error {e}")
-            raise NotFound(f"No embedding found with id {emsID}")
-
-
 class S3IndexedFileLocation(IndexedFileLocation):
     """
     An indexed file that lives in an AWS S3 bucket.
