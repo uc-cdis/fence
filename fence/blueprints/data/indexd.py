@@ -66,7 +66,7 @@ ACTION_DICT = {
     "az": {"upload": "PUT", "download": "GET"},
 }
 
-SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs", "az", "vec"]
+SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs", "az"]
 SUPPORTED_ACTIONS = ["upload", "download"]
 ANONYMOUS_USER_ID = "-1"
 ANONYMOUS_USERNAME = "anonymous"
@@ -309,122 +309,6 @@ def prepare_presigned_url_audit_log(protocol, indexed_file):
         protocol = indexed_file.indexed_file_locations[0].protocol
     flask.g.audit_data["resource_paths"] = resource_paths
     flask.g.audit_data["protocol"] = protocol
-
-
-class EmbeddingIndex(object):
-    def __init__(
-        self,
-        authz=None,
-        model=None,
-        embedding=None,
-        file_id=None,
-        uploader=None,
-        logger_=None,
-    ):
-        self.logger = logger_ or logger
-        self.indexd = (
-            flask.current_app.config.get("INDEXD")
-            or flask.current_app.config["BASE_URL"] + "/index"
-        )
-
-        # allow passing "" empty string to signify you do NOT want
-        # uploader to be populated. If nothing is provided, default
-        # to parsing from token
-        if uploader == "":
-            self.uploader = None
-        elif uploader:
-            self.uploader = uploader
-        else:
-            self.uploader = current_token["context"]["user"]["name"]
-
-        self.authz = authz
-        self.model = model
-        self.embedding = embedding
-        self.file_id = file_id
-
-    def create_embedding_record(self):
-        """
-        create a record in the embedding management service
-        """
-
-        embedding_management_service_url = f"http://embedding-management-service/vector/indexes/{self.model}/embeddings"
-        params = {
-            "file_id": self.file_id,
-            "vector": self.embedding,
-        }
-
-        ems_response = requests.post(embedding_management_service_url, json=params)
-        if ems_response.status_code not in [200, 201]:
-            try:
-                data = ems_response.json()
-            except ValueError:
-                data = ems_response.text
-            self.logger.error(
-                "could not create new record in embedding management service; got response: {}".format(
-                    data
-                )
-            )
-            raise InternalError("received error from embedding management service")
-        else:
-            dict_str = json.dumps(params, sort_keys=True)
-            dict_bytes = dict_str.encode("utf-8")
-            md5_hash = hashlib.md5(dict_bytes, usedforsecurity=False).hexdigest()
-
-            emsID = ems_response.text
-            logger.info(
-                f"successfully added vector to embedding service with id {emsID}"
-            )
-
-            return emsID, md5_hash
-
-    def create_indexd_record(self, embedding_id, md5_hash):
-        """
-        create an indexd record for a vector corresponding to the embedding_id
-        """
-        index_url = self.indexd.rstrip("/") + "/index/"
-        escaped_id = embedding_id.strip('"')
-        vec_url = f"vec://{self.model}/{escaped_id}"
-
-        params = {
-            "authz": self.authz,
-            "form": "object",
-            "hashes": {"md5": md5_hash},
-            "size": 0,
-            "urls": [vec_url],
-        }
-
-        if self.authz:
-            params["authz"] = self.authz
-            token = get_jwt()
-
-            auth = None
-            headers = {"Authorization": f"bearer {token}"}
-            logger.info("passing users authorization header to create blank record")
-        else:
-            logger.info("using indexd basic auth to create blank record")
-            auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
-            headers = {}
-
-        indexd_response = requests.post(
-            index_url, json=params, headers=headers, auth=auth
-        )
-        if indexd_response.status_code not in [200, 201]:
-            try:
-                data = indexd_response.json()
-            except ValueError:
-                data = indexd_response.text
-            self.logger.error(
-                "could not create new record in indexd; got response: {}".format(data)
-            )
-            raise InternalError(
-                "received error from indexd trying to create blank record"
-            )
-
-        document = indexd_response.json()
-        guid = document["did"]
-        self.logger.info("created an index record with GUID {} for upload".format(guid))
-
-        return guid
 
 
 class BlankIndex(object):
@@ -720,15 +604,18 @@ class BulkIndexedFiles(object):
 
             if file_authz:
                 # check if user has already been authorized in this bulk operation
-                if self.index_document.get(file_id).get("authz") not in self.auth_roles:
+                if (
+                    self.index_document.get(file_id).get("authz") not in self.auth_roles
+                ):  # TODO This is search in an array, auth_roles should be a set
                     action_to_permission = {
                         "download": "read-storage",
                     }
                     is_authorized, authorized_username = (
+                        # TODO Build out bulk authorization, we need to gather all the authz required then send it at once
                         self.get_authorized_with_username(
                             action_to_permission["download"],
                             file_id,
-                            # keys are usernames
+                            # keys are usernames # TODO Are they?
                             usernames_from_passports=list(users_from_passports.keys()),
                         )
                     )
@@ -742,6 +629,7 @@ class BulkIndexedFiles(object):
                             f"denied. authorized_username: {authorized_username}\nmsg:\n{msg}"
                         )
                         raise Unauthorized(msg)
+                    # TODO authz is an array, this append may not work
                     self.auth_roles.append(
                         self.index_document.get(file_id).get("authz")
                     )
@@ -1254,8 +1142,6 @@ class IndexedFileLocation(object):
             return GoogleStorageIndexedFileLocation(url)
         elif protocol == "az":
             return AzureBlobStorageIndexedFileLocation(url)
-        elif protocol == "vec":
-            return VecIndexdFileLocation(url)
         return IndexedFileLocation(url)
 
     def get_signed_url(
