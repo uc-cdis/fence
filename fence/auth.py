@@ -253,22 +253,35 @@ def logout(next_url, force_era_global_logout=False):
     # propogate logout to IDP
     provider_logout = None
     provider = flask.session.get("provider")
+
+    logger.info(f"Checking provider: {provider}")
+
     if force_era_global_logout or provider == IdentityProvider.itrust:
         safe_url = urllib.parse.quote_plus(next_url)
         provider_logout = config["ITRUST_GLOBAL_LOGOUT"] + safe_url
     elif provider == IdentityProvider.fence:
         base = config["OPENID_CONNECT"]["fence"]["api_base_url"]
         provider_logout = base + "/logout?" + urllib.parse.urlencode({"next": next_url})
-    elif (
-        provider == IdentityProvider.cognito
-    ):  # TODO Not just cognito? Also consider adding to the Oauth2ClientBase
-        well_known_url = config["OPENID_CONNECT"][IdentityProvider.cognito][
-            "discovery_url"
-        ]
+    else:
+        idp_openid_connect = config["OPENID_CONNECT"][provider]
+        well_known_url = idp_openid_connect["discovery_url"]
         well_known_resp = requests.get(well_known_url)
         if well_known_resp.status_code == requests.codes.ok:
             well_known = well_known_resp.json()
-            provider_logout = f"{well_known.get('end_session_endpoint')}?post_logout_redirect_uri={next_url}"
+            end_session_endpoint = well_known.get("end_session_endpoint")
+            params = {
+                "client_id": idp_openid_connect["client_id"],
+                "redirect_uri": config.get("BASE_URL", ""),
+                "response_type": "code",
+            }
+            try:
+                logger.info("Attempting to log out...")
+                end_session_request = requests.get(
+                    url=end_session_endpoint, params=params
+                )
+                logger.info(f"Logout response: {end_session_request}")
+            except Exception as e:
+                logger.exception(f"Log out failed from {provider}: {e}")
 
     flask.session.clear()
     redirect_response = flask.make_response(
