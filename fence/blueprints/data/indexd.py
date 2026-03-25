@@ -81,7 +81,7 @@ def get_signed_url_for_file(
     ga4gh_passports=None,
     db_session=None,
     bucket=None,
-    drs="False",
+    dr4s="False",
 ):
     requested_protocol = requested_protocol or flask.request.args.get("protocol", None)
     r_pays_project = flask.request.args.get("userProject", None)
@@ -522,7 +522,7 @@ class BlankIndex(object):
 
 class BulkIndexedFiles(object):
     """
-    For bulk handeling of files
+    For bulk handling of files
 
     Args:
         file_ids (list(str)): A list of GUIDs coresponding to files
@@ -598,6 +598,9 @@ class BulkIndexedFiles(object):
         users_from_passports = users_from_passports or {}
         signed_urls = []
         users = []
+        authz_file_ids: list[str] = []
+        failed_file_ids: list[dict] = []
+
         for file_id in self.file_ids:
             authorized_user = None
             file_authz = self.index_document.get(file_id).get("authz")
@@ -628,7 +631,13 @@ class BulkIndexedFiles(object):
                         logger.debug(
                             f"denied. authorized_username: {authorized_username}\nmsg:\n{msg}"
                         )
-                        raise Unauthorized(msg)
+                        failed_file_ids.append(
+                            {
+                                "error_code": 403 if authorized_user else 401,
+                                "file_id": file_id,
+                            }
+                        )
+                        continue
                     # TODO authz is an array, this append may not work
                     self.auth_roles.append(
                         self.index_document.get(file_id).get("authz")
