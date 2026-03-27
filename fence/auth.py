@@ -270,8 +270,8 @@ def logout(next_url, force_era_global_logout=False):
             well_known = well_known_resp.json()
             end_session_endpoint = well_known.get("end_session_endpoint")
 
-            client_id = (idp_openid_connect["client_id"],)
-            redirect_uri = (config.get("BASE_URL", ""),)
+            client_id = idp_openid_connect["client_id"]
+            redirect_uri = config.get("BASE_URL", "")
 
             logout_url = (
                 end_session_endpoint
