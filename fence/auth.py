@@ -266,16 +266,15 @@ def logout(next_url, force_era_global_logout=False):
         idp_openid_connect = config["OPENID_CONNECT"][provider]
         well_known_url = idp_openid_connect["discovery_url"]
         well_known_resp = requests.get(well_known_url)
+        redirect_url = idp_openid_connect.get("redirect_url", "")
+
         if well_known_resp.status_code == requests.codes.ok:
             well_known = well_known_resp.json()
             end_session_endpoint = well_known.get("end_session_endpoint")
 
-            client_id = idp_openid_connect["client_id"]
-            redirect_uri = config.get("BASE_URL", "")
-
             logout_url = (
                 end_session_endpoint
-                + f"?client_id={client_id}&redirect_uri={redirect_uri}?response_type=code"
+                + f"?client_id={idp_openid_connect["client_id"]}&redirect_uri={redirect_url}?response_type=code"
             )
 
             try:
