@@ -269,20 +269,21 @@ def logout(next_url, force_era_global_logout=False):
         if well_known_resp.status_code == requests.codes.ok:
             well_known = well_known_resp.json()
             end_session_endpoint = well_known.get("end_session_endpoint")
-            params = {
-                "client_id": idp_openid_connect["client_id"],
-                "redirect_uri": config.get("BASE_URL", ""),
-                "response_type": "code",
-            }
+
+            client_id = (idp_openid_connect["client_id"],)
+            redirect_uri = (config.get("BASE_URL", ""),)
+
+            logout_url = (
+                end_session_endpoint
+                + f"?client_id={client_id}&redirect_uri={redirect_uri}?response_type=code"
+            )
+
             try:
                 logger.info("Attempting to log out...")
-                logger.info(f"url: {end_session_endpoint}")
-                logger.info(f"params: {params}")
-                end_session_request = requests.get(
-                    url=end_session_endpoint, params=params
-                )
+                logger.info(f"url: {logout_url}")
+                end_session_request = requests.get(url=logout_url)
                 logger.info(f"Logout response: {end_session_request}")
-                logger.info(end_session_endpoint.json())
+                logger.info(end_session_request.json())
             except Exception as e:
                 logger.exception(f"Log out failed from {provider}: {e}")
 
