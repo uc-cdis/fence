@@ -394,6 +394,25 @@ def add_resource():
 
     return jsonify(res)
 
+@blueprint.route("/remove_resource/<path:resource>", methods=["DELETE"])
+@admin_login_required
+@enable_request_logging
+def remove_resource(resource):
+    """
+    Call this endpoint: `curl -X DELETE -H "Authorization: Bearer <access_token>" <hostname>/user/admin/remove_resource/a/b/c`
+
+    In this case `resource` is "a/b/c".
+    """
+    # normalize to an absolute resource path for arborist
+    resource_path = "/" + resource.lstrip("/")
+
+    res = current_app.arborist.delete_resource(resource_path)
+    if res:
+        logger.info("Deleted resource in arborist {}".format(resource_path))
+
+    return jsonify(res)
+
+
 
 @blueprint.route("/add_role", methods=["POST"])
 @admin_login_required
