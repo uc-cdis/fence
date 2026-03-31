@@ -435,6 +435,28 @@ paths:
           description: successful deletion
         '404':
           description: Couldn't find user
+  '/admin/user/{username}/reactivate':
+    post:
+      tags:
+        - 'admin/user'
+      summary: Reactivate a soft-deleted user
+      description: Admin method to reactivate a soft-deleted user, setting the user back to active
+      security:
+        - OAuth2:
+            - admin
+      operationId: reactivateUser
+      parameters:
+        - name: username
+          required: true
+          in: path
+          description: Username of user to reactivate
+          schema:
+            type: string
+      responses:
+        200:
+          description: Successful operation
+        400:
+          description: User is already active
   /admin/user:
     post:
       tags:
