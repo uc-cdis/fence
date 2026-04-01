@@ -303,10 +303,10 @@ class DefaultOAuth2Callback(Resource):
                     return
                 else:
                     logger.info(f"Revoking mfa_policy for {username}")
-                    self.app.arborist.revoke_user_policy(
+                    assert self.app.arborist.revoke_user_policy(
                         username=username,
                         policy_id="mfa_policy",
-                    )
+                    ), f"Could not revoke user {username} policy mfa_policy"
 
 
 def prepare_login_log(idp_name):

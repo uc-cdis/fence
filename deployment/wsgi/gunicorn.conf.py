@@ -7,3 +7,4 @@ group = "gen3"
 timeout = 300
 keepalive = 2
 keepalive_timeout = 5
+limit_request_field_size = 131072
