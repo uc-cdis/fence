@@ -405,6 +405,11 @@ class UserSyncer(object):
         with paramiko.SSHClient() as client:
             client.set_log_channel(self.logger.name)
 
+            # Patch paramiko to use sha256 instead of md5 for enhanced security and fips compliance
+            paramiko.PKey.get_fingerprint = lambda self: hashlib.sha256(
+                self.asbytes()
+            ).digest()
+
             # Load known host keys
             known_hosts_path = os.path.expanduser("~/.ssh/known_hosts")
             if os.path.exists(known_hosts_path):
@@ -422,14 +427,6 @@ class UserSyncer(object):
             }
             if server.get("private_key_filename"):
                 parameters["key_filename"] = str(server.get("private_key_filename"))
-
-                # patch paramiko to use sha256 instead of md5 for fips compliance
-                if server.get("is_fips_enabled", False):
-
-                    def sha256_fingerprint(self):
-                        return hashlib.sha256(self.asbytes()).digest()
-
-                    paramiko.PKey.get_fingerprint = sha256_fingerprint
             else:
                 parameters["password"] = str(server.get("password", ""))
             if proxy:
