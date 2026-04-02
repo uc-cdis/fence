@@ -1987,7 +1987,12 @@ class UserSyncer(object):
                 self.logger.info(
                     f"Deleting user {username} from Arborist (since they have no policies)."
                 )
-                self.arborist_client.delete_user(username)
+                try:
+                    self.arborist_client.delete_user(username)
+                except ArboristError as e:
+                    self.logger.error(
+                        f"Could not delete user {username} from arborist. Error: {e}"
+                    )
                 return
             success = False
             try:
