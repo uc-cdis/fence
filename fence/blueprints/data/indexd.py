@@ -222,14 +222,14 @@ def bulk_get_signed_url_for_file(
     )
 
     # prepare_presigned_url_audit_log(requested_protocol, indexed_file)
-    signed_urls, users = indexed_files.get_signed_urls(
+    signed_urls, users, failed_file_ids = indexed_files.get_signed_urls(
         requested_protocol,
         expires_in,
         force_signed_url=force_signed_url,
         r_pays_project=r_pays_project,
     )
 
-    return {"urls": signed_urls}
+    return {"urls": signed_urls, "failed_file_ids": failed_file_ids}
 
 
 def get_bucket_from_urls(urls, protocol):
@@ -598,51 +598,102 @@ class BulkIndexedFiles(object):
         users_from_passports = users_from_passports or {}
         signed_urls = []
         users = []
-        authz_file_ids: list[str] = []
         failed_file_ids: list[dict] = []
 
+        # BULK AUTHORIZATION: Collect all unique authz that need checking
+        authz_needing_check = set()
+        authz_to_file_ids = defaultdict(list)
+        for file_id in self.file_ids:
+            file_authz = self.index_document.get(file_id).get("authz")
+            if file_authz:
+                # Convert authz list to tuple for hashing
+                authz_key = (
+                    tuple(file_authz) if isinstance(file_authz, list) else file_authz
+                )
+                if authz_key not in self.auth_roles:
+                    authz_needing_check.add(authz_key)
+                    authz_to_file_ids[authz_key].append(file_id)
+
+        # BULK AUTHORIZATION: Get authorization results for all authz at once
+        authz_to_authorized_username = {}
+        if authz_needing_check:
+            if users_from_passports:
+                # Get auth_mapping for each passport user (1 call per unique user)
+                for username in users_from_passports.keys():
+                    try:
+                        auth_mapping = flask.current_app.arborist.auth_mapping(username)
+                        # Check which authz this user has access to
+                        for authz_key in authz_needing_check:
+                            if authz_key not in authz_to_authorized_username:
+                                authz_list = (
+                                    list(authz_key)
+                                    if isinstance(authz_key, tuple)
+                                    else authz_key
+                                )
+                                # Check if user has read-storage on any of the resources in this authz
+                                for resource in authz_list:
+                                    if resource in auth_mapping:
+                                        methods_list = auth_mapping[resource]
+                                        if any(
+                                            m.get("service") == "fence"
+                                            and "read-storage" in m.get("method", "")
+                                            for m in methods_list
+                                        ):
+                                            authz_to_authorized_username[authz_key] = (
+                                                username
+                                            )
+                                            break
+                    except Exception as e:
+                        logger.error(f"Failed to get auth mapping for {username}: {e}")
+            else:
+                # JWT-based authorization: check all authz in one call
+                try:
+                    token = get_jwt()
+                except Unauthorized:
+                    token = None
+
+                for authz_key in authz_needing_check:
+                    authz_list = (
+                        list(authz_key) if isinstance(authz_key, tuple) else authz_key
+                    )
+                    authorized = flask.current_app.arborist.auth_request(
+                        jwt=token,
+                        service="fence",
+                        methods="read-storage",
+                        resources=authz_list,
+                    )
+                    if authorized:
+                        authz_to_authorized_username[authz_key] = None
+
+        # STEP 2: Process files using cached authorization results
         for file_id in self.file_ids:
             authorized_user = None
             file_authz = self.index_document.get(file_id).get("authz")
 
             if file_authz:
-                # check if user has already been authorized in this bulk operation
-                if (
-                    self.index_document.get(file_id).get("authz") not in self.auth_roles
-                ):  # TODO This is search in an array, auth_roles should be a set
-                    action_to_permission = {
-                        "download": "read-storage",
-                    }
-                    is_authorized, authorized_username = (
-                        # TODO Build out bulk authorization, we need to gather all the authz required then send it at once
-                        self.get_authorized_with_username(
-                            action_to_permission["download"],
-                            file_id,
-                            # keys are usernames # TODO Are they?
-                            usernames_from_passports=list(users_from_passports.keys()),
+                authz_key = (
+                    tuple(file_authz) if isinstance(file_authz, list) else file_authz
+                )
+
+                if authz_key not in self.auth_roles:
+                    # Check cached authorization result
+                    if authz_key in authz_to_authorized_username:
+                        # User is authorized
+                        username = authz_to_authorized_username[authz_key]
+                        authorized_user = (
+                            users_from_passports.get(username) if username else None
                         )
-                    )
-                    if not is_authorized:
-                        msg = (
-                            f"Either you weren't authenticated successfully or you don't have "
-                            f"read-storage permission "
-                            f"on authorization resource: {self.index_document['authz']}."
-                        )
-                        logger.debug(
-                            f"denied. authorized_username: {authorized_username}\nmsg:\n{msg}"
-                        )
+                        self.auth_roles.append(authz_key)
+                    else:
+                        # User is not authorized
+                        error_code = 403 if users_from_passports else 401
                         failed_file_ids.append(
                             {
-                                "error_code": 403 if authorized_user else 401,
-                                "file_id": file_id,
+                                "error_code": error_code,
+                                "object_ids": [file_id],
                             }
                         )
                         continue
-                    # TODO authz is an array, this append may not work
-                    self.auth_roles.append(
-                        self.index_document.get(file_id).get("authz")
-                    )
-                    authorized_user = users_from_passports.get(authorized_username)
 
             signed_url, user = (
                 self._get_signed_urls(
@@ -658,7 +709,7 @@ class BulkIndexedFiles(object):
             signed_urls.append(signed_url)
             users.append(user)
 
-        return signed_urls, users
+        return signed_urls, users, failed_file_ids
 
     def _get_signed_urls(
         self,
