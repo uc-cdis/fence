@@ -262,6 +262,28 @@ def logout(next_url, force_era_global_logout=False):
     elif provider == IdentityProvider.fence:
         base = config["OPENID_CONNECT"]["fence"]["api_base_url"]
         provider_logout = base + "/logout?" + urllib.parse.urlencode({"next": next_url})
+    else:
+        idp_openid_connect = config["OPENID_CONNECT"][provider]
+        well_known_url = idp_openid_connect["discovery_url"]
+        well_known_resp = requests.get(well_known_url)
+        redirect_url = idp_openid_connect.get("redirect_url", "")
+
+        if well_known_resp.status_code == requests.codes.ok:
+            well_known = well_known_resp.json()
+            end_session_endpoint = well_known.get("end_session_endpoint")
+
+            logout_url = (
+                end_session_endpoint
+                + f"?client_id={idp_openid_connect["client_id"]}&logout_uri=https://qa-brh.planx-pla.net/login/cognito/login/&response_type=code"
+            )
+
+            try:
+                logger.info("Attempting to log out...")
+                logger.info(f"url: {logout_url}")
+                end_session_request = requests.get(url=logout_url)
+                logger.info(f"Logout response: {end_session_request}")
+            except Exception as e:
+                logger.exception(f"Log out failed from {provider}: {e}")
 
     redirect_response = flask.make_response(
         flask.redirect(provider_logout or urllib.parse.unquote(next_url))
