@@ -282,7 +282,7 @@ def logout(next_url, force_era_global_logout=False):
                 logger.info(f"url: {logout_url}")
                 end_session_request = requests.get(url=logout_url)
                 logger.info(f"Logout response: {end_session_request}")
-                logger.info(f"Logout json: {end_session_request.json()}")
+                logger.info(f"Logout json: {end_session_request.json}")
             except Exception as e:
                 logger.exception(f"Log out failed from {provider}: {e}")
 
