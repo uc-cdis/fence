@@ -274,7 +274,7 @@ def logout(next_url, force_era_global_logout=False):
 
             logout_url = (
                 end_session_endpoint
-                + f"/user?client_id={idp_openid_connect["client_id"]}&logout_uri={redirect_url}?response_type=code"
+                + f"?client_id={idp_openid_connect["client_id"]}&logout_uri=https://qa-brh.planx-pla.net/login/cognito/login/&response_type=code"
             )
 
             try:
