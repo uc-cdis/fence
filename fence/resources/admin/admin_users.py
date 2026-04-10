@@ -29,6 +29,7 @@ __all__ = [
     "add_user_to_projects",
     "delete_user",
     "soft_delete_user",
+    "reactivate_soft_deleted_user",
     "add_user_to_groups",
     "connect_user_to_group",
     "remove_user_from_groups",
@@ -365,6 +366,21 @@ def soft_delete_user(current_session, username):
     logger.debug(f"Soft-delete user '{username}'")
     usr = us.get_user(current_session, username)
     usr.active = False
+    current_session.commit()
+    return us.get_user_info(current_session, usr.username)
+
+
+def reactivate_soft_deleted_user(current_session, username):
+    """
+    Reverts the soft-remove done by soft_delete_user above
+    by marking user as active=True.
+    """
+    usr = us.get_user(current_session, username)
+    if (usr.active):
+        raise UserError(("Error: user is already active"))
+
+    logger.debug(f"Reactivate soft-deleted user '{username}'")
+    usr.active = True
     current_session.commit()
     return us.get_user_info(current_session, usr.username)
 

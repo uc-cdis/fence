@@ -1668,7 +1668,7 @@ class UserSyncer(object):
                     " arborist client--did you run sync with --arborist <arborist client> arg?"
                 )
             self.logger.info("Synchronizing arborist...")
-            success = self._update_arborist(sess, user_yaml)
+            success = self._update_arborist(user_yaml)
             if success:
                 self.logger.info("Finished synchronizing arborist")
             else:
@@ -1759,7 +1759,7 @@ class UserSyncer(object):
                             {phsid_with_consent: {"read-storage", "read"}}
                         )
 
-    def _update_arborist(self, session, user_yaml):
+    def _update_arborist(self, user_yaml):
         """
         Create roles, resources, policies, groups in arborist from the information in
         ``user_yaml``.
@@ -1899,38 +1899,13 @@ class UserSyncer(object):
 
         return True
 
-    def _revoke_all_policies_preserve_mfa(self, username, idp=None):
-        """
-        If MFA is enabled for the user's idp, check if they have the /multifactor_auth resource and restore the
-        mfa_policy after revoking all policies.
-        """
-
-        is_mfa_enabled = "multifactor_auth_claim_info" in config["OPENID_CONNECT"].get(
-            idp, {}
-        )
-
-        if not is_mfa_enabled:
-            # TODO This should be a diff, not a revocation of all policies.
-            self.arborist_client.revoke_all_policies_for_user(username)
-            return
-
-        policies = []
-        try:
-            user_data_from_arborist = self.arborist_client.get_user(username)
-            policies = user_data_from_arborist["policies"]
-        except Exception as e:
-            self.logger.error(
-                f"Could not retrieve user's policies, revoking all policies anyway. {e}"
-            )
-        finally:
-            # TODO This should be a diff, not a revocation of all policies.
-            self.arborist_client.revoke_all_policies_for_user(username)
-
-        if "mfa_policy" in policies:
-            self.arborist_client.grant_user_policy(username, "mfa_policy")
-
     def _grant_arborist_policies(
-        self, username, incoming_policies, user_yaml, expires=None
+        self,
+        username,
+        incoming_policies,
+        user_yaml,
+        expires=None,
+        remove_users_with_no_policies=True,
     ):
         """
         Find the difference between the existing policies for a user and the incoming policies,
@@ -1941,9 +1916,8 @@ class UserSyncer(object):
             incoming_policies (set): set of policies to be applied to the user
             user_yaml (UserYAML): UserYAML object containing authz information
             expires (int): time at which authz info in Arborist should expire
-
-        Return:
-            bool: True if policies were successfully updated, False otherwise
+            remove_users_with_no_policies (bool): whether to delete users with no access from
+                the Arborist database
         """
         user_existing_policies = set()
         to_add = set()
@@ -1965,48 +1939,71 @@ class UserSyncer(object):
             # if getting existing policies fails, revoke all policies and re-apply
             is_revoke_all = True
 
+        if user_yaml:
+            anonymous_policies = set(
+                user_yaml.authz.get("anonymous_policies", [])
+                + user_yaml.authz.get("all_users_policies", [])
+            )
+            user_existing_policies = user_existing_policies - anonymous_policies
+
         if is_revoke_all is False and len(incoming_policies) > 0:
             to_add = incoming_policies - user_existing_policies
             to_remove = user_existing_policies - incoming_policies
-
-            if user_yaml:
-                anonymous_policies = set()
-                for policy in to_remove:
-                    if policy in user_yaml.authz.get(
-                        "anonymous_policies", []
-                    ) or policy in user_yaml.authz.get("all_users_policies", []):
-                        self.logger.warning(
-                            f"Policy {policy} is an anonymous policy, not revoking it for user {username}."
-                        )
-                        anonymous_policies.add(policy)
-                to_remove -= anonymous_policies
         else:
             # if incoming_policies is empty, we revoke all policies
             is_revoke_all = True
 
         if not is_revoke_all:
+            success = not to_remove
             try:
                 if to_remove:
                     for policy in to_remove:
                         self.logger.info(
                             f"Revoking policy {policy} for user {username}."
                         )
-                        self.arborist_client.revoke_user_policy(username, policy)
+                        success = self.arborist_client.revoke_user_policy(
+                            username, policy
+                        )
             except ArboristError as e:
                 self.logger.error(
-                    f"Could not revoke user {username} policy {policy}. Revoking all instead: {e}"
+                    f"Could not revoke user {username} policy {policy}: {e}"
+                )
+            if not success:
+                # `revoke_user_policy` returns None in case of error
+                self.logger.error(
+                    f"Could not revoke user {username} policy. Revoking all instead."
                 )
                 is_revoke_all = True
 
         if is_revoke_all:
+            if (
+                remove_users_with_no_policies
+                and not incoming_policies
+                and not user_existing_policies
+            ):
+                # user without any access (other than anonymous and logged-in groups).
+                # cleanup: remove from the arborist DB so we do not check their access again every
+                # time this code runs.
+                self.logger.info(
+                    f"Deleting user {username} from Arborist (since they have no policies)."
+                )
+                self.arborist_client.delete_user(username)
+                return
+            success = False
             try:
+                # Note: If a user only has group policies, we call `revoke_all_policies_for_user`
+                # for nothing. Could be fixed by adding a flag to the arborist "get user" endpoint
+                # to get the list of policies _excluding_ group policies, or by manually checking
+                # which policies are group policies (not worth it atm).
                 self.logger.info(f"Revoking all policies for user {username}.")
-                self.arborist_client.revoke_all_policies_for_user(username)
+                success = self.arborist_client.revoke_all_policies_for_user(username)
             except ArboristError as e:
                 self.logger.error(
                     f"Could not revoke all policies for user {username}. Error: {e}"
                 )
-                return False
+            if not success:
+                # `revoke_all_policies_for_user` returns None in case of error
+                raise Exception(f"Could not revoke all policies for user {username}")
             to_add = incoming_policies  # if we revoke all, we need to add all incoming policies
 
         if (
@@ -2017,9 +2014,7 @@ class UserSyncer(object):
 
         if to_add:
             self.logger.info(f"Bulk granting user {username} policies {to_add}.")
-            return self._grant_bulk_user_policies(username, to_add, expires)
-
-        return True
+            self._grant_bulk_user_policies(username, to_add, expires)
 
     def _update_authz_in_arborist(
         self,
