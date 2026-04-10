@@ -283,7 +283,7 @@ def logout(next_url, force_era_global_logout=False):
                 )
             )
 
-            logger.info(f"Building the provider logout: {provider_logout}")
+    logger.info(f"Building the provider logout: {provider_logout}")
 
     flask.session.clear()
     redirect_response = flask.make_response(
