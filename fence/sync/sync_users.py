@@ -1934,7 +1934,7 @@ class UserSyncer(object):
             )
         except ArboristError as e:
             self.logger.error(
-                f"Could not get user {username} policies from Arborist: {e} Revoking all policies..."
+                f"Could not get user {username} policies from Arborist: {e}. Revoking all policies..."
             )
             # if getting existing policies fails, revoke all policies and re-apply
             is_revoke_all = True
@@ -2185,7 +2185,11 @@ class UserSyncer(object):
                                 self._created_policies.add(policy_id)
                             policy_ids_to_grant.add(policy_id)
                 self._grant_arborist_policies(
-                    username, policy_ids_to_grant, user_yaml=None, expires=expires
+                    username,
+                    policy_ids_to_grant,
+                    user_yaml=None,
+                    expires=expires,
+                    remove_users_with_no_policies=False,
                 )
 
             if user_yaml:
@@ -2195,7 +2199,11 @@ class UserSyncer(object):
                 )  # add policies from whitelist and useryaml
 
             self._grant_arborist_policies(
-                username, incoming_policies, user_yaml, expires=expires
+                username,
+                incoming_policies,
+                user_yaml,
+                expires=expires,
+                remove_users_with_no_policies=True,
             )
 
         if user_yaml:
@@ -2440,11 +2448,18 @@ class UserSyncer(object):
             bool: True if granting of policy was successful, False otherwise
         """
         try:
-            response_json = self.arborist_client.grant_user_policy(
+            resp = self.arborist_client.grant_user_policy(
                 username,
                 policy_id,
                 expires_at=expires,
             )
+            if not resp:
+                self.logger.error(
+                    "could not grant policy `{}` to user `{}`".format(
+                        policy_id, username
+                    )
+                )
+                return False
         except ArboristError as e:
             self.logger.error(
                 "could not grant policy `{}` to user `{}`: {}".format(
@@ -2471,12 +2486,17 @@ class UserSyncer(object):
             bool: True if granting of policies was successful, False otherwise
         """
         try:
-            response_json = self.arborist_client.grant_bulk_user_policy(
+            resp = self.arborist_client.grant_bulk_user_policy(
                 username, policy_ids, expires
             )
+            if not resp:
+                self.logger.error(
+                    "could not grant bulk policies to user `{}`".format(username)
+                )
+                return False
         except ArboristError as e:
             self.logger.error(
-                "could not grant bulk policies  to user `{}`: {}".format(username, e)
+                "could not grant bulk policies to user `{}`: {}".format(username, e)
             )
             return False
         except ArboristTimeoutError as e:
