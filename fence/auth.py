@@ -289,6 +289,7 @@ def logout(next_url, force_era_global_logout=False):
     redirect_response = flask.make_response(
         flask.redirect(provider_logout or urllib.parse.unquote(next_url))
     )
+    logger.info(f"Redirect Response: {redirect_response}")
     clear_cookies(redirect_response)
     return redirect_response
 
