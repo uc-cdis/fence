@@ -276,11 +276,12 @@ def logout(next_url, force_era_global_logout=False):
                 end_session_endpoint
                 + f"?client_id={idp_openid_connect["client_id"]}&logout_uri=https://qa-brh.planx-pla.net/login/cognito/login/&response_type=code"
             )
+            logger.info(f"Building the provider logout: {provider_logout}")
 
+    flask.session.clear()
     redirect_response = flask.make_response(
         flask.redirect(provider_logout or urllib.parse.unquote(next_url))
     )
-    flask.session.clear()
     clear_cookies(redirect_response)
     return redirect_response
 
