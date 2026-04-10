@@ -271,11 +271,18 @@ def logout(next_url, force_era_global_logout=False):
         if well_known_resp.status_code == requests.codes.ok:
             well_known = well_known_resp.json()
             end_session_endpoint = well_known.get("end_session_endpoint")
-
+            next_url = "https://qa-brh.planx-pla.net/login/cognito/login/"
             provider_logout = (
                 end_session_endpoint
-                + f"?client_id={idp_openid_connect["client_id"]}&logout_uri=https://qa-brh.planx-pla.net/login/cognito/login/&response_type=code"
+                + "?"
+                + urllib.parse.urlencode(
+                    {
+                        "client_id": idp_openid_connect["client_id"],
+                        "logout_uri": next_url,
+                    }
+                )
             )
+
             logger.info(f"Building the provider logout: {provider_logout}")
 
     flask.session.clear()
