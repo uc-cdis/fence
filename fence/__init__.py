@@ -57,6 +57,7 @@ from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
 from fence.error_handler import get_error_response
 from fence.utils import get_SQLAlchemyDriver
+from fence.utils import send_email_ses
 import fence.blueprints.admin
 import fence.blueprints.data
 import fence.blueprints.login
@@ -72,6 +73,7 @@ import fence.blueprints.register
 import fence.blueprints.ga4gh
 from pcdcutils.signature import SignatureManager
 from pcdcutils.errors import KeyPathInvalidError, NoKeyError
+from mailchimp_client import MailchimpClient
 
 
 app = flask.Flask(__name__)
@@ -369,6 +371,7 @@ def app_config(
     app.config.update(**config._configs)
 
     _setup_hubspot_key(app)
+    _setup_mailchimp_key(app)
     _setup_arborist_client(app)
     _setup_audit_service_client(app)
     _setup_data_endpoint_and_boto(app)
@@ -512,6 +515,25 @@ def _setup_hubspot_key(app):
             app.hubspot_api_key = config["HUBSPOT"]["API_KEY"]
         # else:
             #TODO throw error
+
+def _setup_mailchimp_key(app):
+    if app.config.get("MAILCHIMP"):
+        required_keys = ["API_KEY", "SERVER_PREFIX", "LIST_ID", "GROUP_CATEGORY_NAME"]
+        if all(app.config["MAILCHIMP"].get(k) for k in required_keys):
+            app.mailchimp = MailchimpClient(
+                api_key=app.config["MAILCHIMP"]["API_KEY"],
+                prefix=app.config["MAILCHIMP"]["SERVER_PREFIX"],
+                audience=app.config["MAILCHIMP"]["LIST_ID"],
+                category_name=app.config["MAILCHIMP"]["GROUP_CATEGORY_NAME"],
+                default_group_names=app.config["MAILCHIMP"].get("GROUP_NAMES", []),
+            )
+            return
+
+    msg = "Mailchimp not configured."
+    logger.warning(msg)
+    send_email_ses(f"{msg} ENV: {app.config["BASE_URL"]}", None, f"Fence configuration setup for {app.config["BASE_URL"]}")
+    app.mailchimp = None
+
 
 def _setup_audit_service_client(app):
     # Initialize the client regardless of whether audit logs are enabled. This

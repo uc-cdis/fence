@@ -953,8 +953,15 @@ AWS_SES:
   AWS_SECRET_KEY: ""
 
 HUBSPOT:
-  API_KEY: "DEV_KEY"
-  
+  API_KEY: ""
+
+MAILCHIMP:
+  API_KEY: ""
+  SERVER_PREFIX: ""
+  LIST_ID: "" 
+  GROUP_CATEGORY_NAME: "Applications"
+  GROUP_NAMES: [""]
+
 # //////////////////////////////////////////////////////////////////////////////////////
 # DATA ACCESS: GOOGLE LINKING & SERVICE ACCOUNT REGISTRATION
 #   - Support `/google/service_accounts` endpoints

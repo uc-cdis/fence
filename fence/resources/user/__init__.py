@@ -56,42 +56,38 @@ def update_user_resource(username, resource):
 
 
 def update_user(current_session, additional_info):
-    if not flask.current_app.hubspot_api_key:
+    if not flask.current_app.mailchimp:
         raise Exception(
-            "The Hubspot API key is missing."
+            "Mailchimp has not been set up correctly."
         )
 
-    #TODO revert comments for Hubspot
     additional_info_tmp = flask.g.user.additional_info.copy() if flask.g.user.additional_info else {}
     additional_info_tmp.update(additional_info)
-    # if flask.current_app.hubspot_api_key == "DEV_KEY":
-    #   use only fence, otherwise use hubspot
-    # hubspot_id = hubspot.update_user_info(flask.g.user.username, additional_info)
-    # additional_info_tmp = flask.g.user.additional_info or {}    
-    # additional_info_tmp["hubspot_id"] = hubspot_id
 
+    user = flask.current_app.arborist.get_user(flask.g.user.username)
+    logger.info("LUAAAAAAAAAAAAA")
+    logger.info(user)
+    if user:
+        msg = "User exists already, just an update."
+        logger.info(msg)
+    else:
+        msg = "This is a new user registering with MailChimp and Arborist."
+        logger.info(msg)
 
-    # TODO This is in case we want to maintain a double record in fence
-    # def merge_two_dicts(x, y):
-    #     z = x.copy()   # start with x's keys and values
-    #     z.update(y)    # modifies z with y's keys and values & returns None
-    #     return z
-    # additional_info_tmp = flask.g.user.additional_info or {}    
-    # additional_info_tmp = merge_two_dicts(additional_info_tmp, additional_info)
-    # additional_info_tmp["hubspot_id"] = 1
+        if additional_info_tmp == {}:
+            raise Exception(
+                "The user hasn't shared its information."
+            )
+        else:
+            register_arborist_user(flask.g.user)
+            flask.current_app.mailchimp.subscribe(
+                email=flask.g.user.username,
+                first_name=additional_info["firstName"],
+                last_name=additional_info["lastName"],
+                groups=["PCDC"]
+            )
 
     udm.update_user(current_session, flask.g.user.username, additional_info_tmp)
-
-    #TODO check if user is already in the system - you can get create_user_if_not_exist with new gen3authz version. 
-    # See if when you try to create a user with an email already in the system, it may throw an error
-    if additional_info_tmp == {}:
-        raise Exception(
-            "The user hasn't shared its information."
-        )
-    else:
-        register_arborist_user(flask.g.user)
-        
-
     return get_user_info(current_session, flask.g.user.username)
 
 
