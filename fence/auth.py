@@ -278,7 +278,7 @@ def logout(next_url, force_era_global_logout=False):
                 + urllib.parse.urlencode(
                     {
                         "client_id": idp_openid_connect["client_id"],
-                        "logout_uri": next_url,
+                        "redirect_uri": next_url,
                     }
                 )
             )
