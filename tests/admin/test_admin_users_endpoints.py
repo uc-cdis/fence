@@ -844,6 +844,89 @@ def test_soft_delete_user_user_not_found(
     )
 
 
+def test_reactivate_user_username(
+    client,
+    admin_user,
+    encoded_admin_jwt,
+    db_session,
+    load_non_google_user_data,
+    log_capture,
+):
+    """
+    Test reactivate user endpoint by deactivating a user first and then
+    calling the endpoint and checking that the result is an
+    activated user.
+    """
+    username = "test_user_d"
+    user = db_session.query(User).filter_by(username=username).one()
+    assert user.username == username
+    assert user.active == True
+    # call soft-delete to deactivate user first:
+    r = client.delete(
+        f"/admin/users/{username}/soft",
+        headers={"Authorization": "Bearer " + encoded_admin_jwt},
+    )
+    assert r.status_code == 200
+    user = db_session.query(User).filter_by(username=username).one()
+    assert user.username == username
+    assert user.active == False
+    # now reactivate user:
+    r = client.post(
+        f"/admin/users/{username}/reactivate",
+        headers={"Authorization": "Bearer " + encoded_admin_jwt},
+    )
+    assert r.status_code == 200
+    assert r.json["username"] == username
+    assert r.json["active"] == True
+    user = db_session.query(User).filter_by(username=username).one()
+    assert user.username == username
+    assert user.active == True
+    # also assert that the logs were recorded:
+    assert len(log_capture) >= 1
+    # Now check for the specific message:
+    messages = [f"{r.levelname} - {r.getMessage()}" for r in log_capture]
+    expected_log_message = f"INFO - Incoming request: user=admin_user, client=test-client, method=POST, endpoint=/admin/users/{username}/reactivate, request_url=/admin/users/{username}/reactivate"
+    assert expected_log_message in messages, (
+        f"\n{expected_log_message} -> not found in INFO logs. Actual messages:\n"
+        + "\n".join(messages)
+    )
+
+
+def test_reactivate_user_user_state_wrong(
+    client,
+    admin_user,
+    encoded_admin_jwt,
+    db_session,
+    load_non_google_user_data,
+    log_capture,
+):
+    """
+    Test reactivate user endpoint when the user is already active...
+    it should result in an error.
+    """
+    username = "test_user_d"
+    # assert user is active:
+    user = db_session.query(User).filter_by(username=username).one()
+    assert user.username == username
+    assert user.active == True
+    # now try reactivate user - should fail:
+    r = client.post(
+        f"/admin/users/{username}/reactivate",
+        headers={"Authorization": "Bearer " + encoded_admin_jwt},
+    )
+    assert r.status_code == 400
+    assert "Error: user is already active" in r.text
+    # also assert that the logs were recorded:
+    assert len(log_capture) >= 1
+    # Now check for the specific message:
+    messages = [f"{r.levelname} - {r.getMessage()}" for r in log_capture]
+    expected_log_message = f"INFO - Incoming request: user=admin_user, client=test-client, method=POST, endpoint=/admin/users/{username}/reactivate, request_url=/admin/users/{username}/reactivate"
+    assert expected_log_message in messages, (
+        f"\n{expected_log_message} -> not found in INFO logs. Actual messages:\n"
+        + "\n".join(messages)
+    )
+
+
 def test_delete_user_username(
     app,
     client,
