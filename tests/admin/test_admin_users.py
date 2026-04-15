@@ -126,6 +126,47 @@ def test_soft_delete_user_not_found(db_session, awg_users):
         adm.soft_delete_user(db_session, "non_existing_user")
 
 
+def test_reactivate_soft_deleted_user(db_session, awg_users):
+    """
+    Tests adm.reactivate_soft_deleted_user() by deactivating the user,
+    querying it again and asserting it is inactive, and then checking
+    it became active after it was reactivated.
+    """
+    username = "awg_user"
+    adm.soft_delete_user(db_session, username)
+    user = db_session.query(User).filter(User.username == username).first()
+    assert user != None
+    assert user.username == username
+    assert user.active == False
+    adm.reactivate_soft_deleted_user(db_session, username)
+    user = db_session.query(User).filter(User.username == username).first()
+    assert user != None
+    assert user.username == username
+    # reactivated user should have "active" explicitly set to True now:
+    assert user.active == True
+
+
+def test_reactivate_soft_deleted_user_when_user_state_wrong(db_session, awg_users):
+    """
+    Check that adm.reactivate_soft_deleted_user() fails when
+    user is not in soft-deleted state.
+    """
+    username = "awg_user"
+    user = db_session.query(User).filter(User.username == username).first()
+    assert user.active == True
+    with pytest.raises(UserError, match="Error: user is already active"):
+        adm.reactivate_soft_deleted_user(db_session, username)
+
+
+def test_reactivate_soft_deleted_user_when_user_not_found(db_session, awg_users):
+    """
+    Check that adm.reactivate_soft_deleted_user() fails with NotFound
+    when called for a username that is not found in db.
+    """
+    with pytest.raises(NotFound, match="user non_existing_user not found"):
+        adm.reactivate_soft_deleted_user(db_session, "non_existing_user")
+
+
 def test_update_user_without_conflict(db_session, awg_users, oauth_client):
     user = db_session.query(User).filter(User.username == "awg_user").first()
     assert user != None
