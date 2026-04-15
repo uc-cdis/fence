@@ -81,7 +81,7 @@ def get_signed_url_for_file(
     ga4gh_passports=None,
     db_session=None,
     bucket=None,
-    dr4s="False",
+    drs="False",
 ):
     requested_protocol = requested_protocol or flask.request.args.get("protocol", None)
     r_pays_project = flask.request.args.get("userProject", None)
