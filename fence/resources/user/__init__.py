@@ -57,34 +57,41 @@ def update_user_resource(username, resource):
 
 def update_user(current_session, additional_info):
     if not flask.current_app.mailchimp:
-        raise Exception(
-            "Mailchimp has not been set up correctly."
-        )
+        msg = "Mailchimp has not been set up correctly."
+        logger.error(msg)
+        # raise Exception(
+        #     "Mailchimp has not been set up correctly."
+        # )
 
-    additional_info_tmp = flask.g.user.additional_info.copy() if flask.g.user.additional_info else {}
-    additional_info_tmp.update(additional_info)
+    additional_info_tmp = (
+        flask.g.user.additional_info.copy() if flask.g.user.additional_info else {}
+    )
+    additional_info_tmp.update(additional_info or {})
 
-    user = flask.current_app.arborist.get_user(flask.g.user.username)
-    logger.info("LUAAAAAAAAAAAAA")
-    logger.info(user)
-    if user:
+    user = None
+    try:
+        user = flask.current_app.arborist.get_user(flask.g.user.username)
+        logger.info("LUAAAAAAAAAAAAA")
+        logger.info(user)
         msg = "User exists already, just an update."
         logger.info(msg)
-    else:
-        msg = "This is a new user registering with MailChimp and Arborist."
-        logger.info(msg)
+    except ArboristError as e:
+        if e.code != 404:
+            raise
 
-        if additional_info_tmp == {}:
-            raise Exception(
-                "The user hasn't shared its information."
-            )
-        else:
-            register_arborist_user(flask.g.user)
-            flask.current_app.mailchimp.subscribe(
-                email=flask.g.user.username,
-                first_name=additional_info["firstName"],
-                last_name=additional_info["lastName"]
-            )
+        logger.info(
+            "User %s not found in Arborist. Treating as new user.",
+            flask.g.user.username,
+        )
+        if not additional_info_tmp:
+            raise Exception("The user hasn't shared its information.")
+            
+        register_arborist_user(flask.g.user)
+        flask.current_app.mailchimp.subscribe(
+            email=flask.g.user.username,
+            first_name=additional_info_tmp.get("firstName", ""),
+            last_name=additional_info_tmp.get("lastName", "")
+        )
 
     udm.update_user(current_session, flask.g.user.username, additional_info_tmp)
     return get_user_info(current_session, flask.g.user.username)
