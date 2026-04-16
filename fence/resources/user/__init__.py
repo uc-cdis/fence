@@ -83,8 +83,7 @@ def update_user(current_session, additional_info):
             flask.current_app.mailchimp.subscribe(
                 email=flask.g.user.username,
                 first_name=additional_info["firstName"],
-                last_name=additional_info["lastName"],
-                groups=["PCDC"]
+                last_name=additional_info["lastName"]
             )
 
     udm.update_user(current_session, flask.g.user.username, additional_info_tmp)
