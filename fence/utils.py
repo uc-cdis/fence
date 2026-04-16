@@ -15,6 +15,7 @@ import sys
 from cdislogging import get_logger
 import flask
 from werkzeug.datastructures import ImmutableMultiDict
+from botocore.exceptions import ClientError
 
 from fence.models import Client, User, query_for_user
 from fence.errors import NotFound, UserError
@@ -397,8 +398,9 @@ def send_email_ses(body, to_emails, subject):
             },
             Source=sender,
         )
-    except UserError as e:
+    except ClientError as e:
         print(e.response['Error']['Message'])
+        raise
     else:
         print("Email sent! Message ID:"),
         print(response['MessageId'])

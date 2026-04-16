@@ -71,6 +71,7 @@ import fence.blueprints.google
 import fence.blueprints.privacy
 import fence.blueprints.register
 import fence.blueprints.ga4gh
+
 from pcdcutils.signature import SignatureManager
 from pcdcutils.errors import KeyPathInvalidError, NoKeyError
 from mailchimp_client import MailchimpClient
@@ -531,8 +532,15 @@ def _setup_mailchimp_key(app):
 
     msg = "Mailchimp not configured."
     logger.warning(msg)
-    send_email_ses(f"{msg} ENV: {app.config["BASE_URL"]}", None, f"Fence configuration setup for {app.config["BASE_URL"]}")
     app.mailchimp = None
+    try:
+        send_email_ses(
+            body=f"{msg} ENV: {app.config['BASE_URL']}",
+            to_emails=None,
+            subject=f"Fence configuration setup for {app.config['BASE_URL']}",
+        )
+    except Exception as e:
+        logger.exception("Failed to send Mailchimp configuration alert email: %s", e)
 
 
 def _setup_audit_service_client(app):
