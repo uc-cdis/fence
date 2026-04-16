@@ -397,7 +397,7 @@ def send_email_ses(body, to_emails, subject):
             },
             Source=sender,
         )
-    except ClientError as e:
+    except UserError as e:
         print(e.response['Error']['Message'])
     else:
         print("Email sent! Message ID:"),
