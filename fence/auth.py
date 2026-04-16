@@ -262,7 +262,7 @@ def logout(next_url, force_era_global_logout=False):
     elif provider == IdentityProvider.fence:
         base = config["OPENID_CONNECT"]["fence"]["api_base_url"]
         provider_logout = base + "/logout?" + urllib.parse.urlencode({"next": next_url})
-    else:
+    elif provider == "cognito":
         idp_openid_connect = config["OPENID_CONNECT"][provider]
         well_known_url = idp_openid_connect["discovery_url"]
         well_known_resp = requests.get(well_known_url)
