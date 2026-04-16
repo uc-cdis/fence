@@ -286,9 +286,12 @@ def logout(next_url, force_era_global_logout=False):
     logger.info(f"Building the provider logout: {provider_logout}")
 
     flask.session.clear()
-    redirect_response = flask.make_response(
-        flask.redirect(provider_logout or urllib.parse.unquote(next_url))
-    )
+    try:
+        redirect_response = flask.make_response(
+            flask.redirect(provider_logout or urllib.parse.unquote(next_url))
+        )
+    except Exception as e:
+        print(f"Error logging out: {e}")
     clear_cookies(redirect_response)
     return redirect_response
 
