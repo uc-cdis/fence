@@ -71,8 +71,6 @@ def update_user(current_session, additional_info):
     user = None
     try:
         user = flask.current_app.arborist.get_user(flask.g.user.username)
-        logger.info("LUAAAAAAAAAAAAA")
-        logger.info(user)
         msg = "User exists already, just an update."
         logger.info(msg)
     except ArboristError as e:
