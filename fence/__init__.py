@@ -175,7 +175,6 @@ def app_register_blueprints(app):
     @app.route("/logout")
     def logout_endpoint():
         print("=======================================================")
-        print(f"Session contents at logout: {dict(flask.session)}")
         print(f"Request headers: {dict(flask.request.headers)}")
         print(f"next param: {flask.request.args.get('next')}")
         print("=======================================================")
