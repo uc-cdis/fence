@@ -266,12 +266,9 @@ def logout(next_url, force_era_global_logout=False):
         idp_openid_connect = config["OPENID_CONNECT"][provider]
         well_known_url = idp_openid_connect["discovery_url"]
         well_known_resp = requests.get(well_known_url)
-        redirect_url = idp_openid_connect.get("redirect_url", "")
-
         if well_known_resp.status_code == requests.codes.ok:
             well_known = well_known_resp.json()
             end_session_endpoint = well_known.get("end_session_endpoint")
-            next_url = "https://qa-brh.planx-pla.net/login/cognito/login/"
             provider_logout = (
                 end_session_endpoint
                 + "?"
