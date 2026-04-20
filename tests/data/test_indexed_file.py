@@ -398,6 +398,65 @@ def test_get_signed_url_s3_bucket_name(mock_get_value, s3_indexed_file_location,
                 assert "validbucketname-alreadyvalid" in result_url
 
 
+@patch("fence.blueprints.data.indexd.get_value")
+def test_explicit_over_regex(mock_get_value, app):
+    """
+    Test that an explicit bucket name is preferred over a regex pattern
+    """
+    s3_file_location = S3IndexedFileLocation(
+        url="s3://foo-bar-datacommons/some_folder/somefile.txt"
+    )
+    mock_get_value.side_effect = lambda config, key, error: {
+        "S3_BUCKETS": {
+            "foo-bar-.*": {
+                "cred": "fence-bot",
+                "region": "us-east-1",
+            },
+            "foo-bar-datacommons": {
+                "cred": "fence-bot",
+                "role-arn": "arn:aws:iam::12345:role/foobar",
+                "region": "us-east-1",
+            },
+        },
+        "AWS_CREDENTIALS": {
+            "fence-bot": {
+                "aws_access_key_id": "key",
+                "aws_secret_access_key": "secret",
+            }
+        },
+    }.get(key, error)
+
+    assert s3_file_location.bucket_name() == "foo-bar-datacommons"
+
+
+@patch("fence.blueprints.data.indexd.get_value")
+def test_regex_match_when_no_explicit(mock_get_value, app):
+    """
+    Test that a regex pattern is used when no explicit bucket exists
+    """
+    s3_file_location = S3IndexedFileLocation(
+        url="s3://foo-bar-xyz/some_folder/somefile.txt"
+    )
+    mock_get_value.side_effect = lambda config, key, error: {
+        "S3_BUCKETS": {
+            "foo-bar-.*": {
+                "cred": "fence-bot",
+                "region": "us-east-1",
+            },
+            "fizz-buzz-datacommons": {
+                "cred": "fence-bot",
+                "role-arn": "arn:aws:iam::12345:role/fizzbuzz",
+                "region": "us-east-1",
+            },
+        },
+        "AWS_CREDENTIALS": {
+            "fence-bot": {"aws_access_key_id": "key", "aws_secret_access_key": "secret"}
+        },
+    }.get(key, error)
+
+    assert s3_file_location.bucket_name() == "foo-bar-.*"
+
+
 @pytest.mark.parametrize("supported_action", ["download"], indirect=True)
 def test_internal_get_signed_url_no_location_match(
     app, supported_action, supported_protocol, indexd_client_accepting_record
