@@ -5,7 +5,7 @@ import collections
 import asyncio
 from unittest.mock import MagicMock, patch, call
 import mock
-from userdatamodel.user import IdentityProvider
+import time
 
 from gen3authz.client.arborist.errors import ArboristError
 
@@ -1270,3 +1270,60 @@ def test_sync_grant_arborist_policies_arborist_errors(
     syncer.arborist_client.revoke_all_policies_for_user.assert_called_once_with(
         "TESTUSERB"
     )
+
+
+@pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
+def test_sync_single_user_visas_updates_arborist_with_child_study(
+    syncer,
+    db_session,
+    monkeypatch,
+):
+    """
+    Verify that sync_single_user_visas updates arborist with child study permissions based on
+    parent_to_child_studies_mapping
+    """
+
+    parent_to_child_studies_mapping = {"phs000991": ["phs099991"]}
+    monkeypatch.setattr(
+        syncer, "parent_to_child_studies_mapping", parent_to_child_studies_mapping
+    )
+
+    user = models.User(username="testuser")
+    user.id = 123
+
+    visa = MagicMock()
+    visa.ga4gh_visa = "encoded-visa"
+    visa.expires = int(time.time()) + 1000
+
+    fake_visa_type = MagicMock()
+    fake_visa_type._parse_single_visa.return_value = (
+        {
+            "phs000991.c1": ["read", "read-storage"],
+        },
+        {},
+    )
+
+    monkeypatch.setattr(
+        syncer, "_pick_sync_type", MagicMock(return_value=fake_visa_type)
+    )
+    monkeypatch.setattr(syncer, "sync_to_storage_backend", MagicMock())
+
+    expected_user_projects = {
+        "testuser": {
+            "phs000991.c1": {"read", "read-storage"},
+            "phs099991.c1": {"read", "read-storage"},
+        }
+    }
+
+    syncer.arborist_client = MagicMock()
+    syncer._update_authz_in_arborist = MagicMock(return_value=True)
+
+    syncer.sync_single_user_visas(
+        user=user,
+        ga4gh_visas=[visa],
+        sess=db_session,
+    )
+
+    actual_user_projects = syncer._update_authz_in_arborist.call_args.args[1]
+    assert actual_user_projects == expected_user_projects
+    assert "phs099991.c1" in actual_user_projects["testuser"]
