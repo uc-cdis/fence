@@ -287,7 +287,7 @@ def logout(next_url, force_era_global_logout=False):
         redirect_response = flask.make_response(
             flask.redirect(provider_logout or urllib.parse.unquote(next_url))
         )
-        redirect_response.headers["Access-Control-Allow-Origin"] = next_url
+        redirect_response.headers["Access-Control-Allow-Origin"] = "*"
     except Exception as e:
         print(f"Error logging out: {e}")
     clear_cookies(redirect_response)
