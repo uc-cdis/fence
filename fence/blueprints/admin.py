@@ -145,6 +145,19 @@ def soft_delete_user(username):
     response = jsonify(admin.soft_delete_user(current_app.scoped_session(), username))
     return response
 
+@blueprint.route("/users/<username>/reactivate", methods=["POST"])
+@blueprint.route("/user/<username>/reactivate", methods=["POST"])
+@admin_login_required
+@enable_request_logging
+def reactivate_user(username):
+    """
+    Reverts the soft-remove done by soft_delete_user above, marking the user active=True.
+
+    Returns json object
+    """
+    response = jsonify(admin.reactivate_soft_deleted_user(current_app.scoped_session(), username))
+    return response
+
 
 @blueprint.route("/users/<username>/groups", methods=["GET"])
 @blueprint.route("/user/<username>/groups", methods=["GET"])

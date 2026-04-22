@@ -4,8 +4,8 @@ import json
 import boto3
 from botocore.client import Config
 from urllib.parse import urlparse, ParseResult, urlunparse
-from datetime import datetime, timedelta
-
+from datetime import datetime, timedelta, UTC
+from sqlalchemy import text
 from sqlalchemy.sql.functions import user
 from cached_property import cached_property
 import gen3cirrus
@@ -109,6 +109,8 @@ def get_signed_url_for_file(
     x_forwarded_headers = [
         f"{header}:{value}" for header, value in flask.request.headers if "X-" in header
     ]
+    user_agent = f"User-Agent:{flask.request.headers.get('User-Agent')}"
+    audit_headers = x_forwarded_headers + [user_agent]
     # add the user details to `flask.g.audit_data` first, so they are
     # included in the audit log if `IndexedFile(file_id)` raises a 404
     if users_from_passports:
@@ -121,7 +123,7 @@ def get_signed_url_for_file(
                 audit_data = {
                     "username": username,
                     "sub": user.id,
-                    "additional_data": x_forwarded_headers,
+                    "additional_data": audit_headers or [],
                 }
                 logger.info(
                     f"passport with multiple user ids is attempting data access. audit log: {audit_data}"
@@ -131,7 +133,7 @@ def get_signed_url_for_file(
             flask.g.audit_data = {
                 "username": username,
                 "sub": user.id,
-                "additional_data": x_forwarded_headers,
+                "additional_data": audit_headers or [],
             }
     else:
         auth_info = _get_auth_info_for_id_or_from_request(
@@ -140,9 +142,8 @@ def get_signed_url_for_file(
         flask.g.audit_data = {
             "username": auth_info["username"],
             "sub": auth_info["user_id"],
-            "additional_data": x_forwarded_headers,
+            "additional_data": audit_headers or [],
         }
-
     indexed_file = IndexedFile(file_id)
     default_expires_in = config.get("MAX_PRESIGNED_URL_TTL", 3600)
     expires_in = get_valid_expiration_from_request(
@@ -169,7 +170,6 @@ def get_signed_url_for_file(
             "username": authorized_user_from_passport.username,
             "sub": authorized_user_from_passport.id,
         }
-
     _log_signed_url_data_info(
         indexed_file=indexed_file,
         user_sub=flask.g.audit_data.get("sub", ""),
@@ -773,6 +773,7 @@ class IndexedFile(object):
         Return:
             Response (str: message, int: status code)
         """
+
         locations_to_delete = []
         if not urls and delete_all:
             locations_to_delete = self.indexed_file_locations
@@ -805,6 +806,7 @@ class IndexedFile(object):
 
     @login_required({"data"})
     def delete(self):
+
         rev = self.index_document["rev"]
         path = "{}/index/{}".format(self.indexd_server, self.file_id)
         auth = (config["INDEXD_USERNAME"], config["INDEXD_PASSWORD"])
@@ -957,7 +959,8 @@ class S3IndexedFileLocation(IndexedFileLocation):
         if hasattr(flask.current_app, "db"):  # we don't have db in startup
             with flask.current_app.db.session as session:
                 session.execute(
-                    """\
+                    text(
+                        """\
                     INSERT INTO assume_role_cache (
                         arn,
                         expires_at,
@@ -974,7 +977,8 @@ class S3IndexedFileLocation(IndexedFileLocation):
                         expires_at = EXCLUDED.expires_at,
                         aws_access_key_id = EXCLUDED.aws_access_key_id,
                         aws_secret_access_key = EXCLUDED.aws_secret_access_key,
-                        aws_session_token = EXCLUDED.aws_session_token;""",
+                        aws_session_token = EXCLUDED.aws_session_token;"""
+                    ),
                     dict(arn=role_arn, expires_at=expires_at, **rv),
                 )
         return rv
@@ -989,6 +993,10 @@ class S3IndexedFileLocation(IndexedFileLocation):
             "S3_BUCKETS",
             InternalError("S3_BUCKETS not configured"),
         )
+        explicit_match = self.parsed_url.netloc
+        if explicit_match in s3_buckets:
+            return explicit_match
+
         for bucket in s3_buckets:
             if re.match("^" + bucket + "$", self.parsed_url.netloc):
                 return bucket
@@ -1263,7 +1271,6 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
         resource_path = self.get_resource_path()
 
         auth_info = _get_auth_info_for_id_or_from_request(user=authorized_user)
-
         if not force_signed_url:
             url = "https://storage.cloud.google.com/" + resource_path
         elif _is_anonymous_user(auth_info):
@@ -1379,6 +1386,7 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
             #       If our scheduled maintainence script removes the url-signing key
             #       before the expiration of the url then the url will NOT work
             #       (even though the url itself isn't expired)
+
             if key_db_entry.expires < expiration_time:
                 private_key = create_primary_service_account_key(
                     user_id=user_id, username=username, proxy_group_id=proxy_group_id
@@ -1398,7 +1406,8 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                     # we don't need to populate gcp_key_db_entry anymore, it was for
                     # expiration, but now we have a specific field for that.
                     session.execute(
-                        """\
+                        text(
+                            """\
                         INSERT INTO gcp_assume_role_cache (
                             expires_at,
                             gcp_proxy_group_id,
@@ -1413,7 +1422,8 @@ class GoogleStorageIndexedFileLocation(IndexedFileLocation):
                             expires_at = EXCLUDED.expires_at,
                             gcp_proxy_group_id = EXCLUDED.gcp_proxy_group_id,
                             gcp_private_key = EXCLUDED.gcp_private_key,
-                            gcp_key_db_entry = EXCLUDED.gcp_key_db_entry;""",
+                            gcp_key_db_entry = EXCLUDED.gcp_key_db_entry;"""
+                        ),
                         db_entry,
                     )
 
@@ -1476,7 +1486,7 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
         :param str blob_name:
             Name of blob.
         :param int expires_in:
-            The SAS token will expire in a given number of seconds from datetime.utcnow()
+            The SAS token will expire in a given number of seconds from datetime.now(UTC)
         :param str azure_creds:
             The Azure Blob Storage Account connection string
         :param AccountSasPermissions permission:
@@ -1500,7 +1510,7 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
             account_key=blob_service_client.credential.account_key,
             resource_types=ResourceTypes(object=True),
             permission=permission,
-            expiry=datetime.utcnow() + timedelta(seconds=expires_in),
+            expiry=datetime.now(UTC) + timedelta(seconds=expires_in),
         )
 
         sas_url = converted_url + "?" + sas_query
@@ -1576,7 +1586,7 @@ class AzureBlobStorageIndexedFileLocation(IndexedFileLocation):
         :param str action:
             Get a signed url for an action like "upload" or "download".
         :param int expires_in:
-            The SAS token will expire in a given number of seconds from datetime.utcnow()
+            The SAS token will expire in a given number of seconds from datetime.now(UTC)
         :param bool force_signed_url:
             Enforce signing the URL for the Azure Blob Storage Account using a SAS token.
             The default is True.
@@ -1746,5 +1756,7 @@ def verify_data_upload_bucket_configuration(bucket):
     s3_buckets = flask.current_app.config["ALLOWED_DATA_UPLOAD_BUCKETS"]
     if bucket not in s3_buckets:
         logger.error(f"Bucket '{bucket}' not in ALLOWED_DATA_UPLOAD_BUCKETS config")
-        logger.debug(f"Buckets configgured in ALLOWED_DATA_UPLOAD_BUCKETS {s3_buckets}")
+        logger.debug(
+            f"Buckets configgured in ALLOWED_DATA_UPLOAD_BUCKETS: {s3_buckets}"
+        )
         raise Forbidden(f"Uploading to bucket '{bucket}' is not allowed")

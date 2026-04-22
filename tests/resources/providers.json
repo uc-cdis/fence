@@ -1,48 +1,46 @@
 {
-"providers":
-    [
-	{
-	    "name": "provider_a",
-	    "backend": "cleversafe",
-	    "service": "storage"
-	},
-	{
-	    "name": "provider_b",
-	    "backend": "cleversafe",
-	    "service": "storage"
-	},
-	{
-	    "name": "test-cleversafe",
-	    "backend": "cleversafe",
-	    "service": "storage"
-	}
-    ],
-"users":
-    {
-	"user_one":
-	{
-	    "email": "notreal@pepe.com",
-	    "is_admin": false
-	}
-    },
-"projects":
-    [
-	{
-	    "name": "project_with_bucket",
-	    "auth_id": "project_with_bucket_phs",
-	    "storage_access": ["test-cleversafe"],
-	    "users": [
+	"providers": [
 		{
-		    "name": "user_one",
-		    "privileges": "read-storage"
-		}
-	    ],
-	    "buckets": [
+			"name": "provider_a",
+			"backend": "cleversafe",
+			"service": "storage"
+		},
 		{
-		    "name": "first_bucket",
-		    "provider": "test-cleversafe"
+			"name": "provider_b",
+			"backend": "cleversafe",
+			"service": "storage"
+		},
+		{
+			"name": "test-cleversafe",
+			"backend": "cleversafe",
+			"service": "storage"
 		}
-	    ]
-	}
-    ]
+	],
+	"users": {
+		"user_one": {
+			"email": "notreal@pepe.com",
+			"is_admin": false
+		}
+	},
+	"projects": [
+		{
+			"name": "project_with_bucket",
+			"auth_id": "project_with_bucket_phs",
+			"storage_access": [
+				"test-cleversafe"
+			],
+			"users": [
+				{
+					"name": "user_one",
+					"privileges": "read-storage"
+				}
+			],
+			"buckets": [
+				{
+					"name": "first_bucket",
+					"provider": "test-cleversafe"
+				}
+			]
+		}
+	]
 }

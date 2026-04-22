@@ -36,7 +36,6 @@ def delete_data_file(file_id):
         file_id (str): GUID of file to delete
     """
     record = IndexedFile(file_id)
-
     authz = record.index_document.get("authz")
     has_correct_authz = None
     if authz:
@@ -51,6 +50,7 @@ def delete_data_file(file_id):
         # Don't fall back on uploader -- this prevents users from escalating from edit to
         # delete permissions by changing the uploader field to their own username
         # (b/c users only have edit access through arborist/authz)
+
         if has_correct_authz:
             logger.info("Deleting record and files for {}".format(file_id))
             message, status_code = record.delete_files(delete_all=True)
@@ -91,7 +91,6 @@ def delete_data_file(file_id):
             403,
         )
     logger.info("deleting record and files for {}".format(file_id))
-
     message, status_code = record.delete_files(delete_all=True)
     if str(status_code)[0] != "2":
         return flask.jsonify({"message": message}), status_code

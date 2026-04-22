@@ -10,7 +10,7 @@ import os
 import copy
 import time
 import flask
-from datetime import datetime
+from datetime import datetime, UTC
 import mock
 import uuid
 import random
@@ -26,6 +26,7 @@ from authutils.testing.fixtures import (
     rsa_public_key,
     rsa_public_key_2,
 )
+from cdislogging import get_logger
 from cryptography.fernet import Fernet
 import bcrypt
 import jwt
@@ -49,7 +50,6 @@ from fence.resources.openid.microsoft_oauth2 import MicrosoftOauth2Client
 from fence.jwt.validate import validate_jwt
 
 import tests
-from tests import test_settings
 from tests import utils
 from tests.utils import TEST_RAS_SUB
 from tests.utils.oauth2.client import OAuth2TestClient
@@ -58,6 +58,17 @@ from tests.storageclient.storage_client_mock import get_client
 
 # Allow authlib to use HTTP for local testing.
 os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "true"
+
+
+logger = get_logger(__name__)
+
+
+# Python 3.13+ turns async methods on spec'ed mocks into AsyncMocks.
+# Our tests expect normal MagicMocks instead, so we override `_get_child_mock`
+# to always return MagicMocks and avoid automatic AsyncMock creation.
+class NoAsyncMagicMock(MagicMock):
+    def _get_child_mock(self, **kwargs):
+        return MagicMock(**kwargs)
 
 
 # some tests run on all the IdPs for which a login blueprint exists
@@ -245,7 +256,7 @@ class FakeContainerServiceClient:
         """
         return {
             "name": self.container_name,
-            "last_modified": datetime.utcnow(),
+            "last_modified": datetime.now(UTC),
             "public_access": None,
         }
 
@@ -395,6 +406,7 @@ def mock_arborist_requests(request):
         urls_to_responses = urls_to_responses or {}
         defaults = {
             "arborist/health": {"GET": ("", 200)},
+            "arborist/user/admin_user": {"GET": ("", 200), "DELETE": ("", 204)},
             "arborist/auth/mapping": {"POST": ({}, "200")},
             "arborist/group": {
                 "GET": (
@@ -403,16 +415,24 @@ def mock_arborist_requests(request):
                 )
             },
         }
-        defaults.update(urls_to_responses)
-        urls_to_responses = defaults
+        # the provided `urls_to_responses` override the defaults
+        for url in defaults.keys():
+            if url in urls_to_responses:
+                urls_to_responses[url] = defaults[url] | urls_to_responses[url]
+            else:
+                urls_to_responses[url] = defaults[url]
 
         def response_for(method, url, *args, **kwargs):
             method = method.upper()
             mocked_response = MagicMock(requests.Response)
             if url not in urls_to_responses:
+                logger.debug(f"[mock_arborist_requests] URL '{url}' not configured")
                 mocked_response.status_code = 404
                 mocked_response.text = "NOT FOUND"
             elif method not in urls_to_responses[url]:
+                logger.debug(
+                    f"[mock_arborist_requests] Method '{method}' not configured for URL '{url}'"
+                )
                 mocked_response.status_code = 405
                 mocked_response.text = "METHOD NOT ALLOWED"
             else:
@@ -454,7 +474,6 @@ def app(kid, rsa_private_key, rsa_public_key):
     ]
     app_init(
         fence.app,
-        test_settings,
         root_dir=root_dir,
         config_path=os.path.join(root_dir, "test-fence-config.yaml"),
     )
@@ -577,7 +596,7 @@ def db(app, request):
         connection.begin()
         for table in reversed(models.Base.metadata.sorted_tables):
             # Delete table only if it exists
-            if app.db.engine.dialect.has_table(connection, table):
+            if app.db.engine.dialect.has_table(connection, table.name):
                 connection.execute(table.delete())
         connection.close()
 

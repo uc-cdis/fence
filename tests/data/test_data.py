@@ -3,6 +3,7 @@ import time
 
 from datetime import datetime, timedelta
 from unittest.mock import MagicMock, patch
+from sqlalchemy import text
 
 import urllib.parse
 import uuid
@@ -1378,7 +1379,8 @@ def test_assume_role_cache(
 
     with flask.current_app.db.session as session:
         session.execute(
-            "UPDATE assume_role_cache SET expires_at = :ts", dict(ts=time.time() - 10)
+            text("UPDATE assume_role_cache SET expires_at = :ts"),
+            dict(ts=time.time() - 10),
         )
     response = client.get(path, headers=headers, query_string=query_string)
     assert response.status_code == 200
@@ -1495,10 +1497,6 @@ def test_delete_file_locations(
     arborist_requests_mocker = mock.patch(
         "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
     )
-    mock_indexed_file_delete_file = mock.patch(
-        "fence.blueprints.data.indexd.IndexedFile.delete_files",
-        mock.MagicMock(return_value=("", 204)),
-    )
     mock_index_document = mock.patch(
         "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
     )
@@ -1509,9 +1507,8 @@ def test_delete_file_locations(
     )
 
     mock_index_document.start()
-    mock_indexed_file_delete_file.start()
     mock_check_auth.start()
-    mock_boto_delete = mock.MagicMock()
+    mock_boto_delete = mock.MagicMock(return_value=("", 204))
     monkeypatch.setattr(app.boto, "delete_data_file", mock_boto_delete)
 
     class MockResponse(object):
@@ -1533,11 +1530,11 @@ def test_delete_file_locations(
         headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
         response = client.delete("/data/{}".format(did), headers=headers)
         assert response.status_code == 204
-        assert mock_boto_delete.called_once()
+        mock_delete.assert_called_once()
+        mock_boto_delete.assert_called_once()
 
     mock_check_auth.stop()
     mock_index_document.stop()
-    mock_indexed_file_delete_file.stop()
 
 
 def test_delete_file_locations_by_uploader(
@@ -1565,34 +1562,16 @@ def test_delete_file_locations_by_uploader(
     mock_index_document = mock.patch(
         "fence.blueprints.data.indexd.IndexedFile.index_document", index_document
     )
-    mock_indexed_file_delete_file = mock.patch(
-        "fence.blueprints.data.indexd.IndexedFile.delete_files",
-        mock.MagicMock(return_value=("", 204)),
-    )
     mock_check_auth = mock.patch.object(
         fence.blueprints.data.indexd.IndexedFile,
         "check_legacy_authorization",
         return_value=True,
     )
 
-    class FakeGCM(object):
-        def __enter__(self):
-            return self
-
-        def __exit__(self, a, b, c):
-            return
-
-        def delete_data_file(self, bucket, file_id):
-            return "", 200
-
-    mock_gcm = mock.patch(
-        "fence.blueprints.data.indexd.GoogleCloudManager", return_value=FakeGCM()
-    )
-
     mock_index_document.start()
-    mock_indexed_file_delete_file.start()
     mock_check_auth.start()
     mock_boto_delete = mock.MagicMock()
+    mock_boto_delete.return_value = ("", 204)
     monkeypatch.setattr(app.boto, "delete_data_file", mock_boto_delete)
 
     class MockResponse(object):
@@ -1608,17 +1587,17 @@ def test_delete_file_locations_by_uploader(
     mock_delete = mock.MagicMock(requests.put, return_value=mock_delete_response)
     with mock.patch(
         "fence.blueprints.data.indexd.requests.delete", mock_delete
-    ), arborist_requests_mocker as arborist_requests, mock_gcm as mock_gcm_2:
+    ), arborist_requests_mocker as arborist_requests:
         arborist_requests.return_value = MockResponse({"auth": True})
         arborist_requests.return_value.status_code = 200
         headers = {"Authorization": "Bearer " + encoded_creds_jwt.jwt}
         response = client.delete("/data/{}".format(did), headers=headers)
         assert response.status_code == 204
-        assert mock_boto_delete.called_once()
+        mock_delete.assert_called_once()
+        mock_boto_delete.assert_called_once()
 
     mock_check_auth.stop()
     mock_index_document.stop()
-    mock_indexed_file_delete_file.stop()
 
 
 def test_blank_index_upload_unauthorized(

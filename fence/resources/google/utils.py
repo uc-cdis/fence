@@ -86,6 +86,7 @@ def get_or_create_primary_service_account_key(
         sa_private_key = create_primary_service_account_key(
             user_id, username, proxy_group_id, expires
         )
+
         user_service_account_key = _get_primary_service_account_key(
             user_id, username, proxy_group_id
         )

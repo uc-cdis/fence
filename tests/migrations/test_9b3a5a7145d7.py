@@ -5,7 +5,7 @@
 from alembic.config import main as alembic_main
 import pytest
 from sqlalchemy.exc import IntegrityError
-from sqlalchemy import inspect
+from sqlalchemy import inspect, text
 
 from fence.models import Client
 from fence.utils import random_str
@@ -42,20 +42,24 @@ def test_upgrade(app):
         )
         if constraint_exists:
             db_session.execute(
-                """
+                text(
+                    """
                 ALTER TABLE google_service_account
-                DROP CONSTRAINT google_service_account_client_id_fkey;
+                DROP CONSTRAINT google_service_account_client_id_fkey
                 """
+                )
             )
             db_session.commit()
 
         db_session.execute(
-            """
+            text(
+                """
             ALTER TABLE google_service_account
             ADD CONSTRAINT google_service_account_client_id_fkey
             FOREIGN KEY (client_id)
-            REFERENCES client(client_id);
+            REFERENCES client(client_id)
             """
+            )
         )
         db_session.commit()
 
@@ -121,10 +125,12 @@ def test_upgrade_without_fk_constraint(app):
 
         if constraint_exists:
             db_session.execute(
-                """
+                text(
+                    """
                 ALTER TABLE google_service_account
-                DROP CONSTRAINT google_service_account_client_id_fkey;
+                DROP CONSTRAINT google_service_account_client_id_fkey
                 """
+                )
             )
             db_session.commit()
 

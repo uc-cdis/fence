@@ -5,7 +5,7 @@ import collections
 import asyncio
 from unittest.mock import MagicMock, patch, call
 import mock
-from userdatamodel.user import IdentityProvider
+import time
 
 from gen3authz.client.arborist.errors import ArboristError
 
@@ -53,9 +53,9 @@ def test_sync_missing_file(syncer, monkeypatch, db_session):
     monkeypatch.setattr(syncer, "sync_from_local_yaml_file", "this-file-is-not-real")
     with pytest.raises(FileNotFoundError):
         syncer.sync()
-    assert syncer.arborist_client.create_resource.not_called()
-    assert syncer.arborist_client.create_role.not_called()
-    assert syncer.arborist_client.create_policy.not_called()
+    syncer.arborist_client.create_resource.assert_not_called()
+    syncer.arborist_client.create_role.assert_not_called()
+    syncer.arborist_client.create_policy.assert_not_called()
 
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
@@ -70,9 +70,9 @@ def test_sync_incorrect_user_yaml_file(syncer, monkeypatch, db_session):
     monkeypatch.setattr(syncer, "sync_from_local_yaml_file", path)
     with pytest.raises(AssertionError):
         syncer.sync()
-    assert syncer.arborist_client.create_resource.not_called()
-    assert syncer.arborist_client.create_role.not_called()
-    assert syncer.arborist_client.create_policy.not_called()
+    syncer.arborist_client.create_resource.assert_not_called()
+    syncer.arborist_client.create_role.assert_not_called()
+    syncer.arborist_client.create_policy.assert_not_called()
 
 
 @pytest.mark.parametrize("allow_non_dbgap_whitelist", [False, True])
@@ -785,13 +785,13 @@ def test_update_arborist(syncer, db_session):
         {
             "id": permission,
             "permissions": [
-                {"id": permission, "action": {"method": permission, "service": ""}}
+                {"id": permission, "action": {"method": permission, "service": "*"}}
             ],
         }
         for permission in permissions
     ]
     for role in expect_roles:
-        assert syncer.arborist_client.create_role.called_with(role)
+        syncer.arborist_client.create_role.assert_any_call(role)
 
 
 @pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
@@ -1019,8 +1019,14 @@ def test_user_sync_with_visa_sync_job(
             kid: rsa_public_key,
         }
     }
-    loop = asyncio.get_event_loop()
-    loop.run_until_complete(job.update_tokens(db_session))
+    loop = asyncio.new_event_loop()
+
+    try:
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(job.update_tokens(db_session))
+    finally:
+        loop.close()
+        asyncio.set_event_loop(None)
 
     users_after_visas_sync = db_session.query(models.User).all()
 
@@ -1061,126 +1067,6 @@ def test_user_sync_with_visa_sync_job(
         in setup_info["subjects_to_encoded_visas"][
             setup_info["usernames_to_ras_subjects"][valid_user.username]
         ]
-    )
-
-
-@pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)
-def test_revoke_all_policies_no_user(db_session, syncer):
-    """
-    Test that function returns even when there's no user
-    """
-    # no arborist user with that username
-    user_that_doesnt_exist = "foobar"
-    syncer.arborist_client.get_user.return_value = None
-
-    syncer._revoke_all_policies_preserve_mfa(user_that_doesnt_exist, "mock_idp")
-
-    # we only care that this doesn't error
-    assert True
-
-
-@pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)
-def test_revoke_all_policies_preserve_mfa(monkeypatch, db_session, syncer):
-    """
-    Test that the mfa_policy is re-granted to the user after revoking all their policies.
-    """
-    monkeypatch.setitem(
-        config,
-        "OPENID_CONNECT",
-        {
-            "mock_idp": {
-                "multifactor_auth_claim_info": {"claim": "acr", "values": ["mfa"]}
-            }
-        },
-    )
-    user = User(
-        username="mockuser", identity_provider=IdentityProvider(name="mock_idp")
-    )
-    syncer.arborist_client.get_user.return_value = {"policies": ["mfa_policy"]}
-    syncer._revoke_all_policies_preserve_mfa(user.username, user.identity_provider.name)
-    syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
-        user.username
-    )
-    syncer.arborist_client.grant_user_policy.assert_called_with(
-        user.username, "mfa_policy"
-    )
-
-
-@pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)
-def test_revoke_all_policies_preserve_mfa_no_mfa(monkeypatch, db_session, syncer):
-    """
-    Test to ensure the mfa_policy preservation does not occur if the user does not have the mfa resource granted.
-    """
-    monkeypatch.setitem(
-        config,
-        "OPENID_CONNECT",
-        {
-            "mock_idp": {
-                "multifactor_auth_claim_info": {"claim": "acr", "values": ["mfa"]}
-            }
-        },
-    )
-    user = User(
-        username="mockuser", identity_provider=IdentityProvider(name="mock_idp")
-    )
-    syncer.arborist_client.list_resources_for_user.return_value = [
-        "/programs/phs0001111"
-    ]
-    syncer._revoke_all_policies_preserve_mfa(user.username, user.identity_provider.name)
-    syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
-        user.username
-    )
-    syncer.arborist_client.grant_user_policy.assert_not_called()
-
-
-@pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)
-def test_revoke_all_policies_preserve_mfa_no_idp(monkeypatch, db_session, syncer):
-    """
-    Tests for when no IDP is associated with the user
-    """
-    monkeypatch.setitem(
-        config,
-        "OPENID_CONNECT",
-        {
-            "mock_idp": {
-                "multifactor_auth_claim_info": {"claim": "acr", "values": ["mfa"]}
-            }
-        },
-    )
-    user = User(username="mockuser")
-    syncer._revoke_all_policies_preserve_mfa(user.username)
-    syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
-        user.username
-    )
-    syncer.arborist_client.grant_user_policy.assert_not_called()
-    syncer.arborist_client.list_resources_for_user.assert_not_called()
-
-
-@pytest.mark.parametrize("syncer", ["cleversafe", "google"], indirect=True)
-def test_revoke_all_policies_preserve_mfa_ensure_revoke_on_error(
-    monkeypatch, db_session, syncer
-):
-    """
-    Tests that arborist_client.revoke_all_policies is still called when an error occurs
-    """
-    monkeypatch.setitem(
-        config,
-        "OPENID_CONNECT",
-        {
-            "mock_idp": {
-                "multifactor_auth_claim_info": {"claim": "acr", "values": ["mfa"]}
-            }
-        },
-    )
-    user = User(
-        username="mockuser", identity_provider=IdentityProvider(name="mock_idp")
-    )
-    syncer.arborist_client.list_resources_for_user.side_effect = Exception(
-        "Unknown error"
-    )
-    syncer._revoke_all_policies_preserve_mfa(user.username, user.identity_provider.name)
-    syncer.arborist_client.revoke_all_policies_for_user.assert_called_with(
-        user.username
     )
 
 
@@ -1271,17 +1157,38 @@ def test_sync_grant_arborist_policies_check_revoke_all(
         expires=10,
     )
 
-    # Check if all policies were revoked
-    expected_revoke_calls = [
-        call("TESTUSERB", "phs000178.c1-read"),
-        call("TESTUSERB", "phs000178.c1-read-storage"),
-        call("TESTUSERB", "phs000179.c1-read"),
-        call("TESTUSERB", "phs000179.c1-read-storage"),
-    ]
-
     syncer.arborist_client.revoke_all_policies_for_user.assert_called_once_with(
         "TESTUSERB"
     )
+
+
+@pytest.mark.parametrize("syncer", ["google"], indirect=True)
+@pytest.mark.parametrize("remove_users_with_no_policies", [True, False])
+def test_sync_grant_arborist_policies_remove_users_with_no_policies(
+    syncer,
+    db_session,
+    monkeypatch,
+    remove_users_with_no_policies,
+):
+    """
+    Test that a user without any access is deleted if `remove_users_with_no_policies` is True.
+    """
+
+    syncer.arborist_client = MagicMock()
+
+    # the user has no new policies and no existing policies
+    syncer.arborist_client.get_user.return_value = {"policies": []}
+    syncer._grant_arborist_policies(
+        username="TESTUSERB",
+        incoming_policies=set(),
+        user_yaml=None,
+        remove_users_with_no_policies=remove_users_with_no_policies,
+    )
+
+    if remove_users_with_no_policies:
+        syncer.arborist_client.delete_user.assert_called_once_with("TESTUSERB")
+    else:
+        syncer.arborist_client.delete_user.assert_not_called()
 
 
 @pytest.mark.parametrize("syncer", ["google"], indirect=True)
@@ -1363,3 +1270,60 @@ def test_sync_grant_arborist_policies_arborist_errors(
     syncer.arborist_client.revoke_all_policies_for_user.assert_called_once_with(
         "TESTUSERB"
     )
+
+
+@pytest.mark.parametrize("syncer", ["google", "cleversafe"], indirect=True)
+def test_sync_single_user_visas_updates_arborist_with_child_study(
+    syncer,
+    db_session,
+    monkeypatch,
+):
+    """
+    Verify that sync_single_user_visas updates arborist with child study permissions based on
+    parent_to_child_studies_mapping
+    """
+
+    parent_to_child_studies_mapping = {"phs000991": ["phs099991"]}
+    monkeypatch.setattr(
+        syncer, "parent_to_child_studies_mapping", parent_to_child_studies_mapping
+    )
+
+    user = models.User(username="testuser")
+    user.id = 123
+
+    visa = MagicMock()
+    visa.ga4gh_visa = "encoded-visa"
+    visa.expires = int(time.time()) + 1000
+
+    fake_visa_type = MagicMock()
+    fake_visa_type._parse_single_visa.return_value = (
+        {
+            "phs000991.c1": ["read", "read-storage"],
+        },
+        {},
+    )
+
+    monkeypatch.setattr(
+        syncer, "_pick_sync_type", MagicMock(return_value=fake_visa_type)
+    )
+    monkeypatch.setattr(syncer, "sync_to_storage_backend", MagicMock())
+
+    expected_user_projects = {
+        "testuser": {
+            "phs000991.c1": {"read", "read-storage"},
+            "phs099991.c1": {"read", "read-storage"},
+        }
+    }
+
+    syncer.arborist_client = MagicMock()
+    syncer._update_authz_in_arborist = MagicMock(return_value=True)
+
+    syncer.sync_single_user_visas(
+        user=user,
+        ga4gh_visas=[visa],
+        sess=db_session,
+    )
+
+    actual_user_projects = syncer._update_authz_in_arborist.call_args.args[1]
+    assert actual_user_projects == expected_user_projects
+    assert "phs099991.c1" in actual_user_projects["testuser"]

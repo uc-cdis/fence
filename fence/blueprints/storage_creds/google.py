@@ -1,8 +1,7 @@
-from datetime import datetime
+from datetime import datetime, UTC
 import flask
 import re
 import time
-from distutils.util import strtobool
 from flask_restful import Resource
 from flask import current_app
 
@@ -22,7 +21,7 @@ from fence.resources.google.utils import (
     get_or_create_proxy_group_id,
     give_service_account_billing_access_if_necessary,
 )
-from fence.utils import get_valid_expiration_from_request
+from fence.utils import get_valid_expiration_from_request, strtobool
 
 from cdislogging import get_logger
 
@@ -81,7 +80,7 @@ class GoogleCredentialsList(Resource):
             keys = g_cloud_manager.get_service_account_keys_info(service_account.email)
 
             # replace Google's expiration date by the one in our DB
-            reg = re.compile(".+\/keys\/(.+)")  # get key_id from xx/keys/key_id
+            reg = re.compile(r".+\/keys\/(.+)")  # get key_id from xx/keys/key_id
             for i, key in enumerate(keys):
                 key_id = reg.findall(key["name"])[0]
                 db_entry = (
@@ -94,7 +93,7 @@ class GoogleCredentialsList(Resource):
 
                 if db_entry:
                     # convert timestamp to date - use the same format as Google API
-                    exp_date = datetime.utcfromtimestamp(db_entry.expires).strftime(
+                    exp_date = datetime.fromtimestamp(db_entry.expires, UTC).strftime(
                         "%Y-%m-%dT%H:%M:%SZ"
                     )
                     key["validBeforeTime"] = exp_date

@@ -4,7 +4,6 @@ import os
 
 # the whole fence_create module is imported to avoid issues with circular imports
 import fence.scripting.fence_create
-from distutils.util import strtobool
 from urllib.parse import urlparse, parse_qs
 
 from cdislogging import get_logger
@@ -15,7 +14,7 @@ from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callbac
 from fence.config import config
 from fence.errors import InternalError
 from fence.models import IdentityProvider
-from fence.utils import get_valid_expiration
+from fence.utils import get_valid_expiration, strtobool
 import fence.resources.ga4gh.passports
 
 

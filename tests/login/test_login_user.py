@@ -1,7 +1,11 @@
 from unittest import mock
 import flask
 import pytest
-from fence.auth import login_user_or_require_registration, logout
+from fence.auth import (
+    _identify_user_and_update_database,
+    login_user_or_require_registration,
+    logout,
+)
 from fence.models import User, IdentityProvider
 import time
 from datetime import datetime
@@ -63,7 +67,7 @@ def test_login_failure_for_user_already_in_db_but_inactive(db_session):
         )
 
 
-def test_login_user_with_idp_already_in_db(db_session):
+def test_login_user_with_idp_already_in_db(db_session, monkeypatch):
     """
     Test that if a user is already in the database, has identity_provider
     configured, and logs in, the session will contain the user's information.
@@ -72,6 +76,11 @@ def test_login_user_with_idp_already_in_db(db_session):
     provider = "Test Provider"
     id_from_idp = "Provider_ID_0001"
 
+    deny_regex = (
+        "badactor@example.com|(.*@.*(hotmail|icloud|inbox|outlook|yeah|yahoo).*)"
+    )
+
+    monkeypatch.setitem(config, "GLOBAL_USERNAME_DENY_REGEX", deny_regex)
     test_user = User(
         username=email, email=email, id_from_idp=id_from_idp, is_admin=False
     )
@@ -94,6 +103,90 @@ def test_login_user_with_idp_already_in_db(db_session):
     assert flask.session["provider"] == provider
     assert flask.session["user_id"] == user_id
     assert flask.g.user == test_user
+
+
+@pytest.mark.parametrize(
+    "username",
+    [
+        "example@gmail.com",
+        "example@gmail.org",
+        "example@subdomain.gmail.com",
+        "example@subdomain.gmail.org",
+        "example.com.org.gmail@subdomain.gmail.org",
+        "ASDALKSJD(*)!&@#(*&^DFGA@gmail.com",
+        "badactor@example.com",
+    ],
+)
+def test_login_user_with_denied_username(db_session, username, monkeypatch):
+    """
+    Test that usernames that are configured to be denied are actually denied
+    """
+    user = "testuser"
+    email = "example@example.com"
+    provider = "Test Provider"
+    id_from_idp = "Provider_ID_0001"
+
+    deny_regex = "badactor@example.com|(.*@.*(126|163|aol|bk|foxmail|gmail|hotmail|icloud|inbox|live|mail|mailinator|outlook|proton|qq|rambler|sina|yeah|yahoo|yandex).*)"
+
+    monkeypatch.setitem(config, "GLOBAL_USERNAME_DENY_REGEX", deny_regex)
+    test_user = User(
+        username=username,
+        email=email,
+        id_from_idp=id_from_idp,
+        is_admin=False,
+    )
+    test_idp = IdentityProvider(name=provider)
+    test_user.identity_provider = test_idp
+
+    db_session.add(test_user)
+    db_session.commit()
+
+    with pytest.raises(Unauthorized):
+        _identify_user_and_update_database(
+            user, username, provider, email=email, id_from_idp=id_from_idp
+        )
+
+
+@pytest.mark.parametrize(
+    "username",
+    [
+        "example@uchicago.edu",
+        "example@fed.gov",
+        "example@subdomain.uchicago.edu",
+        "example@subdomain.fed.gov",
+        "example.com.org@subdomain.university.edu",
+        "ASDALKSJD(*)!&@#(*&^DFGA@uchicago.edu",
+        "goodactor@example.com",
+    ],
+)
+def test_login_user_with_allowed_username(db_session, username, monkeypatch):
+    """
+    Test that valid usernames are not denied
+    """
+    user = "testuser"
+    email = "example@example.com"
+    provider = "Test Provider"
+    id_from_idp = "Provider_ID_0001"
+
+    deny_regex = "badactor@example.com|(.*@.*(126|163|aol|bk|foxmail|gmail|hotmail|icloud|inbox|live|mail|mailinator|outlook|proton|qq|rambler|sina|yeah|yahoo|yandex).*)"
+
+    monkeypatch.setitem(config, "GLOBAL_USERNAME_DENY_REGEX", deny_regex)
+    test_user = User(
+        username=username,
+        email=email,
+        id_from_idp=id_from_idp,
+        is_admin=False,
+    )
+    test_idp = IdentityProvider(name=provider)
+    test_user.identity_provider = test_idp
+
+    db_session.add(test_user)
+    db_session.commit()
+
+    is_logged_in = login_user_or_require_registration(
+        email, provider, email=email, id_from_idp=id_from_idp
+    )
+    assert is_logged_in
 
 
 @mock.patch("fence.auth.get_ip_information_string")

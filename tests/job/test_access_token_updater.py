@@ -144,7 +144,7 @@ def test_updater(
     run_async(updater_queue.put(mock_users[0]))
 
     # Mock the client to return a valid update process
-    mock_oidc_clients[0].update_user_authorization = AsyncMock()
+    mock_oidc_clients[0].update_user_authorization = MagicMock()
 
     # Ensure _pick_client returns the correct client
     with patch.object(

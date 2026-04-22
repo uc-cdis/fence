@@ -1,4 +1,5 @@
 from cdiserrors import UnhealthyCheck
+from sqlalchemy import text
 import flask
 
 from fence.version_data import VERSION, COMMIT
@@ -12,7 +13,7 @@ def register_misc(app):
         """
         with flask.current_app.db.session as session:
             try:
-                session.execute("SELECT 1")
+                session.execute(text("SELECT 1"))
             except Exception:
                 raise UnhealthyCheck("Unhealthy")
 

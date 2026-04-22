@@ -13,7 +13,7 @@ from fence.auth import login_user_or_require_registration, get_ip_information_st
 from fence.blueprints.login.redirect import validate_redirect
 from fence.blueprints.register import add_user_registration_info_to_database
 from fence.config import config
-from fence.errors import UserError
+from fence.errors import UserError, Unauthorized
 from fence.metrics import metrics
 
 
@@ -318,10 +318,10 @@ class DefaultOAuth2Callback(Resource):
                     return
                 else:
                     logger.info(f"Revoking mfa_policy for {username}")
-                    self.app.arborist.revoke_user_policy(
+                    assert self.app.arborist.revoke_user_policy(
                         username=username,
                         policy_id="mfa_policy",
-                    )
+                    ), f"Could not revoke user {username} policy mfa_policy"
 
 
 def prepare_login_log(idp_name):

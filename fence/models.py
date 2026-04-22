@@ -152,7 +152,7 @@ def get_client_expires_at(expires_in, grant_types):
 
         # for backwards compatibility, 0 means no expiration
         if expires_in != 0:
-            # do not use `datetime.utcnow()` or the timestamp will be wrong,
+            # do not use `datetime.now(UTC)` or the timestamp will be wrong,
             # `timestamp()` already converts to UTC
             expires_at = (datetime.now() + timedelta(days=expires_in)).timestamp()
 

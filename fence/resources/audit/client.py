@@ -11,7 +11,7 @@ from fence.resources.audit.utils import is_audit_enabled
 from fence.utils import DEFAULT_BACKOFF_SETTINGS
 
 
-AUDIT_SCHEMA_CACHE = SimpleCache(default_timeout=86400)  # cached for 24h
+AUDIT_SCHEMA_CACHE = SimpleCache(default_timeout=1800)  # cached for 30m
 
 
 class AuditServiceClient:

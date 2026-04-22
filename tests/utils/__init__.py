@@ -111,7 +111,7 @@ def create_awg_user(users, db_session):
                 grp.description = group_desc
                 s.add(grp)
                 s.flush()
-            UserToGroup(group=grp, user=user)
+            s.add(UserToGroup(group=grp, user=user))
             for projectname in group["projects"]:
                 gap = (
                     s.query(AccessPrivilege)
@@ -263,7 +263,7 @@ def default_claims():
         "iat": iat,
         "exp": exp,
         "jti": jti,
-        "azp": "",
+        "azp": "test-client",
         "scope": ["openid", "user"],
         "context": {
             "user": {
@@ -293,7 +293,7 @@ def unauthorized_context_claims(user_name, user_id):
         "iat": iat,
         "exp": exp,
         "jti": jti,
-        "azp": "",
+        "azp": "test-client",
         "scope": ["access", "data", "user", "openid"],
         "context": {
             "user": {
@@ -325,7 +325,7 @@ def authorized_download_context_claims(user_name, user_id):
         "iat": iat,
         "exp": exp,
         "jti": jti,
-        "azp": "",
+        "azp": "test-client",
         "pur": "access",
         "scope": ["access", "data", "user", "openid"],
         "context": {
