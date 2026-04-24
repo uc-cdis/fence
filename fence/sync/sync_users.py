@@ -1534,6 +1534,15 @@ class UserSyncer(object):
 
                     dbgap_project += "." + consent_code
 
+                self._add_children_for_dbgap_project(
+                    dbgap_project,
+                    privileges,
+                    username,
+                    sess,
+                    user_projects_to_modify,
+                    dbgap_config,
+                )
+
                 self._process_dbgap_project(
                     dbgap_project,
                     privileges,
