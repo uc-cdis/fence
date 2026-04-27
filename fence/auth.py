@@ -264,7 +264,7 @@ def logout(next_url, force_era_global_logout=False):
         provider_logout = base + "/logout?" + urllib.parse.urlencode({"next": next_url})
     # elif provider == "cognito":
     else:
-        idp_openid_connect = config["OPENID_CONNECT"][provider]
+        idp_openid_connect = config["OPENID_CONNECT"]["cognito"]
         well_known_url = idp_openid_connect["discovery_url"]
         well_known_resp = requests.get(well_known_url)
         if well_known_resp.status_code == requests.codes.ok:
