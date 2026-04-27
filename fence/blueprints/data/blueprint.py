@@ -367,16 +367,6 @@ def download_bulk_files():
     results = bulk_get_signed_url_for_file(guids)
 
     return flask.jsonify(results)
-    # results = {}
-    # results["urls"] = []
-    # for g in guids:
-    #     result = get_signed_url_for_file("download", g)
-    #     if not "redirect" in flask.request.args or not "url" in result:
-    #         # return flask.jsonify(result)
-    #         results["urls"].append(result)
-    #     else:
-    #         results["urls"].append(result["url"])
-    # return flask.jsonify(results)
 
 
 @blueprint.route(
