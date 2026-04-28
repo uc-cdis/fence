@@ -13,6 +13,7 @@ from authutils.token.validate import (
     validate_request,
 )
 from cdislogging import get_logger
+import requests
 
 from fence.authz.auth import check_arborist_auth
 from fence.config import config
@@ -22,7 +23,6 @@ from fence.models import User, IdentityProvider, query_for_user
 from fence.user import get_current_user
 from fence.utils import clear_cookies
 from fence.config import config
-import requests
 
 logger = get_logger(__name__)
 
@@ -254,16 +254,13 @@ def logout(next_url, force_era_global_logout=False):
     provider_logout = None
     provider = flask.session.get("provider")
 
-    logger.info(f"Checking provider: {provider}")
-
     if force_era_global_logout or provider == IdentityProvider.itrust:
         safe_url = urllib.parse.quote_plus(next_url)
         provider_logout = config["ITRUST_GLOBAL_LOGOUT"] + safe_url
     elif provider == IdentityProvider.fence:
         base = config["OPENID_CONNECT"]["fence"]["api_base_url"]
         provider_logout = base + "/logout?" + urllib.parse.urlencode({"next": next_url})
-    # elif provider == "cognito":
-    else:
+    elif provider == "cognito":
         idp_openid_connect = config["OPENID_CONNECT"]["cognito"]
         well_known_url = idp_openid_connect["discovery_url"]
         well_known_resp = requests.get(well_known_url)
@@ -276,12 +273,10 @@ def logout(next_url, force_era_global_logout=False):
                 + urllib.parse.urlencode(
                     {
                         "client_id": idp_openid_connect["client_id"],
-                        "logout_uri": next_url,
+                        "logout_uri": next_url,  # NOTE: This needs to be set up in the cognito console for an allowed sign-out url
                     }
                 )
             )
-
-    logger.info(f"Building the provider logout: {provider_logout}")
 
     flask.session.clear()
     try:

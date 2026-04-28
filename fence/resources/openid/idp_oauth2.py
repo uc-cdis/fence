@@ -566,19 +566,3 @@ class Oauth2ClientBase(object):
                 self.logger.warning(
                     f"is_authz_groups_sync_enabled feature is enabled, but did not receive groups from idp {self.idp} for user: {user.username}"
                 )
-
-    def get_logout(self):
-        end_session_endpoint = self.get_value_from_discovery_doc(
-            "end_session_endpoint", ""
-        )
-        params = {
-            "client_id": self.settings.get("client_id"),
-            "redirect_uri": config.get("BASE_URL", ""),
-            "response_type": "code",
-        }
-        try:
-            self.logger.info("Attempting to log out...")
-            end_session_request = requests.get(url=end_session_endpoint, params=params)
-            self.logger.info(f"Logout response: {end_session_request}")
-        except Exception as e:
-            self.logger.exception(f"Log out failed from {self.idp}: {e}")

@@ -174,11 +174,6 @@ def app_register_blueprints(app):
 
     @app.route("/logout")
     def logout_endpoint():
-        print("=======================================================")
-        print(f"Request headers: {dict(flask.request.headers)}")
-        print(f"next param: {flask.request.args.get('next')}")
-        print("=======================================================")
-
         root = config.get("BASE_URL", "")
         request_next = flask.request.args.get("next", root)
         force_era_global_logout = (
