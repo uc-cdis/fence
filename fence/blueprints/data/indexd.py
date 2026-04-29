@@ -109,6 +109,8 @@ def get_signed_url_for_file(
     x_forwarded_headers = [
         f"{header}:{value}" for header, value in flask.request.headers if "X-" in header
     ]
+    user_agent = f"User-Agent:{flask.request.headers.get("User-Agent")}"
+    audit_headers = x_forwarded_headers + [user_agent]
     # add the user details to `flask.g.audit_data` first, so they are
     # included in the audit log if `IndexedFile(file_id)` raises a 404
     if users_from_passports:
@@ -121,7 +123,7 @@ def get_signed_url_for_file(
                 audit_data = {
                     "username": username,
                     "sub": user.id,
-                    "additional_data": x_forwarded_headers,
+                    "additional_data": audit_headers or [],
                 }
                 logger.info(
                     f"passport with multiple user ids is attempting data access. audit log: {audit_data}"
@@ -131,7 +133,7 @@ def get_signed_url_for_file(
             flask.g.audit_data = {
                 "username": username,
                 "sub": user.id,
-                "additional_data": x_forwarded_headers,
+                "additional_data": audit_headers or [],
             }
     else:
         auth_info = _get_auth_info_for_id_or_from_request(
@@ -140,7 +142,7 @@ def get_signed_url_for_file(
         flask.g.audit_data = {
             "username": auth_info["username"],
             "sub": auth_info["user_id"],
-            "additional_data": x_forwarded_headers,
+            "additional_data": audit_headers or [],
         }
     indexed_file = IndexedFile(file_id)
     default_expires_in = config.get("MAX_PRESIGNED_URL_TTL", 3600)

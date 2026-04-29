@@ -26,6 +26,7 @@ from authutils.testing.fixtures import (
     rsa_public_key,
     rsa_public_key_2,
 )
+from cdislogging import get_logger
 from cryptography.fernet import Fernet
 import bcrypt
 import jwt
@@ -57,6 +58,9 @@ from tests.storageclient.storage_client_mock import get_client
 
 # Allow authlib to use HTTP for local testing.
 os.environ["AUTHLIB_INSECURE_TRANSPORT"] = "true"
+
+
+logger = get_logger(__name__)
 
 
 # Python 3.13+ turns async methods on spec'ed mocks into AsyncMocks.
@@ -402,6 +406,7 @@ def mock_arborist_requests(request):
         urls_to_responses = urls_to_responses or {}
         defaults = {
             "arborist/health": {"GET": ("", 200)},
+            "arborist/user/admin_user": {"GET": ("", 200), "DELETE": ("", 204)},
             "arborist/auth/mapping": {"POST": ({}, "200")},
             "arborist/group": {
                 "GET": (
@@ -410,16 +415,24 @@ def mock_arborist_requests(request):
                 )
             },
         }
-        defaults.update(urls_to_responses)
-        urls_to_responses = defaults
+        # the provided `urls_to_responses` override the defaults
+        for url in defaults.keys():
+            if url in urls_to_responses:
+                urls_to_responses[url] = defaults[url] | urls_to_responses[url]
+            else:
+                urls_to_responses[url] = defaults[url]
 
         def response_for(method, url, *args, **kwargs):
             method = method.upper()
             mocked_response = MagicMock(requests.Response)
             if url not in urls_to_responses:
+                logger.debug(f"[mock_arborist_requests] URL '{url}' not configured")
                 mocked_response.status_code = 404
                 mocked_response.text = "NOT FOUND"
             elif method not in urls_to_responses[url]:
+                logger.debug(
+                    f"[mock_arborist_requests] Method '{method}' not configured for URL '{url}'"
+                )
                 mocked_response.status_code = 405
                 mocked_response.text = "METHOD NOT ALLOWED"
             else:
