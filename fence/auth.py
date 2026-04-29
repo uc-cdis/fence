@@ -279,23 +279,21 @@ def logout(next_url, force_era_global_logout=False):
     elif provider == "cognito":
         idp_openid_connect = config["OPENID_CONNECT"]["cognito"]
         try:
+            well_known = None
             well_known_resp = get_openid_config_for_idp(idp_openid_connect)
             well_known = well_known_resp.json()
         except requests.exceptions.HTTPError as e:
             logger.error(
                 f"Well-known endpoint returned an error status after multiple retries, Cognito Session not invalidated, Logging out of Gen3. Error: {e}"
             )
-            well_known = None
         except requests.exceptions.ConnectionError as e:
             logger.error(
                 f"Could not connect to well-known endpoint, Cognito Session not invalidated, Logging out of Gen3. Error: {e} "
             )
-            well_known = None
         except Exception as e:
             logger.error(
                 f"Error occured trying to get well-known, Cognito Session not invalidated, Logging out from Gen3. Error: {e}"
             )
-            well_known = None
         if well_known:
             end_session_endpoint = well_known.get("end_session_endpoint")
             if end_session_endpoint:

@@ -99,6 +99,9 @@ def test_logout_fence(app, client, user_with_fence_provider, monkeypatch):
 
 
 def test_logout_cognito(client, db_session):
+    """
+    Test /logout endpoint successfully redirect for logout with cognito
+    """
     redirect = "https://test-url.com"
     mock_well_known = {"end_session_endpoint": "https://cognito.example.com/logout"}
     r = client.get("/user/")
@@ -117,6 +120,9 @@ def test_logout_cognito(client, db_session):
 
 
 def test_logout_cognito_http_error_next_url_fallback(client, db_session):
+    """
+    Test /logout endpoint falls back to next_url when cognito well-known returns http error
+    """
     redirect = "https://test-url.com"
     r = client.get("/user/")
     with client.session_transaction() as session:
@@ -136,6 +142,9 @@ def test_logout_cognito_http_error_next_url_fallback(client, db_session):
 
 
 def test_logout_cognito_connection_error_next_url_fallback(client, db_session):
+    """
+    Test /logout endpoint falls back to next_url when cognito well-known has connection error
+    """
     redirect = "https://test-url.com"
     r = client.get("/user/")
     with client.session_transaction() as session:
