@@ -252,11 +252,8 @@ def get_openid_config_for_idp(open_id_connect):
     """
     well_known_url = open_id_connect["discovery_url"]
     well_known_resp = requests.get(well_known_url)
-    if well_known_resp.status_code == requests.codes.ok:
-        return well_known_resp
-    raise Exception(
-        f"Failed to fetch well-known config, status: {well_known_resp.status_code}"
-    )
+    well_known_resp.raise_for_status()
+    return well_known_resp
 
 
 def logout(next_url, force_era_global_logout=False):
@@ -284,6 +281,22 @@ def logout(next_url, force_era_global_logout=False):
         try:
             well_known_resp = get_openid_config_for_idp(idp_openid_connect)
             well_known = well_known_resp.json()
+        except requests.exceptions.HTTPError as e:
+            logger.error(
+                f"Well-known endpoint returned an error status after multiple retries, Cognito Session not invalidated, Logging out of Gen3. Error: {e}"
+            )
+            well_known = None
+        except requests.exceptions.ConnectionError as e:
+            logger.error(
+                f"Could not connect to well-known endpoint, Cognito Session not invalidated, Logging out of Gen3. Error: {e} "
+            )
+            well_known = None
+        except Exception as e:
+            logger.error(
+                f"Error occured trying to get well-known, Cognito Session not invalidated, Logging out from Gen3. Error: {e}"
+            )
+            well_known = None
+        if well_known:
             end_session_endpoint = well_known.get("end_session_endpoint")
             if end_session_endpoint:
                 provider_logout = (
@@ -297,9 +310,9 @@ def logout(next_url, force_era_global_logout=False):
                     )
                 )
             else:
-                logger.error("end_session_endpoint not found in well-known config")
-        except Exception as e:
-            logger.error(f"Failed to get openid config after retries: {e}")
+                logger.error(
+                    "end_session_endpoint not found in well-known config. Cognito Session not invalidated. Logging out from Gen3"
+                )
 
     flask.session.clear()
     try:
