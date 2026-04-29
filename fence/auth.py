@@ -2,6 +2,7 @@ import re
 import urllib.request, urllib.parse, urllib.error
 from datetime import datetime
 from functools import wraps
+from json import JSONDecodeError
 
 import backoff
 import flask
@@ -278,8 +279,8 @@ def logout(next_url, force_era_global_logout=False):
         provider_logout = base + "/logout?" + urllib.parse.urlencode({"next": next_url})
     elif provider == "cognito":
         idp_openid_connect = config["OPENID_CONNECT"]["cognito"]
+        well_known = None
         try:
-            well_known = None
             well_known_resp = get_openid_config_for_idp(idp_openid_connect)
             well_known = well_known_resp.json()
         except requests.exceptions.HTTPError as e:
@@ -289,6 +290,10 @@ def logout(next_url, force_era_global_logout=False):
         except requests.exceptions.ConnectionError as e:
             logger.error(
                 f"Could not connect to well-known endpoint, Cognito Session not invalidated, Logging out of Gen3. Error: {e} "
+            )
+        except JSONDecodeError as e:
+            logger.error(
+                f"Invalid JSON resonse from well-known, Cognito Session not invalidated, Logging out of Gen3. Error: {e}"
             )
         except Exception as e:
             logger.error(
