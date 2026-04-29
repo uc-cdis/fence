@@ -74,6 +74,7 @@ httpx = ">=0.28.1"
 urllib3 = ">=2.6.3, <3"
 pcdcutils = {git = "https://github.com/chicagopcdc/pcdcutils.git", rev = "0.5.3"}
 mailchimp-client = {git = "https://github.com/chicagopcdc/mailchimpClient.git", rev = "0.1.0"}
+packaging = "26.2"
 
 
 [tool.poetry.group.dev.dependencies]
