@@ -23,6 +23,9 @@ FROM base AS builder
 
 USER gen3
 
+RUN rm -rf /venv && python -m venv /venv
+ENV PATH="/venv/bin:$PATH"
+
 # copy ONLY poetry artifact, install the dependencies but not the app;
 # this will make sure that the dependencies are cached
 COPY poetry.lock pyproject.toml /${appname}/
