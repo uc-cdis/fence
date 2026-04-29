@@ -21,6 +21,9 @@ RUN mkdir -p /amanuensis
 # ------ Builder stage ------
 FROM base AS builder
 
+USER root
+RUN chown -R gen3:gen3 /venv 
+
 USER gen3
 ENV POETRY_VIRTUALENVS_CREATE=false
 
