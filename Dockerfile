@@ -44,8 +44,6 @@ RUN poetry install --without dev --no-interaction
 RUN git config --global --add safe.directory ${appname} && COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" > $appname/version_data.py \
     && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >> $appname/version_data.py
 
-RUN chown -R gen3:gen3 /venv || true
-
 
 # ------ Final stage ------
 FROM base
