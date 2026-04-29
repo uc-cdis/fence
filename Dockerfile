@@ -22,6 +22,7 @@ RUN mkdir -p /amanuensis
 FROM base AS builder
 
 USER gen3
+ENV POETRY_VIRTUALENVS_CREATE=false
 
 # copy ONLY poetry artifact, install the dependencies but not the app;
 # this will make sure that the dependencies are cached
@@ -40,13 +41,15 @@ RUN poetry install --without dev --no-interaction
 RUN git config --global --add safe.directory ${appname} && COMMIT=`git rev-parse HEAD` && echo "COMMIT=\"${COMMIT}\"" > $appname/version_data.py \
     && VERSION=`git describe --always --tags` && echo "VERSION=\"${VERSION}\"" >> $appname/version_data.py
 
+RUN chown -R gen3:gen3 /venv || true
 
 
 # ------ Final stage ------
 FROM base
 
 # Import global virtualenv from builder
-COPY --from=builder /venv /venv
+# COPY --from=builder /venv /venv
+COPY --from=builder --chown=gen3:gen3 /venv /venv
 ENV PATH="/venv/bin:$PATH"
 
 # FIXME: Remove this when it's in the base image
