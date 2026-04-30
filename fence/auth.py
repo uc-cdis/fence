@@ -308,7 +308,7 @@ def logout(next_url, force_era_global_logout=False):
             # NOTE: discovery url for cognito is different than the cognito api domain url. Check the domain for the APIs like end_session_endpoint or authorization_endpoint found in the well-know openid config
             if domain(end_session_endpoint) not in allowed_login_redirects():
                 logger.error(
-                    f"Logout url {end_session_endpoint} not in LOGIN_REDIRECT_WHITELIST config. Cognito Session not invalidated, Logging out from Gen3. Available redirects {allowed_login_redirects()}"
+                    f"Logout url {end_session_endpoint} not in LOGIN_REDIRECT_WHITELIST config. Cognito Session not invalidated, Logging out from Gen3."
                 )
             else:
                 if end_session_endpoint:
