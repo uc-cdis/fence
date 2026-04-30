@@ -305,11 +305,10 @@ def logout(next_url, force_era_global_logout=False):
             )
         if well_known:
             end_session_endpoint = well_known.get("end_session_endpoint")
-            if (
-                domain(end_session_endpoint) not in allowed_login_redirects()
-            ):  # NOTE: discovery url for cognito is different than the cognito api domain url. Check the domain for the APIs like end_session_endpoint or authorization_endpoint found in the well-know openid config
+            # NOTE: discovery url for cognito is different than the cognito api domain url. Check the domain for the APIs like end_session_endpoint or authorization_endpoint found in the well-know openid config
+            if domain(end_session_endpoint) not in allowed_login_redirects():
                 logger.error(
-                    f"Logout url {end_session_endpoint} not in LOGIN_REDIRECT_WHITELIST config. Cognito Session not invalidated, Logging out from Gen3."
+                    f"Logout url {end_session_endpoint} not in LOGIN_REDIRECT_WHITELIST config. Cognito Session not invalidated, Logging out from Gen3. Available redirects {allowed_login_redirects()}"
                 )
             else:
                 if end_session_endpoint:
