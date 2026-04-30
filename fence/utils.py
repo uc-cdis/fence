@@ -504,6 +504,8 @@ def allowed_login_redirects():
     """
     allowed = config.get("LOGIN_REDIRECT_WHITELIST", [])
     allowed.append(config["BASE_URL"])
+    print("========================")
+    print(allowed)
     with flask.current_app.db.session as session:
         clients = session.query(Client).all()
         for client in clients:
