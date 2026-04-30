@@ -37,7 +37,6 @@ config.load(
 from fence.auth import logout, build_redirect_url
 from fence.metrics import metrics
 from fence.blueprints.data.indexd import S3IndexedFileLocation
-from fence.blueprints.login.utils import allowed_login_redirects, domain
 from fence.errors import UserError
 from fence.jwt import keys
 from fence.oidc.client import query_client
@@ -56,7 +55,7 @@ from fence.resources.openid.ras_oauth2 import RASOauth2Client
 from fence.resources.storage import StorageManager
 from fence.resources.user.user_session import UserSessionInterface
 from fence.error_handler import get_error_response
-from fence.utils import get_SQLAlchemyDriver
+from fence.utils import get_SQLAlchemyDriver, allowed_login_redirects, domain
 import fence.blueprints.admin
 import fence.blueprints.data
 import fence.blueprints.login

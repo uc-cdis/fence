@@ -108,8 +108,14 @@ def test_logout_cognito(client, db_session):
     with client.session_transaction() as session:
         session["provider"] = "cognito"
     with mock.patch(
-        "fence.allowed_login_redirects", return_value={"test-url.com"}
-    ), mock.patch("requests.get") as mock_get:
+        "fence.allowed_login_redirects",
+        return_value={"test-url.com", "cognito.example.com"},
+    ), mock.patch(
+        "fence.auth.allowed_login_redirects",
+        return_value={"test-url.com", "cognito.example.com"},
+    ), mock.patch(
+        "requests.get"
+    ) as mock_get:
         mock_resp = MagicMock()
         mock_resp.json.return_value = mock_well_known
         mock_get.return_value = mock_resp
@@ -117,6 +123,34 @@ def test_logout_cognito(client, db_session):
         r = client.get("/logout?next={}".format(redirect))
         assert r.status_code == 302
         assert "https://cognito.example.com/logout" in r.location
+
+
+def test_logout_cognito_cognito_not_in_allowed_login_redirect(client, db_session):
+    """
+    Test /logout endpoint without correct cognito domain in allow list
+    """
+    redirect = "https://test-url.com"
+    mock_well_known = {"end_session_endpoint": "https://cognito.example.com/logout"}
+    r = client.get("/user/")
+    with client.session_transaction() as session:
+        session["provider"] = "cognito"
+    with mock.patch(
+        "fence.allowed_login_redirects",
+        return_value={"test-url.com", "not.cognito.example.com"},
+    ), mock.patch(
+        "fence.auth.allowed_login_redirects",
+        return_value={"test-url.com", "not.cognito.example.com"},
+    ), mock.patch(
+        "requests.get"
+    ) as mock_get:
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mock_well_known
+        mock_get.return_value = mock_resp
+
+        r = client.get("/logout?next={}".format(redirect))
+        assert r.status_code == 302
+        assert "https://cognito.example.com/logout" not in r.location
+        assert r.location == redirect
 
 
 def test_logout_cognito_http_error_next_url_fallback(client, db_session):

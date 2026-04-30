@@ -23,8 +23,12 @@ from fence.errors import Unauthorized, InternalError
 from fence.jwt.validate import validate_jwt
 from fence.models import User, IdentityProvider, query_for_user
 from fence.user import get_current_user
-from fence.utils import clear_cookies, DEFAULT_BACKOFF_SETTINGS
-from fence.config import config
+from fence.utils import (
+    clear_cookies,
+    DEFAULT_BACKOFF_SETTINGS,
+    allowed_login_redirects,
+    domain,
+)
 
 logger = get_logger(__name__)
 
@@ -301,21 +305,28 @@ def logout(next_url, force_era_global_logout=False):
             )
         if well_known:
             end_session_endpoint = well_known.get("end_session_endpoint")
-            if end_session_endpoint:
-                provider_logout = (
-                    end_session_endpoint
-                    + "?"
-                    + urllib.parse.urlencode(
-                        {
-                            "client_id": idp_openid_connect["client_id"],
-                            "logout_uri": next_url,  # NOTE: This needs to be set up in the cognito console for an allowed sign-out url
-                        }
-                    )
+            if (
+                domain(end_session_endpoint) not in allowed_login_redirects()
+            ):  # NOTE: discovery url for cognito is different than the cognito api domain url. Check the domain for the APIs like end_session_endpoint or authorization_endpoint found in the well-know openid config
+                logger.error(
+                    f"Logout url {end_session_endpoint} not in LOGIN_REDIRECT_WHITELIST config. Cognito Session not invalidated, Logging out from Gen3."
                 )
             else:
-                logger.error(
-                    "end_session_endpoint not found in well-known config. Cognito Session not invalidated. Logging out from Gen3"
-                )
+                if end_session_endpoint:
+                    provider_logout = (
+                        end_session_endpoint
+                        + "?"
+                        + urllib.parse.urlencode(
+                            {
+                                "client_id": idp_openid_connect["client_id"],
+                                "logout_uri": next_url,  # NOTE: This needs to be set up in the cognito console for an allowed sign-out url
+                            }
+                        )
+                    )
+                else:
+                    logger.error(
+                        "end_session_endpoint not found in well-known config. Cognito Session not invalidated. Logging out from Gen3"
+                    )
 
     flask.session.clear()
     try:
