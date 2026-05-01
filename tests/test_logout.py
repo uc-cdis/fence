@@ -1,7 +1,10 @@
 import mock
 import urllib.request, urllib.parse, urllib.error
+from unittest.mock import MagicMock
 
+import flask
 import pytest
+import requests
 
 from fence.auth import build_redirect_url
 from fence.config import config
@@ -93,3 +96,102 @@ def test_logout_fence(app, client, user_with_fence_provider, monkeypatch):
         parsed_url = urllib.parse.urlparse(r.location)
         result_redirect = urllib.parse.parse_qs(parsed_url.query).get("next")[0]
         assert result_redirect == redirect
+
+
+def test_logout_cognito(client, db_session):
+    """
+    Test /logout endpoint successfully redirect for logout with cognito
+    """
+    redirect = "https://test-url.com"
+    mock_well_known = {"end_session_endpoint": "https://cognito.example.com/logout"}
+    r = client.get("/user/")
+    with client.session_transaction() as session:
+        session["provider"] = "cognito"
+    with mock.patch(
+        "fence.allowed_login_redirects",
+        return_value={"test-url.com", "cognito.example.com"},
+    ), mock.patch(
+        "fence.auth.allowed_login_redirects",
+        return_value={"test-url.com", "cognito.example.com"},
+    ), mock.patch(
+        "requests.get"
+    ) as mock_get:
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mock_well_known
+        mock_get.return_value = mock_resp
+
+        r = client.get("/logout?next={}".format(redirect))
+        assert r.status_code == 302
+        assert "https://cognito.example.com/logout" in r.location
+
+
+def test_logout_cognito_cognito_not_in_allowed_login_redirect(client, db_session):
+    """
+    Test /logout endpoint without correct cognito domain in allow list
+    """
+    redirect = "https://test-url.com"
+    mock_well_known = {"end_session_endpoint": "https://cognito.example.com/logout"}
+    r = client.get("/user/")
+    with client.session_transaction() as session:
+        session["provider"] = "cognito"
+    with mock.patch(
+        "fence.allowed_login_redirects",
+        return_value={"test-url.com", "not.cognito.example.com"},
+    ), mock.patch(
+        "fence.auth.allowed_login_redirects",
+        return_value={"test-url.com", "not.cognito.example.com"},
+    ), mock.patch(
+        "requests.get"
+    ) as mock_get:
+        mock_resp = MagicMock()
+        mock_resp.json.return_value = mock_well_known
+        mock_get.return_value = mock_resp
+
+        r = client.get("/logout?next={}".format(redirect))
+        assert r.status_code == 302
+        assert "https://cognito.example.com/logout" not in r.location
+        assert r.location == redirect
+
+
+def test_logout_cognito_http_error_next_url_fallback(client, db_session):
+    """
+    Test /logout endpoint falls back to next_url when cognito well-known returns http error
+    """
+    redirect = "https://test-url.com"
+    r = client.get("/user/")
+    with client.session_transaction() as session:
+        session["provider"] = "cognito"
+    with mock.patch(
+        "fence.allowed_login_redirects", return_value={"test-url.com"}
+    ), mock.patch("requests.get") as mock_get:
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status.side_effect = requests.exceptions.HTTPError(
+            response=MagicMock(status_code=500)
+        )
+        mock_get.return_value = mock_resp
+        r = client.get("/logout?next={}".format(redirect))
+        assert r.status_code == 302
+        assert "cognito" not in r.location
+        assert r.location == redirect
+
+
+def test_logout_cognito_connection_error_next_url_fallback(client, db_session):
+    """
+    Test /logout endpoint falls back to next_url when cognito well-known has connection error
+    """
+    redirect = "https://test-url.com"
+    r = client.get("/user/")
+    with client.session_transaction() as session:
+        session["provider"] = "cognito"
+    with mock.patch(
+        "fence.allowed_login_redirects", return_value={"test-url.com"}
+    ), mock.patch("requests.get") as mock_get:
+        mock_resp = MagicMock()
+        mock_resp.raise_for_status.side_effect = requests.exceptions.ConnectionError(
+            "Cognito Connection Error"
+        )
+        mock_get.return_value = mock_resp
+        r = client.get("/logout?next={}".format(redirect))
+        assert r.status_code == 302
+        assert "cognito" not in r.location
+        assert r.location == redirect
