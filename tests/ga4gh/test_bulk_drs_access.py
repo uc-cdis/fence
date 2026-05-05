@@ -1,6 +1,7 @@
 import json
 import pytest
-from unittest.mock import patch
+import responses
+from unittest.mock import patch, MagicMock
 
 
 def make_request_body(object_ids, access_id="s3"):
@@ -16,21 +17,40 @@ def make_request_body(object_ids, access_id="s3"):
     }
 
 
+def mock_indexd_response(guid, authz="test_authz"):
+    """Helper to create a mock indexd document response."""
+    return {
+        "did": guid,
+        "urls": [f"s3://test-bucket/{guid}"],
+        "authz": [authz],
+        "size": 123,
+        "hashes": {"md5": "abcd"},
+    }
+
+
+@responses.activate
 def test_bulk_drs_access_happy_path(client, user_client):
     object_ids = ["guid1", "guid2"]
 
-    mock_response = {
-        "urls": [
-            {"drs_object_id": "guid1", "url": "https://signed1"},
-            {"drs_object_id": "guid2", "url": "https://signed2"},
-        ],
-        "failed_file_ids": [],
-    }
+    # Mock indexd responses for each GUID
+    for guid in object_ids:
+        responses.add(
+            responses.GET,
+            f"http://indexd-service/index/{guid}",
+            json=mock_indexd_response(guid),
+            status=200,
+        )
+
+    # Mock authorization: allow access to "test_authz"
+    mock_auth_mapping = {"test_authz": [{"service": "fence", "method": "read-storage"}]}
 
     with patch(
-        "fence.blueprints.ga4gh.bulk_get_signed_url_for_file",
-        return_value=mock_response,
-    ):
+        "flask.current_app.arborist.auth_mapping", return_value=mock_auth_mapping
+    ), patch(
+        "gen3cirrus.AwsService.download_presigned_url",
+        side_effect=lambda *args, **kwargs: f"https://signed{args[1].split('/')[-1]}",
+    ) as mock_download:
+
         response = client.post(
             "/ga4gh/drs/v1/objects/access",
             data=json.dumps(make_request_body(object_ids)),
@@ -46,24 +66,40 @@ def test_bulk_drs_access_happy_path(client, user_client):
     assert data["summary"]["unresolved"] == 0
 
     assert len(data["resolved_drs_object_access_urls"]) == 2
+    # Verify storage layer was called for each file
+    assert mock_download.call_count == 2
 
 
+@responses.activate
 def test_bulk_drs_access_partial_failure(client, user_client):
     object_ids = ["guid1", "guid2"]
 
-    mock_response = {
-        "urls": [
-            {"drs_object_id": "guid1", "url": "https://signed1"},
-        ],
-        "failed_file_ids": [
-            {"error_code": 403, "object_ids": ["guid2"]},
-        ],
+    # Mock indexd responses: guid1 allowed, guid2 denied (different authz)
+    responses.add(
+        responses.GET,
+        "http://indexd-service/index/guid1",
+        json=mock_indexd_response("guid1", "allowed_authz"),
+        status=200,
+    )
+    responses.add(
+        responses.GET,
+        "http://indexd-service/index/guid2",
+        json=mock_indexd_response("guid2", "denied_authz"),
+        status=200,
+    )
+
+    # Mock authorization: allow "allowed_authz" but not "denied_authz"
+    mock_auth_mapping = {
+        "allowed_authz": [{"service": "fence", "method": "read-storage"}]
     }
 
     with patch(
-        "fence.blueprints.ga4gh.bulk_get_signed_url_for_file",
-        return_value=mock_response,
-    ):
+        "flask.current_app.arborist.auth_mapping", return_value=mock_auth_mapping
+    ), patch(
+        "gen3cirrus.AwsService.download_presigned_url",
+        side_effect=lambda *args, **kwargs: f"https://signed{args[1].split('/')[-1]}",
+    ) as mock_download:
+
         response = client.post(
             "/ga4gh/drs/v1/objects/access",
             data=json.dumps(make_request_body(object_ids)),
@@ -81,6 +117,8 @@ def test_bulk_drs_access_partial_failure(client, user_client):
     assert len(data["resolved_drs_object_access_urls"]) == 1
     assert len(data["unresolved_drs_objects"]) == 1
     assert data["unresolved_drs_objects"][0]["error_code"] == 403
+    # Verify storage layer was called only for the allowed file
+    assert mock_download.call_count == 1
 
 
 def test_bulk_drs_access_max_limit(client, user_client):

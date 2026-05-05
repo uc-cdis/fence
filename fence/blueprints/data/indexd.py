@@ -587,50 +587,30 @@ class BulkIndexedFiles(object):
 
     @cached_property
     def index_document(self):
+        indexd_server = config.get("INDEXD") or config["BASE_URL"] + "/index"
+        url = indexd_server.rstrip("/") + "/bulk/documents"
+
         index_dict = {}
-        for file_id in self.file_ids:
-            indexd_server = config.get("INDEXD") or config["BASE_URL"] + "/index"
-            url = indexd_server + "/index/"
+        try:
+            res = requests.post(url, json=self.file_ids)
+        except Exception as e:
+            logger.error(f"Failed to reach indexd at {url}: {e}")
+            raise UnavailableError("Fail to reach id service to find data location")
+
+        if res.status_code == 200:
             try:
-                res = requests.get(url + file_id)
-            except Exception as e:
-                logger.error(
-                    "failed to reach indexd at {0}: {1}".format(url + file_id, e)
-                )
-                raise UnavailableError("Fail to reach id service to find data location")
-            if res.status_code == 200:
-                try:
-                    json_response = res.json()
-                    if "urls" not in json_response:
-                        logger.error(
-                            "URLs are not included in response from "
-                            "indexd: {}".format(url + file_id)
-                        )
-                        raise InternalError("URLs and metadata not found")
+                docs = res.json()
+                if not isinstance(docs, list):
+                    raise ValueError("Response is not a list")
 
-                    # indexd can resolve GUIDs without prefix, but cannot perform other operations
-                    # (such as delete) without the prefix, so make sure `file_id` is the whole GUID
-                    real_guid = json_response.get("did")
-                    if real_guid and real_guid != file_id:
-                        file_id = real_guid
-
-                    index_dict[file_id] = json_response
-                except Exception as e:
-                    logger.error(
-                        "indexd response missing JSON field {}".format(url + file_id)
-                    )
-                    raise InternalError("internal error from indexd: {}".format(e))
-            elif res.status_code == 404:
-                logger.error(
-                    "Not Found. indexd could not find {}: {}".format(
-                        url + file_id, res.text
-                    )
-                )
-                raise NotFound("No indexed document found with id {}".format(file_id))
-            else:
-                raise UnavailableError(res.text)
-
-        return index_dict
+                # Build dict keyed by did - only returns docs that were found
+                index_dict = {doc["did"]: doc for doc in docs}
+                return index_dict
+            except (KeyError, ValueError, TypeError) as e:
+                logger.error(f"Invalid response from indexd: {e}")
+                raise InternalError("Internal error from indexd")
+        else:
+            raise UnavailableError(res.text)
 
     def get_signed_urls(
         self,
@@ -727,6 +707,9 @@ class BulkIndexedFiles(object):
         # STEP 2: Process files using cached authorization results
         for file_id in self.file_ids:
             authorized_user = None
+            if file_id not in self.index_document:
+                failed_file_ids_map[404].append(file_id)
+                continue
             file_authz = self.index_document.get(file_id).get("authz")
 
             if file_authz:
@@ -761,7 +744,7 @@ class BulkIndexedFiles(object):
                     authorized_user,
                 )
 
-                signed_urls.append(signed_url)
+                signed_urls.append({"drs_object_id": file_id, "url": signed_url})
                 users.append(authorized_user)
 
             except NotFound:

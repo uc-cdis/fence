@@ -60,7 +60,7 @@ class BulkObjectAccessIds(BaseModel):
 
 
 class BulkObjectAccessRequest(BaseModel):
-    passports: Optional[list[str]]
+    passports: Optional[list[str]] = None
     bulk_object_access_ids: list[BulkObjectAccessIds]
 
     def map_access_to_object_ids(self):
@@ -105,6 +105,11 @@ def get_ga4gh_signed_urls():
     except ValidationError as e:
         return jsonify(e.errors()), 400
 
+    if request.headers.get("Authorization") and bulk_request.get("passports"):
+        raise Forbidden(
+            "Cannot use both Authorization header and GA4GH passports"
+        )  # IMPLEMENT
+
     # Validate bulk request size against maxBulk config
     total_requested_count = sum(
         len(ids) for ids in bulk_request.map_access_to_object_ids().values()
@@ -129,7 +134,9 @@ def get_ga4gh_signed_urls():
     for access_id, object_ids in access_to_object_ids.items():
         try:
             result = bulk_get_signed_url_for_file(
-                file_ids=object_ids, requested_protocol=access_id
+                file_ids=object_ids,
+                requested_protocol=access_id,
+                ga4gh_passports=bulk_request.passports,
             )
 
             # Process resolved URLs
