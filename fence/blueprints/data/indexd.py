@@ -629,6 +629,9 @@ class BulkIndexedFiles(object):
         authz_needing_check = set()
         authz_to_file_ids = defaultdict(list)
         for file_id in self.file_ids:
+            # Skip missing files - they'll be marked as 404 in STEP 2
+            if file_id not in self.index_document:
+                continue
             file_authz = self.index_document.get(file_id).get("authz")
             if file_authz:
                 # Convert authz list to tuple for hashing
