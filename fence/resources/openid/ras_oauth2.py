@@ -24,6 +24,7 @@ from fence.models import (
     IssSubPairToUser,
     query_for_user,
     create_user,
+    UserPassport,
 )
 from fence.jwt.validate import validate_jwt
 from fence.utils import DEFAULT_BACKOFF_SETTINGS
@@ -116,6 +117,12 @@ class RASOauth2Client(Oauth2ClientBase):
                 encoded_passport, pkey_cache
             )
         )
+
+    def store_passport(self, user_id, passport, db_session=None):
+        db_session = db_session or flask.current_app.scoped_session()
+        user_passport = UserPassport(user_id=user_id, passport=passport)
+        db_session.add(user_passport)
+        db_session.commit()
 
     def get_auth_info(self, code):
         err_msg = "Unable to parse UserID from RAS userinfo response"
