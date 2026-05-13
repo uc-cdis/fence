@@ -178,7 +178,7 @@ def generate_signed_session_token(kid, private_key, expires_in, context=None):
 
     claims = {
         "pur": "session",
-        "aud": [config["DEFAULT_TOKEN_AUDIENCE"]],
+        "aud": ["fence", config["DEFAULT_TOKEN_AUDIENCE"]],
         "sub": str(context.get("user_id", "")),
         "iss": issuer,
         "iat": iat,
@@ -304,6 +304,9 @@ def generate_signed_refresh_token(
         "scope": scopes,
     }
 
+    if client_id:
+        claims["aud"].append(client_id)
+
     logger.info(
         "issuing JWT refresh token with id [{}] to user sub [{}]".format(jti, sub)
     )
@@ -404,6 +407,13 @@ def generate_signed_access_token(
         "context": {},
         "azp": client_id or "",
     }
+
+    if client_id:
+        claims["aud"].append(client_id)
+
+    # Keep scopes in aud claim in access tokens for backwards comp....
+    if scopes:
+        claims["aud"] += scopes
 
     sub = None
     if user:
@@ -514,6 +524,8 @@ def generate_id_token(
         },
     }
     aud = audiences.copy() if audiences else []
+    if client_id and client_id not in aud:
+        aud.append(client_id)
     if config["DEFAULT_TOKEN_AUDIENCE"] not in aud:
         aud.append(config["DEFAULT_TOKEN_AUDIENCE"])
     claims["aud"] = aud
