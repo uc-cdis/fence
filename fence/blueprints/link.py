@@ -281,7 +281,7 @@ class GoogleCallback(Resource):
             # from the provided access token
             try:
                 token = validate_request(
-                    scope={"user"}, audience=config.get("BASE_URL")
+                    scope={"user"}, audience=config["DEFAULT_TOKEN_AUDIENCE"]
                 )
                 email = get_user_from_claims(token).username
             except Exception as exc:

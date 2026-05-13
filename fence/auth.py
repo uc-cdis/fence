@@ -10,7 +10,7 @@ from flask import current_app
 from authutils.errors import JWTError, JWTExpiredError
 from authutils.token.validate import (
     current_token,
-    require_auth_header,
+    require_auth_header as authutils_require_auth_header,
     set_current_token,
     validate_request,
 )
@@ -31,6 +31,20 @@ from fence.utils import (
 )
 
 logger = get_logger(__name__)
+
+
+def require_auth_header(*args, **kwargs):
+    """
+    TODO
+    """
+    if "audience" in kwargs:
+        if type(kwargs["audience"]) != list:
+            kwargs["audience"] = [kwargs["audience"]]
+        kwargs["audience"].append(config["DEFAULT_TOKEN_AUDIENCE"])
+    else:
+        kwargs["audience"] = config["DEFAULT_TOKEN_AUDIENCE"]
+
+    return authutils_require_auth_header(*args, **kwargs)
 
 
 def get_jwt():

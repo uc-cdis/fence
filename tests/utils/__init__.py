@@ -257,7 +257,7 @@ def default_claims():
     iat, exp = iat_and_exp()
     return {
         "pur": "access",
-        "aud": [iss],
+        "aud": [config["DEFAULT_TOKEN_AUDIENCE"]],
         "sub": "1234",
         "iss": iss,
         "iat": iat,
@@ -286,7 +286,7 @@ def unauthorized_context_claims(user_name, user_id):
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
-        "aud": [iss],
+        "aud": [config["DEFAULT_TOKEN_AUDIENCE"]],
         "sub": str(user_id),
         "pur": "access",
         "iss": iss,
@@ -319,7 +319,7 @@ def authorized_download_context_claims(user_name, user_id):
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
-        "aud": [iss],
+        "aud": [config["DEFAULT_TOKEN_AUDIENCE"]],
         "sub": str(user_id),
         "iss": iss,
         "iat": iat,
@@ -352,7 +352,7 @@ def authorized_service_account_management_claims(user_name, user_id, client_id):
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
-        "aud": [iss],
+        "aud": [config["DEFAULT_TOKEN_AUDIENCE"]],
         "sub": str(user_id),
         "iss": iss,
         "iat": iat,
@@ -402,7 +402,7 @@ def authorized_download_credentials_context_claims(
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
-        "aud": [iss],
+        "aud": [config["DEFAULT_TOKEN_AUDIENCE"]],
         "sub": str(user_id),
         "iss": iss,
         "iat": iat,
@@ -435,7 +435,7 @@ def authorized_upload_context_claims(user_name, user_id):
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
-        "aud": [iss],
+        "aud": [config["DEFAULT_TOKEN_AUDIENCE"]],
         "sub": str(user_id),
         "iss": iss,
         "pur": "access",
@@ -470,7 +470,7 @@ def client_authorized_download_context_claims():
     jti = new_jti()
     iat, exp = iat_and_exp()
     return {
-        "aud": [iss],
+        "aud": [config["DEFAULT_TOKEN_AUDIENCE"]],
         "iss": iss,
         "iat": iat,
         "exp": exp,
