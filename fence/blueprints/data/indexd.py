@@ -737,6 +737,22 @@ class BulkIndexedFiles(object):
                         error_code = 403 if users_from_passports else 401
                         failed_file_ids_map[error_code].append(file_id)
                         continue
+                else:
+                    # Handle ACL-only files (mirroring single-file logic)
+                    temp_indexed_file = IndexedFile(
+                        file_id
+                    )  # Temporary instance for ACL access
+
+                    if (
+                        not temp_indexed_file.public_acl
+                        and not temp_indexed_file.check_legacy_authorization("download")
+                    ):
+                        failed_file_ids_map[401].append(file_id)
+                        continue
+
+                    # If we reach here, ACL authorization passed; no authorized_user needed for ACL case
+                    authorized_user = None
+
             try:
                 signed_url = self._get_signed_urls(
                     protocol,
