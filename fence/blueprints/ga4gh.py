@@ -60,4 +60,4 @@ def get_passport():
     user_id = info["user_id"]
     db_session = current_app.scoped_session()
     passport = db_session.query(UserPassport).filter_by(user_id=int(user_id)).first()
-    return flask.jsonify({"passport": passport})
+    return flask.jsonify({"passport": passport.passport})
