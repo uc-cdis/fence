@@ -42,7 +42,7 @@ def create_session_token(keypair, expires_in, context=None):
     ).token
 
 
-def create_user_access_token(keypair, api_key, expires_in):
+def create_user_access_token(keypair, api_key, expires_in, audience):
     """
     create access token given a user's api key
     Args:
@@ -70,5 +70,10 @@ def create_user_access_token(keypair, api_key, expires_in):
     except Exception as e:
         raise Unauthorized(str(e))
     return token.generate_signed_access_token(
-        keypair.kid, keypair.private_key, expires_in, scopes, user=user
+        keypair.kid,
+        keypair.private_key,
+        expires_in,
+        scopes,
+        audience=audience,
+        user=user,
     ).token

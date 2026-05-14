@@ -362,6 +362,7 @@ def generate_signed_access_token(
     private_key,
     expires_in,
     scopes,
+    audience=None,
     user=None,
     iss=None,
     forced_exp_time=None,
@@ -396,10 +397,17 @@ def generate_signed_access_token(
                 " running outside of flask application"
             )
 
+    aud = [config["DEFAULT_TOKEN_AUDIENCE"]]
+    if audience:
+        if type(audience) == list:
+            aud.extend(audience)
+        else:
+            aud.append(audience)
+
     claims = {
         "pur": "access",
         "iss": iss,
-        "aud": [config["DEFAULT_TOKEN_AUDIENCE"]],
+        "aud": aud,
         "iat": iat,
         "exp": exp,
         "jti": jti,

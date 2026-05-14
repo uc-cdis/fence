@@ -172,9 +172,18 @@ class AccessKey(Resource):
                 api_key = None
         if not api_key:
             flask.abort(400, "Please provide an api_key in payload")
+
+        # TODO add expires_in and audience params to swagger doc
         max_ttl = config.get("MAX_ACCESS_TOKEN_TTL", 3600)
         expires_in = min(int(flask.request.args.get("expires_in", max_ttl)), max_ttl)
+
+        # TODO rename param and design for custom expiration
+        try:
+            audience = flask.request.get_json().get("audience")
+        except Exception:  # no JSON body
+            audience = None
+
         result = create_user_access_token(
-            flask.current_app.keypairs[0], api_key, expires_in
+            flask.current_app.keypairs[0], api_key, expires_in, audience
         )
         return flask.jsonify(dict(access_token=result))
