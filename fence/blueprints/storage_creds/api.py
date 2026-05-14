@@ -180,10 +180,11 @@ class AccessKey(Resource):
         # TODO rename param and design for custom expiration
         try:
             audience = flask.request.get_json().get("audience")
-            if "TES" in f"{audience}":  # TODO remove - testing 5 sec expiry
-                expires_in = 5
         except Exception:  # no JSON body
-            audience = None
+            # audience = None
+            audience = "TES"  # TODO `None` instead once the SDK is updated to request an audience
+        if "TES" in f"{audience}":  # TODO remove - testing 5 sec expiry
+            expires_in = 5
 
         result = create_user_access_token(
             flask.current_app.keypairs[0], api_key, expires_in, audience

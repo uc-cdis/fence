@@ -404,6 +404,13 @@ def generate_signed_access_token(
         else:
             aud.append(audience)
 
+    if client_id:
+        aud.append(client_id)
+
+    # Keep scopes in aud claim in access tokens for backwards comp....
+    if scopes:
+        aud += scopes
+
     claims = {
         "pur": "access",
         "iss": iss,
@@ -415,13 +422,6 @@ def generate_signed_access_token(
         "context": {},
         "azp": client_id or "",
     }
-
-    if client_id:
-        claims["aud"].append(client_id)
-
-    # Keep scopes in aud claim in access tokens for backwards comp....
-    if scopes:
-        claims["aud"] += scopes
 
     sub = None
     if user:
