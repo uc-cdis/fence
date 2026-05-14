@@ -123,7 +123,7 @@ flask = ["Flask"]
 type = "git"
 url = "https://github.com/uc-cdis/authutils"
 reference = "validate-aud"
-resolved_reference = "c2c3552de3201ac093b0774da6e8a3710c442936"
+resolved_reference = "9b42e7342d9b14b8027405fc369fc8409915d242"
 
 [[package]]
 name = "azure-core"
