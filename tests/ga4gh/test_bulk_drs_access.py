@@ -1,7 +1,6 @@
 import json
 import pytest
-import responses
-from unittest.mock import patch, MagicMock
+from unittest.mock import patch
 
 
 def make_request_body(object_ids, access_id="s3"):
@@ -37,24 +36,20 @@ def user_client():
     }
 
 
-@responses.activate
 def test_bulk_drs_access_happy_path(client, user_client):
     object_ids = ["guid1", "guid2"]
+    bulk_indexd_response = {guid: mock_indexd_response(guid) for guid in object_ids}
 
-    # Mock indexd bulk endpoint
-    responses.add(
-        responses.POST,
-        "http://indexd-service/index/bulk/documents",
-        json=[mock_indexd_response(guid) for guid in object_ids],
-        status=200,
-    )
-
-    # Mock authorization: allow access to "test_authz"
     mock_auth_mapping = {"test_authz": [{"service": "fence", "method": "read-storage"}]}
 
     with patch(
+        "fence.blueprints.data.indexd.BulkIndexedFiles.index_document",
+        bulk_indexd_response,
+    ), patch(
         "flask.current_app.arborist.auth_mapping", return_value=mock_auth_mapping
-    ), patch("flask.current_app.arborist.auth_request", return_value=True), patch(
+    ), patch(
+        "flask.current_app.arborist.auth_request", return_value=True
+    ), patch(
         "gen3cirrus.AwsService.download_presigned_url",
         return_value="https://signed-url",
     ) as mock_download:
@@ -65,7 +60,6 @@ def test_bulk_drs_access_happy_path(client, user_client):
             content_type="application/json",
             headers={"Authorization": f"Bearer {user_client['token']}"},
         )
-    print(response.data)
 
     assert response.status_code == 200
     data = json.loads(response.data)
@@ -75,31 +69,24 @@ def test_bulk_drs_access_happy_path(client, user_client):
     assert data["summary"]["unresolved"] == 0
 
     assert len(data["resolved_drs_object_access_urls"]) == 2
-    # Verify storage layer was called for each file
     assert mock_download.call_count == 2
 
 
-@responses.activate
 def test_bulk_drs_access_partial_failure(client, user_client):
     object_ids = ["guid1", "guid2"]
+    bulk_indexd_response = {
+        "guid1": mock_indexd_response("guid1", "allowed_authz"),
+        "guid2": mock_indexd_response("guid2", "denied_authz"),
+    }
 
-    # Mock indexd bulk endpoint - return both files with different authz
-    responses.add(
-        responses.POST,
-        "http://indexd-service/index/bulk/documents",
-        json=[
-            mock_indexd_response("guid1", "allowed_authz"),
-            mock_indexd_response("guid2", "denied_authz"),
-        ],
-        status=200,
-    )
-
-    # Mock authorization: allow "allowed_authz" but not "denied_authz"
     mock_auth_mapping = {
         "allowed_authz": [{"service": "fence", "method": "read-storage"}]
     }
 
     with patch(
+        "fence.blueprints.data.indexd.BulkIndexedFiles.index_document",
+        bulk_indexd_response,
+    ), patch(
         "flask.current_app.arborist.auth_mapping", return_value=mock_auth_mapping
     ), patch(
         "flask.current_app.arborist.auth_request",
@@ -113,7 +100,7 @@ def test_bulk_drs_access_partial_failure(client, user_client):
             "/ga4gh/drs/v1/objects/access",
             data=json.dumps(make_request_body(object_ids)),
             content_type="application/json",
-            headers={"Authorization": f"Bearer {user_client.token}"},
+            headers={"Authorization": f"Bearer {user_client['token']}"},
         )
 
     assert response.status_code == 200
@@ -126,11 +113,9 @@ def test_bulk_drs_access_partial_failure(client, user_client):
     assert len(data["resolved_drs_object_access_urls"]) == 1
     assert len(data["unresolved_drs_objects"]) == 1
     assert data["unresolved_drs_objects"][0]["error_code"] == 403
-    # Verify storage layer was called only for the allowed file
     assert mock_download.call_count == 1
 
 
-@responses.activate
 def test_bulk_drs_access_max_limit(client, user_client):
     object_ids = [f"guid{i}" for i in range(101)]  # exceed default 100
 
@@ -138,31 +123,29 @@ def test_bulk_drs_access_max_limit(client, user_client):
         "/ga4gh/drs/v1/objects/access",
         data=json.dumps(make_request_body(object_ids)),
         content_type="application/json",
-        headers={"Authorization": f"Bearer {user_client.token}"},
+        headers={"Authorization": f"Bearer {user_client['token']}"},
     )
 
     assert response.status_code == 413
 
 
-@responses.activate
 def test_bulk_drs_access_missing_guid(client, user_client):
     """Test that when some GUIDs are missing from indexd, only missing ones are marked as 404."""
     object_ids = ["guid1", "missing_guid"]
+    bulk_indexd_response = {
+        "guid1": mock_indexd_response("guid1", "test_authz"),
+    }
 
-    # Mock indexd bulk endpoint - only return guid1 (missing_guid doesn't exist)
-    responses.add(
-        responses.POST,
-        "http://indexd-service/index/bulk/documents",
-        json=[mock_indexd_response("guid1", "test_authz")],
-        status=200,
-    )
-
-    # Mock authorization
     mock_auth_mapping = {"test_authz": [{"service": "fence", "method": "read-storage"}]}
 
     with patch(
+        "fence.blueprints.data.indexd.BulkIndexedFiles.index_document",
+        bulk_indexd_response,
+    ), patch(
         "flask.current_app.arborist.auth_mapping", return_value=mock_auth_mapping
-    ), patch("flask.current_app.arborist.auth_request", return_value=True), patch(
+    ), patch(
+        "flask.current_app.arborist.auth_request", return_value=True
+    ), patch(
         "gen3cirrus.AwsService.download_presigned_url",
         side_effect=lambda *args, **kwargs: f"https://signed{args[1].split('/')[-1]}",
     ) as mock_download:
@@ -171,7 +154,7 @@ def test_bulk_drs_access_missing_guid(client, user_client):
             "/ga4gh/drs/v1/objects/access",
             data=json.dumps(make_request_body(object_ids)),
             content_type="application/json",
-            headers={"Authorization": f"Bearer {user_client.token}"},
+            headers={"Authorization": f"Bearer {user_client['token']}"},
         )
 
     assert response.status_code == 200
@@ -188,5 +171,4 @@ def test_bulk_drs_access_missing_guid(client, user_client):
     assert data["unresolved_drs_objects"][0]["error_code"] == 404
     assert "missing_guid" in data["unresolved_drs_objects"][0]["object_ids"]
 
-    # Verify storage layer was only called for the existing file
     assert mock_download.call_count == 1
