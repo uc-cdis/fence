@@ -181,8 +181,9 @@ class AccessKey(Resource):
         try:
             audience = flask.request.get_json().get("audience")
         except Exception:  # no JSON body
-            # audience = None
-            audience = "TES"  # TODO `None` instead once the SDK is updated to request an audience
+            audience = None
+
+        audience = "TES"  # TODO remove once the SDK is updated to request an audience
         if "TES" in f"{audience}":  # TODO remove - testing 5 sec expiry
             expires_in = 5
 

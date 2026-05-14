@@ -407,7 +407,7 @@ def generate_signed_access_token(
     if client_id:
         aud.append(client_id)
 
-    # Keep scopes in aud claim in access tokens for backwards comp....
+    # TODO remove - Keep scopes in aud claim in access tokens for backwards comp....
     if scopes:
         aud += scopes
 
