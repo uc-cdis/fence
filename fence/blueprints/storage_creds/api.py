@@ -5,6 +5,7 @@ from flask_restful import Resource
 
 from fence.auth import require_auth_header
 from fence.auth import current_token
+from fence.errors import UserError
 from fence.jwt.blacklist import blacklist_token
 from fence.models import UserRefreshToken
 from fence.config import config
@@ -173,21 +174,20 @@ class AccessKey(Resource):
         if not api_key:
             flask.abort(400, "Please provide an api_key in payload")
 
-        # TODO add expires_in and audience params to swagger doc
+        # TODO add expires_in and work_order params to swagger doc
         max_ttl = config.get("MAX_ACCESS_TOKEN_TTL", 3600)
-        expires_in = min(int(flask.request.args.get("expires_in", max_ttl)), max_ttl)
-
-        # TODO rename param and design for custom expiration
-        try:
-            audience = flask.request.get_json().get("audience")
-        except Exception:  # no JSON body
-            audience = None
-
-        audience = "TES"  # TODO remove once the SDK is updated to request an audience
-        if "TES" in f"{audience}":  # TODO remove - testing 5 sec expiry
-            expires_in = 5
+        work_order = flask.request.args.get("work_order") or None
+        work_order = "TES"  # TODO remove once the SDK is updated to request an audience
+        expires_in = int(flask.request.args.get("expires_in", max_ttl))
+        if work_order:
+            # TODO: add authz checks here - who can request work order tokens, and for how long?
+            # up to 1 day - TODO: add to config or authz checks
+            expires_in = min(expires_in, 86400)
+        else:
+            # the classic max token TTL does not apply to work order tokens
+            expires_in = min(expires_in, max_ttl)
 
         result = create_user_access_token(
-            flask.current_app.keypairs[0], api_key, expires_in, audience
+            flask.current_app.keypairs[0], api_key, expires_in, audience=work_order
         )
         return flask.jsonify(dict(access_token=result))
