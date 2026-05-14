@@ -105,7 +105,7 @@ def get_ga4gh_signed_urls():
     except ValidationError as e:
         return jsonify(e.errors()), 400
 
-    if request.headers.get("Authorization") and bulk_request.get("passports"):
+    if request.headers.get("Authorization") and bulk_request.passports:
         raise Forbidden(
             "Cannot use both Authorization header and GA4GH passports"
         )  # IMPLEMENT
