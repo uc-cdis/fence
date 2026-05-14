@@ -95,6 +95,10 @@ def validate_jwt(
     if aud is None:
         aud = config["DEFAULT_TOKEN_AUDIENCE"]
 
+        # TODO: Remove this at the next release. Temporarily add the base url in the audience
+        # for backwards compatibility (to accept JWTs generated before the aud change)
+        aud = [aud, config["BASE_URL"]]
+
     iss = config["BASE_URL"]
     if issuers is None:
         issuers = [iss]

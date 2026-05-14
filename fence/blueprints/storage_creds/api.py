@@ -5,7 +5,6 @@ from flask_restful import Resource
 
 from fence.auth import require_auth_header
 from fence.auth import current_token
-from fence.errors import UserError
 from fence.jwt.blacklist import blacklist_token
 from fence.models import UserRefreshToken
 from fence.config import config
@@ -177,11 +176,11 @@ class AccessKey(Resource):
         # TODO add expires_in and work_order params to swagger doc
         max_ttl = config.get("MAX_ACCESS_TOKEN_TTL", 3600)
         work_order = flask.request.args.get("work_order") or None
-        work_order = "TES"  # TODO remove once the SDK is updated to request an audience
+        work_order = "TES"  # TODO remove once the SDK is updated to use this param
         expires_in = int(flask.request.args.get("expires_in", max_ttl))
         if work_order:
             # TODO: add authz checks here - who can request work order tokens, and for how long?
-            # up to 1 day - TODO: add to config or authz checks
+            # up to 1 day for now - TODO: add to config or authz checks
             expires_in = min(expires_in, 86400)
         else:
             # the classic max token TTL does not apply to work order tokens
