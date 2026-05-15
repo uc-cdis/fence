@@ -1,4 +1,6 @@
 import flask
+import json
+import hashlib
 
 from cdislogging import get_logger
 from cdispyutils.config import get_value
@@ -9,6 +11,7 @@ from fence.blueprints.data.indexd import (
     BlankIndex,
     IndexedFile,
     get_signed_url_for_file,
+    bulk_get_signed_url_for_file,
     verify_data_upload_bucket_configuration,
 )
 from fence.config import config
@@ -345,6 +348,25 @@ def download_file(file_id):
     if not "redirect" in flask.request.args or not "url" in result:
         return flask.jsonify(result)
     return flask.redirect(result["url"])
+
+
+@blueprint.route("/download/bulk", methods=["POST"])
+def download_bulk_files():
+    """
+    Get a presigned url to download a file given by file_id.
+    """
+    # {"guids": ["1234", "4567"]}
+    params = flask.request.get_json()
+    if not params:
+        raise UserError("wrong Content-Type; expected application/json")
+
+    if "guids" not in params:
+        raise UserError("missing required argument `guids`")
+
+    guids = params["guids"]
+    results = bulk_get_signed_url_for_file(guids)
+
+    return flask.jsonify(results)
 
 
 @blueprint.route(
