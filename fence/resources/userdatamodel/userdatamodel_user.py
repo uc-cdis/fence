@@ -142,25 +142,48 @@ def get_user_groups(current_session, username):
 def review_document(session, username, documents):
     user = get_user(session, username)
     if not user:
-        msg = "".join(["error: user with username ", user["username"], " not found"])
-        raise NotFound(msg)
+        raise NotFound(f"error: user with username {username} not found")
+
+    existing_doc_ids = {
+        row.document_id
+        for row in (
+            session.query(UserDocument.document_id)
+            .filter(UserDocument.user_id == user.id)
+            .all()
+        )
+    }
 
     user_docs = []
     added_docs = []
     for key, value in documents.items():
         doc = session.query(Document).filter(Document.id == key).first()
 
-        if doc and not (doc.required == True and value == False):
-            added_docs.append(doc)
-            new_user_doc = UserDocument(
-                user_id=user.id, document_id=doc.id, accepted=value
-            )
-            user_docs.append(new_user_doc)
+        if not doc:
+            continue
 
-    if len(user_docs) > 0:
-        # user.documents.extend(docs)
-        session.add_all(user_docs)
-        session.commit()
+        if doc.required and value is False:
+            continue
+
+        if doc.id in existing_doc_ids:
+            continue
+
+        added_docs.append(doc)
+
+        user_docs.append(
+            UserDocument(
+                user_id=user.id,
+                document_id=doc.id,
+                accepted=value,
+            )
+        )
+
+    if user_docs:
+        try:
+            session.add_all(user_docs)
+            session.commit()
+        except Exception:
+            session.rollback()
+            raise
 
     return added_docs
 
