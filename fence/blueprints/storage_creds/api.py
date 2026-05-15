@@ -174,17 +174,17 @@ class AccessKey(Resource):
             flask.abort(400, "Please provide an api_key in payload")
 
         # TODO add expires_in and work_order params to swagger doc
+        # TODO update the SDK to use the work_order param
         max_ttl = config.get("MAX_ACCESS_TOKEN_TTL", 3600)
         work_order = flask.request.args.get("work_order") or None
-        work_order = "TES"  # TODO remove once the SDK is updated to use this param
         expires_in = int(flask.request.args.get("expires_in", max_ttl))
-        if work_order:
+        if not work_order:
+            expires_in = min(expires_in, max_ttl)
+        else:
+            # the classic max token TTL does not apply to work order tokens
             # TODO: add authz checks here - who can request work order tokens, and for how long?
             # up to 1 day for now - TODO: add to config or authz checks
             expires_in = min(expires_in, 86400)
-        else:
-            # the classic max token TTL does not apply to work order tokens
-            expires_in = min(expires_in, max_ttl)
 
         result = create_user_access_token(
             flask.current_app.keypairs[0], api_key, expires_in, audience=work_order
