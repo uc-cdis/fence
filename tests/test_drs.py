@@ -6,6 +6,8 @@ import jwt
 import pytest
 import requests
 import responses
+
+from fence.blueprints.ga4gh import BulkObjectAccessRequest, BulkObjectAccessIds
 from tests import utils
 from tests.conftest import NoAsyncMagicMock
 import time
@@ -1765,3 +1767,401 @@ def test_get_presigned_url_with_client_token(
 
     signed_url = response.json.get("url")
     assert signed_url
+
+
+@patch("fence.blueprints.ga4gh.bulk_get_signed_url_for_file")
+def test_get_ga4gh_signed_urls_success(mock_bulk_get_signed_url_for_file, client):
+    mock_bulk_get_signed_url_for_file.return_value = {
+        "urls": [
+            {
+                "drs_object_id": "object-1",
+                "url": "https://example.com/object-1",
+                "headers": [],
+            },
+            {
+                "drs_object_id": "object-2",
+                "url": "https://example.com/object-2",
+                "headers": [],
+            },
+        ],
+        "failed_file_ids": [],
+    }
+
+    data = {
+        "bulk_object_access_ids": [
+            {
+                "bulk_object_id": "object-1",
+                "bulk_access_ids": ["s3"],
+            },
+            {
+                "bulk_object_id": "object-2",
+                "bulk_access_ids": ["s3"],
+            },
+        ]
+    }
+
+    res = client.post(
+        "/ga4gh/drs/v1/objects/access",
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(data),
+    )
+
+    assert res.status_code == 200
+    assert res.json == {
+        "summary": {
+            "requested": 2,
+            "resolved": 2,
+            "unresolved": 0,
+        },
+        "unresolved_drs_objects": [],
+        "resolved_drs_object_access_urls": [
+            {
+                "drs_object_id": "object-1",
+                "drs_access_id": "s3",
+                "url": "https://example.com/object-1",
+                "headers": [],
+            },
+            {
+                "drs_object_id": "object-2",
+                "drs_access_id": "s3",
+                "url": "https://example.com/object-2",
+                "headers": [],
+            },
+        ],
+    }
+
+    mock_bulk_get_signed_url_for_file.assert_called_once_with(
+        file_ids=["object-1", "object-2"],
+        requested_protocol="s3",
+        ga4gh_passports=None,
+    )
+
+
+@patch("fence.blueprints.ga4gh.bulk_get_signed_url_for_file")
+def test_get_ga4gh_signed_urls_multiple_access_ids(
+    mock_bulk_get_signed_url_for_file, client
+):
+    mock_bulk_get_signed_url_for_file.side_effect = [
+        {
+            "urls": [
+                {
+                    "drs_object_id": "object-1",
+                    "url": "https://example.com/object-1-s3",
+                    "headers": [],
+                }
+            ],
+            "failed_file_ids": [],
+        },
+        {
+            "urls": [
+                {
+                    "drs_object_id": "object-1",
+                    "url": "https://example.com/object-1-gs",
+                    "headers": [],
+                }
+            ],
+            "failed_file_ids": [],
+        },
+    ]
+
+    data = {
+        "bulk_object_access_ids": [
+            {
+                "bulk_object_id": "object-1",
+                "bulk_access_ids": ["s3", "gs"],
+            }
+        ]
+    }
+
+    res = client.post(
+        "/ga4gh/drs/v1/objects/access",
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(data),
+    )
+
+    assert res.status_code == 200
+    assert res.json["summary"] == {
+        "requested": 2,
+        "resolved": 2,
+        "unresolved": 0,
+    }
+    assert res.json["resolved_drs_object_access_urls"] == [
+        {
+            "drs_object_id": "object-1",
+            "drs_access_id": "s3",
+            "url": "https://example.com/object-1-s3",
+            "headers": [],
+        },
+        {
+            "drs_object_id": "object-1",
+            "drs_access_id": "gs",
+            "url": "https://example.com/object-1-gs",
+            "headers": [],
+        },
+    ]
+
+
+@patch("fence.blueprints.ga4gh.bulk_get_signed_url_for_file")
+def test_get_ga4gh_signed_urls_with_unresolved_objects(
+    mock_bulk_get_signed_url_for_file, client
+):
+    mock_bulk_get_signed_url_for_file.return_value = {
+        "urls": [
+            {
+                "drs_object_id": "object-1",
+                "url": "https://example.com/object-1",
+                "headers": [],
+            }
+        ],
+        "failed_file_ids": [
+            {
+                "error_code": 404,
+                "object_ids": ["object-2"],
+            }
+        ],
+    }
+
+    data = {
+        "bulk_object_access_ids": [
+            {
+                "bulk_object_id": "object-1",
+                "bulk_access_ids": ["s3"],
+            },
+            {
+                "bulk_object_id": "object-2",
+                "bulk_access_ids": ["s3"],
+            },
+        ]
+    }
+
+    res = client.post(
+        "/ga4gh/drs/v1/objects/access",
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(data),
+    )
+
+    assert res.status_code == 200
+    assert res.json == {
+        "summary": {
+            "requested": 2,
+            "resolved": 1,
+            "unresolved": 1,
+        },
+        "unresolved_drs_objects": [
+            {
+                "error_code": 404,
+                "object_ids": ["object-2"],
+            }
+        ],
+        "resolved_drs_object_access_urls": [
+            {
+                "drs_object_id": "object-1",
+                "drs_access_id": "s3",
+                "url": "https://example.com/object-1",
+                "headers": [],
+            }
+        ],
+    }
+
+
+@patch("fence.blueprints.ga4gh.bulk_get_signed_url_for_file")
+def test_get_ga4gh_signed_urls_request_too_large(
+    mock_bulk_get_signed_url_for_file, client, monkeypatch
+):
+    monkeypatch.setitem(config, "MAX_BULK_DRS_REQUESTS", 1)
+
+    data = {
+        "bulk_object_access_ids": [
+            {
+                "bulk_object_id": "object-1",
+                "bulk_access_ids": ["s3"],
+            },
+            {
+                "bulk_object_id": "object-2",
+                "bulk_access_ids": ["s3"],
+            },
+        ]
+    }
+
+    res = client.post(
+        "/ga4gh/drs/v1/objects/access",
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(data),
+    )
+
+    assert res.status_code == 413
+    assert res.json == {
+        "error_code": 413,
+        "error_description": ("Request too large: 2 objects requested, maximum is 1"),
+    }
+
+    mock_bulk_get_signed_url_for_file.assert_not_called()
+
+
+def test_get_ga4gh_signed_urls_invalid_request_body(client):
+    data = {
+        "bulk_object_access_ids": [
+            {
+                "bulk_object_id": "object-1",
+            }
+        ]
+    }
+
+    res = client.post(
+        "/ga4gh/drs/v1/objects/access",
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(data),
+    )
+
+    assert res.status_code == 400
+
+
+@patch("fence.blueprints.ga4gh.bulk_get_signed_url_for_file")
+def test_get_ga4gh_signed_urls_forbidden_with_auth_header_and_passports(
+    mock_bulk_get_signed_url_for_file, client
+):
+    data = {
+        "passports": ["passport-token"],
+        "bulk_object_access_ids": [
+            {
+                "bulk_object_id": "object-1",
+                "bulk_access_ids": ["s3"],
+            }
+        ],
+    }
+
+    res = client.post(
+        "/ga4gh/drs/v1/objects/access",
+        headers={
+            "Content-Type": "application/json",
+            "Authorization": "Bearer token",
+        },
+        data=json.dumps(data),
+    )
+
+    assert res.status_code == 400
+    mock_bulk_get_signed_url_for_file.assert_not_called()
+
+
+@patch("fence.blueprints.ga4gh.bulk_get_signed_url_for_file")
+def test_get_ga4gh_signed_urls_missing_guid(mock_bulk_get_signed_url_for_file, client):
+    mock_bulk_get_signed_url_for_file.return_value = {
+        "urls": [
+            {
+                "drs_object_id": "guid1",
+                "url": "https://example.com/guid1",
+                "headers": [],
+            }
+        ],
+        "failed_file_ids": [
+            {
+                "error_code": 404,
+                "object_ids": ["missing_guid"],
+            }
+        ],
+    }
+
+    data = {
+        "bulk_object_access_ids": [
+            {
+                "bulk_object_id": "guid1",
+                "bulk_access_ids": ["s3"],
+            },
+            {
+                "bulk_object_id": "missing_guid",
+                "bulk_access_ids": ["s3"],
+            },
+        ]
+    }
+
+    res = client.post(
+        "/ga4gh/drs/v1/objects/access",
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(data),
+    )
+
+    assert res.status_code == 200
+    assert res.json == {
+        "summary": {
+            "requested": 2,
+            "resolved": 1,
+            "unresolved": 1,
+        },
+        "unresolved_drs_objects": [
+            {
+                "error_code": 404,
+                "object_ids": ["missing_guid"],
+            }
+        ],
+        "resolved_drs_object_access_urls": [
+            {
+                "drs_object_id": "guid1",
+                "drs_access_id": "s3",
+                "url": "https://example.com/guid1",
+                "headers": [],
+            }
+        ],
+    }
+
+
+@patch("fence.blueprints.ga4gh.bulk_get_signed_url_for_file")
+def test_get_ga4gh_signed_urls_partial_authz_failure(
+    mock_bulk_get_signed_url_for_file, client
+):
+    mock_bulk_get_signed_url_for_file.return_value = {
+        "urls": [
+            {
+                "drs_object_id": "guid1",
+                "url": "https://example.com/guid1",
+                "headers": [],
+            }
+        ],
+        "failed_file_ids": [
+            {
+                "error_code": 403,
+                "object_ids": ["guid2"],
+            }
+        ],
+    }
+
+    data = {
+        "bulk_object_access_ids": [
+            {
+                "bulk_object_id": "guid1",
+                "bulk_access_ids": ["s3"],
+            },
+            {
+                "bulk_object_id": "guid2",
+                "bulk_access_ids": ["s3"],
+            },
+        ]
+    }
+
+    res = client.post(
+        "/ga4gh/drs/v1/objects/access",
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(data),
+    )
+
+    assert res.status_code == 200
+    assert res.json == {
+        "summary": {
+            "requested": 2,
+            "resolved": 1,
+            "unresolved": 1,
+        },
+        "unresolved_drs_objects": [
+            {
+                "error_code": 403,
+                "object_ids": ["guid2"],
+            }
+        ],
+        "resolved_drs_object_access_urls": [
+            {
+                "drs_object_id": "guid1",
+                "drs_access_id": "s3",
+                "url": "https://example.com/guid1",
+                "headers": [],
+            }
+        ],
+    }
