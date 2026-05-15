@@ -106,9 +106,10 @@ def get_ga4gh_signed_urls():
         return jsonify(e.errors()), 400
 
     if request.headers.get("Authorization") and bulk_request.passports:
-        raise Forbidden(
-            "Cannot use both Authorization header and GA4GH passports"
-        )  # IMPLEMENT
+        raise UserError(
+            "You cannot supply both GA4GH passports and a token "
+            "in the Authorization header of a request."
+        )
 
     # Validate bulk request size against maxBulk config
     total_requested_count = sum(

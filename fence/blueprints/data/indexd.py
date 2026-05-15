@@ -225,6 +225,12 @@ def bulk_get_signed_url_for_file(
         default=default_expires_in,
     )
 
+    if ga4gh_passports and not config["GA4GH_PASSPORTS_TO_DRS_ENABLED"]:
+        raise NotSupported(
+            "Using GA4GH Passports as a means of authentication and authorization "
+            "is not supported by this instance of Gen3."
+        )
+
     users_from_passports = {}
     if ga4gh_passports:
         users_from_passports = sync_gen3_users_authz_from_ga4gh_passports(
