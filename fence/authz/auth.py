@@ -9,6 +9,12 @@ from fence.errors import Forbidden, Unauthorized, NotFound
 from fence.jwt.utils import get_jwt_header
 from fence.config import config
 
+from cdislogging import get_logger
+# Can't read config yet. Just set to debug for now, else no handlers.
+# Later, in app_config(), will actually set level based on config
+logger = get_logger(__name__, log_level="debug")
+
+
 
 def check_arborist_auth(resource, method, constraints=None, check_signature=False):
     """
@@ -63,7 +69,7 @@ def check_arborist_auth(resource, method, constraints=None, check_signature=Fals
                         # --- PUBLIC_KEY guard ---
                         public_key = config.get("AMANUENSIS_PUBLIC_KEY")
                         if not public_key:
-                            flask.current_app.logger.error(
+                            logger.error(
                                 "No PUBLIC_KEY configured — cannot validate signature"
                             )
                             raise Forbidden(
