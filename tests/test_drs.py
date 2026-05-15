@@ -1771,6 +1771,10 @@ def test_get_presigned_url_with_client_token(
 
 @patch("fence.blueprints.ga4gh.bulk_get_signed_url_for_file")
 def test_get_ga4gh_signed_urls_success(mock_bulk_get_signed_url_for_file, client):
+    """
+    Tests that the summary, resolved and unresolved counts are correct and the access urls are correct when multiple
+    presigned urls are requested
+    """
     mock_bulk_get_signed_url_for_file.return_value = {
         "urls": [
             {
@@ -1841,6 +1845,10 @@ def test_get_ga4gh_signed_urls_success(mock_bulk_get_signed_url_for_file, client
 def test_get_ga4gh_signed_urls_multiple_access_ids(
     mock_bulk_get_signed_url_for_file, client
 ):
+    """
+    Tests that the summary, resolved and unresolved counts are correct and the access urls are correct when multiple
+    presigned urls are requested with DIFFERING access_ids
+    """
     mock_bulk_get_signed_url_for_file.side_effect = [
         {
             "urls": [
@@ -1902,72 +1910,12 @@ def test_get_ga4gh_signed_urls_multiple_access_ids(
 
 
 @patch("fence.blueprints.ga4gh.bulk_get_signed_url_for_file")
-def test_get_ga4gh_signed_urls_with_unresolved_objects(
-    mock_bulk_get_signed_url_for_file, client
-):
-    mock_bulk_get_signed_url_for_file.return_value = {
-        "urls": [
-            {
-                "drs_object_id": "object-1",
-                "url": "https://example.com/object-1",
-                "headers": [],
-            }
-        ],
-        "failed_file_ids": [
-            {
-                "error_code": 404,
-                "object_ids": ["object-2"],
-            }
-        ],
-    }
-
-    data = {
-        "bulk_object_access_ids": [
-            {
-                "bulk_object_id": "object-1",
-                "bulk_access_ids": ["s3"],
-            },
-            {
-                "bulk_object_id": "object-2",
-                "bulk_access_ids": ["s3"],
-            },
-        ]
-    }
-
-    res = client.post(
-        "/ga4gh/drs/v1/objects/access",
-        headers={"Content-Type": "application/json"},
-        data=json.dumps(data),
-    )
-
-    assert res.status_code == 200
-    assert res.json == {
-        "summary": {
-            "requested": 2,
-            "resolved": 1,
-            "unresolved": 1,
-        },
-        "unresolved_drs_objects": [
-            {
-                "error_code": 404,
-                "object_ids": ["object-2"],
-            }
-        ],
-        "resolved_drs_object_access_urls": [
-            {
-                "drs_object_id": "object-1",
-                "drs_access_id": "s3",
-                "url": "https://example.com/object-1",
-                "headers": [],
-            }
-        ],
-    }
-
-
-@patch("fence.blueprints.ga4gh.bulk_get_signed_url_for_file")
 def test_get_ga4gh_signed_urls_request_too_large(
     mock_bulk_get_signed_url_for_file, client, monkeypatch
 ):
+    """
+    Tests the response when a bulk request exceeds the configured limit
+    """
     monkeypatch.setitem(config, "MAX_BULK_DRS_REQUESTS", 1)
 
     data = {
@@ -1999,6 +1947,9 @@ def test_get_ga4gh_signed_urls_request_too_large(
 
 
 def test_get_ga4gh_signed_urls_invalid_request_body(client):
+    """
+    Test that the API rejects requests when the body does not conform to spec.
+    """
     data = {
         "bulk_object_access_ids": [
             {
@@ -2017,9 +1968,12 @@ def test_get_ga4gh_signed_urls_invalid_request_body(client):
 
 
 @patch("fence.blueprints.ga4gh.bulk_get_signed_url_for_file")
-def test_get_ga4gh_signed_urls_forbidden_with_auth_header_and_passports(
+def test_get_ga4gh_signed_urls_with_auth_header_and_passports(
     mock_bulk_get_signed_url_for_file, client
 ):
+    """
+    Test bulk requests are rejected when given a passport and a bearer token
+    """
     data = {
         "passports": ["passport-token"],
         "bulk_object_access_ids": [
@@ -2045,6 +1999,9 @@ def test_get_ga4gh_signed_urls_forbidden_with_auth_header_and_passports(
 
 @patch("fence.blueprints.ga4gh.bulk_get_signed_url_for_file")
 def test_get_ga4gh_signed_urls_missing_guid(mock_bulk_get_signed_url_for_file, client):
+    """
+    Test when a bulk request contains guids that are not in indexd.
+    """
     mock_bulk_get_signed_url_for_file.return_value = {
         "urls": [
             {
@@ -2108,6 +2065,9 @@ def test_get_ga4gh_signed_urls_missing_guid(mock_bulk_get_signed_url_for_file, c
 def test_get_ga4gh_signed_urls_partial_authz_failure(
     mock_bulk_get_signed_url_for_file, client
 ):
+    """
+    Test when a bulk request has a mix of files that the user can and cannot access
+    """
     mock_bulk_get_signed_url_for_file.return_value = {
         "urls": [
             {
