@@ -47,6 +47,7 @@ class FenceConfig(Config):
             "DEFAULT_BACKOFF_SETTINGS_MAX_TRIES",
             "ARBORIST_TIMEOUT",
             "HIDE_IDPS",
+            "GEN3_EMBEDDINGS_API_REGEX",
         ]
         for default in defaults:
             self.force_default_if_none(default, default_cfg=default_config)

@@ -2,11 +2,13 @@ import flask
 
 from cdislogging import get_logger
 from cdispyutils.config import get_value
+import requests
 
 from fence.auth import login_required, require_auth_header, current_token, get_jwt
 from fence.authz.auth import check_arborist_auth
 from fence.blueprints.data.indexd import (
     BlankIndex,
+    BulkIndexedRecords,
     IndexedFile,
     get_signed_url_for_file,
     verify_data_upload_bucket_configuration,
@@ -368,3 +370,78 @@ def get_bucket_region_info():
             buckets[bucket] = info_copy
 
     return flask.jsonify(result)
+
+
+@blueprint.route("/content", methods=["POST"])
+def get_file_content():
+    """
+    Get content of a files referenced by GUIDs provided.
+
+    This effectively bypasses the need to resolve individual signed URLs IFF the underlying
+    URLs of the GUIDs support bulk content retrieval.
+
+    For now, this only supports Gen3 AI Embeddings.
+    """
+    data = flask.request.get_json()
+
+    # construct headers to use in later bulk retrieval requests
+    # by pulling the authorization header from this request
+    # e.g. we are passing the user's token along to subsequent calls
+    #      to trusted and allowlisted bulk URLs
+    auth_header = flask.request.headers.get("Authorization")
+    headers = {}
+    if auth_header:
+        headers["Authorization"] = auth_header
+
+    if not data:
+        raise UserError("wrong Content-Type; expected application/json")
+    if "guids" not in data:
+        raise UserError("missing required argument `guids`")
+
+    guids_to_get = data.get("guids", [])
+
+    # TODO: institute a max size? chunk bulk requests to indexd?
+    #       note that indexd appears to not impose a limitation on bulk GUID resolution
+    guids_content_response = {
+        "guids": {},
+        "total_guids": len(guids_to_get),
+    }
+
+    bulk_records = BulkIndexedRecords(guids=guids_to_get)
+    bulk_request_urls_and_payloads, bulk_id_to_guid = (
+        bulk_records.get_bulk_requests_and_mapping()
+    )
+
+    for request_url, request_body in bulk_request_urls_and_payloads:
+        if any(
+            request_url.startswith(allowed_ai_url)
+            for allowed_ai_url in config["ALLOWED_GEN3_EMBEDDINGS_BULK_URL_PREFIXES"]
+        ):
+            response = requests.post(request_url, headers=headers, data=request_body)
+
+            # if user is denied access, above call will fail - so reraise the HTTP error here
+            response.raise_for_status()
+
+            try:
+                content_json = response.json()
+            except requests.JSONDecodeError as exc:
+                logger.error(exc, exc_info=True)
+                raise UserError(
+                    f"invalid content from bulk request URL: {request_url}, cannot proceed"
+                )
+
+            for item in content_json.get("embeddings", []):
+                embedding_id = item.get("embedding_id")
+                if embedding_id not in bulk_id_to_guid:
+                    raise UserError(
+                        f"invalid response from bulk request URL: {request_url}, cannot proceed"
+                    )
+
+                guid = bulk_id_to_guid[embedding_id]
+                guids_content_response["guids"][guid] = item
+        else:
+            raise UserError(
+                f"indexed record not supported from bulk request URL: {request_url}, cannot proceed"
+            )
+
+    return flask.jsonify(guids_content_response)
