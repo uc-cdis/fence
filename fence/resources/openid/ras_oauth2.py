@@ -120,9 +120,19 @@ class RASOauth2Client(Oauth2ClientBase):
 
     def store_passport(self, user_id, passport, db_session=None):
         db_session = db_session or flask.current_app.scoped_session()
-        user_passport = UserPassport(user_id=user_id, passport=passport)
-        db_session.add(user_passport)
-        db_session.commit()
+        try:
+            # Clean up old passports first.
+            db_session.query(UserPassport).filter(
+                UserPassport.user_id == user_id
+            ).delete(synchronize_session=False)
+
+            db_session.add(UserPassport(user_id=user_id, passport=passport))
+            db_session.commit()
+
+        except Exception:
+            db_session.rollback()
+            self.logger.exception("Failed to store passport for user_id=%s", user_id)
+            raise
 
     def get_auth_info(self, code):
         err_msg = "Unable to parse UserID from RAS userinfo response"
