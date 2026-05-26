@@ -48,6 +48,7 @@ class FenceConfig(Config):
             "ARBORIST_TIMEOUT",
             "HIDE_IDPS",
             "GEN3_EMBEDDINGS_API_REGEX",
+            "MAX_BULK_CONTENT_GUIDS_COUNT",
         ]
         for default in defaults:
             self.force_default_if_none(default, default_cfg=default_config)

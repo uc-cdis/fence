@@ -538,6 +538,12 @@ GA4GH_DRS_POSTED_PASSPORT_FIELD: "passports"
 # a specific exp configured for that IdP above in OPENID_CONNECT
 DEFAULT_REFRESH_TOKEN_EXP: 3600
 
+# Max number of GUIDs to request content retrieval for
+# NOTE: This is limited by the MAX allowed for any underlying bulk content requests
+#       e.g. if the Gen3 Embeddings service is configured to allow max 1000, then this
+#            can't be more than that for embeddings content resolutions
+MAX_BULK_CONTENT_GUIDS_COUNT: 500
+
 ########################################################################################
 #                               OPTIONAL CONFIGURATIONS                                #
 ########################################################################################

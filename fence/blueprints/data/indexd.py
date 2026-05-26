@@ -861,7 +861,11 @@ class BulkIndexedRecords(object):
 
         records = {}
         for record in bulk_records:
-            records[record["did"]] = record
+            guid = record.get("did")
+            if not guid:
+                raise InternalError(f"Could not retrieve `did` from record: {record}")
+
+            records[guid] = record
 
         return records
 
@@ -876,6 +880,7 @@ class BulkIndexedRecords(object):
         """
         bulk_id_to_guid = {}
         bulk_request_urls_and_payloads = {}
+
         for guid, record in self.bulk_indexed_records.items():
             file_locations = [
                 IndexedFileLocation.from_url(url) for url in record.get("urls", [])
@@ -884,6 +889,14 @@ class BulkIndexedRecords(object):
             valid = False
             for file_location in file_locations:
                 # handle Gen3 AI Embeddings
+                allowed_ai_url_root = ""
+                for allowed_ai_url in config[
+                    "ALLOWED_GEN3_EMBEDDINGS_BULK_URL_PREFIXES"
+                ]:
+                    if file_location.url.startswith(allowed_ai_url):
+                        allowed_ai_url_root = allowed_ai_url
+                        break
+
                 if any(
                     file_location.url.startswith(allowed_ai_url)
                     for allowed_ai_url in config[
@@ -900,7 +913,7 @@ class BulkIndexedRecords(object):
                         embedding_uuid = match.group("embedding_uuid")
 
                         # start constructing the required bulk requests
-                        bulk_embeddings_request_url = f"/vectorstore/collections/{collection_name}/embeddings/bulk"
+                        bulk_embeddings_request_url = f"{allowed_ai_url_root.rstrip('/')}/vectorstore/collections/{collection_name}/embeddings/bulk"
                         bulk_request_urls_and_payloads.setdefault(
                             bulk_embeddings_request_url, []
                         ).append(embedding_uuid)
@@ -908,10 +921,10 @@ class BulkIndexedRecords(object):
 
                         valid = True
 
-                # any new endpoints with valid bulk content retrieval support can be added here
+            # any new endpoints with valid bulk content retrieval support can be added here
 
-                if not valid:
-                    raise NotSupported("GUID URL(s) do not support bulk retrieval.")
+            if not valid:
+                raise NotSupported("GUID URL(s) do not support bulk retrieval.")
 
         return bulk_request_urls_and_payloads, bulk_id_to_guid
 
