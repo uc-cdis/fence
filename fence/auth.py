@@ -2,7 +2,9 @@ import re
 import urllib.request, urllib.parse, urllib.error
 from datetime import datetime
 from functools import wraps
+from json import JSONDecodeError
 
+import backoff
 import flask
 from flask import current_app
 from authutils.errors import JWTError, JWTExpiredError
@@ -12,6 +14,8 @@ from authutils.token.validate import (
     set_current_token, 
     validate_request
 )
+from cdislogging import get_logger
+import requests
 
 from cdislogging import get_logger
 from fence.authz.auth import check_arborist_auth
@@ -20,8 +24,12 @@ from fence.errors import Unauthorized, InternalError
 from fence.jwt.validate import validate_jwt
 from fence.models import User, IdentityProvider, query_for_user
 from fence.user import get_current_user
-from fence.utils import clear_cookies
-
+from fence.utils import (
+    clear_cookies,
+    DEFAULT_BACKOFF_SETTINGS,
+    allowed_login_redirects,
+    domain,
+)
 
 logger = get_logger(__name__)
 
@@ -238,6 +246,21 @@ def login_user_or_require_registration(
     return log_user_in
 
 
+@backoff.on_exception(backoff.expo, Exception, **DEFAULT_BACKOFF_SETTINGS)
+def get_openid_config_for_idp(open_id_connect):
+    """
+    Return openid configuration for a given provider.
+    Args:
+        open_id_connect (dict): fence config for idp
+    Returns:
+        response: response of openid configuration
+    """
+    well_known_url = open_id_connect["discovery_url"]
+    well_known_resp = requests.get(well_known_url)
+    well_known_resp.raise_for_status()
+    return well_known_resp
+
+
 def logout(next_url, force_era_global_logout=False):
     """
     Return a redirect which another logout from IDP or the provided redirect.
@@ -251,17 +274,66 @@ def logout(next_url, force_era_global_logout=False):
     # propogate logout to IDP
     provider_logout = None
     provider = flask.session.get("provider")
+
     if force_era_global_logout or provider == IdentityProvider.itrust:
         safe_url = urllib.parse.quote_plus(next_url)
         provider_logout = config["ITRUST_GLOBAL_LOGOUT"] + safe_url
     elif provider == IdentityProvider.fence:
         base = config["OPENID_CONNECT"]["fence"]["api_base_url"]
         provider_logout = base + "/logout?" + urllib.parse.urlencode({"next": next_url})
+    elif provider == "cognito":
+        idp_openid_connect = config["OPENID_CONNECT"]["cognito"]
+        well_known = None
+        try:
+            well_known_resp = get_openid_config_for_idp(idp_openid_connect)
+            well_known = well_known_resp.json()
+        except requests.exceptions.HTTPError as e:
+            logger.error(
+                f"Well-known endpoint returned an error status after multiple retries, Cognito Session not invalidated, Logging out of Gen3. Error: {e}"
+            )
+        except requests.exceptions.ConnectionError as e:
+            logger.error(
+                f"Could not connect to well-known endpoint, Cognito Session not invalidated, Logging out of Gen3. Error: {e} "
+            )
+        except JSONDecodeError as e:
+            logger.error(
+                f"Invalid JSON resonse from well-known, Cognito Session not invalidated, Logging out of Gen3. Error: {e}"
+            )
+        except Exception as e:
+            logger.error(
+                f"Error occured trying to get well-known, Cognito Session not invalidated, Logging out from Gen3. Error: {e}"
+            )
+        if well_known:
+            end_session_endpoint = well_known.get("end_session_endpoint")
+            # NOTE: discovery url for cognito is different than the cognito api domain url. Check the domain for the APIs like end_session_endpoint or authorization_endpoint found in the well-know openid config
+            if domain(end_session_endpoint) not in allowed_login_redirects():
+                logger.error(
+                    f"Logout url {end_session_endpoint} not in LOGIN_REDIRECT_WHITELIST config. Cognito Session not invalidated, Logging out from Gen3."
+                )
+            else:
+                if end_session_endpoint:
+                    provider_logout = (
+                        end_session_endpoint
+                        + "?"
+                        + urllib.parse.urlencode(
+                            {
+                                "client_id": idp_openid_connect["client_id"],
+                                "logout_uri": next_url,  # NOTE: This needs to be set up in the cognito console for an allowed sign-out url
+                            }
+                        )
+                    )
+                else:
+                    logger.error(
+                        "end_session_endpoint not found in well-known config. Cognito Session not invalidated. Logging out from Gen3"
+                    )
 
     flask.session.clear()
-    redirect_response = flask.make_response(
-        flask.redirect(provider_logout or urllib.parse.unquote(next_url))
-    )
+    try:
+        redirect_response = flask.make_response(
+            flask.redirect(provider_logout or urllib.parse.unquote(next_url))
+        )
+    except Exception as e:
+        logger.error(f"Error logging out: {e}")
     clear_cookies(redirect_response)
     return redirect_response
 

@@ -6,7 +6,7 @@ folder).
 from cdislogging import get_logger
 import flask
 
-from fence.blueprints.login.utils import allowed_login_redirects, domain
+from fence.utils import allowed_login_redirects, domain
 from fence.errors import UserError
 
 
