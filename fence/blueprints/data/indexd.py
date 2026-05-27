@@ -211,7 +211,6 @@ def bulk_get_signed_url_for_file(
     audit_headers = x_forwarded_headers + [user_agent]
 
     users_from_passports = {}
-    username = auth_info["username"]
     if ga4gh_passports:
         users_from_passports = sync_gen3_users_authz_from_ga4gh_passports(
             ga4gh_passports, db_session=db_session
