@@ -7,6 +7,7 @@ jobs:
     name: Integration tests
     uses: uc-cdis/.github/.github/workflows/integration_tests.yaml@master
     with:
+      TEST_REPO_BRANCH: fix/version_issue
       SERVICE_TO_TEST: fence
     secrets:
       CI_TEST_ORCID_USERID: ${{ secrets.CI_TEST_ORCID_USERID }}
