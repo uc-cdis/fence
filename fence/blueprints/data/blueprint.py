@@ -7,6 +7,7 @@ from cdispyutils.config import get_value
 
 from fence.auth import login_required, require_auth_header, current_token, get_jwt
 from fence.authz.auth import check_arborist_auth
+from fence.blueprints.ga4gh import BulkObjectAccessRequest
 from fence.blueprints.data.indexd import (
     BlankIndex,
     IndexedFile,
@@ -15,7 +16,7 @@ from fence.blueprints.data.indexd import (
     verify_data_upload_bucket_configuration,
 )
 from fence.config import config
-from fence.errors import Forbidden, InternalError, UserError, Unauthorized
+from fence.errors import Forbidden, InternalError, NotSupported, UserError, Unauthorized
 from fence.utils import get_valid_expiration
 
 
@@ -364,6 +365,14 @@ def download_bulk_files():
         raise UserError("missing required argument `guids`")
 
     guids = params["guids"]
+    bulk_request = BulkObjectAccessRequest(**flask.request.get_json())
+
+    if bulk_request.passports and not config["GA4GH_PASSPORTS_TO_DRS_ENABLED"]:
+        raise NotSupported(
+            "Using GA4GH Passports as a means of authentication and authorization "
+            "is not supported by this instance of Gen3."
+        )
+
     results = bulk_get_signed_url_for_file(guids)
 
     return flask.jsonify(results)

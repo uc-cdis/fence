@@ -5,7 +5,14 @@ from flask import Blueprint, request, jsonify
 from pydantic import BaseModel, ValidationError
 from cdislogging import get_logger
 
-from fence.errors import UserError, Unauthorized, Forbidden, NotFound, UnavailableError
+from fence.errors import (
+    NotSupported,
+    UserError,
+    Unauthorized,
+    Forbidden,
+    NotFound,
+    UnavailableError,
+)
 from fence.config import config
 
 from fence.blueprints.data.indexd import (
@@ -109,6 +116,11 @@ def get_ga4gh_signed_urls():
         raise UserError(
             "You cannot supply both GA4GH passports and a token "
             "in the Authorization header of a request."
+        )
+    if bulk_request.passports and not config["GA4GH_PASSPORTS_TO_DRS_ENABLED"]:
+        raise NotSupported(
+            "Using GA4GH Passports as a means of authentication and authorization "
+            "is not supported by this instance of Gen3."
         )
 
     # Validate bulk request size against maxBulk config

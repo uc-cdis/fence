@@ -207,15 +207,46 @@ def bulk_get_signed_url_for_file(
     x_forwarded_headers = [
         f"{header}:{value}" for header, value in flask.request.headers if "X-" in header
     ]
+    user_agent = f"User-Agent:{flask.request.headers.get('User-Agent')}"
+    audit_headers = x_forwarded_headers + [user_agent]
 
-    auth_info = _get_auth_info_for_id_or_from_request(
-        sub_type=int, db_session=db_session
-    )
-    flask.g.audit_data = {
-        "username": auth_info["username"],
-        "sub": auth_info["user_id"],
-        "additional_data": x_forwarded_headers,
-    }
+    users_from_passports = {}
+    username = auth_info["username"]
+    if ga4gh_passports:
+        users_from_passports = sync_gen3_users_authz_from_ga4gh_passports(
+            ga4gh_passports, db_session=db_session
+        )
+    if users_from_passports:
+        if len(users_from_passports) > 1:
+            logger.warning(
+                "audit service doesn't support multiple users for a "
+                "single request yet, so just log userinfo here"
+            )
+            for username, user in users_from_passports.items():
+                audit_data = {
+                    "username": username,
+                    "sub": user.id,
+                    "additional_data": audit_headers or [],
+                }
+                logger.info(
+                    f"passport with multiple user ids is attempting data access. audit log: {audit_data}"
+                )
+        else:
+            username, user = next(iter(users_from_passports.items()))
+            flask.g.audit_data = {
+                "username": username,
+                "sub": user.id,
+                "additional_data": audit_headers or [],
+            }
+    else:
+        auth_info = _get_auth_info_for_id_or_from_request(
+            sub_type=int, db_session=db_session
+        )
+        flask.g.audit_data = {
+            "username": auth_info["username"],
+            "sub": auth_info["user_id"],
+            "additional_data": audit_headers or [],
+        }
 
     indexed_files = BulkIndexedFiles(file_ids)
 
@@ -229,12 +260,6 @@ def bulk_get_signed_url_for_file(
         raise NotSupported(
             "Using GA4GH Passports as a means of authentication and authorization "
             "is not supported by this instance of Gen3."
-        )
-
-    users_from_passports = {}
-    if ga4gh_passports:
-        users_from_passports = sync_gen3_users_authz_from_ga4gh_passports(
-            ga4gh_passports, db_session=db_session
         )
 
     prepare_bulk_presigned_url_audit_log(requested_protocol, indexed_files)
@@ -723,7 +748,9 @@ class BulkIndexedFiles(object):
 
             if file_authz:
                 authz_key = (
-                    tuple(file_authz) if isinstance(file_authz, list) else file_authz
+                    tuple(sorted(file_authz))
+                    if isinstance(file_authz, list)
+                    else file_authz
                 )
 
                 if authz_key not in self.auth_roles:
