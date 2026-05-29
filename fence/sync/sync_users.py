@@ -1824,7 +1824,7 @@ class UserSyncer(object):
                 self.arborist_client.update_resource("/", resource, merge=True)
             except ArboristError as e:
                 self.logger.error(e)
-                # keep going; maybe just some conflicts from things existing already
+                raise
 
         # update roles
         roles = user_yaml.authz.get("roles", [])
@@ -2376,9 +2376,7 @@ class UserSyncer(object):
         """
         for request_body in utils.combine_provided_and_dbgap_resources({}, resources):
             try:
-                response_json = self.arborist_client.update_resource(
-                    "/", request_body, merge=True
-                )
+                self.arborist_client.update_resource("/", request_body, merge=True)
             except ArboristError as e:
                 self.logger.error(
                     "could not create Arborist resources using request body `{}`. error: {}".format(
