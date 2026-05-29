@@ -1795,6 +1795,10 @@ def test_get_presigned_url_with_passport_sets_skip_google_updates_by_protocol(
     cloud_manager,
     google_signed_url,
 ):
+    """
+    Tests that google group sync is skipped for protocols that don't require google groups for data access, always in
+    the case where passports are used to access data.
+    """
     config["GA4GH_PASSPORTS_TO_DRS_ENABLED"] = True
 
     test_guid = "1"
