@@ -35,7 +35,7 @@ logger = get_logger(__name__)
 
 def require_auth_header(*args, **kwargs):
     """
-    TODO
+    Injects the default token audience before calling authutils's `require_auth_header`
     """
     if "audience" in kwargs:
         if type(kwargs["audience"]) != list:

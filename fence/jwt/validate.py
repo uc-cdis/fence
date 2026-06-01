@@ -119,8 +119,6 @@ def validate_jwt(
     )
 
     try:
-        print("fence validate_jwt aud", aud)
-        print("fence validate_jwt encoded_token", encoded_token)
         claims = authutils.token.validate.validate_jwt(
             encoded_token=encoded_token,
             aud=aud,
