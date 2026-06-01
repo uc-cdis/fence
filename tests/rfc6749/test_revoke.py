@@ -1,5 +1,7 @@
-import jwt
 import time
+
+import jwt
+import pytest
 
 from fence.jwt.blacklist import is_token_blacklisted
 from fence.models import User
@@ -83,18 +85,20 @@ def test_revoke_invalid_token(client, oauth_client, kid, rsa_private_key):
     assert response.status_code == 400, response.text
 
 
-def test_revoke_access_token(
+def test_revoke_client_access_token(
     client, oauth_client, encoded_jwt, db_session, mock_arborist_requests
 ):
     """
     Test that a client can revoke an access token, and that a revoked token is rejected by the API.
     """
+    # create a user and check that they can access their own info using their own token
     db_session.add(User(id=utils.default_claims()["sub"], username="test-user"))
     db_session.commit()
     mock_arborist_requests()
     response = client.get("/user", headers={"Authorization": f"bearer {encoded_jwt}"})
     assert response.status_code == 200, response.text
 
+    # revoke the token with a client token
     response = client.post(
         "/oauth2/revoke",
         headers=create_basic_header_for_client(oauth_client),
@@ -102,5 +106,52 @@ def test_revoke_access_token(
     )
     assert response.status_code == 200, response.text
 
+    # the token should not be usable anymore
     response = client.get("/user", headers={"Authorization": f"bearer {encoded_jwt}"})
+    assert response.status_code == 401, response.text
+
+
+@pytest.mark.parametrize("send_body", [True, False])
+def test_revoke_user_access_token(
+    client, encoded_jwt, db_session, mock_arborist_requests, send_body
+):
+    """
+    Test that a client can revoke an access token, and that a revoked token is rejected by the API.
+    """
+    # create a user and check that they can access their own info using their own token
+    headers = {"Authorization": f"bearer {encoded_jwt}"}
+    db_session.add(User(id=utils.default_claims()["sub"], username="test-user"))
+    db_session.commit()
+    mock_arborist_requests()
+    response = client.get("/user", headers=headers)
+    assert response.status_code == 200, response.text
+
+    # the token should not be blacklisted
+    response = client.post(
+        "/credentials/token/blacklisted",
+        headers=headers,
+        json={"token": encoded_jwt} if send_body else None,
+    )
+    assert response.status_code == 200, response.text
+    assert response.json == {"blacklisted": False}
+
+    # revoke the token with the user's own token
+    response = client.post(
+        "/credentials/token/revoke",
+        headers=headers,
+        json={"token": encoded_jwt} if send_body else None,
+    )
+    assert response.status_code == 200, response.text
+
+    # the token should be blacklisted
+    response = client.post(
+        "/credentials/token/blacklisted",
+        headers=headers,
+        json={"token": encoded_jwt} if send_body else None,
+    )
+    assert response.status_code == 200, response.text
+    assert response.json == {"blacklisted": True}
+
+    # the token should not be usable anymore
+    response = client.get("/user", headers=headers)
     assert response.status_code == 401, response.text

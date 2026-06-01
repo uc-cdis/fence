@@ -1,3 +1,5 @@
+import json
+
 import flask
 from flask import current_app
 
@@ -7,6 +9,8 @@ from fence.blueprints.storage_creds.google import GoogleCredentialsList
 from fence.blueprints.storage_creds.google import GoogleCredentials
 from fence.blueprints.storage_creds.other import OtherCredentialsList
 from fence.blueprints.storage_creds.other import OtherCredentials
+from fence.jwt.blacklist import blacklist_encoded_token, is_token_blacklisted
+from fence.jwt.utils import get_jwt_header
 from fence.resources.storage import get_endpoints_descriptions
 from fence.restful import RestfulApi
 from fence.config import config
@@ -18,6 +22,17 @@ ALL_RESOURCES = {
     "/aws-s3": "access to AWS S3 storage",
     "/google": "access to Google storage",
 }
+
+
+def get_token_from_body_or_header():
+    try:
+        body = json.loads(flask.request.data)
+    except Exception:
+        body = {}
+    encoded_token = body.get("token")
+    if not encoded_token:
+        encoded_token = get_jwt_header()
+    return encoded_token
 
 
 def make_creds_blueprint():
@@ -78,6 +93,29 @@ def make_creds_blueprint():
         )
         return flask.jsonify(
             get_endpoints_descriptions(services, current_app.scoped_session())
+        )
+
+    # TODO update swagger doc
+    @blueprint.route("/token/revoke", methods=["POST"])
+    @require_auth_header()
+    def revoke_token():
+        """
+        Can be used to revoke any revocable token.
+        """
+        blacklist_encoded_token(get_token_from_body_or_header())
+        return "", 200
+
+    @blueprint.route("/token/blacklisted", methods=["POST"])
+    @require_auth_header()
+    def check_if_token_blacklisted():
+        """
+        Check if a token is blacklisted/revoked.
+        """
+        return (
+            flask.jsonify(
+                {"blacklisted": is_token_blacklisted(get_token_from_body_or_header())}
+            ),
+            200,
         )
 
     return blueprint
