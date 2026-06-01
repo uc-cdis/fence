@@ -5,7 +5,7 @@ import flask
 
 from cdislogging import get_logger
 
-from fence.errors import BlacklistingError
+from fence.errors import BlacklistingInvalidTokenError
 import fence.jwt.blacklist
 import jwt
 
@@ -32,7 +32,7 @@ class RevocationEndpoint(authlib.oauth2.rfc7009.RevocationEndpoint):
         """
         try:
             fence.jwt.blacklist.blacklist_encoded_token(token.encoded_string)
-        except BlacklistingError as err:
+        except BlacklistingInvalidTokenError as err:
             logger.info(
                 "Token provided for revocation is not valid. "
                 "Per rfc7009, this should still return a 200. Error: "

@@ -1,4 +1,3 @@
-import json
 import time
 import uuid
 from enum import Enum
@@ -8,7 +7,6 @@ from authlib.oidc.core import IDToken, CodeIDToken, ImplicitIDToken
 from authlib.oidc.core.util import create_half_hash
 
 from cdislogging import get_logger
-import flask
 import jwt
 
 from fence.jwt import keys
