@@ -933,6 +933,54 @@ paths:
       responses:
         '200':
           description: successful operation
+  /credentials/token/revoke:
+    post:
+      tags:
+        - credentials
+      summary: Revoke a token
+      description: >-
+        Can be used to revoke any revocable token (access token, refresh token, API key).
+
+
+        If no token is provided in the request body, falls back to the request's Authorization header.
+
+
+        Note that revoking an access token does not guarantee rejection by all APIs.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+      responses:
+        '200':
+          description: successful operation
+  /credentials/token/blacklisted:
+    post:
+      tags:
+        - credentials
+      summary: Check if a token is blacklisted/revoked
+      description: Check if a token is blacklisted/revoked
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+      responses:
+        '200':
+          description: successful operation
+          content:
+            '*/*':
+              schema:
+                type: object
+                properties:
+                  blacklisted:
+                    type: boolean
   /credentials/google:
     get:
       tags:

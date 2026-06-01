@@ -125,6 +125,7 @@ def is_blacklisted(jti):
     Return:
         bool: whether JWT with the given id is blacklisted
     """
+    # TODO add caching
     with flask.current_app.db.session as session:
         return bool(session.query(BlacklistedToken).filter_by(jti=jti).first())
 

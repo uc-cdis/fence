@@ -25,6 +25,10 @@ ALL_RESOURCES = {
 
 
 def get_token_from_body_or_header():
+    """
+    Return the value of the request body `token` field if present.
+    Fall back to the request's Authorization header otherwise.
+    """
     try:
         body = json.loads(flask.request.data)
     except Exception:
@@ -95,7 +99,6 @@ def make_creds_blueprint():
             get_endpoints_descriptions(services, current_app.scoped_session())
         )
 
-    # TODO update swagger doc
     @blueprint.route("/token/revoke", methods=["POST"])
     @require_auth_header()
     def revoke_token():
