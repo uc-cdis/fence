@@ -1,6 +1,6 @@
 [tool.poetry]
 name = "fence"
-version = "13.1.0"
+version = "13.1.1"
 description = "Gen3 AuthN/AuthZ OIDC Service"
 authors = ["CTDS UChicago <cdis@uchicago.edu>"]
 license = "Apache-2.0"
@@ -13,7 +13,7 @@ include = [
 [tool.poetry.dependencies]
 python = ">=3.13,<4.0.0"
 alembic = ">=1.7.7"
-authlib = ">=1.6.5"
+authlib = ">=1.6.5,<=1.6.9"
 #authutils = ">=7.2.2"
 authutils = {git = "https://github.com/uc-cdis/authutils", rev = "validate-aud"}
 bcrypt = ">=3.1.4"
