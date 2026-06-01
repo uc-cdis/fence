@@ -279,8 +279,8 @@ paths:
     post:
       tags:
         - oauth2
-      summary: Revoke a refresh token per RFC 7009
-      description: Revoke a refresh (not access) token granted to a user.
+      summary: Revoke a token per RFC 7009
+      description: Revoke a refresh or access token granted to a user through an OIDC client.
       operationId: revoke
       responses:
         '200':

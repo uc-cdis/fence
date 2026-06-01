@@ -5,7 +5,7 @@ import flask
 
 from cdislogging import get_logger
 
-from fence.errors import BlacklistingInvalidTokenError
+from fence.errors import BlacklistingError, BlacklistingInvalidTokenError
 import fence.jwt.blacklist
 import jwt
 

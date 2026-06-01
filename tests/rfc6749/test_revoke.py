@@ -2,6 +2,7 @@ import jwt
 import time
 
 from fence.jwt.blacklist import is_token_blacklisted
+from fence.models import User
 from tests import utils
 from tests.utils.oauth2 import create_basic_header_for_client
 
@@ -80,3 +81,26 @@ def test_revoke_invalid_token(client, oauth_client, kid, rsa_private_key):
     )
     response = client.post("/oauth2/revoke", headers=headers, data={"token": id_token})
     assert response.status_code == 400, response.text
+
+
+def test_revoke_access_token(
+    client, oauth_client, encoded_jwt, db_session, mock_arborist_requests
+):
+    """
+    Test that a client can revoke an access token, and that a revoked token is rejected by the API.
+    """
+    db_session.add(User(id=utils.default_claims()["sub"], username="test-user"))
+    db_session.commit()
+    mock_arborist_requests()
+    response = client.get("/user", headers={"Authorization": f"bearer {encoded_jwt}"})
+    assert response.status_code == 200, response.text
+
+    response = client.post(
+        "/oauth2/revoke",
+        headers=create_basic_header_for_client(oauth_client),
+        data={"token": encoded_jwt},
+    )
+    assert response.status_code == 200, response.text
+
+    response = client.get("/user", headers={"Authorization": f"bearer {encoded_jwt}"})
+    assert response.status_code == 401, response.text

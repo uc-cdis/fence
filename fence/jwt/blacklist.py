@@ -108,7 +108,7 @@ def blacklist_encoded_token(encoded_token, public_key=None):
     # Do checks.
     # Check that JWT id is UUID4 (this raises a ValueError otherwise).
     uuid.UUID(jti, version=4)
-    # Must be refresh token or API key in order to revoke.
+    # Must be access/refresh token or API key in order to revoke.
     if pur not in ["refresh", "api_key", "access"]:
         raise BlacklistingError("can only blacklist refresh tokens and API keys")
 

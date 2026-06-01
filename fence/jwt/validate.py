@@ -190,9 +190,11 @@ def validate_jwt(
     if require_purpose and "pur" not in claims:
         raise JWTError("token {} missing purpose (`pur`) claim".format(claims["jti"]))
 
-    # For refresh tokens and API keys specifically, check that they are not
+    # For access/refresh tokens and API keys specifically, check that they are not
     # blacklisted.
-    if require_purpose and (claims["pur"] == "refresh" or claims["pur"] == "api_key"):
+    # TODO: maybe remove access tokens from this, since they are checked separately by revproxy.
+    # This check only cover usage against the Fence API, and adds a DB query.
+    if require_purpose and claims["pur"] in ["refresh", "api_key", "access"]:
         if is_blacklisted(claims["jti"]):
             raise JWTError("token is blacklisted")
 
