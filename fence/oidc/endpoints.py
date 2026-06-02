@@ -33,6 +33,10 @@ class RevocationEndpoint(authlib.oauth2.rfc7009.RevocationEndpoint):
         try:
             fence.jwt.blacklist.blacklist_encoded_token(token.encoded_string)
         except BlacklistingInvalidTokenError as err:
+            # Attempting to revoke an invalid token fails and return a 200 (per RFC 7009).
+            # However, other revocation failures should not return 200. RFC 7009 only says to
+            # return 200 for tokens that are already invalid and as such cannot be used, effectively
+            # the same result as revoking them.
             logger.info(
                 "Token provided for revocation is not valid. "
                 "Per rfc7009, this should still return a 200. Error: "

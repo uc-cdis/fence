@@ -51,11 +51,11 @@ def test_blacklisted_token(client, oauth_client, encoded_jwt_refresh_token):
 
 def test_revoke_invalid_token(client, oauth_client, kid, rsa_private_key):
     """
-    Test that attempting to revoke an invalid token fails and return a 200 (per RFC 7009).
+    Test that attempting to revoke an invalid token through the "/oauth2/revoke" endpoint fails and
+    return a 200 (per RFC 7009).
 
-    However, attempting to revoke an ID token (not invalid!) does not return 200. RFC 7009 only
-    says to return 200 for tokens that are already invalid and as such cannot be used, effectively
-    the same result as revoking them.
+    However, attempting to revoke an ID token (wrong token type, but not invalid!) does not return
+    200.
     """
     headers = create_basic_header_for_client(oauth_client)
 
@@ -89,7 +89,8 @@ def test_revoke_client_access_token(
     client, oauth_client, encoded_jwt, db_session, mock_arborist_requests
 ):
     """
-    Test that a client can revoke an access token, and that a revoked token is rejected by the API.
+    Test that a client can revoke an access token through the "/oauth2/revoke" endpoint, and that a
+    revoked token is rejected by the API.
     """
     # create a user and check that they can access their own info using their own token
     db_session.add(User(id=utils.default_claims()["sub"], username="test-user"))
@@ -116,7 +117,8 @@ def test_revoke_user_access_token(
     client, encoded_jwt, db_session, mock_arborist_requests, send_body
 ):
     """
-    Test that a client can revoke an access token, and that a revoked token is rejected by the API.
+    Test that a user can revoke an access token through the "/credentials/token/blacklisted"
+    endpoint, and that a revoked token is rejected by the API.
     """
     # create a user and check that they can access their own info using their own token
     headers = {"Authorization": f"bearer {encoded_jwt}"}
