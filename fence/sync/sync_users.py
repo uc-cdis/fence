@@ -1851,7 +1851,7 @@ class UserSyncer(object):
             policy_id = policy.pop("id")
             try:
                 self.logger.debug(
-                    "Trying to upsert policy with id {}: {}}".format(policy_id, policy)
+                    "Trying to upsert policy with id {}: {}".format(policy_id, policy)
                 )
                 response = self.arborist_client.update_policy(
                     policy_id, policy, create_if_not_exist=True
