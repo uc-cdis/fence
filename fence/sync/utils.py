@@ -1,7 +1,10 @@
 from functools import reduce
+import json
 
 
-def combine_provided_and_dbgap_resources(useryaml_resources, arborist_paths):
+def combine_provided_and_dbgap_resources(
+    useryaml_resources, arborist_paths, logger=None
+):
     """
     Combine provided user.yaml resources loaded into python list of dictionaries
     and a list of string that are arborist resource paths for dbgap.
@@ -151,4 +154,7 @@ def combine_provided_and_dbgap_resources(useryaml_resources, arborist_paths):
         reduce(insert_segment, segments, start)
         return root
 
-    return reduce(nest_resource, arborist_paths, list(useryaml_resources))
+    res = reduce(nest_resource, arborist_paths, list(useryaml_resources))
+    if logger:
+        logger.info(f"Combined resources: {json.dumps(res, indent=2)}")
+    return res

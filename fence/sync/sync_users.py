@@ -1813,7 +1813,7 @@ class UserSyncer(object):
         self.logger.debug("dbgap resource paths: {}".format(dbgap_resource_paths))
 
         combined_resources = utils.combine_provided_and_dbgap_resources(
-            resources, dbgap_resource_paths
+            resources, dbgap_resource_paths, self.logger
         )
 
         for resource in combined_resources:
@@ -1851,7 +1851,7 @@ class UserSyncer(object):
             policy_id = policy.pop("id")
             try:
                 self.logger.debug(
-                    "Trying to upsert policy with id {}".format(policy_id)
+                    "Trying to upsert policy with id {}: {}}".format(policy_id, policy)
                 )
                 response = self.arborist_client.update_policy(
                     policy_id, policy, create_if_not_exist=True
@@ -2184,13 +2184,15 @@ class UserSyncer(object):
                             incoming_policies.add(policy_id)
                             if policy_id not in self._created_policies:
                                 try:
+                                    policy = {
+                                        "description": "policy created by fence sync",
+                                        "role_ids": [role],
+                                        "resource_paths": [resource],
+                                    }
+                                    self.logger.info(f"Updating policy: {policy}")
                                     self.arborist_client.update_policy(
                                         policy_id,
-                                        {
-                                            "description": "policy created by fence sync",
-                                            "role_ids": [role],
-                                            "resource_paths": [resource],
-                                        },
+                                        policy,
                                         create_if_not_exist=True,
                                     )
                                 except ArboristError as e:
@@ -2374,7 +2376,9 @@ class UserSyncer(object):
         TODO for the sake of simplicity, it would be nice if only one network
         request was made no matter the input.
         """
-        for request_body in utils.combine_provided_and_dbgap_resources({}, resources):
+        for request_body in utils.combine_provided_and_dbgap_resources(
+            {}, resources, self.logger
+        ):
             try:
                 self.arborist_client.update_resource("/", request_body, merge=True)
             except ArboristError as e:
@@ -2407,12 +2411,14 @@ class UserSyncer(object):
             bool: True if policy creation was successful. False otherwise
         """
         try:
+            policy = {
+                "id": policy_id,
+                "role_ids": roles,
+                "resource_paths": resources,
+            }
+            self.logger.info(f"Creating policy: {policy}")
             response_json = self.arborist_client.create_policy(
-                {
-                    "id": policy_id,
-                    "role_ids": roles,
-                    "resource_paths": resources,
-                },
+                policy,
                 skip_if_exists=skip_if_exists,
             )
         except ArboristError as e:
