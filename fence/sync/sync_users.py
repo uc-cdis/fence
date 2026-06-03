@@ -1843,7 +1843,7 @@ class UserSyncer(object):
                         self._created_roles.add(role["id"])
                 except ArboristError as e:
                     self.logger.error(e)
-                    # keep going; maybe just some conflicts from things existing already
+                    raise
 
         # update policies
         policies = user_yaml.authz.get("policies", [])
@@ -1858,7 +1858,7 @@ class UserSyncer(object):
                 )
             except ArboristError as e:
                 self.logger.error(e)
-                # keep going; maybe just some conflicts from things existing already
+                raise
             else:
                 if response:
                     self.logger.debug("Upserted policy with id {}".format(policy_id))
