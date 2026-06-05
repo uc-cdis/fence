@@ -375,7 +375,7 @@ def get_bucket_region_info():
 @blueprint.route("/content", methods=["POST"])
 def get_file_content():
     """
-    Get content of a files referenced by GUIDs provided.
+    Get content of files referenced by GUIDs provided.
 
     This effectively bypasses the need to resolve individual signed URLs IFF the underlying
     URLs of the GUIDs support bulk content retrieval.

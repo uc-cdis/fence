@@ -825,11 +825,11 @@ class BulkIndexedRecords(object):
     Explicitly handles bulk interaction with Indexd, similar to IndexedFile class above.
     """
 
-    def __init__(self, guids):
+    def __init__(self, guids: list[str]):
         self.guids = guids
 
     @cached_property
-    def bulk_indexed_records(self):
+    def bulk_indexed_records(self) -> dict:
         """
         The bulk records referenced by self.guids.
 
@@ -840,6 +840,7 @@ class BulkIndexedRecords(object):
         url = indexd_server + "/bulk/documents"
 
         try:
+            logger.debug(f"posting {url} with data:{self.guids}")
             res = requests.post(url, data=self.guids)
         except Exception as exc:
             logger.error(f"failed to reach indexd at {url}: {exc}")
@@ -881,6 +882,7 @@ class BulkIndexedRecords(object):
         bulk_id_to_guid = {}
         bulk_request_urls_and_payloads = {}
 
+        logger.debug(f"bulk_indexed_records={self.bulk_indexed_records}")
         for guid, record in self.bulk_indexed_records.items():
             file_locations = [
                 IndexedFileLocation.from_url(url) for url in record.get("urls", [])
@@ -894,32 +896,23 @@ class BulkIndexedRecords(object):
                     "ALLOWED_GEN3_EMBEDDINGS_BULK_URL_PREFIXES"
                 ]:
                     if file_location.url.startswith(allowed_ai_url):
-                        allowed_ai_url_root = allowed_ai_url
-                        break
+                        match = re.search(
+                            config["GEN3_EMBEDDINGS_API_REGEX"],
+                            file_location.parsed_url.path,
+                        )
 
-                if any(
-                    file_location.url.startswith(allowed_ai_url)
-                    for allowed_ai_url in config[
-                        "ALLOWED_GEN3_EMBEDDINGS_BULK_URL_PREFIXES"
-                    ]
-                ):
-                    match = re.search(
-                        config["GEN3_EMBEDDINGS_API_REGEX"],
-                        file_location.parsed_url.path,
-                    )
+                        if match:
+                            collection_name = match.group("collection_name")
+                            embedding_uuid = match.group("embedding_uuid")
 
-                    if match:
-                        collection_name = match.group("collection_name")
-                        embedding_uuid = match.group("embedding_uuid")
+                            # start constructing the required bulk requests
+                            bulk_embeddings_request_url = f"{allowed_ai_url.rstrip('/')}/vectorstore/collections/{collection_name}/embeddings/bulk"
+                            bulk_request_urls_and_payloads.setdefault(
+                                bulk_embeddings_request_url, []
+                            ).append(embedding_uuid)
+                            bulk_id_to_guid[embedding_uuid] = guid
 
-                        # start constructing the required bulk requests
-                        bulk_embeddings_request_url = f"{allowed_ai_url_root.rstrip('/')}/vectorstore/collections/{collection_name}/embeddings/bulk"
-                        bulk_request_urls_and_payloads.setdefault(
-                            bulk_embeddings_request_url, []
-                        ).append(embedding_uuid)
-                        bulk_id_to_guid[embedding_uuid] = guid
-
-                        valid = True
+                            valid = True
 
             # any new endpoints with valid bulk content retrieval support can be added here
 
