@@ -962,7 +962,7 @@ paths:
       tags:
         - credentials
       summary: Check if a token is blacklisted/revoked
-      description: Check if a token is blacklisted/revoked
+      description: Check if a token is blacklisted/revoked. Return 403 if it is.
       requestBody:
         content:
           application/json:
@@ -973,14 +973,11 @@ paths:
                   type: string
       responses:
         '200':
-          description: successful operation
-          content:
-            '*/*':
-              schema:
-                type: object
-                properties:
-                  blacklisted:
-                    type: boolean
+          description: token is not blacklisted
+        '401':
+          description: user is not authenticated
+        '403':
+          description: token is blacklisted
   /credentials/google:
     get:
       tags:

@@ -112,13 +112,11 @@ def make_creds_blueprint():
     @require_auth_header()
     def check_if_token_blacklisted():
         """
-        Check if a token is blacklisted/revoked.
+        Check if a token is blacklisted/revoked. Return 403 if it is.
+        This endpoint is leveraged by revproxy to block requests from blacklisted tokens.
         """
-        return (
-            flask.jsonify(
-                {"blacklisted": is_token_blacklisted(get_token_from_body_or_header())}
-            ),
-            200,
-        )
+        if is_token_blacklisted(get_token_from_body_or_header()):
+            return "Token is blacklisted", 403
+        return "", 200
 
     return blueprint
