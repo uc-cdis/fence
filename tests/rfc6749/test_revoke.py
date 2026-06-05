@@ -46,7 +46,8 @@ def test_blacklisted_token(client, oauth_client, encoded_jwt_refresh_token):
         )
     )
     assert response.status_code == 200, response.data
-    assert is_token_blacklisted(encoded_jwt_refresh_token)
+    _, is_blacklisted = is_token_blacklisted(encoded_jwt_refresh_token)
+    assert is_blacklisted
 
 
 def test_revoke_invalid_token(client, oauth_client, kid, rsa_private_key):

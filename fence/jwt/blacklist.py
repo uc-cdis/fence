@@ -151,4 +151,4 @@ def is_token_blacklisted(encoded_token, public_key=None):
         )
     except jwt.exceptions.InvalidTokenError as e:
         raise JWTError("could not decode token to check blacklisting: {}".format(e))
-    return is_blacklisted(token["jti"])
+    return token, is_blacklisted(token["jti"])

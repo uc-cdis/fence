@@ -1,5 +1,6 @@
 import json
 
+from cdislogging import get_logger
 import flask
 from flask import current_app
 
@@ -14,6 +15,10 @@ from fence.jwt.utils import get_jwt_header
 from fence.resources.storage import get_endpoints_descriptions
 from fence.restful import RestfulApi
 from fence.config import config
+
+
+logger = get_logger(__name__)
+
 
 ALL_RESOURCES = {
     "/api": "access to CDIS APIs",
@@ -115,7 +120,11 @@ def make_creds_blueprint():
         Check if a token is blacklisted/revoked. Return 403 if it is.
         This endpoint is leveraged by revproxy to block requests from blacklisted tokens.
         """
-        if is_token_blacklisted(get_token_from_body_or_header()):
+        claims, is_blacklisted = is_token_blacklisted(get_token_from_body_or_header())
+        if is_blacklisted:
+            logger.warning(
+                f'Blocking attempt to use a blacklisted token. jti={claims.get("jti")}; azp={claims.get("azp")}; sub={claims.get("sub")}; username={claims.get("context", {}).get("user", {}).get("name")}'
+            )
             return "Token is blacklisted", 403
         return "", 200
 
