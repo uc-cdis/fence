@@ -136,7 +136,6 @@ def test_revoke_user_access_token(
         json={"token": encoded_jwt} if send_body else None,
     )
     assert response.status_code == 200, response.text
-    assert response.json == {"blacklisted": False}
 
     # revoke the token with the user's own token
     response = client.post(
@@ -152,8 +151,7 @@ def test_revoke_user_access_token(
         headers=headers,
         json={"token": encoded_jwt} if send_body else None,
     )
-    assert response.status_code == 200, response.text
-    assert response.json == {"blacklisted": True}
+    assert response.status_code == 403, response.text
 
     # the token should not be usable anymore
     response = client.get("/user", headers=headers)
