@@ -88,7 +88,11 @@ def test_get_access_token_with_expires_in(client, encoded_creds_jwt, expires_in)
     assert expected_exp <= claims["exp"] <= expected_exp + EXP_ERR_TOLERANCE
 
 
-def test_work_order_token(client, encoded_creds_jwt):
+@pytest.mark.parametrize(
+    "expires_in",
+    [None, LONG_LIVED_TOKEN_EXPIRES_IN, config["MAX_LONG_LIVED_ACCESS_TOKEN_TTL"] + 60],
+)
+def test_work_order_token(client, encoded_creds_jwt, expires_in):
     """
     Test that a work order token can be generated with a longer life than a regular token
 
@@ -101,7 +105,7 @@ def test_work_order_token(client, encoded_creds_jwt):
 
     now = int(time.time())
     work_order_type = "BLAH"
-    path = f"/credentials/api/access_token?work_order={work_order_type}&expires_in={LONG_LIVED_TOKEN_EXPIRES_IN}"
+    path = f"/credentials/api/access_token?work_order={work_order_type}{f'&expires_in={expires_in}' if expires_in else ''}"
     data = {"api_key": api_key}
     response = client.post(
         path,
@@ -111,7 +115,14 @@ def test_work_order_token(client, encoded_creds_jwt):
     assert response.status_code == 200, response.text
     assert "access_token" in response.json
     claims = validate_jwt(response.json["access_token"])
-    expected_exp = now + LONG_LIVED_TOKEN_EXPIRES_IN
+
+    if expires_in is None:
+        expected_exp = now + config["MAX_ACCESS_TOKEN_TTL"]
+    elif expires_in > config["MAX_LONG_LIVED_ACCESS_TOKEN_TTL"]:
+        # the expiration cannot be longer than the configured max
+        expected_exp = now + config["MAX_LONG_LIVED_ACCESS_TOKEN_TTL"]
+    else:
+        expected_exp = now + LONG_LIVED_TOKEN_EXPIRES_IN
     assert expected_exp <= claims["exp"] <= expected_exp + EXP_ERR_TOLERANCE
 
     # TODO - Scopes are in the aud for backwards comp... Remove from the list once that's updated

@@ -521,6 +521,12 @@ MAX_API_KEY_TTL: 2592000
 # The number of seconds after an access token is issued from an API key until it expires.
 MAX_ACCESS_TOKEN_TTL: 3600
 
+# The number of seconds after a long-lived access token is issued until it expires. This max is
+# applied even if the requesting user has access to request a longer-lived token in Arborist.
+# Default: 4 days
+# TODO work-order token doc
+MAX_LONG_LIVED_ACCESS_TOKEN_TTL: 345600
+
 # TEMPORARY: The maximum number of projects allowed in token claims.
 # This config var should be removed after sheepdog and peregrine support
 # auth checks against Arborist, and no longer check the token.

@@ -3,8 +3,9 @@ import json
 import flask
 from flask_restful import Resource
 
-from fence.auth import require_auth_header
-from fence.auth import current_token
+from fence.auth import require_auth_header, current_token
+from fence.authz.auth import authorize
+from fence.errors import UserError
 from fence.jwt.blacklist import blacklist_token
 from fence.models import UserRefreshToken
 from fence.config import config
@@ -177,15 +178,20 @@ class AccessKey(Resource):
         # TODO update the SDK to use the work_order param
         max_ttl = config.get("MAX_ACCESS_TOKEN_TTL", 3600)
         work_order = flask.request.args.get("work_order") or None
-        expires_in = int(flask.request.args.get("expires_in", max_ttl))
+        try:
+            expires_in = int(flask.request.args.get("expires_in", max_ttl))
+        except ValueError as e:
+            raise UserError(
+                f"Invalid 'expires_in' value '{flask.request.args['expires_in']}'"
+            )
         if not work_order:
             expires_in = min(expires_in, max_ttl)
         else:
+            # authorize(f"/services/fence/work-order-token/{work_order}", "create")
             # the classic max token TTL does not apply to work order tokens
             # TODO: add authz checks here - who can request work order tokens, and for how long?
             # access per work order type...
-            # up to 1 day for now - TODO: add to config or authz checks
-            expires_in = min(expires_in, 86400)
+            expires_in = min(expires_in, config["MAX_LONG_LIVED_ACCESS_TOKEN_TTL"])
 
         result = create_user_access_token(
             flask.current_app.keypairs[0], api_key, expires_in, audience=work_order
