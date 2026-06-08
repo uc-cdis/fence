@@ -1,9 +1,9 @@
 from tests.utils.api_key import get_api_key, get_api_key_with_json
 
 
-def test_cdis_create_api_key(client, oauth_client, encoded_creds_jwt):
+def test_create_api_key(client, oauth_client, encoded_creds_jwt):
     """
-    Test ``POST /credentials/cdis``.
+    Test ``POST /credentials/api``.
     """
     encoded_credentials_jwt = encoded_creds_jwt["jwt"]
     response = get_api_key_with_json(client, encoded_credentials_jwt).json
@@ -11,18 +11,16 @@ def test_cdis_create_api_key(client, oauth_client, encoded_creds_jwt):
     assert "api_key" in response
 
 
-def test_cdis_create_api_key_with_disallowed_scope(
-    client, oauth_client, encoded_creds_jwt
-):
+def test_create_api_key_with_disallowed_scope(client, oauth_client, encoded_creds_jwt):
     """
-    Test ``POST /credentials/cdis``.
+    Test ``POST /credentials/api``.
     """
     encoded_credentials_jwt = encoded_creds_jwt["jwt"]
     response = get_api_key(client, encoded_credentials_jwt, scope=["credentials"])
     assert response.status_code == 400, response.text
 
 
-def test_cdis_list_api_key(client, oauth_client, encoded_creds_jwt):
+def test_list_api_key(client, oauth_client, encoded_creds_jwt):
     # create API keys
     encoded_credentials_jwt = encoded_creds_jwt["jwt"]
     n_keys = 3
@@ -31,7 +29,7 @@ def test_cdis_list_api_key(client, oauth_client, encoded_creds_jwt):
 
     # list existing API keys
     response = client.get(
-        "/credentials/cdis/",
+        "/credentials/api/",
         headers={"Authorization": "Bearer " + str(encoded_credentials_jwt)},
     )
     assert response.status_code == 200, response.text

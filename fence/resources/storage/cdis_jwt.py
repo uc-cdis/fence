@@ -1,7 +1,9 @@
 import flask
+import time
 
 from fence.auth import get_user_from_claims
-from fence.errors import Unauthorized
+from fence.config import config
+from fence.errors import Unauthorized, UserError
 from fence.jwt import token
 from fence.jwt.errors import JWTError
 from fence.jwt.validate import validate_jwt
@@ -69,6 +71,15 @@ def create_user_access_token(keypair, api_key, expires_in, audience):
         user = get_user_from_claims(claims)
     except Exception as e:
         raise Unauthorized(str(e))
+
+    if (
+        expires_in > config["MAX_ACCESS_TOKEN_TTL"]
+        and claims.get("exp", 0) < time.time() + expires_in
+    ):
+        raise UserError(
+            "Cannot issue a long-lived token that would expire after the provided API key does. Please obtain a new API key and try again"
+        )
+
     return token.generate_signed_access_token(
         keypair.kid,
         keypair.private_key,

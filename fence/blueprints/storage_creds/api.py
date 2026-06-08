@@ -183,8 +183,8 @@ class AccessKey(Resource):
         else:
             # the classic max token TTL does not apply to work order tokens
             # TODO: add authz checks here - who can request work order tokens, and for how long?
+            # access per work order type...
             # up to 1 day for now - TODO: add to config or authz checks
-            # TODO: ensure that the longer-lived token won't extend beyond the Refresh/API key
             expires_in = min(expires_in, 86400)
 
         result = create_user_access_token(
