@@ -841,7 +841,7 @@ class BulkIndexedRecords(object):
 
         try:
             logger.debug(f"posting {url} with data:{self.guids}")
-            res = requests.post(url, data=self.guids)
+            res = requests.post(url, json=self.guids)
         except Exception as exc:
             logger.error(f"failed to reach indexd at {url}: {exc}")
             raise UnavailableError("Fail to reach id service to find data location")

@@ -41,7 +41,7 @@ def test_bulk_indexed_records_successful(guid_list, monkeypatch):
 
     monkeypatch.setattr(
         "fence.blueprints.data.indexd.requests.post",
-        lambda url, data: _mock_response(200, expected_records),
+        lambda url, **kwargs: _mock_response(200, expected_records),
     )
     import fence.blueprints.data.indexd as indexd_module
 
@@ -77,7 +77,7 @@ def test_bulk_indexed_records_400(guid_list, monkeypatch):
     """A 400 status from indexd translates to NotFound"""
     monkeypatch.setattr(
         "fence.blueprints.data.indexd.requests.post",
-        lambda url, data: _mock_response(400),
+        lambda url, **kwargs: _mock_response(400),
     )
     import fence.blueprints.data.indexd as indexd_module
 
