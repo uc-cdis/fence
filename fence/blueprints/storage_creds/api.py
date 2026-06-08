@@ -4,8 +4,8 @@ import flask
 from flask_restful import Resource
 
 from fence.auth import require_auth_header, current_token
-from fence.authz.auth import authorize
-from fence.errors import UserError
+from fence.authz.auth import can_user_get_work_order_token
+from fence.errors import Forbidden, UserError
 from fence.jwt.blacklist import blacklist_token
 from fence.models import UserRefreshToken
 from fence.config import config
@@ -177,23 +177,28 @@ class AccessKey(Resource):
         # TODO add expires_in and work_order params to swagger doc
         # TODO update the SDK to use the work_order param
         max_ttl = config.get("MAX_ACCESS_TOKEN_TTL", 3600)
-        work_order = flask.request.args.get("work_order") or None
+        work_order_type = flask.request.args.get("work_order") or None
         try:
             expires_in = int(flask.request.args.get("expires_in", max_ttl))
         except ValueError as e:
             raise UserError(
                 f"Invalid 'expires_in' value '{flask.request.args['expires_in']}'"
             )
-        if not work_order:
+        if not work_order_type:
             expires_in = min(expires_in, max_ttl)
         else:
-            # authorize(f"/services/fence/work-order-token/{work_order}", "create")
-            # the classic max token TTL does not apply to work order tokens
-            # TODO: add authz checks here - who can request work order tokens, and for how long?
-            # access per work order type...
-            expires_in = min(expires_in, config["MAX_LONG_LIVED_ACCESS_TOKEN_TTL"])
+            # the classic max token TTL does not apply to work order tokens, use the work
+            # order token TTL instead
+            max_work_order_ttl = config["MAX_WORK_ORDER_TOKEN_TTL"].get(
+                work_order_type, max_ttl
+            )
+            expires_in = min(expires_in, max_work_order_ttl)
+            if not can_user_get_work_order_token(work_order_type, expires_in):
+                raise Forbidden(
+                    f"You do not have access to obtain '{work_order_type}' tokens, or you do not have access to the token lifetime you requested"
+                )
 
         result = create_user_access_token(
-            flask.current_app.keypairs[0], api_key, expires_in, audience=work_order
+            flask.current_app.keypairs[0], api_key, expires_in, audience=work_order_type
         )
         return flask.jsonify(dict(access_token=result))

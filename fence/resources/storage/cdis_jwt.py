@@ -77,7 +77,7 @@ def create_user_access_token(keypair, api_key, expires_in, audience):
         and claims.get("exp", 0) < time.time() + expires_in
     ):
         raise UserError(
-            "Cannot issue a long-lived token that would expire after the provided API key does. Please obtain a new API key and try again"
+            "Cannot issue a work order token that would expire after the provided API key does. Please obtain a new API key and try again"
         )
 
     return token.generate_signed_access_token(
