@@ -433,7 +433,7 @@ def get_file_content():
                 f"indexed record not supported from bulk request URL: {request_url}, cannot proceed"
             )
 
-        response = requests.post(request_url, headers=headers, data=request_body)
+        response = requests.post(request_url, headers=headers, json=request_body)
 
         # if user is denied access, above call will fail - so reraise the HTTP error here
         response.raise_for_status()
