@@ -267,7 +267,7 @@ def test_get_bulk_content_success(client, monkeypatch, mock_embeddings_config):
             mock_ai_resp.json.return_value = {
                 "embeddings": [
                     {"embedding_id": uuid, "vector": [0.1, 0.2, 0.3]}
-                    for uuid in kwargs.get("data", [])
+                    for uuid in kwargs.get("json", [])
                 ]
             }
             return mock_ai_resp
