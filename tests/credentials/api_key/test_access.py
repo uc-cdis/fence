@@ -168,11 +168,28 @@ def test_work_order_token(
     assert expected_exp <= claims["exp"] <= expected_exp + EXP_ERR_TOLERANCE
 
 
-def test_get_access_token_with_almost_expired_key(client, encoded_creds_jwt):
+def test_get_access_token_with_almost_expired_key(
+    client, encoded_creds_jwt, mock_arborist_requests
+):
     """
     Test that work order tokens cannot be generated if the provided API key would expire before the
     token does
     """
+    mock_arborist_requests(
+        {
+            "arborist/auth/mapping": {
+                "POST": (
+                    {
+                        "/services/fence/work-order-token/FOO/172800": [
+                            {"service": "fence", "method": "create"}
+                        ],
+                    },
+                    200,
+                )
+            },
+        }
+    )
+
     encoded_credentials_jwt = encoded_creds_jwt["jwt"]
     response = get_api_key(
         client, encoded_credentials_jwt, expires_in=60  # expires soon

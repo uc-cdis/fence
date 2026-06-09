@@ -180,7 +180,7 @@ class AccessKey(Resource):
         work_order_type = flask.request.args.get("work_order") or None
         try:
             expires_in = int(flask.request.args.get("expires_in", max_ttl))
-        except ValueError as e:
+        except ValueError:
             raise UserError(
                 f"Invalid 'expires_in' value '{flask.request.args['expires_in']}'"
             )
