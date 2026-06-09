@@ -13,6 +13,11 @@ from fence.errors import (
     NotFound,
     UnavailableError,
 )
+import flask
+from flask import current_app
+
+from fence.auth import login_required
+from fence.errors import UserError
 from fence.config import config
 
 from fence.resources.ga4gh.ga4gh_data_models import (
@@ -24,6 +29,8 @@ from fence.blueprints.data.indexd import (
     BulkIndexedFiles,
     bulk_get_signed_url_for_file,
 )
+from fence.models import UserPassport
+from fence.resources.user import get_current_user_info
 
 blueprint = Blueprint("ga4gh", __name__)
 logger = get_logger(__name__)
@@ -174,3 +181,17 @@ def get_ga4gh_signed_urls():
     }
 
     return jsonify(response), 200
+    return flask.jsonify(result)
+
+
+@blueprint.route(
+    "/__passport",
+    methods=["GET", "POST"],
+)
+@login_required({"user"})
+def get_passport():
+    info = get_current_user_info()
+    user_id = info["user_id"]
+    db_session = current_app.scoped_session()
+    passport = db_session.query(UserPassport).filter_by(user_id=int(user_id)).first()
+    return flask.jsonify({"passport": passport.passport})
