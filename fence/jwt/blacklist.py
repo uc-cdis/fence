@@ -147,7 +147,7 @@ def is_token_blacklisted(encoded_token, public_key=None):
             encoded_token,
             public_key,
             algorithms=["RS256"],
-            options={"verify_aud": False},
+            options={"verify_aud": False, "verify_exp": False},
         )
     except jwt.exceptions.InvalidTokenError as e:
         raise JWTError("could not decode token to check blacklisting: {}".format(e))

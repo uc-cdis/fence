@@ -158,6 +158,41 @@ def test_revoke_user_access_token(
     assert response.status_code == 401, response.text
 
 
+def test_blacklisted_expired_token(client, oauth_client, kid, rsa_private_key):
+    """
+    Test that blacklisted expired tokens are still detected as blacklisted
+    """
+    token_lifetime = 1
+
+    # revoke an access token
+    expired_access_token = jwt.encode(
+        {**utils.default_claims(), "exp": int(time.time()) + token_lifetime},
+        key=rsa_private_key,
+        headers={
+            "type": "JWT",
+            "alg": "RS256",
+            "kid": kid,
+        },
+        algorithm="RS256",
+    )
+    response = client.post(
+        "/oauth2/revoke",
+        headers=create_basic_header_for_client(oauth_client),
+        data={"token": expired_access_token},
+    )
+    assert response.status_code == 200, response.text
+
+    # wait for the token to expire
+    time.sleep(token_lifetime + 0.5)
+
+    # checking if the expired token is blacklisted should return 403
+    response = client.post(
+        "/credentials/token/blacklisted",
+        headers={"Authorization": f"bearer {expired_access_token}"},
+    )
+    assert response.status_code == 403, response.text
+
+
 def test_blacklisted_endpoint_anonymous(client):
     """
     Test the token blacklisting endpoints with anonymous calls
