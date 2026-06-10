@@ -8,6 +8,7 @@ from collections import defaultdict
 from urllib.parse import urlparse, ParseResult, urlunparse
 from datetime import datetime, timedelta, UTC
 from sqlalchemy import text
+from sqlalchemy.sql.functions import user
 from cached_property import cached_property
 import gen3cirrus
 from gen3cirrus import GoogleCloudManager
@@ -24,6 +25,7 @@ from azure.storage.blob import (
     generate_blob_sas,
 )
 
+from fence import auth
 from fence.auth import (
     get_ip_information_string,
     get_jwt,
@@ -54,7 +56,7 @@ from fence.utils import get_valid_expiration_from_request
 from fence.metrics import metrics
 
 from . import multipart_upload
-from ...models import AssumeRoleCacheAWS, query_for_user
+from ...models import AssumeRoleCacheAWS, query_for_user, query_for_user_by_id
 from ...models import AssumeRoleCacheGCP
 
 logger = get_logger(__name__)
@@ -66,7 +68,6 @@ ACTION_DICT = {
 }
 
 SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs", "az"]
-PROTOCOLS_REQUIRING_GOOGLE_SYNC = {"gs"}
 SUPPORTED_ACTIONS = ["upload", "download"]
 ANONYMOUS_USER_ID = "-1"
 ANONYMOUS_USERNAME = "anonymous"
@@ -101,13 +102,9 @@ def get_signed_url_for_file(
 
     users_from_passports = {}
     if ga4gh_passports:
-        # Note: We don't need to check for None requested_protocol here, as using a ga4gh_passport requires specifying
-        # a protocol
+        # users_from_passports = {"username": Fence.User}
         users_from_passports = sync_gen3_users_authz_from_ga4gh_passports(
-            ga4gh_passports,
-            db_session=db_session,
-            skip_google_updates=requested_protocol
-            not in PROTOCOLS_REQUIRING_GOOGLE_SYNC,
+            ga4gh_passports, db_session=db_session
         )
 
     # Collect X-Forwarded headers

@@ -726,19 +726,6 @@ class GA4GHVisaV1(Base):
     expires = Column(BigInteger, nullable=False)
 
 
-class UserPassport(Base):
-    __tablename__ = "user_passport"
-    id = Column(BigInteger, primary_key=True)
-    user_id = Column(Integer, ForeignKey(User.id, ondelete="CASCADE"), nullable=False)
-    user = relationship(
-        "User",
-        backref=backref(
-            "user_passport", cascade="all, delete-orphan", passive_deletes=True
-        ),
-    )
-    passport = Column(Text, nullable=False)
-
-
 class UpstreamRefreshToken(Base):
     # General table to store any refresh_token sent from any oidc client
 

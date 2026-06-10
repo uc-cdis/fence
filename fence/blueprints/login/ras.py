@@ -42,7 +42,7 @@ class RASCallback(DefaultOAuth2Callback):
         query_params = parse_qs(parsed_url.query)
 
         userinfo = flask.g.userinfo
-        passport = None
+
         global_parse_visas_on_login = config["GLOBAL_PARSE_VISAS_ON_LOGIN"]
         parse_visas = global_parse_visas_on_login or (
             global_parse_visas_on_login == None
@@ -113,9 +113,5 @@ class RASCallback(DefaultOAuth2Callback):
         flask.current_app.ras_client.store_refresh_token(
             user=user, refresh_token=refresh_token, expires=expires + issued_time
         )
-        if passport:
-            flask.current_app.ras_client.store_passport(
-                user_id=user.id, passport=passport
-            )
 
         super(RASCallback, self).post_login(token_result=token_result)
