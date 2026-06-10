@@ -19,7 +19,7 @@ def get_jwt_header():
     except KeyError:
         raise Unauthorized("missing authorization header")
     if not header.lower().startswith("bearer"):
-        raise Unauthorized("unexpected Authorization header format (expected `Bearer`")
+        raise Unauthorized("unexpected Authorization header format (expected `Bearer`)")
     try:
         jwt = header.split(" ")[1]
     except IndexError:
