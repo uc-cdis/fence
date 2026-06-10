@@ -156,3 +156,33 @@ def test_revoke_user_access_token(
     # the token should not be usable anymore
     response = client.get("/user", headers=headers)
     assert response.status_code == 401, response.text
+
+
+def test_blacklisted_endpoint_anonymous(client):
+    """
+    Test the token blacklisting endpoints with anonymous calls
+    """
+    # attempting to revoke without providing a token should return 401
+    response = client.post("/credentials/token/revoke")
+    assert response.status_code == 401, response.text
+
+    # checking if a token is blacklisted without providing a token should return 200
+    response = client.post("/credentials/token/blacklisted")
+    assert response.status_code == 200, response.text
+
+
+def test_blacklisted_endpoint_invalid_token(client):
+    """
+    Test the token blacklisting endpoints with invalid tokens
+    """
+    # attempting to revoke an invalid token should return 401
+    response = client.post(
+        "/credentials/token/revoke", headers={"Authorization": "bearer blah"}
+    )
+    assert response.status_code == 401, response.text
+
+    # checking if an invalid token is blacklisted should return 200
+    response = client.post(
+        "/credentials/token/blacklisted", headers={"Authorization": "bearer blah"}
+    )
+    assert response.status_code == 200, response.text

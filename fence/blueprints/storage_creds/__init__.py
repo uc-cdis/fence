@@ -10,7 +10,9 @@ from fence.blueprints.storage_creds.google import GoogleCredentialsList
 from fence.blueprints.storage_creds.google import GoogleCredentials
 from fence.blueprints.storage_creds.other import OtherCredentialsList
 from fence.blueprints.storage_creds.other import OtherCredentials
+from fence.errors import Unauthorized
 from fence.jwt.blacklist import blacklist_encoded_token, is_token_blacklisted
+from fence.jwt.errors import JWTError
 from fence.jwt.utils import get_jwt_header
 from fence.resources.storage import get_endpoints_descriptions
 from fence.restful import RestfulApi
@@ -114,13 +116,25 @@ def make_creds_blueprint():
         return "", 200
 
     @blueprint.route("/token/blacklisted", methods=["POST"])
-    @require_auth_header()
     def check_if_token_blacklisted():
         """
         Check if a token is blacklisted/revoked. Return 403 if it is.
+
+        If the token cannot be parsed, assume it is not blacklisted and that the invalid
+        token will be rejected by downstream APIs.
+
         This endpoint is leveraged by revproxy to block requests from blacklisted tokens.
         """
-        claims, is_blacklisted = is_token_blacklisted(get_token_from_body_or_header())
+        try:
+            claims, is_blacklisted = is_token_blacklisted(
+                get_token_from_body_or_header()
+            )
+        except (Unauthorized, JWTError) as e:
+            logger.warning(
+                f"No provided token, or provided token is invalid: `{e}`. Token not blacklisted."
+            )
+            return "", 200
+
         if is_blacklisted:
             logger.warning(
                 f'Blocking attempt to use a blacklisted token. jti={claims.get("jti")}; azp={claims.get("azp")}; sub={claims.get("sub")}; username={claims.get("context", {}).get("user", {}).get("name")}'
