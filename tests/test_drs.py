@@ -7,10 +7,7 @@ import pytest
 import requests
 import responses
 
-from fence.blueprints.data.indexd import (
-    SUPPORTED_PROTOCOLS,
-    PROTOCOLS_REQUIRING_GOOGLE_SYNC,
-)
+from fence.blueprints.ga4gh import BulkObjectAccessRequest, BulkObjectAccessIds
 from tests import utils
 from tests.conftest import NoAsyncMagicMock
 import time
@@ -1772,133 +1769,359 @@ def test_get_presigned_url_with_client_token(
     assert signed_url
 
 
-@pytest.mark.parametrize("access_id", SUPPORTED_PROTOCOLS)
-@responses.activate
-@patch("httpx.get")
-@patch("fence.resources.google.utils._create_proxy_group")
-@patch("fence.scripting.fence_create.ArboristClient")
-@patch("fence.blueprints.data.indexd.sync_gen3_users_authz_from_ga4gh_passports")
-def test_get_presigned_url_with_passport_sets_skip_google_updates_by_protocol(
-    mock_sync_gen3_users_authz_from_ga4gh_passports,
-    mock_arborist,
-    mock_google_proxy_group,
-    mock_httpx_get,
-    access_id,
-    client,
-    kid,
-    rsa_private_key,
-    rsa_public_key,
-    indexd_client_accepting_record,
-    mock_arborist_requests,
-    google_proxy_group,
-    primary_google_service_account,
-    cloud_manager,
-    google_signed_url,
+@patch("fence.blueprints.ga4gh.bulk_get_signed_url_for_file")
+def test_get_ga4gh_signed_urls_success(mock_bulk_get_signed_url_for_file, client):
+    """
+    Tests that the summary, resolved and unresolved counts are correct and the access urls are correct when multiple
+    presigned urls are requested
+    """
+    mock_bulk_get_signed_url_for_file.return_value = {
+        "urls": [
+            {
+                "drs_object_id": "object-1",
+                "url": "https://example.com/object-1",
+                "headers": [],
+            },
+            {
+                "drs_object_id": "object-2",
+                "url": "https://example.com/object-2",
+                "headers": [],
+            },
+        ],
+        "failed_file_ids": [],
+    }
+
+    data = {
+        "bulk_object_access_ids": [
+            {
+                "bulk_object_id": "object-1",
+                "bulk_access_ids": ["s3"],
+            },
+            {
+                "bulk_object_id": "object-2",
+                "bulk_access_ids": ["s3"],
+            },
+        ]
+    }
+
+    res = client.post(
+        "/ga4gh/drs/v1/objects/access",
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(data),
+    )
+
+    assert res.status_code == 200
+    assert res.json == {
+        "summary": {
+            "requested": 2,
+            "resolved": 2,
+            "unresolved": 0,
+        },
+        "unresolved_drs_objects": [],
+        "resolved_drs_object_access_urls": [
+            {
+                "drs_object_id": "object-1",
+                "drs_access_id": "s3",
+                "url": "https://example.com/object-1",
+                "headers": [],
+            },
+            {
+                "drs_object_id": "object-2",
+                "drs_access_id": "s3",
+                "url": "https://example.com/object-2",
+                "headers": [],
+            },
+        ],
+    }
+
+    mock_bulk_get_signed_url_for_file.assert_called_once_with(
+        file_ids=["object-1", "object-2"],
+        requested_protocol="s3",
+        ga4gh_passports=None,
+    )
+
+
+@patch("fence.blueprints.ga4gh.bulk_get_signed_url_for_file")
+def test_get_ga4gh_signed_urls_multiple_access_ids(
+    mock_bulk_get_signed_url_for_file, client
 ):
     """
-    Tests that google group sync is skipped for protocols that don't require google groups for data access, always in
-    the case where passports are used to access data.
+    Tests that the summary, resolved and unresolved counts are correct and the access urls are correct when multiple
+    presigned urls are requested with DIFFERING access_ids
     """
-    config["GA4GH_PASSPORTS_TO_DRS_ENABLED"] = True
-
-    test_guid = "1"
-    indexd_record = {
-        "did": test_guid,
-        "baseid": "",
-        "rev": "",
-        "size": 10,
-        "file_name": "file1",
-        "urls": [
-            "s3://bucket1/key",
-            "gs://bucket1/key",
-            "http://example.com/bucket1/key",
-            "https://example.com/bucket1/key",
-            "ftp://example.com/bucket1/key",
-            "az://bucket1/key",
-        ],
-        "hashes": {},
-        "metadata": {},
-        "authz": ["/orgA/programs/phs000991.c1"],
-        "acl": ["*"],
-        "form": "",
-        "created_date": "",
-        "updated_date": "",
-    }
-    indexd_client_accepting_record(indexd_record)
-
-    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
-    mock_arborist.return_value = NoAsyncMagicMock(ArboristClient)
-    mock_google_proxy_group.return_value = google_proxy_group
-
-    current_time = int(time.time())
-    headers = {"kid": kid}
-    decoded_visa = {
-        "iss": "https://stsstg.nih.gov",
-        "sub": TEST_RAS_SUB,
-        "iat": current_time,
-        "exp": current_time + 1000,
-        "scope": "openid ga4gh_passport_v1 email profile",
-        "jti": "jtiajoidasndokmasdl",
-        "txn": "sapidjspa.asipidja",
-        "name": "",
-        "ga4gh_visa_v1": {
-            "type": "https://ras.nih.gov/visas/v1.1",
-            "asserted": current_time,
-            "value": "https://stsstg.nih.gov/passport/dbgap/v1.1",
-            "source": "https://ncbi.nlm.nih.gov/gap",
+    mock_bulk_get_signed_url_for_file.side_effect = [
+        {
+            "urls": [
+                {
+                    "drs_object_id": "object-1",
+                    "url": "https://example.com/object-1-s3",
+                    "headers": [],
+                }
+            ],
+            "failed_file_ids": [],
         },
-        "ras_dbgap_permissions": [
+        {
+            "urls": [
+                {
+                    "drs_object_id": "object-1",
+                    "url": "https://example.com/object-1-gs",
+                    "headers": [],
+                }
+            ],
+            "failed_file_ids": [],
+        },
+    ]
+
+    data = {
+        "bulk_object_access_ids": [
             {
-                "consent_name": "Health/Medical/Biomedical",
-                "phs_id": "phs000991",
-                "version": "v1",
-                "participant_set": "p1",
-                "consent_group": "c1",
-                "role": "designated user",
-                "expiration": current_time + 1000,
+                "bulk_object_id": "object-1",
+                "bulk_access_ids": ["s3", "gs"],
+            }
+        ]
+    }
+
+    res = client.post(
+        "/ga4gh/drs/v1/objects/access",
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(data),
+    )
+
+    assert res.status_code == 200
+    assert res.json["summary"] == {
+        "requested": 2,
+        "resolved": 2,
+        "unresolved": 0,
+    }
+    assert res.json["resolved_drs_object_access_urls"] == [
+        {
+            "drs_object_id": "object-1",
+            "drs_access_id": "s3",
+            "url": "https://example.com/object-1-s3",
+            "headers": [],
+        },
+        {
+            "drs_object_id": "object-1",
+            "drs_access_id": "gs",
+            "url": "https://example.com/object-1-gs",
+            "headers": [],
+        },
+    ]
+
+
+@patch("fence.blueprints.ga4gh.bulk_get_signed_url_for_file")
+def test_get_ga4gh_signed_urls_request_too_large(
+    mock_bulk_get_signed_url_for_file, client, monkeypatch
+):
+    """
+    Tests the response when a bulk request exceeds the configured limit
+    """
+    monkeypatch.setitem(config, "MAX_BULK_DRS_REQUESTS", 1)
+
+    data = {
+        "bulk_object_access_ids": [
+            {
+                "bulk_object_id": "object-1",
+                "bulk_access_ids": ["s3"],
+            },
+            {
+                "bulk_object_id": "object-2",
+                "bulk_access_ids": ["s3"],
+            },
+        ]
+    }
+
+    res = client.post(
+        "/ga4gh/drs/v1/objects/access",
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(data),
+    )
+
+    assert res.status_code == 413
+    assert res.json == {
+        "error_code": 413,
+        "error_description": ("Request too large: 2 objects requested, maximum is 1"),
+    }
+
+    mock_bulk_get_signed_url_for_file.assert_not_called()
+
+
+def test_get_ga4gh_signed_urls_invalid_request_body(client):
+    """
+    Test that the API rejects requests when the body does not conform to spec.
+    """
+    data = {
+        "bulk_object_access_ids": [
+            {
+                "bulk_object_id": "object-1",
+            }
+        ]
+    }
+
+    res = client.post(
+        "/ga4gh/drs/v1/objects/access",
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(data),
+    )
+
+    assert res.status_code == 400
+
+
+@patch("fence.blueprints.ga4gh.bulk_get_signed_url_for_file")
+def test_get_ga4gh_signed_urls_with_auth_header_and_passports(
+    mock_bulk_get_signed_url_for_file, client
+):
+    """
+    Test bulk requests are rejected when given a passport and a bearer token
+    """
+    data = {
+        "passports": ["passport-token"],
+        "bulk_object_access_ids": [
+            {
+                "bulk_object_id": "object-1",
+                "bulk_access_ids": ["s3"],
             }
         ],
     }
-    encoded_visa = jwt.encode(
-        decoded_visa, key=rsa_private_key, headers=headers, algorithm="RS256"
-    )
-
-    passport_header = {
-        "type": "JWT",
-        "alg": "RS256",
-        "kid": kid,
-    }
-    passport = {
-        "iss": "https://stsstg.nih.gov",
-        "sub": TEST_RAS_SUB,
-        "iat": current_time,
-        "scope": "openid ga4gh_passport_v1 email profile",
-        "exp": current_time + 1000,
-        "ga4gh_passport_v1": [encoded_visa],
-    }
-    encoded_passport = jwt.encode(
-        passport, key=rsa_private_key, headers=passport_header, algorithm="RS256"
-    )
-
-    keys = [keypair.public_key_to_jwk() for keypair in flask.current_app.keypairs]
-    mock_httpx_get.return_value = httpx.Response(200, json={"keys": keys})
 
     res = client.post(
-        "/ga4gh/drs/v1/objects/" + test_guid + "/access/" + access_id,
+        "/ga4gh/drs/v1/objects/access",
         headers={
             "Content-Type": "application/json",
+            "Authorization": "Bearer token",
         },
-        data=json.dumps({"passports": [encoded_passport]}),
+        data=json.dumps(data),
     )
 
-    assert res.status_code in [200, 401, 404, 500]
-    assert mock_sync_gen3_users_authz_from_ga4gh_passports.called
+    assert res.status_code == 400
+    mock_bulk_get_signed_url_for_file.assert_not_called()
 
-    expected_skip_google_updates = access_id not in PROTOCOLS_REQUIRING_GOOGLE_SYNC
 
-    assert (
-        mock_sync_gen3_users_authz_from_ga4gh_passports.call_args.kwargs[
-            "skip_google_updates"
+@patch("fence.blueprints.ga4gh.bulk_get_signed_url_for_file")
+def test_get_ga4gh_signed_urls_missing_guid(mock_bulk_get_signed_url_for_file, client):
+    """
+    Test when a bulk request contains guids that are not in indexd.
+    """
+    mock_bulk_get_signed_url_for_file.return_value = {
+        "urls": [
+            {
+                "drs_object_id": "guid1",
+                "url": "https://example.com/guid1",
+                "headers": [],
+            }
+        ],
+        "failed_file_ids": [
+            {
+                "error_code": 404,
+                "object_ids": ["missing_guid"],
+            }
+        ],
+    }
+
+    data = {
+        "bulk_object_access_ids": [
+            {
+                "bulk_object_id": "guid1",
+                "bulk_access_ids": ["s3"],
+            },
+            {
+                "bulk_object_id": "missing_guid",
+                "bulk_access_ids": ["s3"],
+            },
         ]
-        == expected_skip_google_updates
+    }
+
+    res = client.post(
+        "/ga4gh/drs/v1/objects/access",
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(data),
     )
+
+    assert res.status_code == 200
+    assert res.json == {
+        "summary": {
+            "requested": 2,
+            "resolved": 1,
+            "unresolved": 1,
+        },
+        "unresolved_drs_objects": [
+            {
+                "error_code": 404,
+                "object_ids": ["missing_guid"],
+            }
+        ],
+        "resolved_drs_object_access_urls": [
+            {
+                "drs_object_id": "guid1",
+                "drs_access_id": "s3",
+                "url": "https://example.com/guid1",
+                "headers": [],
+            }
+        ],
+    }
+
+
+@patch("fence.blueprints.ga4gh.bulk_get_signed_url_for_file")
+def test_get_ga4gh_signed_urls_partial_authz_failure(
+    mock_bulk_get_signed_url_for_file, client
+):
+    """
+    Test when a bulk request has a mix of files that the user can and cannot access
+    """
+    mock_bulk_get_signed_url_for_file.return_value = {
+        "urls": [
+            {
+                "drs_object_id": "guid1",
+                "url": "https://example.com/guid1",
+                "headers": [],
+            }
+        ],
+        "failed_file_ids": [
+            {
+                "error_code": 403,
+                "object_ids": ["guid2"],
+            }
+        ],
+    }
+
+    data = {
+        "bulk_object_access_ids": [
+            {
+                "bulk_object_id": "guid1",
+                "bulk_access_ids": ["s3"],
+            },
+            {
+                "bulk_object_id": "guid2",
+                "bulk_access_ids": ["s3"],
+            },
+        ]
+    }
+
+    res = client.post(
+        "/ga4gh/drs/v1/objects/access",
+        headers={"Content-Type": "application/json"},
+        data=json.dumps(data),
+    )
+
+    assert res.status_code == 200
+    assert res.json == {
+        "summary": {
+            "requested": 2,
+            "resolved": 1,
+            "unresolved": 1,
+        },
+        "unresolved_drs_objects": [
+            {
+                "error_code": 403,
+                "object_ids": ["guid2"],
+            }
+        ],
+        "resolved_drs_object_access_urls": [
+            {
+                "drs_object_id": "guid1",
+                "drs_access_id": "s3",
+                "url": "https://example.com/guid1",
+                "headers": [],
+            }
+        ],
+    }
