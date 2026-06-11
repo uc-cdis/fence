@@ -93,11 +93,11 @@ def test_revoke_invalid_token(client, oauth_client, kid, rsa_private_key):
     response = client.post("/oauth2/revoke", headers=headers, data={"token": id_token})
     assert response.status_code == 400, response.text
 
-    # checking if an invalid token is blacklisted should return 400 since it can't be decoded
+    # checking if an invalid token is blacklisted should return 200
     response = client.post(
         "/credentials/token/blacklisted", headers={"Authorization": "bearer blah"}
     )
-    assert response.status_code == 400, response.text
+    assert response.status_code == 200, response.text
 
 
 def test_revoke_regular_access_token(
@@ -273,7 +273,7 @@ def test_blacklisted_endpoint_anonymous(client):
 
     # check if a token is blacklisted without providing a token
     response = client.post("/credentials/token/blacklisted")
-    assert response.status_code == 400, response.text
+    assert response.status_code == 200, response.text
 
 
 @pytest.mark.parametrize(
