@@ -1,7 +1,7 @@
+from cdislogging import get_logger
 import flask
 
-from cdislogging import get_logger
-
+from fence.config import config
 from fence.errors import Unauthorized
 
 
@@ -28,3 +28,10 @@ def get_jwt_header():
         logger.error(f"{msg}.")
         raise Unauthorized(msg)
     return jwt
+
+
+def is_work_order_token(pur, aud):
+    if pur != "access":
+        return False
+    aud = [e for e in aud if e != config["DEFAULT_TOKEN_AUDIENCE"]]
+    return aud and all(aud in config["ALLOWED_WORK_ORDER_TOKEN_TYPES"] for aud in aud)
