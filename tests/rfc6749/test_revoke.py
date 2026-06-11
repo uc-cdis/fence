@@ -3,9 +3,11 @@ import time
 import jwt
 import pytest
 
+from fence.config import config
 from fence.jwt.blacklist import is_token_blacklisted
 from fence.models import User
 from tests import utils
+from tests.utils.api_key import get_api_key
 from tests.utils.oauth2 import create_basic_header_for_client
 
 
@@ -28,24 +30,24 @@ def test_oauth2_token_post_revoke(oauth_test_client):
     assert response.status_code == 400
 
 
-def test_blacklisted_token(client, oauth_client, encoded_jwt_refresh_token):
+@pytest.mark.parametrize("revoker", ["user", "client"])
+def test_blacklisted_token(
+    client, oauth_client, encoded_jwt, encoded_jwt_refresh_token, revoker
+):
     """
     Revoke a JWT and test that it registers as blacklisted.
     """
-    headers = create_basic_header_for_client(oauth_client)
+    if revoker == "user":
+        headers = {
+            "Authorization": f"Bearer {encoded_jwt}",
+            "Content-Type": "application/x-www-form-urlencoded",
+        }
+    else:  # revoke == "client"
+        headers = create_basic_header_for_client(oauth_client)
     data = {"token": encoded_jwt_refresh_token}
     response = client.post("/oauth2/revoke", headers=headers, data=data)
-    print(encoded_jwt_refresh_token)
-    import jwt
-
-    print(
-        jwt.decode(
-            encoded_jwt_refresh_token,
-            options={"verify_signature": False},
-            algorithms=["RS256"],
-        )
-    )
     assert response.status_code == 200, response.data
+
     _, is_blacklisted = is_token_blacklisted(encoded_jwt_refresh_token)
     assert is_blacklisted
 
@@ -60,7 +62,7 @@ def test_revoke_invalid_token(client, oauth_client, kid, rsa_private_key):
     """
     headers = create_basic_header_for_client(oauth_client)
 
-    # attempt to revoke an invalid token (expired token): should succeed
+    # attempting to revoke an invalid token (expired token) should return 200
     expired_access_token = jwt.encode(
         {**utils.default_claims(), "exp": int(time.time()) - 1000},
         key=rsa_private_key,
@@ -72,9 +74,15 @@ def test_revoke_invalid_token(client, oauth_client, kid, rsa_private_key):
         algorithm="RS256",
     )
     response = client.post(
+        "/oauth2/revoke", headers=headers, data={"token": expired_access_token}
+    )
+    assert response.status_code == 200, response.text
+
+    # attempting to revoke an invalid JWT should return 200
+    response = client.post(
         "/oauth2/revoke",
-        headers=create_basic_header_for_client(oauth_client),
-        data={"token": expired_access_token},
+        headers={**headers, "Content-Type": "application/x-www-form-urlencoded"},
+        data={"token": "blah"},
     )
     assert response.status_code == 200, response.text
 
@@ -85,41 +93,19 @@ def test_revoke_invalid_token(client, oauth_client, kid, rsa_private_key):
     response = client.post("/oauth2/revoke", headers=headers, data={"token": id_token})
     assert response.status_code == 400, response.text
 
-
-def test_revoke_client_access_token(
-    client, oauth_client, encoded_jwt, db_session, mock_arborist_requests
-):
-    """
-    Test that a client can revoke an access token through the "/oauth2/revoke" endpoint, and that a
-    revoked token is rejected by the API.
-    """
-    # create a user and check that they can access their own info using their own token
-    db_session.add(User(id=utils.default_claims()["sub"], username="test-user"))
-    db_session.commit()
-    mock_arborist_requests()
-    response = client.get("/user", headers={"Authorization": f"bearer {encoded_jwt}"})
-    assert response.status_code == 200, response.text
-
-    # revoke the token with a client token
+    # checking if an invalid token is blacklisted should return 200
     response = client.post(
-        "/oauth2/revoke",
-        headers=create_basic_header_for_client(oauth_client),
-        data={"token": encoded_jwt},
+        "/credentials/token/blacklisted", headers={"Authorization": "bearer blah"}
     )
     assert response.status_code == 200, response.text
 
-    # the token should not be usable anymore
-    response = client.get("/user", headers={"Authorization": f"bearer {encoded_jwt}"})
-    assert response.status_code == 401, response.text
 
-
-@pytest.mark.parametrize("send_body", [True, False])
-def test_revoke_user_access_token(
-    client, encoded_jwt, db_session, mock_arborist_requests, send_body
+def test_revoke_regular_access_token(
+    client, oauth_client, encoded_jwt, db_session, mock_arborist_requests
 ):
     """
-    Test that a user can revoke an access token through the "/credentials/token/blacklisted"
-    endpoint, and that a revoked token is rejected by the API.
+    Test that a user or client cannot revoke a regular access token through the "/oauth2/revoke"
+    endpoint, since we only support revoking work order access tokens.
     """
     # create a user and check that they can access their own info using their own token
     headers = {"Authorization": f"bearer {encoded_jwt}"}
@@ -129,32 +115,112 @@ def test_revoke_user_access_token(
     response = client.get("/user", headers=headers)
     assert response.status_code == 200, response.text
 
-    # the token should not be blacklisted
+    # attempt to revoke the token with a client token
     response = client.post(
-        "/credentials/token/blacklisted",
-        headers=headers,
-        json={"token": encoded_jwt} if send_body else None,
+        "/oauth2/revoke",
+        headers=create_basic_header_for_client(oauth_client),
+        data={"token": encoded_jwt},
+    )
+    assert response.status_code == 400, response.text
+
+    # attempt to revoke the token with the user's own token
+    response = client.post("/oauth2/revoke", headers=headers)
+    assert response.status_code == 400, response.text
+
+    # the token should not be blacklisted
+    response = client.post("/credentials/token/blacklisted", headers=headers)
+    assert response.status_code == 200, response.text
+
+    # the token should still be usable
+    response = client.get("/user", headers={"Authorization": f"bearer {encoded_jwt}"})
+    assert response.status_code == 200, response.text
+
+
+def test_revoke_work_order_access_token(
+    client, encoded_creds_jwt, mock_arborist_requests
+):
+    """
+    Test that a user can revoke a work order access token through the "/oauth2/revoke"
+    endpoint, and that a revoked token is rejected by the API.
+    """
+    mock_arborist_requests(
+        {
+            "arborist/auth/mapping": {
+                "POST": (
+                    {
+                        "/services/fence/work-order-token/FOO/172800": [
+                            {"service": "fence", "method": "create"}
+                        ],
+                    },
+                    200,
+                )
+            },
+        }
+    )
+
+    encoded_jwt = encoded_creds_jwt["jwt"]
+    response = get_api_key(client, encoded_jwt)
+    assert response.status_code == 200, response.text
+    api_key = response.json["api_key"]
+
+    # obtain a work order token
+    response = client.post(
+        f"/credentials/api/access_token?work_order=FOO",
+        data={"api_key": api_key},
+        headers={"Authorization": "Bearer " + str(encoded_jwt)},
+    )
+    assert response.status_code == 200, response.text
+    assert "access_token" in response.json
+    work_order_token = response.json["access_token"]
+
+    # check that the user can access their own info using their own token
+    response = client.get(
+        "/user", headers={"Authorization": f"Bearer {work_order_token}"}
     )
     assert response.status_code == 200, response.text
 
-    # revoke the token with the user's own token
+    # the token should not be blacklisted
     response = client.post(
-        "/credentials/token/revoke",
-        headers=headers,
-        json={"token": encoded_jwt} if send_body else None,
+        "/credentials/token/blacklisted",
+        headers={"Authorization": f"Bearer {work_order_token}"},
+        json={"token": work_order_token},
+    )
+    assert response.status_code == 200, response.text
+
+    # check that the token revocation endpoint only accepts application/x-www-form-urlencoded
+    response = client.post(
+        "/oauth2/revoke",
+        headers={
+            "Authorization": f"Bearer {work_order_token}",
+            "Content-Type": "application/json",
+        },
+        json={"token": work_order_token},
+    )
+    assert response.status_code == 400, response.text
+
+    # revoke the token
+    response = client.post(
+        "/oauth2/revoke",
+        headers={
+            "Authorization": f"Bearer {work_order_token}",
+            "Content-Type": "application/x-www-form-urlencoded",
+        },
+        data={"token": work_order_token},
     )
     assert response.status_code == 200, response.text
 
     # the token should be blacklisted
     response = client.post(
         "/credentials/token/blacklisted",
-        headers=headers,
-        json={"token": encoded_jwt} if send_body else None,
+        headers={"Authorization": f"Bearer {work_order_token}"},
+        json={"token": work_order_token},
     )
     assert response.status_code == 403, response.text
 
     # the token should not be usable anymore
-    response = client.get("/user", headers=headers)
+    response = client.get(
+        "/user", headers={"Authorization": f"Bearer {work_order_token}"}
+    )
     assert response.status_code == 401, response.text
 
 
@@ -162,11 +228,15 @@ def test_blacklisted_expired_token(client, oauth_client, kid, rsa_private_key):
     """
     Test that blacklisted expired tokens are still detected as blacklisted
     """
-    token_lifetime = 1
+    token_lifetime = 2
 
     # revoke an access token
     expired_access_token = jwt.encode(
-        {**utils.default_claims(), "exp": int(time.time()) + token_lifetime},
+        {
+            **utils.default_claims(),
+            "aud": [config["DEFAULT_TOKEN_AUDIENCE"], "FOO"],
+            "exp": int(time.time()) + token_lifetime,
+        },
         key=rsa_private_key,
         headers={
             "type": "JWT",
@@ -183,7 +253,7 @@ def test_blacklisted_expired_token(client, oauth_client, kid, rsa_private_key):
     assert response.status_code == 200, response.text
 
     # wait for the token to expire
-    time.sleep(token_lifetime + 0.5)
+    time.sleep(token_lifetime + 1)
 
     # checking if the expired token is blacklisted should return 403
     response = client.post(
@@ -198,26 +268,9 @@ def test_blacklisted_endpoint_anonymous(client):
     Test the token blacklisting endpoints with anonymous calls
     """
     # attempting to revoke without providing a token should return 401
-    response = client.post("/credentials/token/revoke")
+    response = client.post("/oauth2/revoke")
     assert response.status_code == 401, response.text
 
     # checking if a token is blacklisted without providing a token should return 200
     response = client.post("/credentials/token/blacklisted")
-    assert response.status_code == 200, response.text
-
-
-def test_blacklisted_endpoint_invalid_token(client):
-    """
-    Test the token blacklisting endpoints with invalid tokens
-    """
-    # attempting to revoke an invalid token should return 401
-    response = client.post(
-        "/credentials/token/revoke", headers={"Authorization": "bearer blah"}
-    )
-    assert response.status_code == 401, response.text
-
-    # checking if an invalid token is blacklisted should return 200
-    response = client.post(
-        "/credentials/token/blacklisted", headers={"Authorization": "bearer blah"}
-    )
     assert response.status_code == 200, response.text

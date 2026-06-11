@@ -178,6 +178,13 @@ class AccessKey(Resource):
         # TODO update the SDK to use the work_order param
         max_ttl = config.get("MAX_ACCESS_TOKEN_TTL", 3600)
         work_order_type = flask.request.args.get("work_order") or None
+        if (
+            work_order_type
+            and work_order_type not in config["ALLOWED_WORK_ORDER_TOKEN_TYPES"]
+        ):
+            raise UserError(
+                f"Invalid 'work_order' value '{work_order_type}'. Allowed work order token types are: {config['ALLOWED_WORK_ORDER_TOKEN_TYPES']}"
+            )
         try:
             expires_in = int(flask.request.args.get("expires_in", max_ttl))
         except ValueError:

@@ -145,12 +145,7 @@ def test_work_order_token(
     assert response.status_code == 200, response.text
     assert "access_token" in response.json
     claims = validate_jwt(response.json["access_token"])
-    # TODO - Scopes are in the aud for backwards comp... Remove from the list once that's updated
-    assert claims["aud"] == [
-        config["DEFAULT_TOKEN_AUDIENCE"],
-        work_order_type,
-        *claims["scope"],
-    ]
+    assert claims["aud"] == [config["DEFAULT_TOKEN_AUDIENCE"], work_order_type]
 
     # check that the returned token's expiration matches
     if expires_in is None:

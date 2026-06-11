@@ -23,7 +23,8 @@ import json
 from authutils.errors import JWTExpiredError
 
 from fence.blueprints.login import get_idp_route_name, get_login_providers_info
-from fence.errors import Unauthorized, UserError
+from fence.errors import Unauthorized, UserError, BlacklistingInvalidTokenError
+from fence.jwt.blacklist import blacklist_encoded_token
 from fence.jwt.errors import JWTError
 from fence.jwt.token import SCOPE_DESCRIPTION
 from fence.models import Client
@@ -32,9 +33,6 @@ from fence.oidc.server import server
 from fence.utils import clear_cookies
 from fence.user import get_current_user
 from fence.config import config
-from authlib.oauth2.rfc6749.errors import (
-    InvalidScopeError,
-)
 from fence.utils import validate_scopes
 from cdislogging import get_logger
 
@@ -349,7 +347,35 @@ def revoke_token():
     Return:
         Tuple[str, int]: JSON response and status code
     """
-    return server.create_endpoint_response(RevocationEndpoint.ENDPOINT_NAME)
+    try:
+        if "bearer " not in flask.request.headers.get("Authorization", "").lower():
+            # use the authlib RFC 7009 endpoint
+            return server.create_endpoint_response(RevocationEndpoint.ENDPOINT_NAME)
+        else:
+            # TODO: who has access to revoke a token? self and admin?
+            # RFC 7009 is officially only for client usage, but we also allow users to revoke tokens
+            if (
+                flask.request.headers.get("Content-Type")
+                == "application/x-www-form-urlencoded"
+                and "token" in flask.request.form
+            ):
+                blacklist_encoded_token(flask.request.form["token"])
+                return "", 200
+            raise UserError(
+                "This endpoint expects Content-Type 'application/x-www-form-urlencoded' and a 'token' field"
+            )
+    except BlacklistingInvalidTokenError as err:
+        # Attempting to revoke an invalid token fails and return a 200 (per RFC 7009).
+        # However, other revocation failures should not return 200. RFC 7009 only says to
+        # return 200 for tokens that are already invalid and as such cannot be used, effectively
+        # the same result as revoking them.
+        logger.info(
+            "Token provided for revocation is not valid. "
+            "Per rfc7009, this should still return a 200. Error: "
+            f"{err}",
+            exc_info=True,
+        )
+        return "", 200
 
 
 @blueprint.route("/errors", methods=["GET"])

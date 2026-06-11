@@ -15,6 +15,7 @@ import flask
 import jwt
 from sqlalchemy import BigInteger, Column, String
 
+from fence.config import config
 from fence.errors import BlacklistingError, BlacklistingInvalidTokenError
 from fence.jwt import keys
 from fence.jwt.errors import JWTError
@@ -108,9 +109,19 @@ def blacklist_encoded_token(encoded_token, public_key=None):
     # Do checks.
     # Check that JWT id is UUID4 (this raises a ValueError otherwise).
     uuid.UUID(jti, version=4)
-    # Must be access/refresh token or API key in order to revoke.
-    if pur not in ["refresh", "api_key", "access"]:
-        raise BlacklistingError("can only blacklist refresh tokens and API keys")
+    # Must be work order access token, refresh token or API key in order to revoke.
+    is_work_order_token = False
+    if pur == "access":
+        auds = [aud for aud in claims["aud"] if aud != config["DEFAULT_TOKEN_AUDIENCE"]]
+        is_work_order_token = auds and all(
+            aud in config["ALLOWED_WORK_ORDER_TOKEN_TYPES"] for aud in auds
+        )
+    if pur not in ["access", "refresh", "api_key"] or (
+        pur == "access" and not is_work_order_token
+    ):
+        raise BlacklistingError(
+            "can only blacklist work order access tokens, refresh tokens and API keys"
+        )
 
     blacklist_token(jti, exp)
 

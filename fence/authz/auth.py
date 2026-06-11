@@ -62,8 +62,8 @@ def check_arborist_auth(resource, method):
 def can_user_get_work_order_token(work_order_type, expires_in):
     """
     Checks a requested expiration against the user's authz mapping.
-    A user with access to `/services/fence/work-order-token/FOO/100` can request a work order
-    token of type "FOO" that expires in up to 100 seconds.
+    Example: a user with access to `/services/fence/work-order-token/FOO/100` can request a
+    work order token of type "FOO" that expires in up to 100 seconds.
     """
     resource_path = f"/services/fence/work-order-token/{work_order_type}"
     mapping = (

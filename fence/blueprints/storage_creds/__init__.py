@@ -38,7 +38,7 @@ def get_token_from_body_or_header():
     """
     try:
         body = json.loads(flask.request.data)
-    except Exception:
+    except json.JSONDecodeError:
         body = {}
     encoded_token = body.get("token")
     if not encoded_token:
@@ -105,15 +105,6 @@ def make_creds_blueprint():
         return flask.jsonify(
             get_endpoints_descriptions(services, current_app.scoped_session())
         )
-
-    @blueprint.route("/token/revoke", methods=["POST"])
-    @require_auth_header()
-    def revoke_token():
-        """
-        Can be used to revoke any revocable token.
-        """
-        blacklist_encoded_token(get_token_from_body_or_header())
-        return "", 200
 
     @blueprint.route("/token/blacklisted", methods=["POST"])
     def check_if_token_blacklisted():
