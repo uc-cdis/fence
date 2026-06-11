@@ -280,7 +280,7 @@ paths:
       tags:
         - oauth2
       summary: Revoke a token per RFC 7009
-      description: Revoke a refresh or access token granted to a user through an OIDC client.
+      description: Revoke a refresh token granted to a user through an OIDC client, or a task token.
       operationId: revoke
       responses:
         '200':
@@ -930,30 +930,6 @@ paths:
         - OAuth2:
             - user
       operationId: listSources
-      responses:
-        '200':
-          description: successful operation
-  /credentials/token/revoke:
-    post:
-      tags:
-        - credentials
-      summary: Revoke a token
-      description: >-
-        Can be used to revoke any revocable token (access token, refresh token, API key).
-
-
-        If no token is provided in the request body, falls back to the request's Authorization header.
-
-
-        Note that revoking an access token does not guarantee rejection by all APIs.
-      requestBody:
-        content:
-          application/json:
-            schema:
-              type: object
-              properties:
-                token:
-                  type: string
       responses:
         '200':
           description: successful operation

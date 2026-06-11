@@ -5,7 +5,7 @@ from fence.auth import current_token
 import flask
 from gen3authz.utils import is_path_prefix_of_path
 
-from fence.errors import Forbidden
+from fence.errors import Forbidden, Unauthorized
 from fence.jwt.utils import get_jwt_header
 
 
@@ -31,8 +31,17 @@ def authorize(resource, method):
             "this fence instance is not configured with arborist;"
             " this endpoint is unavailable"
         )
+
+    try:
+        token = get_jwt_header()
+    except Unauthorized as e:
+        if "missing authorization header" in str(e):
+            token = None  # anonymous
+        else:
+            raise
+
     if not flask.current_app.arborist.auth_request(
-        jwt=get_jwt_header(),
+        jwt=token,
         service="fence",
         methods=method,
         resources=resource,

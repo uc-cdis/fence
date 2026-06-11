@@ -93,11 +93,11 @@ def test_revoke_invalid_token(client, oauth_client, kid, rsa_private_key):
     response = client.post("/oauth2/revoke", headers=headers, data={"token": id_token})
     assert response.status_code == 400, response.text
 
-    # checking if an invalid token is blacklisted should return 200
+    # checking if an invalid token is blacklisted should return 400 since it can't be decoded
     response = client.post(
         "/credentials/token/blacklisted", headers={"Authorization": "bearer blah"}
     )
-    assert response.status_code == 200, response.text
+    assert response.status_code == 400, response.text
 
 
 def test_revoke_regular_access_token(
@@ -267,10 +267,96 @@ def test_blacklisted_endpoint_anonymous(client):
     """
     Test the token blacklisting endpoints with anonymous calls
     """
-    # attempting to revoke without providing a token should return 401
+    # attempt to revoke without providing a token
     response = client.post("/oauth2/revoke")
-    assert response.status_code == 401, response.text
+    assert response.status_code == 400, response.text
 
-    # checking if a token is blacklisted without providing a token should return 200
+    # check if a token is blacklisted without providing a token
     response = client.post("/credentials/token/blacklisted")
+    assert response.status_code == 400, response.text
+
+
+@pytest.mark.parametrize(
+    "revoker",
+    [
+        "self",
+        "authorized_user",
+        "unauthorized_user",
+        "authorized_anon",
+        "unauthorized_anon",
+    ],
+)
+def test_revoke_token_access(
+    client, encoded_creds_jwt, kid, rsa_private_key, mock_arborist_requests, revoker
+):
+    """
+    Test that users can only revoke their own tokens, unless they have admin access in arborist
+    """
+    authorized = revoker.startswith("authorized_")
+    mock_arborist_requests(
+        {
+            "arborist/auth/mapping": {
+                "POST": (
+                    {
+                        "/services/fence/work-order-token/FOO/172800": [
+                            {"service": "fence", "method": "create"}
+                        ],
+                    },
+                    200,
+                )
+            },
+            "arborist/auth/request": {"POST": ({"auth": authorized}, 200)},
+        }
+    )
+
+    encoded_jwt = encoded_creds_jwt["jwt"]
+    response = get_api_key(client, encoded_jwt)
     assert response.status_code == 200, response.text
+    api_key = response.json["api_key"]
+
+    # obtain a work order token
+    response = client.post(
+        f"/credentials/api/access_token?work_order=FOO",
+        data={"api_key": api_key},
+        headers={"Authorization": "Bearer " + str(encoded_jwt)},
+    )
+    assert response.status_code == 200, response.text
+    assert "access_token" in response.json
+    work_order_token = response.json["access_token"]
+
+    # attempt to revoke the token
+    headers = {"Content-Type": "application/x-www-form-urlencoded"}
+    if revoker == "self":
+        headers["Authorization"] = f"bearer {work_order_token}"
+    elif revoker.endswith("_user"):
+        claims = utils.default_claims()
+        claims["context"]["user"]["name"] = "non-admin-user"
+        claims["sub"] = "80"
+        token = jwt.encode(
+            claims, key=rsa_private_key, headers={"kid": kid}, algorithm="RS256"
+        )
+        headers["Authorization"] = f"bearer {token}"
+    response = client.post(
+        "/oauth2/revoke", headers=headers, data={"token": work_order_token}
+    )
+    assert (
+        response.status_code == 200 if authorized else 403
+    ), f"{authorized=}; {response.status_code=}"
+
+    # the token should be blacklisted, unless the revoker does not have access to revoke it
+    response = client.post(
+        "/credentials/token/blacklisted",
+        headers={"Authorization": f"Bearer {work_order_token}"},
+        json={"token": work_order_token},
+    )
+    assert (
+        response.status_code == 403 if authorized else 200
+    ), f"{authorized=}; {response.status_code=}"
+
+    # the token should not be usable anymore, unless the revoker does not have access to revoke it
+    response = client.get(
+        "/user", headers={"Authorization": f"Bearer {work_order_token}"}
+    )
+    assert (
+        response.status_code == 401 if authorized else 200
+    ), f"{authorized=}; {response.status_code=}"

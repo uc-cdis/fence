@@ -3,6 +3,7 @@ import json
 from cdislogging import get_logger
 import flask
 from flask import current_app
+import jwt
 
 from fence.auth import require_auth_header
 from fence.blueprints.storage_creds.api import AccessKey, ApiKey, ApiKeyList
@@ -11,7 +12,7 @@ from fence.blueprints.storage_creds.google import GoogleCredentials
 from fence.blueprints.storage_creds.other import OtherCredentialsList
 from fence.blueprints.storage_creds.other import OtherCredentials
 from fence.errors import Unauthorized
-from fence.jwt.blacklist import blacklist_encoded_token, is_token_blacklisted
+from fence.jwt.blacklist import is_token_blacklisted
 from fence.jwt.errors import JWTError
 from fence.jwt.utils import get_jwt_header
 from fence.resources.storage import get_endpoints_descriptions
@@ -29,21 +30,6 @@ ALL_RESOURCES = {
     "/aws-s3": "access to AWS S3 storage",
     "/google": "access to Google storage",
 }
-
-
-def get_token_from_body_or_header():
-    """
-    Return the value of the request body `token` field if present.
-    Fall back to the request's Authorization header otherwise.
-    """
-    try:
-        body = json.loads(flask.request.data)
-    except json.JSONDecodeError:
-        body = {}
-    encoded_token = body.get("token")
-    if not encoded_token:
-        encoded_token = get_jwt_header()
-    return encoded_token
 
 
 def make_creds_blueprint():
@@ -116,15 +102,21 @@ def make_creds_blueprint():
 
         This endpoint is leveraged by revproxy to block requests from blacklisted tokens.
         """
+        # use the value of the request body `token` field if present, fall back to the request's
+        # Authorization header otherwise.
         try:
-            claims, is_blacklisted = is_token_blacklisted(
-                get_token_from_body_or_header()
+            body = json.loads(flask.request.data)
+        except json.JSONDecodeError:
+            body = {}
+        encoded_token = body.get("token")
+        try:
+            if not encoded_token:
+                encoded_token = get_jwt_header()
+            claims, is_blacklisted = is_token_blacklisted(encoded_token)
+        except (jwt.exceptions.InvalidTokenError, Unauthorized) as e:
+            raise JWTError(
+                "could not decode token to check blacklisting: {}".format(e), code=400
             )
-        except (Unauthorized, JWTError) as e:
-            logger.warning(
-                f"No provided token, or provided token is invalid: `{e}`. Token not blacklisted."
-            )
-            return "", 200
 
         if is_blacklisted:
             logger.warning(
