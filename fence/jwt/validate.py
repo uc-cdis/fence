@@ -7,7 +7,7 @@ from fence.config import config
 from fence.errors import Unauthorized
 from fence.jwt.blacklist import is_blacklisted
 from fence.jwt.errors import JWTError, JWTPurposeError
-from fence.jwt.utils import get_jwt_header
+from fence.jwt.utils import get_jwt_header, is_task_token
 
 
 def validate_purpose(claims, pur):
@@ -93,7 +93,11 @@ def validate_jwt(
 
     # Can't set arg default to config[x] in fn def, so doing it this way.
     if aud is None:
-        aud = config["BASE_URL"]
+        aud = config["DEFAULT_TOKEN_AUDIENCE"]
+
+        # TODO: Remove this at the next release. Temporarily add the base url in the audience
+        # for backwards compatibility (to accept JWTs generated before the aud was enforced)
+        aud = [aud, config["BASE_URL"]]
 
     iss = config["BASE_URL"]
     if issuers is None:
@@ -153,7 +157,7 @@ def validate_jwt(
                     attempt_refresh=attempt_refresh,
                     **kwargs
                 )
-            except Error as e:
+            except Exception as e:
                 raise JWTError("Invalid refresh token: {}".format(e))
         elif unverified_claims.get("pur") == "api_key" and isinstance(
             e, JWTAudienceError
@@ -170,7 +174,7 @@ def validate_jwt(
                     attempt_refresh=attempt_refresh,
                     **kwargs
                 )
-            except Error as e:
+            except Exception as e:
                 raise JWTError("Invalid API key: {}".format(e))
         else:
             ##### end refresh token, API key patch block #####
@@ -186,11 +190,12 @@ def validate_jwt(
     if require_purpose and "pur" not in claims:
         raise JWTError("token {} missing purpose (`pur`) claim".format(claims["jti"]))
 
-    # For refresh tokens and API keys specifically, check that they are not
-    # blacklisted.
-    if require_purpose and (claims["pur"] == "refresh" or claims["pur"] == "api_key"):
-        if is_blacklisted(claims["jti"]):
-            raise JWTError("token is blacklisted")
+    # For access/refresh tokens and API keys specifically, check that they are not
+    # blacklisted. For access tokens, only check that if it's a task token.
+    if require_purpose and claims["pur"] in ["refresh", "api_key", "access"]:
+        if claims["pur"] != "access" or is_task_token(claims["pur"], claims["aud"]):
+            if is_blacklisted(claims["jti"]):
+                raise JWTError("token is blacklisted")
 
     return claims
 

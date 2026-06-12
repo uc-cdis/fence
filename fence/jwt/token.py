@@ -1,4 +1,3 @@
-import json
 import time
 import uuid
 from enum import Enum
@@ -8,7 +7,6 @@ from authlib.oidc.core import IDToken, CodeIDToken, ImplicitIDToken
 from authlib.oidc.core.util import create_half_hash
 
 from cdislogging import get_logger
-import flask
 import jwt
 
 from fence.jwt import keys
@@ -178,7 +176,7 @@ def generate_signed_session_token(kid, private_key, expires_in, context=None):
 
     claims = {
         "pur": "session",
-        "aud": ["fence", issuer],
+        "aud": ["fence", config["DEFAULT_TOKEN_AUDIENCE"]],
         "sub": str(context.get("user_id", "")),
         "iss": issuer,
         "iat": iat,
@@ -296,7 +294,7 @@ def generate_signed_refresh_token(
         "pur": "refresh",
         "sub": sub,
         "iss": iss,
-        "aud": [iss],
+        "aud": [config["DEFAULT_TOKEN_AUDIENCE"]],
         "iat": iat,
         "exp": exp,
         "jti": jti,
@@ -342,7 +340,7 @@ def generate_api_key(kid, private_key, user_id, expires_in, scopes, client_id):
         "pur": "api_key",
         "sub": sub,
         "iss": iss,
-        "aud": [iss],
+        "aud": [config["DEFAULT_TOKEN_AUDIENCE"]],
         "iat": iat,
         "exp": exp,
         "jti": jti,
@@ -362,6 +360,7 @@ def generate_signed_access_token(
     private_key,
     expires_in,
     scopes,
+    audience=None,
     user=None,
     iss=None,
     forced_exp_time=None,
@@ -396,10 +395,20 @@ def generate_signed_access_token(
                 " running outside of flask application"
             )
 
+    aud = [config["DEFAULT_TOKEN_AUDIENCE"]]
+    if audience:
+        if type(audience) == list:
+            aud.extend(audience)
+        else:
+            aud.append(audience)
+
+    if client_id:
+        aud.append(client_id)
+
     claims = {
         "pur": "access",
         "iss": iss,
-        "aud": [iss],
+        "aud": aud,
         "iat": iat,
         "exp": exp,
         "jti": jti,
@@ -407,13 +416,6 @@ def generate_signed_access_token(
         "context": {},
         "azp": client_id or "",
     }
-
-    if client_id:
-        claims["aud"].append(client_id)
-
-    # Keep scopes in aud claim in access tokens for backwards comp....
-    if scopes:
-        claims["aud"] += scopes
 
     sub = None
     if user:
@@ -526,8 +528,8 @@ def generate_id_token(
     aud = audiences.copy() if audiences else []
     if client_id and client_id not in aud:
         aud.append(client_id)
-    if issuer not in aud:
-        aud.append(issuer)
+    if config["DEFAULT_TOKEN_AUDIENCE"] not in aud:
+        aud.append(config["DEFAULT_TOKEN_AUDIENCE"])
     claims["aud"] = aud
 
     if user.tags:
