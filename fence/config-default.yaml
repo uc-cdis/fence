@@ -522,16 +522,14 @@ MAX_API_KEY_TTL: 2592000
 # This is both the max and the default lifetime.
 MAX_ACCESS_TOKEN_TTL: 3600
 
-# The number of seconds after a work order access token is issued until it expires. This max is
+# The number of seconds after a task access token is issued until it expires. This max is
 # applied even if the requesting user has access to request a longer-lived token in Arborist.
-# This is configured per work order type, and falls back to `MAX_ACCESS_TOKEN_TTL`.
-# TODO work-order token doc. Document that if you have access to create work order tokens of any
-# lifetime, you are still limited by the configured MAX_WORK_ORDER_TOKEN_TTL.
-MAX_WORK_ORDER_TOKEN_TTL: {}
+# This is configured per task token type, and falls back to `MAX_ACCESS_TOKEN_TTL`.
+MAX_TASK_TOKEN_TTL: {}
 # TES: 345600
 
-# Work order token types that can be requested by users.
-ALLOWED_WORK_ORDER_TOKEN_TYPES: []
+# Task token types that can be requested by users.
+ALLOWED_TASK_TOKEN_TYPES: []
 
 # TEMPORARY: The maximum number of projects allowed in token claims.
 # This config var should be removed after sheepdog and peregrine support

@@ -105,7 +105,7 @@ def test_revoke_regular_access_token(
 ):
     """
     Test that a user or client cannot revoke a regular access token through the "/oauth2/revoke"
-    endpoint, since we only support revoking work order access tokens.
+    endpoint, since we only support revoking task access tokens.
     """
     # create a user and check that they can access their own info using their own token
     headers = {"Authorization": f"bearer {encoded_jwt}"}
@@ -136,11 +136,11 @@ def test_revoke_regular_access_token(
     assert response.status_code == 200, response.text
 
 
-def test_revoke_work_order_access_token(
+def test_revoke_task_token_access_token(
     client, encoded_creds_jwt, mock_arborist_requests
 ):
     """
-    Test that a user can revoke a work order access token through the "/oauth2/revoke"
+    Test that a user can revoke a task access token through the "/oauth2/revoke"
     endpoint, and that a revoked token is rejected by the API.
     """
     mock_arborist_requests(
@@ -148,7 +148,7 @@ def test_revoke_work_order_access_token(
             "arborist/auth/mapping": {
                 "POST": (
                     {
-                        "/services/fence/work-order-token/FOO/172800": [
+                        "/services/fence/task-token/FOO/172800": [
                             {"service": "fence", "method": "create"}
                         ],
                     },
@@ -163,27 +163,25 @@ def test_revoke_work_order_access_token(
     assert response.status_code == 200, response.text
     api_key = response.json["api_key"]
 
-    # obtain a work order token
+    # obtain a task token
     response = client.post(
-        f"/credentials/api/access_token?work_order=FOO",
+        f"/credentials/api/access_token?task_token=FOO",
         data={"api_key": api_key},
         headers={"Authorization": "Bearer " + str(encoded_jwt)},
     )
     assert response.status_code == 200, response.text
     assert "access_token" in response.json
-    work_order_token = response.json["access_token"]
+    task_token = response.json["access_token"]
 
     # check that the user can access their own info using their own token
-    response = client.get(
-        "/user", headers={"Authorization": f"Bearer {work_order_token}"}
-    )
+    response = client.get("/user", headers={"Authorization": f"Bearer {task_token}"})
     assert response.status_code == 200, response.text
 
     # the token should not be blacklisted
     response = client.post(
         "/credentials/token/blacklisted",
-        headers={"Authorization": f"Bearer {work_order_token}"},
-        json={"token": work_order_token},
+        headers={"Authorization": f"Bearer {task_token}"},
+        json={"token": task_token},
     )
     assert response.status_code == 200, response.text
 
@@ -191,10 +189,10 @@ def test_revoke_work_order_access_token(
     response = client.post(
         "/oauth2/revoke",
         headers={
-            "Authorization": f"Bearer {work_order_token}",
+            "Authorization": f"Bearer {task_token}",
             "Content-Type": "application/json",
         },
-        json={"token": work_order_token},
+        json={"token": task_token},
     )
     assert response.status_code == 400, response.text
 
@@ -202,25 +200,23 @@ def test_revoke_work_order_access_token(
     response = client.post(
         "/oauth2/revoke",
         headers={
-            "Authorization": f"Bearer {work_order_token}",
+            "Authorization": f"Bearer {task_token}",
             "Content-Type": "application/x-www-form-urlencoded",
         },
-        data={"token": work_order_token},
+        data={"token": task_token},
     )
     assert response.status_code == 200, response.text
 
     # the token should be blacklisted
     response = client.post(
         "/credentials/token/blacklisted",
-        headers={"Authorization": f"Bearer {work_order_token}"},
-        json={"token": work_order_token},
+        headers={"Authorization": f"Bearer {task_token}"},
+        json={"token": task_token},
     )
     assert response.status_code == 403, response.text
 
     # the token should not be usable anymore
-    response = client.get(
-        "/user", headers={"Authorization": f"Bearer {work_order_token}"}
-    )
+    response = client.get("/user", headers={"Authorization": f"Bearer {task_token}"})
     assert response.status_code == 401, response.text
 
 
@@ -298,7 +294,7 @@ def test_revoke_token_access(
             "arborist/auth/mapping": {
                 "POST": (
                     {
-                        "/services/fence/work-order-token/FOO/172800": [
+                        "/services/fence/task-token/FOO/172800": [
                             {"service": "fence", "method": "create"}
                         ],
                     },
@@ -314,20 +310,20 @@ def test_revoke_token_access(
     assert response.status_code == 200, response.text
     api_key = response.json["api_key"]
 
-    # obtain a work order token
+    # obtain a task token
     response = client.post(
-        f"/credentials/api/access_token?work_order=FOO",
+        f"/credentials/api/access_token?task_token=FOO",
         data={"api_key": api_key},
         headers={"Authorization": "Bearer " + str(encoded_jwt)},
     )
     assert response.status_code == 200, response.text
     assert "access_token" in response.json
-    work_order_token = response.json["access_token"]
+    task_token = response.json["access_token"]
 
     # attempt to revoke the token
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
     if revoker == "self":
-        headers["Authorization"] = f"bearer {work_order_token}"
+        headers["Authorization"] = f"bearer {task_token}"
     elif revoker.endswith("_user"):
         claims = utils.default_claims()
         claims["context"]["user"]["name"] = "non-admin-user"
@@ -337,7 +333,7 @@ def test_revoke_token_access(
         )
         headers["Authorization"] = f"bearer {token}"
     response = client.post(
-        "/oauth2/revoke", headers=headers, data={"token": work_order_token}
+        "/oauth2/revoke", headers=headers, data={"token": task_token}
     )
     assert (
         response.status_code == 200 if authorized else 403
@@ -346,17 +342,15 @@ def test_revoke_token_access(
     # the token should be blacklisted, unless the revoker does not have access to revoke it
     response = client.post(
         "/credentials/token/blacklisted",
-        headers={"Authorization": f"Bearer {work_order_token}"},
-        json={"token": work_order_token},
+        headers={"Authorization": f"Bearer {task_token}"},
+        json={"token": task_token},
     )
     assert (
         response.status_code == 403 if authorized else 200
     ), f"{authorized=}; {response.status_code=}"
 
     # the token should not be usable anymore, unless the revoker does not have access to revoke it
-    response = client.get(
-        "/user", headers={"Authorization": f"Bearer {work_order_token}"}
-    )
+    response = client.get("/user", headers={"Authorization": f"Bearer {task_token}"})
     assert (
         response.status_code == 401 if authorized else 200
     ), f"{authorized=}; {response.status_code=}"

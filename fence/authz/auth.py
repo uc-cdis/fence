@@ -68,13 +68,13 @@ def check_arborist_auth(resource, method):
     return decorator
 
 
-def can_user_get_work_order_token(work_order_type, expires_in):
+def can_user_get_task_token(task_token_type, expires_in):
     """
     Checks a requested expiration against the user's authz mapping.
-    Example: a user with access to `/services/fence/work-order-token/FOO/100` can request a
-    work order token of type "FOO" that expires in up to 100 seconds.
+    Example: a user with access to `/services/fence/task-token/FOO/100` can request a
+    task token of type "FOO" that expires in up to 100 seconds.
     """
-    resource_path = f"/services/fence/work-order-token/{work_order_type}"
+    resource_path = f"/services/fence/task-token/{task_token_type}"
     mapping = (
         flask.current_app.arborist.auth_mapping(jwt=current_token)
         if flask.current_app.arborist
@@ -82,7 +82,7 @@ def can_user_get_work_order_token(work_order_type, expires_in):
     )
 
     for authorized_path, access in mapping.items():
-        authorized_path_without_exp = authorized_path.split(f"/{work_order_type}/")[0]
+        authorized_path_without_exp = authorized_path.split(f"/{task_token_type}/")[0]
         if not is_path_prefix_of_path(authorized_path_without_exp, resource_path):
             # the path does not match
             continue
@@ -95,7 +95,7 @@ def can_user_get_work_order_token(work_order_type, expires_in):
             continue
 
         if f"{resource_path}/" not in authorized_path:
-            # no max expiration in the path: the user has access to create work order tokens of
+            # no max expiration in the path: the user has access to create task tokens of
             # any lifetime
             return True
 
@@ -112,7 +112,7 @@ def can_user_get_work_order_token(work_order_type, expires_in):
         # check whether the user has access to tokens of the requested lifetime
         if expires_in > max_authorized_exp:
             logger.debug(
-                f"User is requesting a work order token lifetime ({expires_in}) larger than they have access to ('{authorized_path}')"
+                f"User is requesting a task token lifetime ({expires_in}) larger than they have access to ('{authorized_path}')"
             )
             return False
 

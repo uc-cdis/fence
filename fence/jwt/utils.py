@@ -30,8 +30,8 @@ def get_jwt_header():
     return jwt
 
 
-def is_work_order_token(pur, aud):
+def is_task_token(pur, aud):
     if pur != "access":
         return False
     aud = [e for e in aud if e != config["DEFAULT_TOKEN_AUDIENCE"]]
-    return aud and all(aud in config["ALLOWED_WORK_ORDER_TOKEN_TYPES"] for aud in aud)
+    return aud and all(aud in config["ALLOWED_TASK_TOKEN_TYPES"] for aud in aud)

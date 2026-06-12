@@ -4,7 +4,7 @@ import flask
 from flask_restful import Resource
 
 from fence.auth import require_auth_header, current_token
-from fence.authz.auth import can_user_get_work_order_token
+from fence.authz.auth import can_user_get_task_token
 from fence.errors import Forbidden, UserError
 from fence.jwt.blacklist import blacklist_token
 from fence.models import UserRefreshToken
@@ -174,20 +174,20 @@ class AccessKey(Resource):
         if not api_key:
             flask.abort(400, "Please provide an api_key in payload")
 
-        # TODO add expires_in and work_order params to swagger doc
-        # TODO update the SDK to use the work_order param
+        # TODO add expires_in and task_token params to swagger doc
+        # TODO update the SDK to use the task_token param
         # TODO Instead of using this endpoint for task tokens, implement oauth2 token exchange
         # (https://datatracker.ietf.org/doc/html/rfc8693): exchange a Refresh Token or API Key for
         # a longer-lived, downscoped access token. authlib doesn’t support token exchange yet
         # (https://github.com/authlib/authlib/issues/821).
         max_ttl = config.get("MAX_ACCESS_TOKEN_TTL", 3600)
-        work_order_type = flask.request.args.get("work_order") or None
+        task_token_type = flask.request.args.get("task_token") or None
         if (
-            work_order_type
-            and work_order_type not in config["ALLOWED_WORK_ORDER_TOKEN_TYPES"]
+            task_token_type
+            and task_token_type not in config["ALLOWED_TASK_TOKEN_TYPES"]
         ):
             raise UserError(
-                f"Invalid 'work_order' value '{work_order_type}'. Allowed work order token types are: {config['ALLOWED_WORK_ORDER_TOKEN_TYPES']}"
+                f"Invalid 'task_token' value '{task_token_type}'. Allowed task token types are: {config['ALLOWED_TASK_TOKEN_TYPES']}"
             )
         try:
             expires_in = int(flask.request.args.get("expires_in", max_ttl))
@@ -195,21 +195,21 @@ class AccessKey(Resource):
             raise UserError(
                 f"Invalid 'expires_in' value '{flask.request.args['expires_in']}'"
             )
-        if not work_order_type:
+        if not task_token_type:
             expires_in = min(expires_in, max_ttl)
         else:
-            # the classic max token TTL does not apply to work order tokens, use the work
-            # order token TTL instead
-            max_work_order_ttl = config["MAX_WORK_ORDER_TOKEN_TTL"].get(
-                work_order_type, max_ttl
+            # the classic max token TTL does not apply to task tokens, use the task token TTL
+            # instead
+            max_task_token_ttl = config["MAX_TASK_TOKEN_TTL"].get(
+                task_token_type, max_ttl
             )
-            expires_in = min(expires_in, max_work_order_ttl)
-            if not can_user_get_work_order_token(work_order_type, expires_in):
+            expires_in = min(expires_in, max_task_token_ttl)
+            if not can_user_get_task_token(task_token_type, expires_in):
                 raise Forbidden(
-                    f"You do not have access to obtain '{work_order_type}' tokens, or you do not have access to the token lifetime you requested"
+                    f"You do not have access to obtain '{task_token_type}' tokens, or you do not have access to the token lifetime you requested"
                 )
 
         result = create_user_access_token(
-            flask.current_app.keypairs[0], api_key, expires_in, audience=work_order_type
+            flask.current_app.keypairs[0], api_key, expires_in, audience=task_token_type
         )
         return flask.jsonify(dict(access_token=result))

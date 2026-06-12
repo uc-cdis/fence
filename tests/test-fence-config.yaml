@@ -353,10 +353,10 @@ MAX_API_KEY_TTL: 2592000
 # The number of seconds after an access token is issued from an API key until it expires.
 MAX_ACCESS_TOKEN_TTL: 3600
 
-MAX_WORK_ORDER_TOKEN_TTL:
+MAX_TASK_TOKEN_TTL:
   FOO: 4000
 
-ALLOWED_WORK_ORDER_TOKEN_TYPES: ["FOO", "NOT_IN_CONFIG", "NOT_IN_MAPPING"]
+ALLOWED_TASK_TOKEN_TYPES: ["FOO", "NOT_IN_CONFIG", "NOT_IN_MAPPING"]
 
 
 ########################################################################################
