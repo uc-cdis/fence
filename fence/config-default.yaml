@@ -538,6 +538,12 @@ GA4GH_DRS_POSTED_PASSPORT_FIELD: "passports"
 # a specific exp configured for that IdP above in OPENID_CONNECT
 DEFAULT_REFRESH_TOKEN_EXP: 3600
 
+# Max number of GUIDs to request content retrieval for
+# NOTE: This is limited by the MAX allowed for any underlying bulk content requests
+#       e.g. if the Gen3 Embeddings service is configured to allow max 1000, then this
+#            can't be more than that for embeddings content resolutions
+MAX_BULK_CONTENT_GUIDS_COUNT: 500
+
 ########################################################################################
 #                               OPTIONAL CONFIGURATIONS                                #
 ########################################################################################
@@ -797,7 +803,7 @@ HTTP_PROXY:
   port: 3128
 
 # //////////////////////////////////////////////////////////////////////////////////////
-# MICROSERVICE PATHS
+# OTHER MICROSERVICE PATHS AND CONFIG
 #   - Support `/data` endpoints & authz functionality
 # //////////////////////////////////////////////////////////////////////////////////////
 # url where indexd microservice is running (for signed urls primarily)
@@ -810,6 +816,20 @@ INDEXD_USERNAME: 'fence'
 # this is the password which fence uses to make authenticated requests to indexd
 # can also be set via env var INDEXD_PASSWORD
 INDEXD_PASSWORD: ''
+
+# allowlist for Gen3 Embeddings URL resolutions.
+# use this to provide the prefix for allowed URLs for Gen3 Embeddings
+# for example, if you want to be able to resolve Gen3 Embeddings from
+# https://example.com/ai/vectorstore/collections/...
+# you need to add "https://example.com/ai" to the allowlist here
+# basically, everything BEFORE "/vectorstore/collections/..."
+ALLOWED_GEN3_EMBEDDINGS_BULK_URL_PREFIXES: []  # IMPORTANT: REMEMBER TO REMOVE [] WHEN YOU ADD ITEMS
+#  - 'https://example.com/ai'
+
+# this is used to identify indexed record URLs which are pointing to embeddings, and thus support bulk content retrieval
+# unless the Gen3 Embeddings API changes, you should NOT change this default
+GEN3_EMBEDDINGS_API_REGEX: '/vectorstore/collections/(?P<collection_name>[^/]+)/embeddings/(?P<embedding_uuid>[^/]+)'
+
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # AZURE STORAGE BLOB CONFIGURATION
