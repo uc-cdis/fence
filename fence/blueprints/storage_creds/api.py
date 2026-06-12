@@ -174,8 +174,6 @@ class AccessKey(Resource):
         if not api_key:
             flask.abort(400, "Please provide an api_key in payload")
 
-        # TODO add expires_in and task_token params to swagger doc
-        # TODO update the SDK to use the task_token param
         # TODO Instead of using this endpoint for task tokens, implement oauth2 token exchange
         # (https://datatracker.ietf.org/doc/html/rfc8693): exchange a Refresh Token or API Key for
         # a longer-lived, downscoped access token. authlib doesn’t support token exchange yet
