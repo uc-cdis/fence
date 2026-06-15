@@ -1,7 +1,6 @@
 from functools import wraps
 
 from cdislogging import get_logger
-from fence.auth import current_token
 import flask
 from gen3authz.utils import is_path_prefix_of_path
 
@@ -68,16 +67,16 @@ def check_arborist_auth(resource, method):
     return decorator
 
 
-def can_user_get_task_token(task_token_type, expires_in):
+def can_user_get_task_token(username, task_token_type, expires_in):
     """
     Checks a requested expiration against the user's authz mapping.
     Example: a user with access to `/services/fence/task-token/FOO/100` can request a
     task token of type "FOO" that expires in up to 100 seconds.
     """
-    print("can_user_get_task_token", task_token_type, expires_in, current_token)
+    print("can_user_get_task_token", task_token_type, expires_in, username)
     resource_path = f"/services/fence/task-token/{task_token_type}"
     mapping = (
-        flask.current_app.arborist.auth_mapping(jwt=current_token)
+        flask.current_app.arborist.auth_mapping(username=username)
         if flask.current_app.arborist
         else {}
     )

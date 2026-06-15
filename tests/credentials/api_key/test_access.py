@@ -250,14 +250,16 @@ def test_can_user_get_task_token(app, mock_arborist_requests):
         }
     )
     with app.app_context():
-        assert can_user_get_task_token("FOO", 50) == True
-        assert can_user_get_task_token("FOO", allowed_exp + 50) == False
-        assert can_user_get_task_token("BLANKET_ACCESS", 50) == True
-        assert can_user_get_task_token("LONG_PATH", 50) == True
-        assert can_user_get_task_token("LONG_PATH", allowed_exp + 50) == False
-        assert can_user_get_task_token("NOT_IN_MAPPING", 50) == False
-        assert can_user_get_task_token("WRONG_METHOD", 50) == False
-        assert can_user_get_task_token("INVALID_EXP", 50) == False
+        assert can_user_get_task_token("test-user", "FOO", 50) == True
+        assert can_user_get_task_token("test-user", "FOO", allowed_exp + 50) == False
+        assert can_user_get_task_token("test-user", "BLANKET_ACCESS", 50) == True
+        assert can_user_get_task_token("test-user", "LONG_PATH", 50) == True
+        assert (
+            can_user_get_task_token("test-user", "LONG_PATH", allowed_exp + 50) == False
+        )
+        assert can_user_get_task_token("test-user", "NOT_IN_MAPPING", 50) == False
+        assert can_user_get_task_token("test-user", "WRONG_METHOD", 50) == False
+        assert can_user_get_task_token("test-user", "INVALID_EXP", 50) == False
 
     mock_arborist_requests(
         {
@@ -272,4 +274,4 @@ def test_can_user_get_task_token(app, mock_arborist_requests):
         }
     )
     with app.app_context():
-        assert can_user_get_task_token("FOO", 50) == True
+        assert can_user_get_task_token("test-user", "FOO", 3600) == True
