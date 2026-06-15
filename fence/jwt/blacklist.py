@@ -151,6 +151,6 @@ def is_token_blacklisted(encoded_token, public_key=None):
         encoded_token,
         public_key,
         algorithms=["RS256"],
-        options={"verify_aud": False, "verify_exp": False},
+        options={"verify_signature": False},
     )
     return token, is_blacklisted(token["jti"])

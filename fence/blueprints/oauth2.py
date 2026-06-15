@@ -369,7 +369,7 @@ def revoke_token():
             token_to_revoke_claims = jwt.decode(
                 token_to_revoke,
                 algorithms=["RS256"],
-                options={"verify_aud": False, "verify_exp": False},
+                options={"verify_signature": False},
             )
 
             revoker_token_parts = flask.request.headers.get("Authorization", "").split(
@@ -379,7 +379,7 @@ def revoke_token():
                 revoker_claims = jwt.decode(
                     revoker_token_parts[1],
                     algorithms=["RS256"],
-                    options={"verify_aud": False, "verify_exp": False},
+                    options={"verify_signature": False},
                 )
                 revoker_sub = revoker_claims["sub"]
             else:
