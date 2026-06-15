@@ -368,7 +368,6 @@ def revoke_token():
             token_to_revoke = flask.request.form["token"]
             token_to_revoke_claims = jwt.decode(
                 token_to_revoke,
-                keys.default_public_key(),
                 algorithms=["RS256"],
                 options={"verify_aud": False, "verify_exp": False},
             )
@@ -379,7 +378,6 @@ def revoke_token():
             if len(revoker_token_parts) > 1:
                 revoker_claims = jwt.decode(
                     revoker_token_parts[1],
-                    keys.default_public_key(),
                     algorithms=["RS256"],
                     options={"verify_aud": False, "verify_exp": False},
                 )

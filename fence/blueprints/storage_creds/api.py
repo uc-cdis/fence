@@ -2,8 +2,9 @@ import json
 
 import flask
 from flask_restful import Resource
+import jwt
 
-from fence.auth import require_auth_header, current_token
+from fence.auth import require_auth_header, current_token, get_user_from_claims
 from fence.authz.auth import can_user_get_task_token
 from fence.errors import Forbidden, UserError
 from fence.jwt.blacklist import blacklist_token
@@ -178,6 +179,7 @@ class AccessKey(Resource):
         # (https://datatracker.ietf.org/doc/html/rfc8693): exchange a Refresh Token or API Key for
         # a longer-lived, downscoped access token. authlib doesn’t support token exchange yet
         # (https://github.com/authlib/authlib/issues/821).
+        # => https://ctds-planx.atlassian.net/browse/PD-190
         max_ttl = config.get("MAX_ACCESS_TOKEN_TTL", 3600)
         task_token_type = flask.request.args.get("task_token") or None
         if (
@@ -202,7 +204,14 @@ class AccessKey(Resource):
                 task_token_type, max_ttl
             )
             expires_in = min(expires_in, max_task_token_ttl)
-            if not can_user_get_task_token(task_token_type, expires_in):
+            username = get_user_from_claims(
+                jwt.decode(
+                    api_key,
+                    algorithms=["RS256"],
+                    options={"verify_signature": False},
+                )
+            ).username
+            if not can_user_get_task_token(username, task_token_type, expires_in):
                 raise Forbidden(
                     f"You do not have access to obtain '{task_token_type}' tokens, or you do not have access to the token lifetime you requested"
                 )
