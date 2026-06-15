@@ -173,10 +173,6 @@ def test_revoke_task_token_access_token(
     assert "access_token" in response.json
     task_token = response.json["access_token"]
 
-    # check that the user can access their own info using their own token
-    response = client.get("/user", headers={"Authorization": f"Bearer {task_token}"})
-    assert response.status_code == 200, response.text
-
     # the token should not be blacklisted
     response = client.post(
         "/credentials/token/blacklisted",

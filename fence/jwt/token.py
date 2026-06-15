@@ -398,9 +398,9 @@ def generate_signed_access_token(
     aud = [config["DEFAULT_TOKEN_AUDIENCE"]]
     if audience:
         if type(audience) == list:
-            aud.extend(audience)
+            aud = audience
         else:
-            aud.append(audience)
+            aud = [audience]
 
     if client_id:
         aud.append(client_id)
