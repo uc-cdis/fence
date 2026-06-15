@@ -74,17 +74,20 @@ def can_user_get_task_token(task_token_type, expires_in):
     Example: a user with access to `/services/fence/task-token/FOO/100` can request a
     task token of type "FOO" that expires in up to 100 seconds.
     """
+    print("can_user_get_task_token", task_token_type, expires_in, current_token)
     resource_path = f"/services/fence/task-token/{task_token_type}"
     mapping = (
         flask.current_app.arborist.auth_mapping(jwt=current_token)
         if flask.current_app.arborist
         else {}
     )
+    print("mapping", mapping)
 
     for authorized_path, access in mapping.items():
         authorized_path_without_exp = authorized_path.split(f"/{task_token_type}/")[0]
         if not is_path_prefix_of_path(authorized_path_without_exp, resource_path):
             # the path does not match
+            print("the path does not match", authorized_path_without_exp)
             continue
 
         if not any(
@@ -92,15 +95,20 @@ def can_user_get_task_token(task_token_type, expires_in):
             for e in access
         ):
             # the service and/or method do not match
+            print("the service and/or method do not match", access)
             continue
 
         if f"{resource_path}/" not in authorized_path:
             # no max expiration in the path: the user has access to create task tokens of
             # any lifetime
+            print(
+                "no max expiration in the path: the user has access to create task tokens of any lifetime"
+            )
             return True
 
         # parse from the resource path the max lifetime the user is allowed to request
         max_authorized_exp = authorized_path.split(f"{resource_path}/")[1].split("/")[0]
+        print("max_authorized_exp", max_authorized_exp)
         try:
             max_authorized_exp = int(max_authorized_exp)
         except ValueError:
@@ -118,4 +126,5 @@ def can_user_get_task_token(task_token_type, expires_in):
 
         return True
 
+    print("end of function: returning false")
     return False

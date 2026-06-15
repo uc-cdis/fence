@@ -114,7 +114,7 @@ def make_creds_blueprint():
                 encoded_token = get_jwt_header()
             claims, is_blacklisted = is_token_blacklisted(encoded_token)
         except (jwt.exceptions.InvalidTokenError, Unauthorized) as e:
-            logger.warning(
+            logger.info(
                 f"No provided token, or provided token is invalid: `{e}`. Token not blacklisted."
             )
             return "", 200

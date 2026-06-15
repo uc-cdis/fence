@@ -370,7 +370,7 @@ def revoke_token():
                 token_to_revoke,
                 keys.default_public_key(),
                 algorithms=["RS256"],
-                options={"verify_aud": False, "verify_exp": False},
+                options={"verify_signature": False},
             )
 
             revoker_token_parts = flask.request.headers.get("Authorization", "").split(
@@ -381,7 +381,7 @@ def revoke_token():
                     revoker_token_parts[1],
                     keys.default_public_key(),
                     algorithms=["RS256"],
-                    options={"verify_aud": False, "verify_exp": False},
+                    options={"verify_signature": False},
                 )
                 revoker_sub = revoker_claims["sub"]
             else:
