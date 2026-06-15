@@ -144,8 +144,8 @@ def test_task_token(
     # the returned access token should have the task token type as audience
     assert response.status_code == 200, response.text
     assert "access_token" in response.json
-    claims = validate_jwt(response.json["access_token"])
-    assert claims["aud"] == [config["DEFAULT_TOKEN_AUDIENCE"], task_token_type]
+    claims = validate_jwt(response.json["access_token"], aud=task_token_type)
+    assert claims["aud"] == [task_token_type]
 
     # check that the returned token's expiration matches
     if expires_in is None:
