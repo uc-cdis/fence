@@ -1243,4 +1243,8 @@ def get_registered_users():
     registration_info_list = {
         u.username: u.additional_info["registration_info"] for u in registered_users
     }
-    return registration_info_list
+    onboarding_info_list = {
+        u.username: u.additional_info.get("onboardingVersionSeen", None) for u in registered_users
+    }
+    return {"registration_info": registration_info_list, "onboardingVersionSeen": onboarding_info_list}
+

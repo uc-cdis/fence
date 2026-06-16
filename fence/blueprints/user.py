@@ -35,6 +35,7 @@ def update_user_info():
     lastName = flask.request.get_json().get("lastName", None)
     institution = flask.request.get_json().get("institution", None)
     role = flask.request.get_json().get("role", None)
+    onboardingVersionSeen = flask.request.get_json().get("onboardingVersionSeen", None)
     additional_info = {}
 
     if firstName:
@@ -45,6 +46,8 @@ def update_user_info():
         additional_info["institution"] = institution
     if role:
         additional_info["role"] = role
+    if onboardingVersionSeen is not None:
+        additional_info["onboardingVersionSeen"] = onboardingVersionSeen
 
     #TODO make sure institution is present at all times at least for now
     return flask.jsonify(update_user(current_app.scoped_session(), additional_info))
