@@ -51,16 +51,14 @@ class FenceConfig(Config):
         for default in defaults:
             self.force_default_if_none(default, default_cfg=default_config)
 
-        # allow setting DB connection string via env var
-        if os.environ.get("DB"):
-            logger.info(
-                "Found environment variable 'DB': overriding 'DB' field from config file"
-            )
-            self["DB"] = os.environ["DB"]
-        else:
-            logger.info(
-                "Environment variable 'DB' empty or not set: using 'DB' field from config file"
-            )
+        # Read in all environment variables starting with FENCE_
+        for env_var, env_val in os.environ.items():
+            if env_var.startswith("FENCE_"):
+                config_key = env_var[6:]  # remove "FENCE_" prefix
+                self[config_key] = env_val
+                logger.info(
+                    f"Found environment variable '{env_var}': overriding '{config_key}' field from config file"
+                )
 
         # allow setting INDEXD_PASSWORD via env var
         if os.environ.get("INDEXD_PASSWORD"):
