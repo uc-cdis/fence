@@ -112,6 +112,8 @@ def get_ga4gh_signed_url(object_id, access_id):
 
 @blueprint.route("/drs/v1/objects/access", methods=["POST"])
 def get_ga4gh_signed_urls():
+    r_pays_project = flask.request.args.get("userProject", None)
+    no_force_sign_param = flask.request.args.get("no_force_sign", None)
     try:
         bulk_request = BulkObjectAccessRequest(
             **request.get_json(force=True, silent=True)
@@ -134,7 +136,7 @@ def get_ga4gh_signed_urls():
     total_requested_count = sum(
         len(ids) for ids in bulk_request.map_access_to_object_ids().values()
     )
-    max_bulk_requests = config.get("MAX_BULK_DRS_REQUESTS", 100)
+    max_bulk_requests = config.get("MAX_BULK_DRS_REQUESTS")
     if total_requested_count > max_bulk_requests:
         return (
             jsonify(
@@ -154,9 +156,11 @@ def get_ga4gh_signed_urls():
     for access_id, object_ids in access_to_object_ids.items():
         try:
             result = bulk_get_signed_url_for_file(
-                file_ids=object_ids,
+                guids=object_ids,
                 requested_protocol=access_id,
                 ga4gh_passports=bulk_request.passports,
+                r_pays_project=r_pays_project,
+                no_force_sign=no_force_sign_param,
             )
 
             # Process resolved URLs
@@ -173,7 +177,7 @@ def get_ga4gh_signed_urls():
                     )
 
             # Process unresolved (failed) objects
-            failed_objects = result.get("failed_file_ids", [])
+            failed_objects = result.get("failed_guids", [])
             for failed in failed_objects:
                 error_code = failed.get("error_code", 500)
                 object_ids_list = failed.get("object_ids", [])
@@ -217,5 +221,12 @@ def get_ga4gh_signed_urls():
         "unresolved_drs_objects": unresolved_drs_objects,
         "resolved_drs_object_access_urls": resolved_urls,
     }
+
+    # If nothing resolved, return the most common error code instead of 200
+    if not resolved_urls and unresolved_by_code:
+        primary_error = max(
+            unresolved_by_code.keys(), key=lambda k: len(unresolved_by_code[k])
+        )
+        return jsonify(response), primary_error
 
     return jsonify(response), 200

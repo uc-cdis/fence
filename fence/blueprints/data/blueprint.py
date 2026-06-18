@@ -365,7 +365,15 @@ def download_bulk_files():
         raise UserError("missing required argument `guids`")
 
     guids = params["guids"]
-    results = bulk_get_signed_url_for_file(guids)
+    requested_protocol = flask.request.args.get("protocol", None)
+    r_pays_project = flask.request.args.get("userProject", None)
+    no_force_sign_param = flask.request.args.get("no_force_sign", None)
+    results = bulk_get_signed_url_for_file(
+        guids,
+        requested_protocol=requested_protocol,
+        r_pays_project=r_pays_project,
+        no_force_sign=no_force_sign_param,
+    )
 
     return flask.jsonify(results)
 
