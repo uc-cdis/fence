@@ -37,7 +37,7 @@ class OktaOauth2Client(Oauth2ClientBase):
                 "jwks_uri",
                 "",
             )
-            claims, refresh_token, access_token = self.get_jwt_claims_identity(
+            claims, refresh_token, access_token, raw_access_token = self.get_jwt_claims_identity(
                 token_endpoint, jwks_endpoint, code
             )
 
