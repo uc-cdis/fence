@@ -372,7 +372,7 @@ def download_bulk_files():
         guids,
         requested_protocol=requested_protocol,
         r_pays_project=r_pays_project,
-        no_force_sign=no_force_sign_param,
+        no_force_sign_param=no_force_sign_param,
     )
 
     return flask.jsonify(results)

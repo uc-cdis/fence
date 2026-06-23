@@ -160,7 +160,7 @@ def get_ga4gh_signed_urls():
                 requested_protocol=access_id,
                 ga4gh_passports=bulk_request.passports,
                 r_pays_project=r_pays_project,
-                no_force_sign=no_force_sign_param,
+                no_force_sign_param=no_force_sign_param,
             )
 
             # Process resolved URLs
