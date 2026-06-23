@@ -1844,7 +1844,7 @@ def test_get_ga4gh_signed_urls_success(mock_bulk_get_signed_url_for_file, client
         requested_protocol="s3",
         ga4gh_passports=None,
         r_pays_project=None,
-        no_force_sign=None,
+        no_force_sign_param=None,
     )
 
 
