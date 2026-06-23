@@ -13,7 +13,7 @@ logger = get_logger(__name__)
 
 def authorize(resource, method):
     """
-    Check with arborist to verify the authz for a request.
+    Check with arborist to verify the authz for a request. Throws a ``Forbidden`` error if the user is not authorized to access the resource.
 
     Args:
         resource (str or list[str]):

@@ -341,7 +341,7 @@ def get_token(*args, **kwargs):
 @blueprint.route("/revoke", methods=["POST"])
 def revoke_token():
     """
-    Revoke a refresh token.
+    Revoke a refresh token or a task access token.
 
     If the operation is successful, return an empty response with a 204 status
     code. Otherwise, return error message in JSON with a 400 code.

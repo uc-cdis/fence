@@ -95,7 +95,7 @@ def validate_jwt(
     if aud is None:
         aud = config["DEFAULT_TOKEN_AUDIENCE"]
 
-        # TODO: Remove this at the next release. Temporarily add the base url in the audience
+        # TODO: Remove this at the next release (> 13.2.0). Temporarily add the base url in the audience
         # for backwards compatibility (to accept JWTs generated before the aud was enforced)
         aud = [aud, config["BASE_URL"]]
 

@@ -18,8 +18,10 @@ from sqlalchemy import BigInteger, Column, String
 from fence.errors import BlacklistingError, BlacklistingInvalidTokenError
 from fence.jwt import keys
 from fence.jwt.utils import is_task_token
-from fence.jwt.errors import JWTError
 from fence.models import Base, UserRefreshToken
+
+
+_blacklisted_cache = set()
 
 
 class BlacklistedToken(Base):
@@ -59,6 +61,8 @@ def blacklist_token(jti, exp):
         (session.query(UserRefreshToken).filter_by(jti=jti, expires=exp).delete())
         session.commit()
 
+    _blacklisted_cache.add(jti)
+
 
 def blacklist_encoded_token(encoded_token, public_key=None):
     """
@@ -66,7 +70,7 @@ def blacklist_encoded_token(encoded_token, public_key=None):
     using its JWT id ``jti`` and expiration ``exp``.
 
     This just wraps ``blacklist_token`` by decoding the token first. The token
-    _must_ be a refresh token; only refresh tokens may be blacklisted.
+    _must_ be a refresh token or task access token; only refresh tokens or task access tokens may be blacklisted.
 
     Args:
         encoded_token (str): the token
@@ -130,9 +134,14 @@ def is_blacklisted(jti):
     Return:
         bool: whether JWT with the given id is blacklisted
     """
-    # TODO add caching
+    if jti in _blacklisted_cache:
+        return True
     with flask.current_app.db.session as session:
-        return bool(session.query(BlacklistedToken).filter_by(jti=jti).first())
+        exists = bool(session.query(BlacklistedToken).filter_by(jti=jti).first())
+
+    if exists:
+        _blacklisted_cache.add(jti)
+    return exists
 
 
 def is_token_blacklisted(encoded_token, public_key=None):
@@ -144,6 +153,7 @@ def is_token_blacklisted(encoded_token, public_key=None):
         public key (Optional[str]): key to decode JWT with
 
     Return:
+        token: decoded JWT claims
         bool: whether JWT is blacklisted
     """
     public_key = public_key or keys.default_public_key()

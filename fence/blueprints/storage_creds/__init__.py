@@ -13,7 +13,6 @@ from fence.blueprints.storage_creds.other import OtherCredentialsList
 from fence.blueprints.storage_creds.other import OtherCredentials
 from fence.errors import Unauthorized
 from fence.jwt.blacklist import is_token_blacklisted
-from fence.jwt.errors import JWTError
 from fence.jwt.utils import get_jwt_header
 from fence.resources.storage import get_endpoints_descriptions
 from fence.restful import RestfulApi
