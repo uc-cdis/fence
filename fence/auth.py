@@ -40,9 +40,9 @@ def require_auth_header(*args, **kwargs):
     if "audience" in kwargs:
         if type(kwargs["audience"]) != list:
             kwargs["audience"] = [kwargs["audience"]]
-        kwargs["audience"].append(config["DEFAULT_TOKEN_AUDIENCE"])
+        kwargs["audience"].append("gen3")
     else:
-        kwargs["audience"] = config["DEFAULT_TOKEN_AUDIENCE"]
+        kwargs["audience"] = "gen3"
 
     return authutils_require_auth_header(*args, **kwargs)
 

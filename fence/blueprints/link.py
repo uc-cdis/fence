@@ -280,9 +280,7 @@ class GoogleCallback(Resource):
             # if we're mocking google auth, mock response to include the email
             # from the provided access token
             try:
-                token = validate_request(
-                    scope={"user"}, audience=config["DEFAULT_TOKEN_AUDIENCE"]
-                )
+                token = validate_request(scope={"user"}, audience="gen3")
                 email = get_user_from_claims(token).username
             except Exception as exc:
                 logger.info(

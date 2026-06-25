@@ -480,8 +480,6 @@ SESSION_COOKIE_NAME: "fence"
 # Leave unset (not empty string!) for normal single-site deployment.
 SESSION_COOKIE_DOMAIN:
 
-DEFAULT_TOKEN_AUDIENCE: "gen3"
-
 OAUTH2_TOKEN_EXPIRES_IN:
   "authorization_code": 1200
   "implicit": 1200

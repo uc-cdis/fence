@@ -12,9 +12,6 @@ from tests.utils.api_key import get_api_key
 
 TASK_TOKEN_EXPIRES_IN = config["MAX_ACCESS_TOKEN_TTL"] + 60
 
-# margin of error for the generated token expiration
-EXP_ERR_TOLERANCE = 1
-
 
 def test_get_access_token(client, encoded_creds_jwt):
     """
@@ -85,7 +82,7 @@ def test_get_access_token_with_expires_in(client, encoded_creds_jwt, expires_in)
     else:
         # otherwise, the token lifetime is as requested
         expected_exp = now + expires_in
-    assert expected_exp <= claims["exp"] <= expected_exp + EXP_ERR_TOLERANCE
+    assert expected_exp <= claims["exp"] <= expected_exp
 
 
 @pytest.mark.parametrize(
@@ -160,7 +157,7 @@ def test_task_token(
     else:
         # otherwise, the requested lifetime is applied
         expected_exp = now + TASK_TOKEN_EXPIRES_IN
-    assert expected_exp <= claims["exp"] <= expected_exp + EXP_ERR_TOLERANCE
+    assert expected_exp <= claims["exp"] <= expected_exp
 
 
 def test_get_access_token_with_almost_expired_key(

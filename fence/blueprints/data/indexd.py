@@ -1699,9 +1699,7 @@ def _get_auth_info_for_id_or_from_request(
             final_username = result.username
             final_user_id = sub_type(result.id)
         else:
-            token = validate_request(
-                scope={"user"}, audience=config["DEFAULT_TOKEN_AUDIENCE"]
-            )
+            token = validate_request(scope={"user"}, audience="gen3")
             set_current_token(token)
             final_user_id = current_token["sub"]
             final_user_id = sub_type(final_user_id)
@@ -1714,9 +1712,7 @@ def _get_auth_info_for_id_or_from_request(
     client_id = ""
     try:
         if not token:
-            token = validate_request(
-                scope=[], audience=config["DEFAULT_TOKEN_AUDIENCE"]
-            )
+            token = validate_request(scope=[], audience="gen3")
         set_current_token(token)
         client_id = current_token.get("azp") or ""
     except Exception as exc:

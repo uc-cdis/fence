@@ -93,7 +93,7 @@ def validate_jwt(
 
     # Can't set arg default to config[x] in fn def, so doing it this way.
     if aud is None:
-        aud = config["DEFAULT_TOKEN_AUDIENCE"]
+        aud = "gen3"
 
         # TODO: Remove this at the next release (> 13.2.0). Temporarily add the base url in the audience
         # for backwards compatibility (to accept JWTs generated before the aud was enforced)

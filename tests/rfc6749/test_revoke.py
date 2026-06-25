@@ -226,7 +226,7 @@ def test_blacklisted_expired_token(client, oauth_client, kid, rsa_private_key):
     expired_access_token = jwt.encode(
         {
             **utils.default_claims(),
-            "aud": [config["DEFAULT_TOKEN_AUDIENCE"], "FOO"],
+            "aud": ["gen3", "FOO"],
             "exp": int(time.time()) + token_lifetime,
         },
         key=rsa_private_key,

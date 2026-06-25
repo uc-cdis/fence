@@ -30,14 +30,11 @@ def authorize(resource, method):
             "this fence instance is not configured with arborist;"
             " this endpoint is unavailable"
         )
-
-    try:
+    if "Authorization" not in flask.request.headers:
+        logger.debug("request missing Authorization header; treating as anonymous")
+        token = None  # anonymous
+    else:
         token = get_jwt_header()
-    except Unauthorized as e:
-        if "missing authorization header" in str(e):
-            token = None  # anonymous
-        else:
-            raise
 
     if not flask.current_app.arborist.auth_request(
         jwt=token,

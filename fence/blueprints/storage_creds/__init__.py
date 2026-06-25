@@ -46,9 +46,7 @@ def make_creds_blueprint():
     blueprint_api.add_resource(
         ApiKey, "/api/<access_key>", "/cdis/<access_key>", strict_slashes=False
     )
-    blueprint_api.add_resource(
-        AccessKey, "/api/access_token", "/cdis/access_token", strict_slashes=False
-    )
+    blueprint_api.add_resource(AccessKey, "/api/access_token", strict_slashes=False)
 
     blueprint_api.add_resource(
         OtherCredentialsList, "/<provider>", strict_slashes=False
@@ -91,15 +89,15 @@ def make_creds_blueprint():
             get_endpoints_descriptions(services, current_app.scoped_session())
         )
 
-    @blueprint.route("/token/blacklisted", methods=["POST"])
-    def check_if_token_blacklisted():
+    @blueprint.route("/token/denylist", methods=["POST"])
+    def check_if_token_denylisted():
         """
-        Check if a token is blacklisted/revoked. Return 403 if it is.
+        Check if a token is in the denylist/revoked. Return 403 if it is.
 
-        If the token cannot be parsed, assume it is not blacklisted and that the invalid
+        If the token cannot be parsed, assume it is not denylisted and that the invalid
         token will be rejected by downstream APIs.
 
-        This endpoint is leveraged by revproxy to block requests from blacklisted tokens.
+        This endpoint is leveraged by revproxy to block requests from denylisted tokens.
         """
         # use the value of the request body `token` field if present, fall back to the request's
         # Authorization header otherwise.
