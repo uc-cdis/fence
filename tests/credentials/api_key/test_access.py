@@ -223,6 +223,7 @@ def test_get_access_token_with_almost_expired_key(
             False,
             False,
         ),
+        ("WRONG_METHOD", 200, False, False),
     ],
 )
 def test_can_user_get_task_token(
@@ -234,12 +235,15 @@ def test_can_user_get_task_token(
     expected_can_user_get_task_token,
 ):
     """
-    Test the logic that checks a requested expiration against the user's authz, capping the expiration to the configured max for that task token type.
+    Test the logic that checks a requested expiration against the user's authz response from arborist while considering the constraints of the configured max expiration for task tokens.
     """
     mock_arborist_requests(
         {
             "arborist/auth/mapping": {
                 "POST": (
+                    # Note: The mapping here is only for representation purposes, the actual response
+                    # for authorization check is mocked by the "authorized" parameter below
+                    # based on the mapping given here.
                     {
                         "/services/fence/task-token/FOO": [
                             {"service": "fence", "method": "create"}
@@ -249,6 +253,9 @@ def test_can_user_get_task_token(
                         ],
                         "/services/fence/task-token/BLANKET_ACCESS_NOT_IN_CONFIG": [
                             {"service": "fence", "method": "*"}
+                        ],
+                        "/services/fence/task-token/WRONG_METHOD/200": [
+                            {"service": "fence", "method": "delete"}
                         ],
                     },
                     200,

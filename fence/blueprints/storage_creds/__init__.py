@@ -46,7 +46,9 @@ def make_creds_blueprint():
     blueprint_api.add_resource(
         ApiKey, "/api/<access_key>", "/cdis/<access_key>", strict_slashes=False
     )
-    blueprint_api.add_resource(AccessKey, "/api/access_token", strict_slashes=False)
+    blueprint_api.add_resource(
+        AccessKey, "/api/access_token", "/cdis/access_token", strict_slashes=False
+    )
 
     blueprint_api.add_resource(
         OtherCredentialsList, "/<provider>", strict_slashes=False
