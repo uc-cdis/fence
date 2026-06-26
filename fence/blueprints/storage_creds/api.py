@@ -211,7 +211,7 @@ class AccessKey(Resource):
                     options={"verify_signature": False},
                 )
             ).username
-            if not can_user_get_task_token(username, task_token_type, expires_in):
+            if not can_user_get_task_token(task_token_type, expires_in):
                 raise Forbidden(
                     f"You do not have access to obtain '{task_token_type}' tokens, or you do not have access to the token lifetime you requested"
                 )

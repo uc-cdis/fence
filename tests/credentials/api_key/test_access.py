@@ -3,6 +3,7 @@ Test using an API key to generate an access token.
 """
 
 import pytest
+import random
 import time
 
 from fence.authz.auth import can_user_get_task_token
@@ -63,7 +64,6 @@ def test_get_access_token_with_expires_in(client, encoded_creds_jwt, expires_in)
     assert response.status_code == 200, response.text
     api_key = response.json["api_key"]
 
-    now = int(time.time())
     path = f"/credentials/api/access_token{f'?expires_in={expires_in}' if expires_in else ''}"
     data = {"api_key": api_key}
     response = client.post(
@@ -75,6 +75,7 @@ def test_get_access_token_with_expires_in(client, encoded_creds_jwt, expires_in)
     assert "access_token" in response.json
     claims = validate_jwt(response.json["access_token"])
 
+    now = int(time.time())
     if expires_in in [None, TASK_TOKEN_EXPIRES_IN]:
         # if the expiration is not specified or larger than the configured max, the token lifetime
         # is the configured max
@@ -82,40 +83,33 @@ def test_get_access_token_with_expires_in(client, encoded_creds_jwt, expires_in)
     else:
         # otherwise, the token lifetime is as requested
         expected_exp = now + expires_in
-    assert expected_exp <= claims["exp"] <= expected_exp
+    assert expected_exp == claims["exp"]
 
 
 @pytest.mark.parametrize(
-    ("task_token_type", "expires_in"),
+    ("task_token_type", "expires_in", "authorized"),
     [
-        ("FOO", None),
-        ("FOO", TASK_TOKEN_EXPIRES_IN),
-        ("FOO", config["MAX_TASK_TOKEN_TTL"]["FOO"] + 60),
-        ("NOT_IN_CONFIG", config["MAX_TASK_TOKEN_TTL"]["FOO"] + 60),
-        ("NOT_IN_MAPPING", TASK_TOKEN_EXPIRES_IN),
+        ("FOO", None, True),
+        ("FOO", TASK_TOKEN_EXPIRES_IN, True),
+        ("FOO", config["MAX_TASK_TOKEN_TTL"]["FOO"] + 60, True),
+        ("NOT_IN_CONFIG", config["MAX_TASK_TOKEN_TTL"]["FOO"] + 60, True),
+        ("NOT_IN_MAPPING", TASK_TOKEN_EXPIRES_IN, False),
     ],
 )
 def test_task_token(
-    client, encoded_creds_jwt, mock_arborist_requests, expires_in, task_token_type
+    client,
+    encoded_creds_jwt,
+    mock_arborist_requests,
+    expires_in,
+    task_token_type,
+    authorized,
 ):
     """
     Test that a task token can be generated with a longer life than a regular token, and that the configured max expiration is respected
     """
     mock_arborist_requests(
         {
-            "arborist/auth/mapping": {
-                "POST": (
-                    {
-                        "/services/fence/task-token/FOO/172800": [
-                            {"service": "fence", "method": "create"}
-                        ],
-                        "/services/fence/task-token/NOT_IN_CONFIG/172800": [
-                            {"service": "*", "method": "*"}
-                        ],
-                    },
-                    200,
-                )
-            },
+            "arborist/auth/request": {"POST": ({"auth": authorized}, 200)},
         }
     )
 
@@ -125,7 +119,6 @@ def test_task_token(
     api_key = response.json["api_key"]
 
     # request a task token
-    now = int(time.time())
     path = f"/credentials/api/access_token?task_token={task_token_type}{f'&expires_in={expires_in}' if expires_in else ''}"
     data = {"api_key": api_key}
     response = client.post(
@@ -144,6 +137,7 @@ def test_task_token(
     claims = validate_jwt(response.json["access_token"], aud=task_token_type)
     assert claims["aud"] == [task_token_type]
 
+    now = int(time.time())
     # check that the returned token's expiration matches
     if expires_in is None:
         # not specified: min of MAX_ACCESS_TOKEN_TTL and MAX_TASK_TOKEN_TTL
@@ -157,7 +151,7 @@ def test_task_token(
     else:
         # otherwise, the requested lifetime is applied
         expected_exp = now + TASK_TOKEN_EXPIRES_IN
-    assert expected_exp <= claims["exp"] <= expected_exp
+    assert expected_exp == claims["exp"]
 
 
 def test_get_access_token_with_almost_expired_key(
@@ -169,16 +163,8 @@ def test_get_access_token_with_almost_expired_key(
     """
     mock_arborist_requests(
         {
-            "arborist/auth/mapping": {
-                "POST": (
-                    {
-                        "/services/fence/task-token/FOO/172800": [
-                            {"service": "fence", "method": "create"}
-                        ],
-                    },
-                    200,
-                )
-            },
+            # Assuming that the user is authorized to fetch a task token
+            "arborist/auth/request": {"POST": ({"auth": True}, 200)},
         }
     )
 
@@ -215,60 +201,64 @@ def test_get_access_token_with_almost_expired_key(
     )
 
 
-def test_can_user_get_task_token(app, mock_arborist_requests):
+@pytest.mark.parametrize(
+    ("task_token_type", "expires_in", "authorized", "expected_can_user_get_task_token"),
+    [
+        ("FOO", None, True, False),
+        ("FOO", random.randint(1, config["MAX_TASK_TOKEN_TTL"]["FOO"]), True, True),
+        ("FOO", config["MAX_TASK_TOKEN_TTL"]["FOO"], True, True),
+        ("FOO", config["MAX_TASK_TOKEN_TTL"]["FOO"] + 1, True, False),
+        ("TASK_TOKEN_TYPE_WITH_FIXED_EXPIRATION", None, False, False),
+        ("TASK_TOKEN_TYPE_WITH_FIXED_EXPIRATION", 200, True, True),
+        ("TASK_TOKEN_TYPE_WITH_FIXED_EXPIRATION", 260, False, False),
+        (
+            "BLANKET_ACCESS_NOT_IN_CONFIG",
+            random.randint(1, config["MAX_ACCESS_TOKEN_TTL"]),
+            True,
+            True,
+        ),
+        (
+            "BLANKET_ACCESS_NOT_IN_CONFIG",
+            config["MAX_ACCESS_TOKEN_TTL"] + 1,
+            False,
+            False,
+        ),
+    ],
+)
+def test_can_user_get_task_token(
+    app,
+    mock_arborist_requests,
+    task_token_type,
+    expires_in,
+    authorized,
+    expected_can_user_get_task_token,
+):
     """
-    Test the logic that checks a requested expiration against the user's authz mapping
+    Test the logic that checks a requested expiration against the user's authz, capping the expiration to the configured max for that task token type.
     """
-    allowed_exp = 200
     mock_arborist_requests(
         {
             "arborist/auth/mapping": {
                 "POST": (
                     {
-                        f"/services/fence/task-token/FOO/{allowed_exp}": [
+                        "/services/fence/task-token/FOO": [
                             {"service": "fence", "method": "create"}
                         ],
-                        "/services/fence/task-token/BLANKET_ACCESS": [
+                        "/services/fence/task-token/TASK_TOKEN_TYPE_WITH_FIXED_EXPIRATION/200": [
+                            {"service": "fence", "method": "create"}
+                        ],
+                        "/services/fence/task-token/BLANKET_ACCESS_NOT_IN_CONFIG": [
                             {"service": "fence", "method": "*"}
                         ],
-                        f"/services/fence/task-token/LONG_PATH/{allowed_exp}/something": [
-                            {"service": "*", "method": "create"}
-                        ],
-                        f"/services/fence/task-token/WRONG_METHOD/{allowed_exp}": [
-                            {"service": "fence", "method": "delete"}
-                        ],
-                        "/services/fence/task-token/INVALID_EXP/hello": [
-                            {"service": "fence", "method": "delete"}
-                        ],
                     },
                     200,
                 )
             },
+            "arborist/auth/request": {"POST": ({"auth": authorized}, 200)},
         }
     )
     with app.app_context():
-        assert can_user_get_task_token("test-user", "FOO", 50) == True
-        assert can_user_get_task_token("test-user", "FOO", allowed_exp + 50) == False
-        assert can_user_get_task_token("test-user", "BLANKET_ACCESS", 50) == True
-        assert can_user_get_task_token("test-user", "LONG_PATH", 50) == True
         assert (
-            can_user_get_task_token("test-user", "LONG_PATH", allowed_exp + 50) == False
+            can_user_get_task_token(task_token_type, expires_in)
+            == expected_can_user_get_task_token
         )
-        assert can_user_get_task_token("test-user", "NOT_IN_MAPPING", 50) == False
-        assert can_user_get_task_token("test-user", "WRONG_METHOD", 50) == False
-        assert can_user_get_task_token("test-user", "INVALID_EXP", 50) == False
-
-    mock_arborist_requests(
-        {
-            "arborist/auth/mapping": {
-                "POST": (
-                    {
-                        "/services/fence/task-token": [{"service": "*", "method": "*"}],
-                    },
-                    200,
-                )
-            },
-        }
-    )
-    with app.app_context():
-        assert can_user_get_task_token("test-user", "FOO", 3600) == True

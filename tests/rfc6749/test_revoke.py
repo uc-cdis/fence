@@ -95,7 +95,7 @@ def test_revoke_invalid_token(client, oauth_client, kid, rsa_private_key):
 
     # checking if an invalid token is blacklisted should return 200
     response = client.post(
-        "/credentials/token/blacklisted", headers={"Authorization": "bearer blah"}
+        "/credentials/token/denylist", headers={"Authorization": "bearer blah"}
     )
     assert response.status_code == 200, response.text
 
@@ -128,7 +128,7 @@ def test_revoke_regular_access_token(
     assert response.status_code == 400, response.text
 
     # the token should not be blacklisted
-    response = client.post("/credentials/token/blacklisted", headers=headers)
+    response = client.post("/credentials/token/denylist", headers=headers)
     assert response.status_code == 200, response.text
 
     # the token should still be usable
@@ -145,16 +145,10 @@ def test_revoke_task_token_access_token(
     """
     mock_arborist_requests(
         {
-            "arborist/auth/mapping": {
-                "POST": (
-                    {
-                        "/services/fence/task-token/FOO/172800": [
-                            {"service": "fence", "method": "create"}
-                        ],
-                    },
-                    200,
-                )
-            },
+            # Assuming that
+            # 1. the user is authorized to fetch a task token
+            # 2. the user is authorized to revoke a task token
+            "arborist/auth/request": {"POST": ({"auth": True}, 200)},
         }
     )
 
@@ -175,7 +169,7 @@ def test_revoke_task_token_access_token(
 
     # the token should not be blacklisted
     response = client.post(
-        "/credentials/token/blacklisted",
+        "/credentials/token/denylist",
         headers={"Authorization": f"Bearer {task_token}"},
         json={"token": task_token},
     )
@@ -205,7 +199,7 @@ def test_revoke_task_token_access_token(
 
     # the token should be blacklisted
     response = client.post(
-        "/credentials/token/blacklisted",
+        "/credentials/token/denylist",
         headers={"Authorization": f"Bearer {task_token}"},
         json={"token": task_token},
     )
@@ -249,7 +243,7 @@ def test_blacklisted_expired_token(client, oauth_client, kid, rsa_private_key):
 
     # checking if the expired token is blacklisted should return 403
     response = client.post(
-        "/credentials/token/blacklisted",
+        "/credentials/token/denylist",
         headers={"Authorization": f"bearer {expired_access_token}"},
     )
     assert response.status_code == 403, response.text
@@ -264,7 +258,7 @@ def test_blacklisted_endpoint_anonymous(client):
     assert response.status_code == 400, response.text
 
     # check if a token is blacklisted without providing a token
-    response = client.post("/credentials/token/blacklisted")
+    response = client.post("/credentials/token/denylist")
     assert response.status_code == 200, response.text
 
 
@@ -284,20 +278,15 @@ def test_revoke_token_access(
     """
     Test that users can only revoke their own tokens, unless they have admin access in arborist
     """
-    authorized = revoker.startswith("authorized_")
+
+    authorized_to_fetch_task_token = (
+        True  # Indicates that all users are authorized to fetch task tokens
+    )
     mock_arborist_requests(
         {
-            "arborist/auth/mapping": {
-                "POST": (
-                    {
-                        "/services/fence/task-token/FOO/172800": [
-                            {"service": "fence", "method": "create"}
-                        ],
-                    },
-                    200,
-                )
+            "arborist/auth/request": {
+                "POST": ({"auth": authorized_to_fetch_task_token}, 200)
             },
-            "arborist/auth/request": {"POST": ({"auth": authorized}, 200)},
         }
     )
 
@@ -316,6 +305,12 @@ def test_revoke_token_access(
     assert "access_token" in response.json
     task_token = response.json["access_token"]
 
+    authorized_to_revoke = revoker.startswith("authorized_")
+    mock_arborist_requests(
+        {
+            "arborist/auth/request": {"POST": ({"auth": authorized_to_revoke}, 200)},
+        }
+    )
     # attempt to revoke the token
     headers = {"Content-Type": "application/x-www-form-urlencoded"}
     if revoker == "self":
@@ -332,21 +327,21 @@ def test_revoke_token_access(
         "/oauth2/revoke", headers=headers, data={"token": task_token}
     )
     assert (
-        response.status_code == 200 if authorized else 403
-    ), f"{authorized=}; {response.status_code=}"
+        response.status_code == 200 if authorized_to_revoke else 403
+    ), f"{authorized_to_revoke=}; {response.status_code=}"
 
     # the token should be blacklisted, unless the revoker does not have access to revoke it
     response = client.post(
-        "/credentials/token/blacklisted",
+        "/credentials/token/denylist",
         headers={"Authorization": f"Bearer {task_token}"},
         json={"token": task_token},
     )
     assert (
-        response.status_code == 403 if authorized else 200
-    ), f"{authorized=}; {response.status_code=}"
+        response.status_code == 403 if authorized_to_revoke else 200
+    ), f"{authorized_to_revoke=}; {response.status_code=}"
 
     # the token should not be usable anymore, unless the revoker does not have access to revoke it
     response = client.get("/user", headers={"Authorization": f"Bearer {task_token}"})
     assert (
-        response.status_code == 401 if authorized else 200
-    ), f"{authorized=}; {response.status_code=}"
+        response.status_code == 401 if authorized_to_revoke else 200
+    ), f"{authorized_to_revoke=}; {response.status_code=}"

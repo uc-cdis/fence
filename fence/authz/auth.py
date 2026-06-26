@@ -1,6 +1,7 @@
 from functools import wraps
 
 from cdislogging import get_logger
+from fence import config
 import flask
 from gen3authz.utils import is_path_prefix_of_path
 
@@ -64,54 +65,49 @@ def check_arborist_auth(resource, method):
     return decorator
 
 
-def can_user_get_task_token(username, task_token_type, expires_in):
+def can_user_get_task_token(task_token_type: str, expires_in: int) -> bool:
     """
-    Checks a requested expiration against the user's authz mapping.
+    Checks a requested expiration against the user's authz.
     Example: a user with access to `/services/fence/task-token/FOO/100` can request a
-    task token of type "FOO" that expires in up to 100 seconds.
+    task token of type "FOO" that expires exactly in 100 seconds.
+
+    A user with access to `/services/fence/task-token/FOO` (no exact value)
+    can request a task token of any expiration.
+
+    Args:
+        task_token_type (str): the type of task token being requested
+        expires_in (int): the requested expiration in seconds
+
+    Returns:
+        bool: True if the user is authorized to request a task token of the given type and expiration, False otherwise
     """
-    resource_path = f"/services/fence/task-token/{task_token_type}"
-    mapping = (
-        flask.current_app.arborist.auth_mapping(username=username)
-        if flask.current_app.arborist
-        else {}
+
+    if not isinstance(expires_in, int) or isinstance(expires_in, bool):
+        return False
+    if expires_in < 0:
+        return False
+
+    max_task_token_ttl = config["MAX_TASK_TOKEN_TTL"].get(
+        task_token_type, config["MAX_ACCESS_TOKEN_TTL"]
     )
+    if expires_in > max_task_token_ttl:
+        return False
 
-    for authorized_path, access in mapping.items():
-        authorized_path_without_exp = authorized_path.split(f"/{task_token_type}/")[0]
-        if not is_path_prefix_of_path(authorized_path_without_exp, resource_path):
-            # the path does not match
-            continue
+    # Check if the user has a policy providing access to create a task token
+    # of the requested type and expiration
+    resource_path = f"/services/fence/task-token/{task_token_type}/{expires_in}"
 
-        if not any(
-            e["service"] in ["fence", "*"] and e["method"] in ["create", "*"]
-            for e in access
-        ):
-            # the service and/or method do not match
-            continue
-
-        if f"{resource_path}/" not in authorized_path:
-            # no max expiration in the path: the user has access to create task tokens of
-            # any lifetime
-            return True
-
-        # parse from the resource path the max lifetime the user is allowed to request
-        max_authorized_exp = authorized_path.split(f"{resource_path}/")[1].split("/")[0]
-        try:
-            max_authorized_exp = int(max_authorized_exp)
-        except ValueError:
-            logger.warning(
-                f"Invalid max expiration in user's resource path '{authorized_path}'"
-            )
-            return False
-
-        # check whether the user has access to tokens of the requested lifetime
-        if expires_in > max_authorized_exp:
-            logger.debug(
-                f"User is requesting a task token lifetime ({expires_in}) larger than they have access to ('{authorized_path}')"
-            )
-            return False
-
+    try:
+        authorize(resource=resource_path, method="create")
         return True
+    except Forbidden:
+        pass
 
-    return False
+    # Fallback to check if the user has a policy providing access to create a task token
+    # of the requested type and "any" expiration
+    resource_path = f"/services/fence/task-token/{task_token_type}"
+    try:
+        authorize(resource=resource_path, method="create")
+        return True
+    except Forbidden:
+        return False
