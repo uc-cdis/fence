@@ -6,7 +6,7 @@ from cdislogging import get_logger
 
 from fence.auth import get_jwt
 from fence.config import config
-from fence.errors import Unauthorized
+from fence.errors import Unauthorized, NotFound
 
 logger = get_logger(__name__)
 
@@ -242,8 +242,6 @@ def process_bulk_signed_urls(
             signed_urls.append({"drs_object_id": file_id, "url": signed_url})
             users.append(authorized_user)
         except Exception as exc:
-            from fence.errors import NotFound
-
             if isinstance(exc, NotFound):
                 failed_guids_map[404].append(file_id)
             else:

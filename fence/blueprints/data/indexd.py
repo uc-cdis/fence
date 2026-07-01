@@ -2170,6 +2170,15 @@ def verify_data_upload_bucket_configuration(bucket):
 
 
 def collect_x_forwarded_headers(headers):
+    """
+    Return a list of X-* headers formatted as "header:value" strings.
+
+    Args:
+        headers (Iterable[Tuple[str, str]]): Header name/value pairs.
+
+    Returns:
+        List[str]: X-* headers in "header:value" format.
+    """
     x_forwarded_headers = [
         f"{header}:{value}" for header, value in headers if "X-" in header
     ]
