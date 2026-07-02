@@ -378,11 +378,17 @@ def revoke_token():
         )
 
     token_to_revoke = flask.request.form["token"]
-    token_to_revoke_claims = validate_jwt(encoded_token=token_to_revoke)
+    token_to_revoke_claims = validate_jwt(
+        encoded_token=token_to_revoke,
+        options={"verify_aud": False, "verify_exp": False},
+    )
 
     revoker_token_parts = flask.request.headers.get("Authorization", "").split(" ")
     if len(revoker_token_parts) > 1:
-        revoker_claims = validate_jwt(encoded_token=revoker_token_parts[1])
+        revoker_claims = validate_jwt(
+            encoded_token=revoker_token_parts[1],
+            options={"verify_aud": False, "verify_exp": False},
+        )
         revoker_sub = revoker_claims["sub"]
     else:
         logger.debug("request missing Bearer token; treating as anonymous")
