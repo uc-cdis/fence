@@ -933,12 +933,12 @@ paths:
       responses:
         '200':
           description: successful operation
-  /credentials/token/blacklisted:
+  /credentials/token/denylisted:
     post:
       tags:
         - credentials
-      summary: Check if a token is blacklisted/revoked
-      description: Check if a token is blacklisted/revoked. Return 403 if it is.
+      summary: Check if a token is denylisted/revoked
+      description: Check if a token is denylisted/revoked. Return 403 if it is.
       requestBody:
         content:
           application/json:
@@ -949,11 +949,11 @@ paths:
                   type: string
       responses:
         '200':
-          description: token is not blacklisted
+          description: token is not denylisted
         '401':
           description: user is not authenticated
         '403':
-          description: token is blacklisted
+          description: token is denylisted
   /credentials/google:
     get:
       tags:

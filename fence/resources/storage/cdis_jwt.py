@@ -51,22 +51,13 @@ def create_user_access_token(keypair, api_key, expires_in, audience):
         keypair: RSA keypair for signing jwt
         api_key: user created jwt token, the azp should match with user.id
         expires_in: expiration time in seconds
+        audience: audience for the access token
     Return:
         access token
     """
     try:
         claims = validate_jwt(api_key, scope={"fence"}, purpose="api_key")
-        # scopes = claims["scope"]
-
-        ##### begin api key patch block #####
-        # TODO: In the next release, remove this block and uncomment line above.
-        # Old API keys are not compatible with new validation
-        # This is to help transition
-        try:
-            scopes = claims["scope"]
-        except KeyError as e:
-            scopes = claims["aud"]
-        ##### end api key patch block #####
+        scopes = claims["scope"]
 
         user = get_user_from_claims(claims)
     except Exception as e:

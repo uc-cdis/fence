@@ -204,6 +204,12 @@ class AccessKey(Resource):
                 task_token_type, max_ttl
             )
             expires_in = min(expires_in, max_task_token_ttl)
+            # SECURITY NOTE:
+            # The claims returned from this decode must be treated as untrusted and
+            # must not be relied upon for authentication. The API key is fully validated later
+            # during access token creation via authutils.token.validate.validate_jwt()
+            # (invoked from create_user_access_token()). Any changes to the token issuance flow
+            # must preserve that validation step.
             username = get_user_from_claims(
                 jwt.decode(
                     api_key,

@@ -19,6 +19,7 @@ import json
 from authlib.common.urls import add_params_to_uri
 from authlib.oauth2.rfc6749 import AccessDeniedError, InvalidRequestError, OAuth2Error
 from authutils.errors import JWTExpiredError
+from fence.jwt.validate import validate_jwt
 import flask
 import jwt
 
@@ -349,49 +350,52 @@ def revoke_token():
     Return:
         Tuple[str, int]: JSON response and status code
     """
-    try:
-        if "basic " in flask.request.headers.get("Authorization", "").lower():
+    if "basic " in flask.request.headers.get("Authorization", "").lower():
+        try:
             # client using Basic auth: use the authlib RFC 7009 endpoint
             return server.create_endpoint_response(RevocationEndpoint.ENDPOINT_NAME)
-        else:
-            # RFC 7009 is officially only for client usage, so the RevocationEndpoint above can
-            # only be used for client requests, but we also allow users to revoke tokens
-            if (
-                flask.request.headers.get("Content-Type")
-                != "application/x-www-form-urlencoded"
-                or "token" not in flask.request.form
-            ):
-                raise UserError(
-                    "This endpoint expects Content-Type 'application/x-www-form-urlencoded' and a 'token' field"
-                )
-
-            token_to_revoke = flask.request.form["token"]
-            token_to_revoke_claims = jwt.decode(
-                token_to_revoke,
-                algorithms=["RS256"],
-                options={"verify_signature": False},
+        except BlacklistingInvalidTokenError as err:
+            # Attempting to revoke an invalid token fails and returns a 200 (per RFC 7009).
+            # However, other revocation failures should not return 200. RFC 7009 only says to
+            # return 200 for tokens that are already invalid and as such cannot be used,
+            # effectively the same result as revoking them.
+            logger.info(
+                "Token provided for revocation is not valid. "
+                "Per rfc7009, this should still return a 200. Error: "
+                f"{err}",
+                exc_info=True,
             )
-
-            revoker_token_parts = flask.request.headers.get("Authorization", "").split(
-                " "
-            )
-            if len(revoker_token_parts) > 1:
-                revoker_claims = jwt.decode(
-                    revoker_token_parts[1],
-                    algorithms=["RS256"],
-                    options={"verify_signature": False},
-                )
-                revoker_sub = revoker_claims["sub"]
-            else:
-                revoker_sub = None  # anonymous
-
-            # tokens can be revoked by their owner or by an admin
-            if revoker_sub != token_to_revoke_claims["sub"]:
-                authz_authorize("/services/fence/admin", "delete")
-
-            # user is authorized: revoke the token
-            blacklist_encoded_token(token_to_revoke)
             return "", 200
+
+    # RFC 7009 is officially only for client usage, so the RevocationEndpoint above can
+    # only be used for client requests, but we also allow users to revoke tokens
+    if (
+        flask.request.headers.get("Content-Type") != "application/x-www-form-urlencoded"
+        or "token" not in flask.request.form
+    ):
+        raise UserError(
+            "This endpoint expects Content-Type 'application/x-www-form-urlencoded' and a 'token' field"
+        )
+
+    token_to_revoke = flask.request.form["token"]
+    token_to_revoke_claims = validate_jwt(encoded_token=token_to_revoke)
+
+    revoker_token_parts = flask.request.headers.get("Authorization", "").split(" ")
+    if len(revoker_token_parts) > 1:
+        revoker_claims = validate_jwt(encoded_token=revoker_token_parts[1])
+        revoker_sub = revoker_claims["sub"]
+    else:
+        logger.debug("request missing Bearer token; treating as anonymous")
+        revoker_sub = None
+
+    # tokens can be revoked by their owner or by an admin
+    if revoker_sub != token_to_revoke_claims["sub"]:
+        authz_authorize("/services/fence/admin", "delete")
+
+    try:
+        # user is authorized: revoke the token
+        blacklist_encoded_token(token_to_revoke)
+        return "", 200
     except BlacklistingInvalidTokenError as err:
         # Attempting to revoke an invalid token fails and return a 200 (per RFC 7009).
         # However, other revocation failures should not return 200. RFC 7009 only says to

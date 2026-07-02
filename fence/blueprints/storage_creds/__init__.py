@@ -99,30 +99,33 @@ def make_creds_blueprint():
         If the token cannot be parsed, assume it is not denylisted and that the invalid
         token will be rejected by downstream APIs.
 
-        This endpoint is leveraged by revproxy to block requests from denylisted tokens.
+        This endpoint is leveraged by revproxy to block requests from denylisted tokens and is NOT intended to be called directly by users.
         """
         # use the value of the request body `token` field if present, fall back to the request's
         # Authorization header otherwise.
         try:
             body = json.loads(flask.request.data)
         except json.JSONDecodeError:
+            logger.debug(
+                "request body is not valid JSON; falling back to Authorization header"
+            )
             body = {}
         encoded_token = body.get("token")
         try:
             if not encoded_token:
                 encoded_token = get_jwt_header()
-            claims, is_blacklisted = is_token_blacklisted(encoded_token)
+            claims, is_denylisted = is_token_blacklisted(encoded_token)
         except (jwt.exceptions.InvalidTokenError, Unauthorized) as e:
             logger.info(
-                f"No provided token, or provided token is invalid: `{e}`. Token not blacklisted."
+                f"No provided token, or provided token is invalid: `{e}`. Token not denylisted."
             )
             return "", 200
 
-        if is_blacklisted:
+        if is_denylisted:
             logger.warning(
-                f'Blocking attempt to use a blacklisted token. jti={claims.get("jti")}; azp={claims.get("azp")}; sub={claims.get("sub")}; username={claims.get("context", {}).get("user", {}).get("name")}'
+                f'Blocking attempt to use a denylisted token. jti={claims.get("jti")}; azp={claims.get("azp")}; sub={claims.get("sub")}; username={claims.get("context", {}).get("user", {}).get("name")}'
             )
-            return "Token is blacklisted", 403
+            return "Token is denylisted", 403
         return "", 200
 
     return blueprint

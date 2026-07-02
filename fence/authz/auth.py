@@ -33,7 +33,7 @@ def authorize(resource, method):
         )
     if "Authorization" not in flask.request.headers:
         logger.debug("request missing Authorization header; treating as anonymous")
-        token = None  # anonymous
+        token = None
     else:
         token = get_jwt_header()
 
@@ -94,18 +94,11 @@ def can_user_get_task_token(task_token_type: str, expires_in: int) -> bool:
         return False
 
     # Check if the user has a policy providing access to create a task token
-    # of the requested type and expiration
+    # of the requested type and expiration.
+    # Note: Arborist policies are hierarchical, so a policy granting access to `/services/fence/task-token/FOO` (no expiration)
+    # will also grant access to `/services/fence/task-token/FOO/100`.
     resource_path = f"/services/fence/task-token/{task_token_type}/{expires_in}"
 
-    try:
-        authorize(resource=resource_path, method="create")
-        return True
-    except Forbidden:
-        pass
-
-    # Fallback to check if the user has a policy providing access to create a task token
-    # of the requested type and "any" expiration
-    resource_path = f"/services/fence/task-token/{task_token_type}"
     try:
         authorize(resource=resource_path, method="create")
         return True
