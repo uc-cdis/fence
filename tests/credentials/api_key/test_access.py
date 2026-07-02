@@ -13,6 +13,9 @@ from tests.utils.api_key import get_api_key
 
 TASK_TOKEN_EXPIRES_IN = config["MAX_ACCESS_TOKEN_TTL"] + 60
 
+# margin of error for the generated token expiration
+EXP_ERR_TOLERANCE = 1
+
 
 def test_get_access_token(client, encoded_creds_jwt):
     """
@@ -64,6 +67,7 @@ def test_get_access_token_with_expires_in(client, encoded_creds_jwt, expires_in)
     assert response.status_code == 200, response.text
     api_key = response.json["api_key"]
 
+    now = int(time.time())
     path = f"/credentials/api/access_token{f'?expires_in={expires_in}' if expires_in else ''}"
     data = {"api_key": api_key}
     response = client.post(
@@ -75,7 +79,6 @@ def test_get_access_token_with_expires_in(client, encoded_creds_jwt, expires_in)
     assert "access_token" in response.json
     claims = validate_jwt(response.json["access_token"])
 
-    now = int(time.time())
     if expires_in in [None, TASK_TOKEN_EXPIRES_IN]:
         # if the expiration is not specified or larger than the configured max, the token lifetime
         # is the configured max
@@ -83,7 +86,10 @@ def test_get_access_token_with_expires_in(client, encoded_creds_jwt, expires_in)
     else:
         # otherwise, the token lifetime is as requested
         expected_exp = now + expires_in
-    assert expected_exp == claims["exp"]
+
+    # EXP_ERR_TOLERANCE accounts for the margin of error between the test's
+    # expected token expiration and the actual token's expiration time.
+    assert expected_exp <= claims["exp"] <= expected_exp + EXP_ERR_TOLERANCE
 
 
 @pytest.mark.parametrize(
@@ -119,6 +125,7 @@ def test_task_token(
     api_key = response.json["api_key"]
 
     # request a task token
+    now = int(time.time())
     path = f"/credentials/api/access_token?task_token={task_token_type}{f'&expires_in={expires_in}' if expires_in else ''}"
     data = {"api_key": api_key}
     response = client.post(
@@ -137,7 +144,6 @@ def test_task_token(
     claims = validate_jwt(response.json["access_token"], aud=task_token_type)
     assert claims["aud"] == [task_token_type]
 
-    now = int(time.time())
     # check that the returned token's expiration matches
     if expires_in is None:
         # not specified: min of MAX_ACCESS_TOKEN_TTL and MAX_TASK_TOKEN_TTL
@@ -151,7 +157,10 @@ def test_task_token(
     else:
         # otherwise, the requested lifetime is applied
         expected_exp = now + TASK_TOKEN_EXPIRES_IN
-    assert expected_exp == claims["exp"]
+
+    # EXP_ERR_TOLERANCE accounts for the margin of error between the test's
+    # expected token expiration and the actual token's expiration time.
+    assert expected_exp <= claims["exp"] <= expected_exp + EXP_ERR_TOLERANCE
 
 
 def test_get_access_token_with_almost_expired_key(

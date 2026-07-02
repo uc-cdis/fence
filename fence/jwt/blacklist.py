@@ -13,6 +13,7 @@ import uuid
 
 import flask
 import jwt
+from collections import OrderedDict
 from sqlalchemy import BigInteger, Column, String
 
 from fence.errors import BlacklistingError, BlacklistingInvalidTokenError
@@ -20,8 +21,22 @@ from fence.jwt import keys
 from fence.jwt.utils import is_task_token
 from fence.models import Base, UserRefreshToken
 
+BLACKLISTED_CACHE_SIZE = 10000
+_blacklisted_cache = OrderedDict()
 
-_blacklisted_cache = set()
+
+def _cache_add(jti):
+    """
+    Add a JWT id to the in-memory cache of blacklisted key ids adhering to the cache size limit and FIFO policy.
+
+    Args:
+        jti (str): JWT id to add to cache
+    """
+    _blacklisted_cache[jti] = True
+    _blacklisted_cache.move_to_end(jti)
+    # Limit cache size to 1000 entries.
+    if len(_blacklisted_cache) > BLACKLISTED_CACHE_SIZE:
+        _blacklisted_cache.popitem(last=False)
 
 
 class BlacklistedToken(Base):
@@ -61,7 +76,7 @@ def blacklist_token(jti, exp):
         (session.query(UserRefreshToken).filter_by(jti=jti, expires=exp).delete())
         session.commit()
 
-    _blacklisted_cache.add(jti)
+    _cache_add(jti)
 
 
 def blacklist_encoded_token(encoded_token, public_key=None):
@@ -140,7 +155,7 @@ def is_blacklisted(jti):
         exists = bool(session.query(BlacklistedToken).filter_by(jti=jti).first())
 
     if exists:
-        _blacklisted_cache.add(jti)
+        _cache_add(jti)
     return exists
 
 
@@ -161,6 +176,6 @@ def is_token_blacklisted(encoded_token, public_key=None):
         encoded_token,
         public_key,
         algorithms=["RS256"],
-        options={"verify_signature": False},
+        options={"verify_aud": False, "verify_exp": False},
     )
     return token, is_blacklisted(token["jti"])
