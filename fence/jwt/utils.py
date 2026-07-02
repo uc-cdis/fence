@@ -28,16 +28,3 @@ def get_jwt_header():
         logger.error(f"{msg}.")
         raise Unauthorized(msg)
     return jwt
-
-
-def is_task_token(pur, aud):
-    """
-    Check whether the given token is a task access token, based on its purpose and audience.
-    Args:
-        pur (str): purpose claim of the token
-        aud (list): audience claim of the token
-    """
-    if pur != "access":
-        return False
-    aud = [e for e in aud if e != "gen3"]
-    return aud and all(aud in config["ALLOWED_TASK_TOKEN_TYPES"] for aud in aud)

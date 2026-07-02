@@ -18,7 +18,6 @@ from sqlalchemy import BigInteger, Column, String
 
 from fence.errors import BlacklistingError, BlacklistingInvalidTokenError
 from fence.jwt import keys
-from fence.jwt.utils import is_task_token
 from fence.models import Base, UserRefreshToken
 
 BLACKLISTED_CACHE_SIZE = 10000
@@ -130,7 +129,7 @@ def blacklist_encoded_token(encoded_token, public_key=None):
     uuid.UUID(jti, version=4)
     # Must be task access token, refresh token or API key in order to revoke.
     if pur not in ["access", "refresh", "api_key"] or (
-        pur == "access" and not is_task_token(pur, claims["aud"])
+        pur == "access" and "task_token_type" not in claims.get("context", {})
     ):
         raise BlacklistingError(
             "can only blacklist task access tokens, refresh tokens and API keys"

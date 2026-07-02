@@ -366,6 +366,7 @@ def generate_signed_access_token(
     forced_exp_time=None,
     client_id=None,
     linked_google_email=None,
+    task_token_type=None,
 ):
     """
     Generate a JWT access token and output a UTF-8
@@ -432,6 +433,8 @@ def generate_signed_access_token(
             claims["context"]["user"]["google"][
                 "linked_google_account"
             ] = linked_google_email
+    if task_token_type:
+        claims["context"]["task_token_type"] = task_token_type
 
     logger.info(
         "issuing JWT access token with id [{}] to user sub [{}] and client id [{}]".format(

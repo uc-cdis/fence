@@ -167,7 +167,7 @@ def test_get_access_token_with_almost_expired_key(
     client, encoded_creds_jwt, mock_arborist_requests
 ):
     """
-    Test that task tokens cannot be generated if the provided API key would expire before the
+    Test that both access tokens or task tokens cannot be generated if the provided API key would expire before the
     token does
     """
     mock_arborist_requests(
@@ -184,8 +184,8 @@ def test_get_access_token_with_almost_expired_key(
     assert response.status_code == 200, response.text
     api_key = response.json["api_key"]
 
-    # the soon-to-be-expired API key is accepted when generating regular tokens
-    path = f"/credentials/api/access_token?expires_in={TASK_TOKEN_EXPIRES_IN}"
+    # the soon-to-be-expired API key is accepted when generating tokens for a shorter lifetime than API key's lifetime
+    path = f"/credentials/api/access_token?expires_in=30"
     data = {"api_key": api_key}
     response = client.post(
         path,
@@ -194,6 +194,20 @@ def test_get_access_token_with_almost_expired_key(
     )
     assert response.status_code == 200, response.text
     assert "access_token" in response.json
+
+    # the soon-to-be-expired API key is NOT accepted when generating regular tokens
+    path = f"/credentials/api/access_token?expires_in={TASK_TOKEN_EXPIRES_IN}"
+    data = {"api_key": api_key}
+    response = client.post(
+        path,
+        data=data,
+        headers={"Authorization": "Bearer " + str(encoded_credentials_jwt)},
+    )
+    assert response.status_code == 400, response.text
+    assert (
+        "Cannot issue an access token that would expire after the provided API key does. Please obtain a new API key and try again"
+        in response.text
+    )
 
     # the soon-to-be-expired API key is NOT accepted when generating task tokens
     path = f"/credentials/api/access_token?task_token=FOO&expires_in={TASK_TOKEN_EXPIRES_IN}"
@@ -205,7 +219,7 @@ def test_get_access_token_with_almost_expired_key(
     )
     assert response.status_code == 400, response.text
     assert (
-        "Cannot issue a task token that would expire after the provided API key does. Please obtain a new API key and try again"
+        "Cannot issue an access token that would expire after the provided API key does. Please obtain a new API key and try again"
         in response.text
     )
 

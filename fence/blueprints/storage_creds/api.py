@@ -223,6 +223,9 @@ class AccessKey(Resource):
                 )
 
         result = create_user_access_token(
-            flask.current_app.keypairs[0], api_key, expires_in, audience=task_token_type
+            flask.current_app.keypairs[0],
+            api_key,
+            expires_in,
+            task_token_type=task_token_type,
         )
         return flask.jsonify(dict(access_token=result))

@@ -84,7 +84,7 @@ def can_user_get_task_token(task_token_type: str, expires_in: int) -> bool:
 
     if not isinstance(expires_in, int) or isinstance(expires_in, bool):
         return False
-    if expires_in < 0:
+    if expires_in <= 0:
         return False
 
     max_task_token_ttl = config["MAX_TASK_TOKEN_TTL"].get(

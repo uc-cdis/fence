@@ -7,7 +7,7 @@ from fence.config import config
 from fence.errors import Unauthorized
 from fence.jwt.blacklist import is_blacklisted
 from fence.jwt.errors import JWTError, JWTPurposeError
-from fence.jwt.utils import get_jwt_header, is_task_token
+from fence.jwt.utils import get_jwt_header
 
 
 def validate_purpose(claims, pur):
@@ -145,7 +145,7 @@ def validate_jwt(
     # For access/refresh tokens and API keys specifically, check that they are not
     # blacklisted. For access tokens, only check that if it's a task token.
     if require_purpose and claims["pur"] in ["refresh", "api_key", "access"]:
-        if claims["pur"] != "access" or is_task_token(claims["pur"], claims["aud"]):
+        if claims["pur"] != "access" or "task_token_type" in claims.get("context", {}):
             if is_blacklisted(claims["jti"]):
                 raise JWTError("token is blacklisted")
 

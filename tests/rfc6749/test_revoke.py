@@ -216,10 +216,12 @@ def test_blacklisted_expired_token(client, oauth_client, kid, rsa_private_key):
     """
     token_lifetime = 2
 
+    task_token_claims = utils.default_claims()
+    task_token_claims["context"]["task_token_type"] = "FOO"
     # revoke an access token
     expired_access_token = jwt.encode(
         {
-            **utils.default_claims(),
+            **task_token_claims,
             "aud": ["gen3", "FOO"],
             "exp": int(time.time()) + token_lifetime,
         },

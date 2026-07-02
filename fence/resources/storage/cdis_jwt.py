@@ -44,14 +44,14 @@ def create_session_token(keypair, expires_in, context=None):
     ).token
 
 
-def create_user_access_token(keypair, api_key, expires_in, audience):
+def create_user_access_token(keypair, api_key, expires_in, task_token_type):
     """
     create access token given a user's api key
     Args:
         keypair: RSA keypair for signing jwt
         api_key: user created jwt token, the azp should match with user.id
         expires_in: expiration time in seconds
-        audience: audience for the access token
+        task_token_type: type of task token to create, if any, otherwise None
     Return:
         access token
     """
@@ -63,12 +63,9 @@ def create_user_access_token(keypair, api_key, expires_in, audience):
     except Exception as e:
         raise Unauthorized(str(e))
 
-    if (
-        expires_in > config["MAX_ACCESS_TOKEN_TTL"]
-        and claims.get("exp", 0) < time.time() + expires_in
-    ):
+    if claims.get("exp", 0) < time.time() + expires_in:
         raise UserError(
-            "Cannot issue a task token that would expire after the provided API key does. Please obtain a new API key and try again"
+            "Cannot issue an access token that would expire after the provided API key does. Please obtain a new API key and try again"
         )
 
     return token.generate_signed_access_token(
@@ -76,6 +73,7 @@ def create_user_access_token(keypair, api_key, expires_in, audience):
         keypair.private_key,
         expires_in,
         scopes,
-        audience=audience,
+        audience=task_token_type,
         user=user,
+        task_token_type=task_token_type,
     ).token
