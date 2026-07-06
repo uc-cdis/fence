@@ -93,6 +93,25 @@ def create_audit_log_for_request(response, duration):
                     request_url=request_url,
                     **audit_data,
                 )
+        elif method == "POST" and endpoint.startswith("/ga4gh/drs/v1/objects/access"):
+            request_url = _clean_authorization_request_url(request_url)
+            audit_data.get("additional_data", []).append(f"duration:{duration}")
+            audit_data.get("additional_data", []).append(f"http_method:{method}")
+
+            if audit_data.get("bulk_files"):
+                audit_data["additional_data"].append(
+                    "bulk_guids:"
+                    + ",".join(entry["file_id"] for entry in audit_data["bulk_files"])
+                )
+
+            flask.current_app.audit_service_client.create_presigned_url_log(
+                status_code=response.status_code,
+                request_url=request_url,
+                guid="bulk",
+                action="download",
+                **audit_data,
+            )
+
     except Exception:
         # TODO monitor this somehow
         traceback.print_exc()

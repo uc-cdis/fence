@@ -929,3 +929,84 @@ def test_delete_call_not_successful(app, public_bucket_indexd_client):
         ):
             indexed_file = IndexedFile(file_id="some id")
             assert indexed_file.delete()
+
+
+def test_prepare_bulk_presigned_url_audit_log_combines_authz_and_acl(app):
+    """
+    Test fence.blueprints.data.indexd.prepare_bulk_presigned_url_audit_log populates
+    audit data correctly for bulk file requests.
+    """
+
+    class DummyBulkIndexedFiles:
+        index_document = {
+            "guid1": {
+                "urls": ["s3://bucket/key1"],
+                "authz": ["/programs/DEV/projects/test"],
+            },
+            "guid2": {"urls": ["gs://bucket/key2"], "acl": ["*"]},
+        }
+
+    with app.test_request_context():
+        indexd.flask.g.audit_data = {}
+        indexd.prepare_bulk_presigned_url_audit_log("s3", DummyBulkIndexedFiles())
+
+        assert set(indexd.flask.g.audit_data["resource_paths"]) == {
+            "/programs/DEV/projects/test",
+            "*",
+        }
+        assert indexd.flask.g.audit_data["protocol"] == "s3"
+        assert indexd.flask.g.audit_data["bulk"] is True
+        assert len(indexd.flask.g.audit_data["bulk_files"]) == 2
+        assert {
+            entry["file_id"] for entry in indexd.flask.g.audit_data["bulk_files"]
+        } == {
+            "guid1",
+            "guid2",
+        }
+        assert all(
+            entry["protocol"] == "s3"
+            for entry in indexd.flask.g.audit_data["bulk_files"]
+        )
+
+
+def test_bulk_get_signed_url_for_file_calls_bulk_indexed_files_and_returns_results(
+    app, monkeypatch
+):
+    """
+    Test fence.blueprints.data.indexd.bulk_get_signed_url_for_file delegates to
+    BulkIndexedFiles.get_signed_urls and returns the expected bulk response.
+    """
+
+    monkeypatch.setattr(app, "scoped_session", lambda: MagicMock())
+    expected_urls = ["https://signed1", "https://signed2"]
+    expected_response = {"urls": expected_urls, "failed_guids": []}
+
+    with app.test_request_context(
+        "/?userProject=test-project", headers={"User-Agent": "pytest"}
+    ):
+        with patch(
+            "fence.blueprints.data.indexd.BulkIndexedFiles.index_document",
+            new_callable=mock.PropertyMock,
+        ) as mock_index_document:
+            mock_index_document.return_value = {
+                "guid1": {"urls": ["s3://bucket/key1"], "authz": ["/resource1"]},
+                "guid2": {"urls": ["s3://bucket/key2"], "authz": ["/resource2"]},
+            }
+            with patch(
+                "fence.blueprints.data.indexd.BulkIndexedFiles.get_signed_urls",
+                return_value=(expected_urls, [None, None], []),
+            ) as mock_get_signed_urls:
+                response = indexd.bulk_get_signed_url_for_file(
+                    ["guid1", "guid2"],
+                    requested_protocol="s3",
+                    r_pays_project="test-project",
+                )
+
+    assert response == expected_response
+    mock_get_signed_urls.assert_called_once_with(
+        "s3",
+        mock.ANY,
+        force_signed_url=True,
+        r_pays_project="test-project",
+        users_from_passports={},
+    )

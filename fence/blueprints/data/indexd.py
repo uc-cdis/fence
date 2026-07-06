@@ -1,11 +1,14 @@
 import re
 import time
 import json
+import hashlib
 import boto3
 from botocore.client import Config
+from collections import defaultdict
 from urllib.parse import urlparse, ParseResult, urlunparse
 from datetime import datetime, timedelta, UTC
 from sqlalchemy import text
+from sqlalchemy.sql.functions import user
 from cached_property import cached_property
 import gen3cirrus
 from gen3cirrus import GoogleCloudManager
@@ -22,6 +25,7 @@ from azure.storage.blob import (
     generate_blob_sas,
 )
 
+from fence import auth
 from fence.auth import (
     get_ip_information_string,
     get_jwt,
@@ -52,7 +56,8 @@ from fence.utils import get_valid_expiration_from_request
 from fence.metrics import metrics
 
 from . import multipart_upload
-from ...models import AssumeRoleCacheAWS, query_for_user
+from .bulk_helpers import process_bulk_signed_urls
+from ...models import AssumeRoleCacheAWS, query_for_user, query_for_user_by_id
 from ...models import AssumeRoleCacheGCP
 
 logger = get_logger(__name__)
@@ -108,12 +113,8 @@ def get_signed_url_for_file(
             not in PROTOCOLS_REQUIRING_GOOGLE_SYNC,
         )
 
-    # Collect X-Forwarded headers
-    x_forwarded_headers = [
-        f"{header}:{value}" for header, value in flask.request.headers if "X-" in header
-    ]
-    user_agent = f"User-Agent:{flask.request.headers.get('User-Agent')}"
-    audit_headers = x_forwarded_headers + [user_agent]
+    # Collect audit headers (including X-Forwarded headers and User-Agent) to include in audit log
+    audit_headers = collect_audit_headers(flask.request.headers)
     # add the user details to `flask.g.audit_data` first, so they are
     # included in the audit log if `IndexedFile(file_id)` raises a 404
     if users_from_passports:
@@ -183,6 +184,111 @@ def get_signed_url_for_file(
     )
 
     return {"url": signed_url}
+
+
+@enable_audit_logging
+def bulk_get_signed_url_for_file(
+    guids,
+    requested_protocol=None,
+    db_session=None,
+    ga4gh_passports=None,
+    no_force_sign_param=None,
+    r_pays_project=None,
+):
+    """
+    Generate signed access URLs for multiple indexed files.
+    Args:
+        guids (list[str]): GUIDs of indexed files to retrieve URLs for.
+        requested_protocol (str, optional): Desired access protocol
+            (for example, ``s3`` or ``gs``). If not provided, the default
+            protocol for each file is used.
+        db_session (Session, optional): Database session to use. If omitted,
+            the current Flask scoped session is used.
+        ga4gh_passports (list[str], optional): GA4GH Passport tokens used
+            for authentication and authorization.
+        no_force_sign_param (str, optional): If set to ``"true"``, allows
+            returning unsigned URLs when supported by the backend.
+        r_pays_project (str, optional): Requester-pays project identifier
+            used for supported storage providers.
+
+    Returns:
+        dict: A dictionary containing:
+            - ``urls``: Mapping of file IDs to generated access URLs.
+            - ``failed_guids``: List of file IDs for which URL generation
+              failed.
+    """
+    requested_protocol = requested_protocol
+    db_session = db_session or current_app.scoped_session()
+
+    # default to signing the URL
+    force_signed_url = True
+    if no_force_sign_param and no_force_sign_param.lower() == "true":
+        force_signed_url = False
+
+    # Collect audit headers (including X-Forwarded headers and User-Agent) to include in audit log
+    audit_headers = collect_audit_headers(flask.request.headers)
+
+    users_from_passports = {}
+    if ga4gh_passports:
+        users_from_passports = sync_gen3_users_authz_from_ga4gh_passports(
+            ga4gh_passports, db_session=db_session
+        )
+    if users_from_passports:
+        if len(users_from_passports) > 1:
+            logger.warning(
+                "audit service doesn't support multiple users for a "
+                "single request yet, so just log userinfo here"
+            )
+            for username, user in users_from_passports.items():
+                audit_data = {
+                    "username": username,
+                    "sub": user.id,
+                    "additional_data": audit_headers or [],
+                }
+                logger.info(
+                    f"passport with multiple user ids is attempting data access. audit log: {audit_data}"
+                )
+        else:
+            username, user = next(iter(users_from_passports.items()))
+            flask.g.audit_data = {
+                "username": username,
+                "sub": user.id,
+                "additional_data": audit_headers or [],
+            }
+    else:
+        auth_info = _get_auth_info_for_id_or_from_request(
+            sub_type=int, db_session=db_session
+        )
+        flask.g.audit_data = {
+            "username": auth_info["username"],
+            "sub": auth_info["user_id"],
+            "additional_data": audit_headers or [],
+        }
+
+    indexed_files = BulkIndexedFiles(guids)
+
+    default_expires_in = config.get("MAX_PRESIGNED_URL_TTL", 3600)
+    expires_in = get_valid_expiration_from_request(
+        max_limit=default_expires_in,
+        default=default_expires_in,
+    )
+
+    if ga4gh_passports and not config["GA4GH_PASSPORTS_TO_DRS_ENABLED"]:
+        raise NotSupported(
+            "Using GA4GH Passports as a means of authentication and authorization "
+            "is not supported by this instance of Gen3."
+        )
+
+    prepare_bulk_presigned_url_audit_log(requested_protocol, indexed_files)
+    signed_urls, users, failed_guids = indexed_files.get_signed_urls(
+        requested_protocol,
+        expires_in,
+        force_signed_url=force_signed_url,
+        r_pays_project=r_pays_project,
+        users_from_passports=users_from_passports,
+    )
+
+    return {"urls": signed_urls, "failed_guids": failed_guids}
 
 
 def get_bucket_from_urls(urls, protocol):
@@ -262,6 +368,50 @@ def prepare_presigned_url_audit_log(protocol, indexed_file):
         protocol = indexed_file.indexed_file_locations[0].protocol
     flask.g.audit_data["resource_paths"] = resource_paths
     flask.g.audit_data["protocol"] = protocol
+
+
+def prepare_bulk_presigned_url_audit_log(protocol, indexed_files):
+    """
+    Store audit data for bulk signed URL requests.
+    """
+
+    all_resource_paths = []
+    per_file_info = []
+
+    for file_id, doc in indexed_files.index_document.items():
+        resource_paths = doc.get("authz") or doc.get("acl") or []
+
+        # Determine protocol fallback like single-file version
+        file_protocol = protocol
+        if not file_protocol and doc.get("urls"):
+            file_protocol = IndexedFileLocation.from_url(doc["urls"][0]).protocol
+
+        all_resource_paths.extend(resource_paths)
+
+        per_file_info.append(
+            {
+                "file_id": file_id,
+                "resource_paths": resource_paths,
+                "protocol": file_protocol,
+            }
+        )
+
+    flask.g.audit_data["resource_paths"] = list(set(all_resource_paths))
+    flask.g.audit_data["protocol"] = protocol
+    flask.g.audit_data["bulk"] = True
+
+    # Optional but VERY useful for debugging / observability
+    flask.g.audit_data["bulk_files"] = per_file_info
+
+
+def _check_acl_authorization(bulk, file_id):
+    temp_indexed_file = IndexedFile(file_id)
+    if (
+        not temp_indexed_file.public_acl
+        and not temp_indexed_file.check_legacy_authorization("download")
+    ):
+        return False
+    return True
 
 
 class BlankIndex(object):
@@ -471,6 +621,260 @@ class BlankIndex(object):
         return S3IndexedFileLocation(s3_url).generate_presigned_url_for_part_upload(
             uploadId, partNumber, expires_in
         )
+
+
+class BulkIndexedFiles(object):
+    """
+    For bulk handling of files
+
+    Args:
+        guids (list(str)): A list of GUIDs coresponding to files
+    """
+
+    def __init__(self, guids):
+        self.guids = guids
+        self.auth_roles = []
+
+    @cached_property
+    def indexd_server(self):
+        indexd_server = (
+            flask.current_app.config.get("INDEXD")
+            or flask.current_app.config["BASE_URL"] + "/index"
+        )
+        return indexd_server.rstrip("/")
+
+    @cached_property
+    def index_document(self):
+        indexd_server = config.get("INDEXD") or config["BASE_URL"] + "/index"
+        url = indexd_server.rstrip("/") + "/bulk/documents"
+
+        index_dict = {}
+        try:
+            res = requests.post(url, json=self.guids)
+        except Exception as e:
+            logger.error(f"Failed to reach indexd at {url}: {e}")
+            raise UnavailableError("Fail to reach id service to find data location")
+
+        if res.status_code == 200:
+            try:
+                docs = res.json()
+                if not isinstance(docs, list):
+                    raise ValueError("Response is not a list")
+
+                # Build dict keyed by did - only returns docs that were found
+                index_dict = {doc["did"]: doc for doc in docs}
+                return index_dict
+            except (KeyError, ValueError, TypeError) as e:
+                logger.error(f"Invalid response from indexd: {e}")
+                raise InternalError("Internal error from indexd")
+        else:
+            raise UnavailableError(res.text)
+
+    def get_signed_urls(
+        self,
+        protocol,
+        expires_in,
+        force_signed_url=True,
+        r_pays_project=None,
+        users_from_passports=None,
+    ):
+        """
+        Generate signed URLs for a collection of indexed files.
+
+        This method performs authorization checks in bulk to reduce the number
+        of Arborist authorization lookups required for large requests. Files are
+        grouped by their authz resources, authorization is evaluated once per
+        unique authz set, and the cached results are then reused while generating
+        signed URLs for individual files.
+
+        Authorization can be performed using either:
+        - GA4GH Passport-derived users, or
+        - the JWT associated with the current request.
+
+        Files that cannot be found, are unauthorized, or encounter URL generation
+        errors are collected and returned in a structured failure report.
+
+        Args:
+            protocol (str): Access protocol to use when generating URLs.
+            expires_in (int): URL expiration time in seconds.
+            force_signed_url (bool, optional): Whether to force generation of a
+                signed URL even when the backend supports unsigned access.
+                Defaults to True.
+            r_pays_project (str, optional): Requester-pays project identifier
+                used for supported storage backends.
+            users_from_passports (dict[str, User], optional): Mapping of usernames
+                to user objects obtained from validated GA4GH passports.
+
+        Returns:
+            tuple:
+                - signed_urls (list[dict]): Successfully generated URLs in the
+                  format:
+                  ``{"drs_object_id": <file_id>, "url": <signed_url>}``
+                - users (list[User | None]): Authorized user associated with each
+                  generated URL, or ``None`` when JWT-based authorization is used.
+                - failed_guids (list[dict]): Failure information grouped by
+                  error code in the format:
+                  ``{"error_code": <status_code>, "object_ids": [<guids>]}``
+
+        Workflow:
+          1. Collect unique authz requirements for all requested files.
+          2. Perform bulk authorization checks.
+          3. Generate signed URLs for authorized files.
+          4. Aggregate failures by error code.
+
+        Notes:
+            Files may fail with:
+            - 401: Authentication or authorization failure.
+            - 403: Passport-authenticated user lacks required permissions.
+            - 404: File does not exist.
+            - 500: Unexpected error while generating a signed URL.
+        """
+        result = process_bulk_signed_urls(
+            self,
+            protocol,
+            expires_in,
+            force_signed_url,
+            r_pays_project,
+            users_from_passports,
+            acl_authorization_check=lambda file_id: _check_acl_authorization(
+                self, file_id
+            ),
+        )
+
+        return result.signed_urls, result.users, result.failed_guids
+
+    def _get_signed_urls(
+        self,
+        protocol,
+        file_id,
+        expires_in,
+        force_signed_url,
+        r_pays_project,
+        authorized_user=None,
+    ):
+        """
+        Generate a signed download URL for a specific file.
+
+        The file's indexed locations are searched for a location matching the
+        requested protocol. If no protocol is specified, the first available
+        location is used. Requests for ``http`` are allowed to match locations
+        stored as ``https``.
+
+        Args:
+            protocol (str, optional): Desired access protocol (for example,
+                ``s3``, ``gs``, ``http``, or ``https``). If not provided, the
+                first available file location is used.
+            file_id (str): Identifier of the indexed file.
+            expires_in (int): URL expiration time in seconds.
+            force_signed_url (bool): Whether to force generation of a signed URL
+                even when unsigned access is supported by the storage backend.
+            r_pays_project (str, optional): Requester-pays project identifier
+                used for supported storage providers.
+            authorized_user (User, optional): User object to use when generating
+                backend-specific access credentials.
+
+        Returns:
+            str: A signed download URL for the requested file location.
+
+        Raises:
+            NotFound: If the file has no locations or no location matching the
+                requested protocol.
+        """
+        # we only allow for download with bulk operations
+        file_urls = self.index_document.get(file_id).get("urls", [])
+        file_locations = list(map(IndexedFileLocation.from_url, file_urls))
+        if not protocol:
+            # no protocol specified, return first location as signed url
+            try:
+                return file_locations[0].get_signed_url(
+                    "download",
+                    expires_in,
+                    force_signed_url=force_signed_url,
+                    r_pays_project=r_pays_project,
+                    authorized_user=authorized_user,
+                )
+            except IndexError:
+                raise NotFound("Can't find any file locations.")
+
+        for file_location in file_locations:
+            # allow file location to be https, even if they specific http
+            if (file_location.protocol == protocol) or (
+                protocol == "http" and file_location.protocol == "https"
+            ):
+                return file_location.get_signed_url(
+                    "download",
+                    expires_in,
+                    force_signed_url=force_signed_url,
+                    r_pays_project=r_pays_project,
+                    authorized_user=authorized_user,
+                )
+
+        raise NotFound(
+            "File {} does not have a location with specified "
+            "protocol {}.".format(file_id, protocol)
+        )
+
+    def get_authorized_with_username(
+        self, action, file_id, usernames_from_passports=None
+    ):
+        """
+        Return a tuple of (boolean, str) which represents whether they're authorized
+        and their username. username is only returned if `usernames_from_passports`
+        is provided and one of the usernames from the passports is authorized.
+
+        Args:
+            action (str): Authorization action being performed
+            usernames_from_passports (list[str], optional): List of user usernames parsed
+                from validated passports
+
+        Returns:
+            tuple of (boolean, str): which represents whether they're authorized
+        and their username. username is only returned if `usernames_from_passports`
+        is provided and one of the usernames from the passports is authorized.
+        """
+        if not self.index_document.get(file_id).get("authz"):
+            raise ValueError("index record missing `authz`")
+
+        logger.debug(
+            f"authz check can user {action} on {self.index_document[file_id]['authz']} for fence? "
+            f"if passport provided, IDs parsed: {usernames_from_passports}"
+        )
+
+        # handle multiple GA4GH passports as a means of authn/z
+        if usernames_from_passports:
+            authorized = False
+            for username in usernames_from_passports:
+                authorized = flask.current_app.arborist.auth_request(
+                    jwt=None,
+                    user_id=username,
+                    service="fence",
+                    methods=action,
+                    resources=self.index_document[file_id]["authz"],
+                )
+                # if any passport provides access, user is authorized
+                if authorized:
+                    # for google proxy groups and future use: we need to know which
+                    # user_id actually gave access
+                    return authorized, username
+            return authorized, None
+        else:
+            try:
+                token = get_jwt()
+            except Unauthorized:
+                #  get_jwt raises an Unauthorized error when user is anonymous (no
+                #  available token), so to allow anonymous users possible access to
+                #  public data, we still make the request to Arborist
+                token = None
+
+            return (
+                flask.current_app.arborist.auth_request(
+                    jwt=token,
+                    service="fence",
+                    methods=action,
+                    resources=self.index_document[file_id]["authz"],
+                ),
+                None,
+            )
 
 
 class IndexedFile(object):
@@ -1763,3 +2167,38 @@ def verify_data_upload_bucket_configuration(bucket):
             f"Buckets configgured in ALLOWED_DATA_UPLOAD_BUCKETS: {s3_buckets}"
         )
         raise Forbidden(f"Uploading to bucket '{bucket}' is not allowed")
+
+
+def collect_x_forwarded_headers(headers):
+    """
+    Return a list of X-* headers formatted as "header:value" strings.
+
+    Args:
+        headers (Iterable[Tuple[str, str]]): Header name/value pairs.
+
+    Returns:
+        List[str]: X-* headers in "header:value" format.
+    """
+    x_forwarded_headers = [
+        f"{header}:{value}" for header, value in headers if "X-" in header
+    ]
+    return x_forwarded_headers
+
+
+def collect_audit_headers(headers):
+    """
+    Collect request headers used for audit logging.
+
+    Returns a list containing all X-* headers along with the User-Agent
+    header, formatted as "Header-Name:value" strings.
+
+    Args:
+        headers: A mapping of HTTP request headers.
+
+    Returns:
+        A list of formatted header strings for audit purposes.
+    """
+    x_forwarded_headers = collect_x_forwarded_headers(headers)
+    user_agent = f"User-Agent:{headers.get('User-Agent')}"
+    audit_headers = x_forwarded_headers + [user_agent]
+    return audit_headers
