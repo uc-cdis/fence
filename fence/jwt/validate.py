@@ -143,11 +143,11 @@ def validate_jwt(
         raise JWTError("token {} missing purpose (`pur`) claim".format(claims["jti"]))
 
     # For access/refresh tokens and API keys specifically, check that they are not
-    # blacklisted. For access tokens, only check that if it's a task token.
+    # denylisted. For access tokens, only check that if it's a task token.
     if require_purpose and claims["pur"] in ["refresh", "api_key", "access"]:
         if claims["pur"] != "access" or "task_token_type" in claims.get("context", {}):
             if is_blacklisted(claims["jti"]):
-                raise JWTError("token is blacklisted")
+                raise JWTError("token is denylisted")
 
     return claims
 
