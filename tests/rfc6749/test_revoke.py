@@ -1,6 +1,7 @@
 import time
 
 import jwt
+from fence.auth import GEN3_AUDIENCE
 import pytest
 
 from fence.config import config
@@ -52,17 +53,11 @@ def test_denylisted_token(
     assert is_denylisted
 
 
-def test_revoke_invalid_token(client, oauth_client, kid, rsa_private_key):
+def test_revoke_expired_token(client, oauth_client, kid, rsa_private_key):
     """
-    Test that attempting to revoke an invalid token through the "/oauth2/revoke" endpoint fails and
-    return a 200 (per RFC 7009).
-
-    However, attempting to revoke an ID token (wrong token type, but not invalid!) does not return
-    200.
+    Test that attempting to revoke an invalid token (expired token) should return 200
     """
     headers = create_basic_header_for_client(oauth_client)
-
-    # attempting to revoke an invalid token (expired token) should return 200
     expired_access_token = jwt.encode(
         {**utils.default_claims(), "exp": int(time.time()) - 1000},
         key=rsa_private_key,
@@ -78,7 +73,14 @@ def test_revoke_invalid_token(client, oauth_client, kid, rsa_private_key):
     )
     assert response.status_code == 200, response.text
 
-    # attempting to revoke an invalid JWT should return 200
+
+def test_revoke_malformed_token(client, oauth_client):
+    """
+    Test that attempting to revoke an invalid token type through the
+    "/oauth2/revoke" endpoint fails and returns a 200 (per RFC 7009).
+    """
+
+    headers = create_basic_header_for_client(oauth_client)
     response = client.post(
         "/oauth2/revoke",
         headers={**headers, "Content-Type": "application/x-www-form-urlencoded"},
@@ -86,26 +88,39 @@ def test_revoke_invalid_token(client, oauth_client, kid, rsa_private_key):
     )
     assert response.status_code == 200, response.text
 
-    # attempt to revoke a valid token that is not revocable (ID token): should fail
+
+def test_revoke_non_revocable_token(client, oauth_client, kid, rsa_private_key):
+    """
+    Test that attempting to revoke a valid ID token (wrong token type, but not
+    invalid) through the "/oauth2/revoke" endpoint fails, unlike other invalid
+    tokens which return 200 per RFC 7009.
+
+    """
+    headers = create_basic_header_for_client(oauth_client)
     id_token = jwt.encode(
         {"iat": int(time.time())}, key=rsa_private_key, algorithm="RS256"
     )
     response = client.post("/oauth2/revoke", headers=headers, data={"token": id_token})
     assert response.status_code == 400, response.text
 
-    # checking if an invalid token is denylisted should return 200
+
+def test_denylist_invalid_token(client):
+    """
+    Test that checking if an invalid token is denylisted returns 200
+    """
     response = client.post(
-        "/credentials/token/denylist", headers={"Authorization": "bearer blah"}
+        "/credentials/token/denylisted", headers={"Authorization": "bearer blah"}
     )
     assert response.status_code == 200, response.text
 
 
+@pytest.mark.parametrize("revoker", ["user", "client"])
 def test_revoke_regular_access_token(
-    client, oauth_client, encoded_jwt, db_session, mock_arborist_requests
+    client, oauth_client, encoded_jwt, db_session, mock_arborist_requests, revoker
 ):
     """
     Test that a user or client cannot revoke a regular access token through the "/oauth2/revoke"
-    endpoint, since we only support revoking task access tokens.
+    endpoint, since we only support revoking task access tokens, refresh tokens and API keys.
     """
     # create a user and check that they can access their own info using their own token
     headers = {"Authorization": f"bearer {encoded_jwt}"}
@@ -115,20 +130,19 @@ def test_revoke_regular_access_token(
     response = client.get("/user", headers=headers)
     assert response.status_code == 200, response.text
 
-    # attempt to revoke the token with a client token
-    response = client.post(
-        "/oauth2/revoke",
-        headers=create_basic_header_for_client(oauth_client),
-        data={"token": encoded_jwt},
-    )
-    assert response.status_code == 400, response.text
-
-    # attempt to revoke the token with the user's own token
-    response = client.post("/oauth2/revoke", headers=headers)
-    assert response.status_code == 400, response.text
+    if revoker == "user":
+        response = client.post("/oauth2/revoke", headers=headers)
+        assert response.status_code == 400, response.text
+    elif revoker == "client":
+        response = client.post(
+            "/oauth2/revoke",
+            headers=create_basic_header_for_client(oauth_client),
+            data={"token": encoded_jwt},
+        )
+        assert response.status_code == 400, response.text
 
     # the token should not be denylisted, since it was not revoked
-    response = client.post("/credentials/token/denylist", headers=headers)
+    response = client.post("/credentials/token/denylisted", headers=headers)
     assert response.status_code == 200, response.text
 
     # the token should still be usable
@@ -165,7 +179,7 @@ def test_revoke_token(client, encoded_creds_jwt, mock_arborist_requests, token_t
 
     # the token should not be denylisted yet
     response = client.post(
-        "/credentials/token/denylist",
+        "/credentials/token/denylisted",
         headers={"Authorization": f"Bearer {token}"},
         json={"token": token},
     )
@@ -184,7 +198,7 @@ def test_revoke_token(client, encoded_creds_jwt, mock_arborist_requests, token_t
 
     # the token should be denylisted now
     response = client.post(
-        "/credentials/token/denylist",
+        "/credentials/token/denylisted",
         headers={"Authorization": f"Bearer {token}"},
         json={"token": token},
     )
@@ -233,7 +247,7 @@ def test_denylisted_expired_task_token(client, oauth_client, kid, rsa_private_ke
     expired_access_token = jwt.encode(
         {
             **task_token_claims,
-            "aud": ["gen3", "FOO"],
+            "aud": [GEN3_AUDIENCE, "FOO"],
             "exp": int(time.time()) + token_lifetime,
         },
         key=rsa_private_key,
@@ -256,22 +270,27 @@ def test_denylisted_expired_task_token(client, oauth_client, kid, rsa_private_ke
 
     # checking if the expired token is denylisted should return 403
     response = client.post(
-        "/credentials/token/denylist",
+        "/credentials/token/denylisted",
         headers={"Authorization": f"bearer {expired_access_token}"},
     )
     assert response.status_code == 403, response.text
+
+
+def test_revoke_endpoint_anonymous(client):
+    """
+    Test the token revoke endpoint with anonymous calls
+    """
+
+    response = client.post("/oauth2/revoke")
+    assert response.status_code == 400, response.text
 
 
 def test_denylisted_endpoint_anonymous(client):
     """
     Test the token denylisting endpoints with anonymous calls
     """
-    # attempt to revoke without providing a token
-    response = client.post("/oauth2/revoke")
-    assert response.status_code == 400, response.text
 
-    # check if a token is denylisted without providing a token
-    response = client.post("/credentials/token/denylist")
+    response = client.post("/credentials/token/denylisted")
     assert response.status_code == 200, response.text
 
 
@@ -292,9 +311,8 @@ def test_revoke_task_token_access(
     Test that users can only revoke their own tokens, unless they have admin access in arborist
     """
 
-    authorized_to_fetch_task_token = (
-        True  # Indicates that all users are authorized to fetch task tokens
-    )
+    # Indicates that all users are authorized to fetch task tokens
+    authorized_to_fetch_task_token = True
     mock_arborist_requests(
         {
             "arborist/auth/request": {
@@ -345,7 +363,7 @@ def test_revoke_task_token_access(
 
     # the token should be denylisted, unless the revoker does not have access to revoke it
     response = client.post(
-        "/credentials/token/denylist",
+        "/credentials/token/denylisted",
         headers={"Authorization": f"Bearer {task_token}"},
         json={"token": task_token},
     )

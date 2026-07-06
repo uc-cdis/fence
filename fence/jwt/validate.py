@@ -3,6 +3,7 @@ import authutils.token.keys
 import authutils.token.validate
 import jwt
 
+from fence.auth import GEN3_AUDIENCE
 from fence.config import config
 from fence.errors import Unauthorized
 from fence.jwt.blacklist import is_blacklisted
@@ -93,7 +94,7 @@ def validate_jwt(
 
     # Can't set arg default to config[x] in fn def, so doing it this way.
     if aud is None:
-        aud = "gen3"
+        aud = GEN3_AUDIENCE
 
         # TODO: Remove this at the next release (> 13.2.0). Temporarily add the base url in the audience
         # for backwards compatibility (to accept JWTs generated before the aud was enforced)

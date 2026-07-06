@@ -15,7 +15,12 @@ from fence.errors import UserError
 
 from fence.models import UserGoogleAccount
 from fence.models import UserGoogleAccountToProxyGroup
-from fence.auth import current_token, get_user_from_claims, validate_request
+from fence.auth import (
+    GEN3_AUDIENCE,
+    current_token,
+    get_user_from_claims,
+    validate_request,
+)
 from fence.auth import require_auth_header
 from fence.config import config
 from fence.resources.google.utils import (
@@ -280,7 +285,7 @@ class GoogleCallback(Resource):
             # if we're mocking google auth, mock response to include the email
             # from the provided access token
             try:
-                token = validate_request(scope={"user"}, audience="gen3")
+                token = validate_request(scope={"user"}, audience=GEN3_AUDIENCE)
                 email = get_user_from_claims(token).username
             except Exception as exc:
                 logger.info(

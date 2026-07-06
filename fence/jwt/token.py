@@ -9,6 +9,7 @@ from authlib.oidc.core.util import create_half_hash
 from cdislogging import get_logger
 import jwt
 
+from fence.auth import GEN3_AUDIENCE
 from fence.jwt import keys
 from fence.jwt.errors import JWTSizeError
 from fence.config import config
@@ -176,7 +177,7 @@ def generate_signed_session_token(kid, private_key, expires_in, context=None):
 
     claims = {
         "pur": "session",
-        "aud": ["fence", "gen3"],
+        "aud": ["fence", GEN3_AUDIENCE],
         "sub": str(context.get("user_id", "")),
         "iss": issuer,
         "iat": iat,
@@ -294,7 +295,7 @@ def generate_signed_refresh_token(
         "pur": "refresh",
         "sub": sub,
         "iss": iss,
-        "aud": ["gen3"],
+        "aud": [GEN3_AUDIENCE],
         "iat": iat,
         "exp": exp,
         "jti": jti,
@@ -340,7 +341,7 @@ def generate_api_key(kid, private_key, user_id, expires_in, scopes, client_id):
         "pur": "api_key",
         "sub": sub,
         "iss": iss,
-        "aud": ["gen3"],
+        "aud": [GEN3_AUDIENCE],
         "iat": iat,
         "exp": exp,
         "jti": jti,
@@ -396,7 +397,7 @@ def generate_signed_access_token(
                 " running outside of flask application"
             )
 
-    aud = ["gen3"]
+    aud = [GEN3_AUDIENCE]
     if audience:
         if type(audience) == list:
             aud = audience
@@ -531,8 +532,8 @@ def generate_id_token(
     aud = audiences.copy() if audiences else []
     if client_id and client_id not in aud:
         aud.append(client_id)
-    if "gen3" not in aud:
-        aud.append("gen3")
+    if GEN3_AUDIENCE not in aud:
+        aud.append(GEN3_AUDIENCE)
     claims["aud"] = aud
 
     if user.tags:

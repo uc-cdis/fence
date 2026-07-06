@@ -104,8 +104,3 @@ With this policy, `u1` can request a `FOO` task token only with a TTL == 100 sec
 | `MAX_TASK_TOKEN_TTL[{type}]` (operator config, falls back to `MAX_ACCESS_TOKEN_TTL`) | Hard ceiling on TTL for unscoped requests — applies unconditionally. For exact-value (time-scoped) grants, exceeding this ceiling causes the request to fail rather than being capped |
 
 For unscoped (basic access) requests, the effective TTL is the **minimum** of the user-requested TTL (or the operator max, if `expires_in` was omitted) and the operator-configured `MAX_TASK_TOKEN_TTL`. For time-scoped (exact-value) requests, the granted TTL is exactly the Arborist-configured value — but only if that value does not exceed `MAX_TASK_TOKEN_TTL`; otherwise the request fails.
-
------
-### Next steps
-* Update the SDK to use the task_token param
-https://ctds-planx.atlassian.net/browse/MIDRC-1304

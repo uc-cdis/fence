@@ -23,7 +23,7 @@ logger = get_logger(__name__)
 
 
 ALL_RESOURCES = {
-    "/api": "access to CDIS APIs",
+    "/api": "access to Gen3 APIs",
     "/ceph": "access to Ceph storage",
     "/cleversafe": "access to cleversafe storage",
     "/aws-s3": "access to AWS S3 storage",
@@ -73,11 +73,11 @@ def make_creds_blueprint():
         .. code-block:: JavaScript
 
             {
-                "/api": "access to CDIS APIs",
+                "/api": "access to Gen3 APIs",
                 "/ceph": "access to Ceph storage",
                 "/cleversafe": "access to cleversafe storage",
-                "/aws-s3", "access to AWS S3 storage"
-                "/google", "access to Google Cloud storage"
+                "/aws-s3": "access to AWS S3 storage",
+                "/google": "access to Google Cloud storage"
             }
         """
         services = set(
@@ -91,7 +91,7 @@ def make_creds_blueprint():
             get_endpoints_descriptions(services, current_app.scoped_session())
         )
 
-    @blueprint.route("/token/denylist", methods=["POST"])
+    @blueprint.route("/token/denylisted", methods=["POST"])
     def check_if_token_denylisted():
         """
         Check if a token is in the denylist/revoked. Return 403 if it is.
@@ -99,7 +99,8 @@ def make_creds_blueprint():
         If the token cannot be parsed, assume it is not denylisted and that the invalid
         token will be rejected by downstream APIs.
 
-        This endpoint is leveraged by revproxy to block requests from denylisted tokens and is NOT intended to be called directly by users.
+        This endpoint is intended to be leveraged by an upstream gateway or proxy to block requests from denylisted tokens.
+        WARNING: It is NOT intended for this endpoint to be exposed externally to be called directly by users.
         """
         # use the value of the request body `token` field if present, fall back to the request's
         # Authorization header otherwise.

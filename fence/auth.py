@@ -17,6 +17,10 @@ from authutils.token.validate import (
 from cdislogging import get_logger
 import requests
 
+# Note: Iniitalized earlier to avoid circular import errors.
+GEN3_AUDIENCE = "gen3"
+
+
 from fence.authz.auth import check_arborist_auth
 from fence.config import config
 from fence.errors import Unauthorized, InternalError
@@ -40,9 +44,9 @@ def require_auth_header(*args, **kwargs):
     if "audience" in kwargs:
         if type(kwargs["audience"]) != list:
             kwargs["audience"] = [kwargs["audience"]]
-        kwargs["audience"].append("gen3")
+        kwargs["audience"].append(GEN3_AUDIENCE)
     else:
-        kwargs["audience"] = "gen3"
+        kwargs["audience"] = GEN3_AUDIENCE
 
     return authutils_require_auth_header(*args, **kwargs)
 
