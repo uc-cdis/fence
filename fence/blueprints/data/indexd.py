@@ -2186,6 +2186,18 @@ def collect_x_forwarded_headers(headers):
 
 
 def collect_audit_headers(headers):
+    """
+    Collect request headers used for audit logging.
+
+    Returns a list containing all X-* headers along with the User-Agent
+    header, formatted as "Header-Name:value" strings.
+
+    Args:
+        headers: A mapping of HTTP request headers.
+
+    Returns:
+        A list of formatted header strings for audit purposes.
+    """
     x_forwarded_headers = collect_x_forwarded_headers(headers)
     user_agent = f"User-Agent:{headers.get('User-Agent')}"
     audit_headers = x_forwarded_headers + [user_agent]
