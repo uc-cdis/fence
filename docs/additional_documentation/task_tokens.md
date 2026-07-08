@@ -7,13 +7,13 @@ Fence supports **Task Tokens**, a new type of access token for interacting with 
 Users request a task token by calling the credentials endpoint with a `task_token` query parameter specifying the desired token type:
 
 ```
-GET /user/credentials/api/access_token?task_token=<task_token_type>
+POST /credentials/api/access_token?task_token=<task_token_type>
 ```
 
 An `expires_in` query parameter may be included to request a specific token lifetime, in seconds:
 
 ```
-GET /user/credentials/api/access_token?task_token=<task_token_type>&expires_in=<seconds>
+POST /credentials/api/access_token?task_token=<task_token_type>&expires_in=<seconds>
 ```
 
 If `expires_in` is omitted, the request defaults to the maximum lifetime the user is authorized for (see [User Authorization](#user-authorization) below). **This is expected to be the common case**.

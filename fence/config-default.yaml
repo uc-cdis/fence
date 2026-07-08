@@ -337,6 +337,12 @@ USER_ALLOWED_SCOPES:
   - "google_link"
   - "ga4gh_passport_v1"
 
+# these are the default scopes that are included in a task access_token
+TASK_TOKEN_DEFAULT_SCOPES:
+  - "fence"
+  - "openid"
+  - "user"
+
 # these are the scopes that a browser session can create for a user (very
 # similar to USER_ALLOWED_SCOPES, as the session will actually create access_tokens
 # for an actively logged in user)

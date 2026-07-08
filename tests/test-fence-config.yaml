@@ -196,6 +196,11 @@ USER_ALLOWED_SCOPES:
   - "google_service_account"
   - "google_link"
 
+TASK_TOKEN_DEFAULT_SCOPES:
+  - "fence"
+  - "openid"
+  - "user"
+
 # these are the scopes that a browser session can create for a user (very
 # similar to USER_ALLOWED_SCOPES, as the session will actually create access_tokens
 # for an actively logged in user)

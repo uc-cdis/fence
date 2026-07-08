@@ -55,10 +55,12 @@ def create_user_access_token(keypair, api_key, expires_in, task_token_type):
     Return:
         access token
     """
-    default_scope_for_task_token = ["fence", "openid", "user"]
+
     try:
         claims = validate_jwt(api_key, scope={"fence"}, purpose="api_key")
-        scopes = default_scope_for_task_token if task_token_type else claims["scope"]
+        scopes = (
+            config["TASK_TOKEN_DEFAULT_SCOPES"] if task_token_type else claims["scope"]
+        )
 
         user = get_user_from_claims(claims)
     except Exception as e:
