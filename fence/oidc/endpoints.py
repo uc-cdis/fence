@@ -5,7 +5,7 @@ import flask
 
 from cdislogging import get_logger
 
-from fence.errors import BlacklistingError
+from fence.errors import BlacklistingError, BlacklistingInvalidTokenError
 import fence.jwt.blacklist
 import jwt
 
@@ -30,15 +30,7 @@ class RevocationEndpoint(authlib.oauth2.rfc7009.RevocationEndpoint):
         """
         Revoke a token.
         """
-        try:
-            fence.jwt.blacklist.blacklist_encoded_token(token.encoded_string)
-        except BlacklistingError as err:
-            logger.info(
-                "Token provided for revocation is not valid. "
-                "Per rfc7009, this should still return a 200. Error: "
-                f"{err}",
-                exc_info=True,
-            )
+        fence.jwt.blacklist.blacklist_encoded_token(token.encoded_string)
 
     def validate_authenticate_client(self):
         """
@@ -114,9 +106,12 @@ class RevocationEndpoint(authlib.oauth2.rfc7009.RevocationEndpoint):
 class JWTToken(object):
     def __init__(self, token):
         self.encoded_string = token
-        self.client_id = jwt.decode(
-            token, algorithms=["RS256"], options={"verify_signature": False}
-        ).get("azp")
+        try:
+            self.client_id = jwt.decode(
+                token, algorithms=["RS256"], options={"verify_signature": False}
+            ).get("azp")
+        except jwt.InvalidTokenError as e:
+            raise BlacklistingInvalidTokenError("failed to decode token: {}".format(e))
 
     def check_client(self, client):
         """

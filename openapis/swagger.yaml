@@ -279,8 +279,8 @@ paths:
     post:
       tags:
         - oauth2
-      summary: Revoke a refresh token per RFC 7009
-      description: Revoke a refresh (not access) token granted to a user.
+      summary: Revoke a token per RFC 7009
+      description: Revoke a refresh token granted to a user through an OIDC client, or a task token.
       operationId: revoke
       responses:
         '200':
@@ -933,6 +933,27 @@ paths:
       responses:
         '200':
           description: successful operation
+  /credentials/token/denylisted:
+    post:
+      tags:
+        - credentials
+      summary: Check if a token is denylisted/revoked
+      description: Check if a token is denylisted/revoked. Return 403 if it is.
+      requestBody:
+        content:
+          application/json:
+            schema:
+              type: object
+              properties:
+                token:
+                  type: string
+      responses:
+        '200':
+          description: token is not denylisted
+        '401':
+          description: user is not authenticated
+        '403':
+          description: token is denylisted
   /credentials/google:
     get:
       tags:
@@ -1110,6 +1131,25 @@ paths:
       description: >-
         Get a new temporary access token for the current user by providing a
         valid API key.
+      parameters:
+        - name: expires_in
+          required: false
+          in: query
+          description: >-
+            Optional integer specifying the access token lifetime (in seconds). Cannot
+            be greater than the configured MAX_ACCESS_TOKEN_TTL, unless you are
+            requesting a task token, in which case this cannot be greater than the configured
+            MAX_TASK_TOKEN_TTL. If omitted, defaults to MAX_ACCESS_TOKEN_TTL.
+          schema:
+            type: integer
+        - name: task_token
+          required: false
+          in: query
+          description: >-
+            Optionally request a specific task token type. If omitted, defaults to
+            generating a regular access token.
+          schema:
+            type: string
       security:
         - OAuth2:
             - user
@@ -1193,6 +1233,25 @@ paths:
       description: >-
         Get a new temporary access token for the current user by providing a
         valid API key.
+      parameters:
+        - name: expires_in
+          required: false
+          in: query
+          description: >-
+            Optional integer specifying the access token lifetime (in seconds). Cannot
+            be greater than the configured MAX_ACCESS_TOKEN_TTL, unless you are
+            requesting a task token, in which case this cannot be greater than the configured
+            MAX_TASK_TOKEN_TTL. If omitted, defaults to MAX_ACCESS_TOKEN_TTL.
+          schema:
+            type: integer
+        - name: task_token
+          required: false
+          in: query
+          description: >-
+            Optionally request a specific task token type. If omitted, defaults to
+            generating a regular access token.
+          schema:
+            type: string
       security:
         - OAuth2:
             - user
