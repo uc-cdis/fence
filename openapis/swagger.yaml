@@ -520,6 +520,43 @@ paths:
             internal server error; could not delete stored files, or not able to
             delete indexd record
           content-type: application/json
+  '/data/content':
+    post:
+      tags:
+        - data
+      summary: Bulk content retrieval of GUIDs
+      description: |
+        Allow users to get the content for GUIDs (e.g. skip signed URLs). Only works for GUIDs
+        with underlying bulk content retrieval APIs that also support this paradigm.
+
+        IMPORTANT: The underlying content is variable in structure. The example here shows minimal information.
+                   The final return is a mapping from GUID to content, but the structure of the content depends
+                   on the type of support bulk retrieval.
+
+        Current examples of supported APIs:
+          - Gen3 Embeddings Bulk Retrieval API for indexed embeddings
+      security:
+        - OAuth2:
+            - user
+      operationId: bulkContentRetrieval
+      requestBody:
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RequestBulkContentRetrieval'
+      responses:
+        '200':
+          description: successful operation
+          content:
+            '*/*':
+              schema:
+                $ref: '#/components/schemas/ResponseBulkContentRetrieval'
+        '400':
+          description: 'GUID provided does not support bulk content retrieval'
+        '413':
+          description: 'Too many GUIDs requested'
+        '503':
+          description: 'Indexd service or bulk content retrieval URL not available'
   '/data/download/{file_id}':
     get:
       tags:
@@ -2797,3 +2834,49 @@ components:
             type: string
         userinfo_endpoint:
           type: string
+    RequestBulkContentRetrieval:
+      type: object
+      properties:
+        guids:
+          type: array
+          items:
+            type: string
+          description: GUIDs to get content for
+      example:
+        guids:
+          - dg.1234/fb0b8022-bb2f-49d8-8875-0573c15a40c0
+          - dg.1234/9f35227d-ea60-48f2-b013-01a75459c71b
+          - dg.1234/3b841eb7-6b8f-47cc-ab54-5346591bc4c0
+    ResponseBulkContentRetrieval:
+      type: object
+      properties:
+        guids:
+          type: object
+          items:
+            type: object
+          description: GUIDs to content mapping
+        total_guids:
+          type: integer
+      example:
+        guids:
+          dg.1234/fb0b8022-bb2f-49d8-8875-0573c15a40c0:
+            vector: [
+              1.0,
+              2.0,
+              3.0
+            ]
+            embedding_id: "1a6e593e-b260-4733-99aa-b1b18f17e1dd"
+          dg.1234/9f35227d-ea60-48f2-b013-01a75459c71b:
+            vector: [
+              4.0,
+              5.0,
+              6.0
+            ]
+            embedding_id: "58001f69-271c-4215-8027-dc545b13d158"
+          dg.1234/3b841eb7-6b8f-47cc-ab54-5346591bc4c0:
+            vector: [
+              7.0,
+              8.0,
+              9.0
+            ]
+            embedding_id: "1e5dd555-ced2-4113-b5f5-03d90776f998"
