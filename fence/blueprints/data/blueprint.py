@@ -406,7 +406,7 @@ def get_file_content():
             flask.jsonify(
                 {
                     "error_code": 413,
-                    "error_description": f"Request too large: {total_requested_count} objects requested, maximum is {config["MAX_BULK_CONTENT_GUIDS_COUNT"]}",
+                    "error_description": f"Request too large: {total_requested_count} objects requested, maximum is {config['MAX_BULK_CONTENT_GUIDS_COUNT']}",
                 }
             ),
             413,
