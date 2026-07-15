@@ -196,6 +196,11 @@ USER_ALLOWED_SCOPES:
   - "google_service_account"
   - "google_link"
 
+TASK_TOKEN_DEFAULT_SCOPES:
+  - "fence"
+  - "openid"
+  - "user"
+
 # these are the scopes that a browser session can create for a user (very
 # similar to USER_ALLOWED_SCOPES, as the session will actually create access_tokens
 # for an actively logged in user)
@@ -352,6 +357,11 @@ MAX_API_KEY_TTL: 2592000
 
 # The number of seconds after an access token is issued from an API key until it expires.
 MAX_ACCESS_TOKEN_TTL: 3600
+
+MAX_TASK_TOKEN_TTL:
+  FOO: 4000
+
+ALLOWED_TASK_TOKEN_TYPES: ["FOO", "NOT_IN_CONFIG", "NOT_IN_MAPPING"]
 
 
 ########################################################################################

@@ -2,11 +2,13 @@ import flask
 
 from cdislogging import get_logger
 from cdispyutils.config import get_value
+import requests
 
 from fence.auth import login_required, require_auth_header, current_token, get_jwt
 from fence.authz.auth import check_arborist_auth
 from fence.blueprints.data.indexd import (
     BlankIndex,
+    BulkIndexedRecords,
     IndexedFile,
     get_signed_url_for_file,
     verify_data_upload_bucket_configuration,
@@ -368,3 +370,96 @@ def get_bucket_region_info():
             buckets[bucket] = info_copy
 
     return flask.jsonify(result)
+
+
+@blueprint.route("/content", methods=["POST"])
+def get_file_content():
+    """
+    Get content of files referenced by GUIDs provided.
+
+    This effectively bypasses the need to resolve individual signed URLs IFF the underlying
+    URLs of the GUIDs support bulk content retrieval.
+
+    For now, this only supports Gen3 AI Embeddings.
+    """
+    data = flask.request.get_json()
+
+    # construct headers to use in later bulk retrieval requests
+    # by pulling the authorization header from this request
+    # e.g. we are passing the user's token along to subsequent calls
+    #      to trusted and allowlisted bulk URLs
+    auth_header = flask.request.headers.get("Authorization")
+    headers = {}
+    if auth_header:
+        headers["Authorization"] = auth_header
+
+    if not data:
+        raise UserError("wrong Content-Type; expected application/json")
+    if "guids" not in data:
+        raise UserError("missing required argument `guids`")
+
+    guids_to_get = data.get("guids", [])
+
+    total_requested_count = len(guids_to_get)
+    if total_requested_count > config["MAX_BULK_CONTENT_GUIDS_COUNT"]:
+        return (
+            flask.jsonify(
+                {
+                    "error_code": 413,
+                    "error_description": f"Request too large: {total_requested_count} objects requested, maximum is {config['MAX_BULK_CONTENT_GUIDS_COUNT']}",
+                }
+            ),
+            413,
+        )
+
+    guids_content_response = {
+        "guids": {},
+        "total_guids": len(guids_to_get),
+    }
+
+    # note that indexd appears to not impose a limitation on bulk GUID resolution, so our
+    # limit above is the only gateway to control at this point
+    bulk_records = BulkIndexedRecords(guids=guids_to_get)
+    bulk_request_urls_and_payloads, bulk_id_to_guid = (
+        bulk_records.get_bulk_requests_and_mapping()
+    )
+
+    for request_url, request_body in bulk_request_urls_and_payloads.items():
+        if not any(
+            request_url.startswith(allowed_ai_url)
+            for allowed_ai_url in config["ALLOWED_GEN3_EMBEDDINGS_BULK_URL_PREFIXES"]
+        ):
+            raise UserError(
+                f"indexed record not supported from bulk request URL: {request_url}, cannot proceed"
+            )
+
+        logger.debug(f"posting to {request_url} with data:{request_body}")
+        response = requests.post(request_url, headers=headers, json=request_body)
+
+        # if user is denied access, above call will fail - so reraise the HTTP error here
+        response.raise_for_status()
+
+        try:
+            content_json = response.json()
+        except requests.JSONDecodeError as exc:
+            logger.error(exc, exc_info=True)
+            raise UserError(
+                f"invalid content from bulk request URL: {request_url}, cannot proceed"
+            )
+
+        for item in content_json.get("embeddings", []):
+            embedding_id = item.get("embedding_id")
+            if embedding_id not in bulk_id_to_guid:
+                raise UserError(
+                    f"invalid response from bulk request URL: {request_url}, cannot proceed"
+                )
+
+            guid = bulk_id_to_guid.get(embedding_id)
+            if not guid:
+                raise UserError(
+                    f"invalid data for bulk request URL: {request_url}, embedding_id: {embedding_id} not found in original bulk request"
+                )
+
+            guids_content_response["guids"][guid] = item
+
+    return flask.jsonify(guids_content_response)

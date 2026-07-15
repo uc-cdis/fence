@@ -58,6 +58,7 @@ from fence.error_handler import get_error_response
 from fence.utils import get_SQLAlchemyDriver, allowed_login_redirects, domain
 import fence.blueprints.admin
 import fence.blueprints.data
+import fence.blueprints.data.content_blueprint as content_only
 import fence.blueprints.login
 import fence.blueprints.oauth2
 import fence.blueprints.misc
@@ -389,6 +390,9 @@ def _setup_data_endpoint_and_boto(app):
         buckets = config.get("S3_BUCKETS", {})
         app.boto = BotoManager(creds, buckets, logger=logger)
         app.register_blueprint(fence.blueprints.data.blueprint, url_prefix="/data")
+    else:
+        # AWS not configured: only expose /data/content
+        app.register_blueprint(content_only.blueprint, url_prefix="/data")
 
 
 def _load_keys(app, root_dir):

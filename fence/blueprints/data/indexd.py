@@ -3,7 +3,7 @@ import time
 import json
 import boto3
 from botocore.client import Config
-from urllib.parse import urlparse, ParseResult, urlunparse
+from urllib.parse import urljoin, urlparse, ParseResult, urlunparse
 from datetime import datetime, timedelta, UTC
 from sqlalchemy import text
 from cached_property import cached_property
@@ -23,6 +23,7 @@ from azure.storage.blob import (
 )
 
 from fence.auth import (
+    GEN3_AUDIENCE,
     get_ip_information_string,
     get_jwt,
     current_token,
@@ -821,6 +822,108 @@ class IndexedFile(object):
             logger.error(f"Unable to delete indexd record '{self.file_id}': {response}")
             return (flask.jsonify(response.json()), 500)
         return ("", 204)
+
+
+class BulkIndexedRecords(object):
+    """
+    Explicitly handles bulk interaction with Indexd, similar to IndexedFile class above.
+    """
+
+    def __init__(self, guids: list[str]):
+        self.guids = guids
+
+    @cached_property
+    def bulk_indexed_records(self) -> dict:
+        """
+        The bulk records referenced by self.guids.
+
+        First time this is called, it actually makes the request to indexd
+        to get the records.
+        """
+        indexd_server = config.get("INDEXD") or config["BASE_URL"] + "/index"
+        url = indexd_server + "/bulk/documents"
+
+        try:
+            logger.debug(f"posting {url} with data:{self.guids}")
+            res = requests.post(url, json=self.guids)
+        except Exception as exc:
+            logger.error(f"failed to reach indexd at {url}: {exc}")
+            raise UnavailableError("Fail to reach id service to find data location")
+
+        bulk_records = []
+        if res.status_code == 200:
+            try:
+                bulk_records = res.json()
+            except requests.JSONDecodeError as exc:
+                logger.error("indexd response not valid JSON")
+                raise InternalError(f"internal error from indexd: {exc}")
+        elif res.status_code == 400:
+            message = "Bulk request failed. Could not find all provided IDs."
+            logger.error(message)
+            raise NotFound(message)
+        else:
+            raise UnavailableError(res.text)
+
+        records = {}
+        for record in bulk_records:
+            guid = record.get("did")
+            if not guid:
+                raise InternalError(f"Could not retrieve `did` from record: {record}")
+
+            records[guid] = record
+
+        return records
+
+    def get_bulk_requests_and_mapping(self):
+        """
+        Returns a dict of URLs and bodies of data which support bulk retrieval.
+        The returned request urls and payloads must actually be resolved to get the
+        bulk content.
+
+        At the moment, bulk content retrieval is only supported for Gen3 Embeddings.
+        The allow list of domains is part of the Fence config: ALLOWED_GEN3_EMBEDDINGS_BULK_URL_PREFIXES
+        """
+        bulk_id_to_guid = {}
+        bulk_request_urls_and_payloads = {}
+
+        logger.debug(f"bulk_indexed_records={self.bulk_indexed_records}")
+        for guid, record in self.bulk_indexed_records.items():
+            file_locations = [
+                IndexedFileLocation.from_url(url) for url in record.get("urls", [])
+            ]
+
+            valid = False
+            for file_location in file_locations:
+                # handle Gen3 AI Embeddings
+                allowed_ai_url_root = ""
+                for allowed_ai_url in config[
+                    "ALLOWED_GEN3_EMBEDDINGS_BULK_URL_PREFIXES"
+                ]:
+                    if file_location.url.startswith(allowed_ai_url):
+                        match = re.search(
+                            config["GEN3_EMBEDDINGS_API_REGEX"],
+                            file_location.parsed_url.path,
+                        )
+
+                        if match:
+                            collection_name = match.group("collection_name")
+                            embedding_uuid = match.group("embedding_uuid")
+
+                            # start constructing the required bulk requests
+                            bulk_embeddings_request_url = f"{allowed_ai_url.rstrip('/')}/vectorstore/collections/{collection_name}/embeddings/bulk"
+                            bulk_request_urls_and_payloads.setdefault(
+                                bulk_embeddings_request_url, []
+                            ).append(embedding_uuid)
+                            bulk_id_to_guid[embedding_uuid] = guid
+
+                            valid = True
+
+            # any new endpoints with valid bulk content retrieval support can be added here
+
+            if not valid:
+                raise NotSupported("GUID URL(s) do not support bulk retrieval.")
+
+        return bulk_request_urls_and_payloads, bulk_id_to_guid
 
 
 class IndexedFileLocation(object):
@@ -1699,7 +1802,7 @@ def _get_auth_info_for_id_or_from_request(
             final_username = result.username
             final_user_id = sub_type(result.id)
         else:
-            token = validate_request(scope={"user"}, audience=config.get("BASE_URL"))
+            token = validate_request(scope={"user"}, audience=GEN3_AUDIENCE)
             set_current_token(token)
             final_user_id = current_token["sub"]
             final_user_id = sub_type(final_user_id)
@@ -1712,7 +1815,7 @@ def _get_auth_info_for_id_or_from_request(
     client_id = ""
     try:
         if not token:
-            token = validate_request(scope=[], audience=config.get("BASE_URL"))
+            token = validate_request(scope=[], audience=GEN3_AUDIENCE)
         set_current_token(token)
         client_id = current_token.get("azp") or ""
     except Exception as exc:
