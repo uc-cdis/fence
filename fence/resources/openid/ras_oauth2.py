@@ -140,10 +140,14 @@ class RASOauth2Client(Oauth2ClientBase):
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
             jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
-
+            self.logger.info(f"token_endpoint is {token_endpoint}")
+            self.logger.info(f"jwks_endpoint is {jwks_endpoint}")
             token = self.get_token(token_endpoint, code)
             keys = self.get_jwt_keys(jwks_endpoint)
+            self.logger.info(f"token is {token}")
+            self.logger.info(f"key is {keys}")
             userinfo = self.get_userinfo(token)
+            self.logger.info(f"got userinfo: {userinfo}")
 
             claims = jose_jwt.decode(
                 token["id_token"],
@@ -199,6 +203,7 @@ class RASOauth2Client(Oauth2ClientBase):
         except InternalError:
             raise
         except Exception as e:
+            self.logger.info("userinfo exception")
             self.logger.exception("{}: {}".format(err_msg, e))
             return {"error": err_msg}
 
