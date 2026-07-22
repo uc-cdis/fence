@@ -2,14 +2,14 @@ import json
 
 import flask
 from flask_restful import Resource
-import jwt
 
-from fence.auth import require_auth_header, current_token, get_user_from_claims
+from fence.auth import require_auth_header, current_token, get_jwt, GEN3_AUDIENCE
 from fence.authz.auth import can_user_get_task_token
 from fence.errors import Forbidden, UserError
-from fence.jwt.blacklist import blacklist_token
+from fence.jwt.blacklist import blacklist_token, is_blacklisted
 from fence.models import UserRefreshToken
 from fence.config import config
+from authutils.dpop import validate_dpop_request
 
 from fence.resources.storage.cdis_jwt import create_user_access_token, create_api_key
 
@@ -175,9 +175,46 @@ class AccessKey(Resource):
         if not api_key:
             flask.abort(400, "Please provide an api_key in payload")
 
+        # Validate DPoP proof if present and enabled
+        cnf_claim = None
+        if config["DPOP_ENABLED"]:
+            # For the header: the underlying flask library handles case-insensitivity required
+            dpop_header = flask.request.headers.get("DPoP", "")
+
+            request_method = flask.request.method
+            request_url = flask.request.base_url
+
+            # Get the unvalidated access token from the request Authorization header
+            unvalidated_access_token = get_jwt()
+
+            # Get issuers from config for DPoP validation
+            issuers = [config["BASE_URL"]]
+            oidc_iss = (
+                config.get("OPENID_CONNECT", {})
+                .get("fence", {})
+                .get("api_base_url", None)
+            )
+            if oidc_iss:
+                issuers.append(oidc_iss)
+
+            dpop_claims, access_token_claims, client_jwk = validate_dpop_request(
+                dpop_header=dpop_header,
+                access_token=unvalidated_access_token,
+                request_method=request_method,
+                request_url=request_url,
+                issuers=issuers,
+                scope={"openid"},
+                purpose="access",
+                aud=GEN3_AUDIENCE,
+                require_nonce=True,
+                denylist_callback=is_blacklisted,
+                secret=config["DPOP_SHARED_SECRET"],
+            )
+            cnf_claim = {"jkt": client_jwk.thumbprint()}
+
         # TODO Instead of using this endpoint for task tokens, implement oauth2 token exchange
         # (https://datatracker.ietf.org/doc/html/rfc8693): exchange a Refresh Token or API Key for
-        # a longer-lived, downscoped access token. authlib doesn’t support token exchange yet
+        # a longer-lived, downscoped access token. authlib doesn't support token exchange yet
         # (https://github.com/authlib/authlib/issues/821).
         # => https://ctds-planx.atlassian.net/browse/PD-190
         max_ttl = config.get("MAX_ACCESS_TOKEN_TTL", 3600)
@@ -214,5 +251,6 @@ class AccessKey(Resource):
             api_key,
             expires_in,
             task_token_type=task_token_type,
+            cnf=cnf_claim,
         )
         return flask.jsonify(dict(access_token=result))

@@ -49,6 +49,7 @@ class FenceConfig(Config):
             "HIDE_IDPS",
             "GEN3_EMBEDDINGS_API_REGEX",
             "MAX_BULK_CONTENT_GUIDS_COUNT",
+            "DPOP_ENABLED",
         ]
         for default in defaults:
             self.force_default_if_none(default, default_cfg=default_config)
@@ -73,6 +74,24 @@ class FenceConfig(Config):
         else:
             logger.debug(
                 "Environment variable 'INDEXD_PASSWORD' empty or not set: using 'INDEXD_PASSWORD' field from config file"
+            )
+
+        # allow setting DPOP_SHARED_SECRET connection string via env var
+        if os.environ.get("DPOP_SHARED_SECRET"):
+            logger.info(
+                "Found environment variable 'DPOP_SHARED_SECRET': overriding 'DPOP_SHARED_SECRET' field from config file"
+            )
+            self["DPOP_SHARED_SECRET"] = os.environ["DPOP_SHARED_SECRET"]
+        else:
+            logger.info(
+                "Environment variable 'DPOP_SHARED_SECRET' empty or not set: using 'DPOP_SHARED_SECRET' field from config file"
+            )
+
+        if not self._configs.get("DPOP_SHARED_SECRET") and self._configs.get(
+            "DPOP_ENABLED"
+        ):
+            raise Exception(
+                "DPOP_ENABLED is set but DPOP_SHARED_SECRET field empty or not set."
             )
 
         if "ROOT_URL" not in self._configs and "BASE_URL" in self._configs:

@@ -519,6 +519,20 @@ GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN: 86400
 # The number of seconds after a pre-signed url is issued until it expires.
 MAX_PRESIGNED_URL_TTL: 3600
 
+# DPoP (RFC 9449) Configuration
+# When true, /credentials/api/access_token will accept DPoP proofs and issue bound tokens.
+# When false, DPoP headers are ignored and plain Bearer tokens are issued.
+DPOP_ENABLED: false
+
+# This secret MUST be the same as other services `DPOP_SHARED_SECRET` to ensure the nonce can be
+# generated and validated by any service. e.g. if we use dpop in Service Foo, then that service
+# MUST have the EXACT SAME `DPOP_SHARED_SECRET` as this and all other services. This is used
+# by authutils.
+#
+# You can use openssl to generate this (but remember you MUST use the SAME secret across services)
+# `openssl rand -base64 64`
+DPOP_SHARED_SECRET: None
+
 # The number of seconds after an API KEY is issued until it expires.
 MAX_API_KEY_TTL: 2592000
 
