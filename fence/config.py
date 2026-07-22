@@ -87,9 +87,7 @@ class FenceConfig(Config):
                 "Environment variable 'DPOP_SHARED_SECRET' empty or not set: using 'DPOP_SHARED_SECRET' field from config file"
             )
 
-        if not self._configs.get("DPOP_SHARED_SECRET") and self._configs.get(
-            "DPOP_ENABLED"
-        ):
+        if self._configs.get("DPOP_ENABLED") and not self["DPOP_SHARED_SECRET"]:
             raise Exception(
                 "DPOP_ENABLED is set but DPOP_SHARED_SECRET field empty or not set."
             )

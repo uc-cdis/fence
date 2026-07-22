@@ -7,11 +7,16 @@ from fence.auth import require_auth_header, current_token, get_jwt, GEN3_AUDIENC
 from fence.authz.auth import can_user_get_task_token
 from fence.errors import Forbidden, UserError
 from fence.jwt.blacklist import blacklist_token, is_blacklisted
+from fence.jwt.errors import JWTError
 from fence.models import UserRefreshToken
 from fence.config import config
 from authutils.dpop import validate_dpop_request
 
 from fence.resources.storage.cdis_jwt import create_user_access_token, create_api_key
+
+from cdislogging import get_logger
+
+logger = get_logger(__name__)
 
 
 class ApiKeyList(Resource):
@@ -197,20 +202,26 @@ class AccessKey(Resource):
             if oidc_iss:
                 issuers.append(oidc_iss)
 
-            dpop_claims, access_token_claims, client_jwk = validate_dpop_request(
-                dpop_header=dpop_header,
-                access_token=unvalidated_access_token,
-                request_method=request_method,
-                request_url=request_url,
-                issuers=issuers,
-                scope={"openid"},
-                purpose="access",
-                aud=GEN3_AUDIENCE,
-                require_nonce=True,
-                denylist_callback=is_blacklisted,
-                secret=config["DPOP_SHARED_SECRET"],
-            )
-            cnf_claim = {"jkt": client_jwk.thumbprint()}
+            try:
+                dpop_claims, access_token_claims, client_jwk = validate_dpop_request(
+                    dpop_header=dpop_header,
+                    access_token=unvalidated_access_token,
+                    request_method=request_method,
+                    request_url=request_url,
+                    issuers=issuers,
+                    scope={"openid"},
+                    purpose="access",
+                    aud=GEN3_AUDIENCE,
+                    require_nonce=True,
+                    denylist_callback=is_blacklisted,
+                    secret=config["DPOP_SHARED_SECRET"],
+                )
+                cnf_claim = {"jkt": client_jwk.thumbprint()}
+            except (JWTError, ValueError) as exc:
+                raise UserError("Invalid DPoP request")
+            except Exception as exc:
+                logger.error(f"Unknown error validating DPoP request: {exc}")
+                raise UserError("Error validating DPoP request")
 
         # TODO Instead of using this endpoint for task tokens, implement oauth2 token exchange
         # (https://datatracker.ietf.org/doc/html/rfc8693): exchange a Refresh Token or API Key for
