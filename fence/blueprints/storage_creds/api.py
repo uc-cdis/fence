@@ -10,7 +10,7 @@ from fence.jwt.blacklist import blacklist_token, is_blacklisted
 from fence.jwt.errors import JWTError
 from fence.models import UserRefreshToken
 from fence.config import config
-from authutils.dpop import validate_dpop_request, validate_dpop_proof
+from authutils.dpop import validate_dpop_proof
 from authutils.errors import InvalidNonceError
 
 from fence.resources.storage.cdis_jwt import create_user_access_token, create_api_key
@@ -222,7 +222,7 @@ class AccessKey(Resource):
             dpop_header = flask.request.headers.get("DPoP", "")
 
             request_method = flask.request.method
-            request_url = flask.request.base_url
+            request_url = flask.request.url
 
             try:
                 dpop_claims, client_jwk = validate_dpop_proof(
