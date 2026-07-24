@@ -224,6 +224,9 @@ class AccessKey(Resource):
             request_method = flask.request.method
             request_url = flask.request.url
 
+            logger.debug(f"using request_method: {request_method}")
+            logger.debug(f"using request_url: {request_url}")
+
             try:
                 dpop_claims, client_jwk = validate_dpop_proof(
                     dpop_header=dpop_header,
