@@ -157,7 +157,7 @@ class AccessKey(Resource):
         **Example:**
         .. code-block:: http
 
-               POST /hmac/ HTTP/1.1
+               POST /credentials/api/access_token HTTP/1.1
                Content-Type: application/json
                Accept: application/json
 
@@ -222,7 +222,9 @@ class AccessKey(Resource):
             dpop_header = flask.request.headers.get("DPoP", "")
 
             request_method = flask.request.method
-            request_url = flask.request.url
+            request_url = (
+                f"{config['BASE_URL'].rstrip('/')}/credentials/api/access_token"
+            )
 
             logger.debug(f"using request_method: {request_method}")
             logger.debug(f"using request_url: {request_url}")
