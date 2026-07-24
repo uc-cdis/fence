@@ -28,6 +28,8 @@ async def service_info() -> dict:
     return {}
 
 
+@blueprint.route("/tes/v1", methods=["GET", "POST", "PUT", "DELETE"])
+@blueprint.route("/tes/v1/", methods=["GET", "POST", "PUT", "DELETE"])
 @blueprint.route("/tes/v1/{path}", methods=["GET", "POST", "PUT", "DELETE"])
 def tes(path):
     logger.info(path)
