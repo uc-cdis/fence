@@ -110,7 +110,7 @@ cdislogging = "*"
 cryptography = ">=48.0.1"
 httpx = ">=0.23.0,<1.0.0"
 joserfc = ">=1.7.3"
-pyjwt = {version = ">=2.4.0,<3.0", extras = ["crypto"]}
+pyjwt = {version = ">=2.11.0,<3.0", extras = ["crypto"]}
 starlette = "*"
 werkzeug = ">=3.1.5"
 xmltodict = "~=0.9"
@@ -124,7 +124,7 @@ flask = ["Flask"]
 type = "git"
 url = "https://github.com/uc-cdis/authutils.git"
 reference = "feat/dpop"
-resolved_reference = "74a968270bebdbc0abb216b3c3c0184540d69000"
+resolved_reference = "b6ef43dfc31ee554078b7f56af65e97bb2b9e171"
 
 [[package]]
 name = "azure-core"
