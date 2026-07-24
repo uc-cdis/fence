@@ -242,7 +242,7 @@ class AccessKey(Resource):
             except InvalidNonceError as invalid_nonce_error:
                 # early error return with new nonce for client to resend
                 return (
-                    flask.jsonify(invalid_nonce_error.json),
+                    invalid_nonce_error.json,
                     invalid_nonce_error.code,
                     invalid_nonce_error.error_headers,
                 )
