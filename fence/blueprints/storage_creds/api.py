@@ -11,7 +11,7 @@ from fence.jwt.errors import JWTError
 from fence.models import UserRefreshToken
 from fence.config import config
 from authutils.dpop import validate_dpop_proof
-from authutils.errors import InvalidNonceError
+from authutils.errors import InvalidNonceErrorAuthorizationServer
 
 from fence.resources.storage.cdis_jwt import create_user_access_token, create_api_key
 
@@ -239,7 +239,7 @@ class AccessKey(Resource):
                     secret=config["DPOP_SHARED_SECRET"],
                 )
                 cnf_claim = {"jkt": client_jwk.thumbprint()}
-            except InvalidNonceError as invalid_nonce_error:
+            except InvalidNonceErrorAuthorizationServer as invalid_nonce_error:
                 # early error return with new nonce for client to resend
                 return (
                     invalid_nonce_error.json,
