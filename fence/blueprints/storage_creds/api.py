@@ -237,6 +237,7 @@ class AccessKey(Resource):
                     unvalidated_access_token=None,
                     require_nonce=True,
                     secret=config["DPOP_SHARED_SECRET"],
+                    as_resource_server=False,
                 )
                 cnf_claim = {"jkt": client_jwk.thumbprint()}
             except InvalidNonceErrorAuthorizationServer as invalid_nonce_error:
