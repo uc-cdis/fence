@@ -31,7 +31,7 @@ async def service_info() -> dict:
 @blueprint.route("/tes/v1", methods=["GET", "POST", "PUT", "DELETE"])
 @blueprint.route("/tes/v1/", methods=["GET", "POST", "PUT", "DELETE"])
 @blueprint.route("/tes/v1/{path}", methods=["GET", "POST", "PUT", "DELETE"])
-def tes(path):
+def tes(path=None):
     logger.info(path)
 
     # For the header: the underlying flask library handles case-insensitivity required
