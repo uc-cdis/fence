@@ -7,7 +7,7 @@ import flask
 from fence import config
 from fence.errors import UserError
 
-from authutils.dpop import validate_dpop_request
+from authutils.dpop import validate_dpop_request, InvalidNonceError
 
 from cdislogging import get_logger
 
@@ -31,7 +31,7 @@ async def service_info() -> dict:
 @blueprint.route("/tes/v1", methods=["GET", "POST", "PUT", "DELETE"])
 @blueprint.route("/tes/v1/", methods=["GET", "POST", "PUT", "DELETE"])
 @blueprint.route("/tes/v1/{path}", methods=["GET", "POST", "PUT", "DELETE"])
-def tes(path=None):
+def tes(path: str | None = None) -> flask.Response:
     logger.info(path)
 
     # For the header: the underlying flask library handles case-insensitivity required
@@ -62,6 +62,13 @@ def tes(path=None):
             denylist_callback=is_blacklisted,
             secret=config["DPOP_SHARED_SECRET"],
         )
+    except InvalidNonceError as invalid_nonce_error:
+        # early error return with new nonce for client to resend
+        response = flask.jsonify(invalid_nonce_error.json)
+        response.status_code = int(invalid_nonce_error.code)
+        for key, value in invalid_nonce_error.error_headers.items():
+            response.headers[key] = value
+        return response
     except (JWTError, ValueError) as exc:
         # TODO: use service-specific error
         raise UserError("Invalid DPoP request")
