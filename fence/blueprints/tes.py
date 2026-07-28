@@ -41,9 +41,9 @@ def tes(path: str | None = None) -> flask.Response:
 
     # Get the unvalidated access token from the request Authorization header
     unvalidated_access_token = flask.request.headers.get("Authorization", "")
-    unvalidated_access_token = unvalidated_access_token.replace("Bearer ", "").replace(
-        "bearer ", ""
-    )
+    unvalidated_access_token = unvalidated_access_token.removeprefix(
+        "Bearer "
+    ).removeprefix("DPoP ")
 
     # Get issuers from config for DPoP validation
     # TODO: Update for other services
