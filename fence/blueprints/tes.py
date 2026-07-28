@@ -1,5 +1,6 @@
 """
-temp
+Temporary Example of a Resource Server enforcing DPoP
+on an endpoint.
 """
 
 import flask
