@@ -24,7 +24,7 @@ from sqlalchemy.orm import scoped_session
 
 # Can't read config yet. Just set to debug for now, else no handlers.
 # Later, in app_config(), will actually set level based on config
-logger = get_logger(__name__, log_level="debug")
+logger = get_logger("fence", log_level="debug")
 
 # Load the configuration *before* importing modules that rely on it
 from fence.config import config, CONFIG_SEARCH_FOLDERS
@@ -376,7 +376,7 @@ def app_config(
 
     app.debug = config["DEBUG"]
     # Following will update logger level, propagate, and handlers
-    get_logger(__name__, log_level="debug" if config["DEBUG"] is True else "info")
+    get_logger("fence", log_level="debug" if config["DEBUG"] is True else "info")
 
     _setup_oidc_clients(app)
 
