@@ -44,9 +44,6 @@ def tes(path: str | None = None) -> flask.Response:
         "bearer ", ""
     )
 
-    # TODO FIXME REMOVE
-    logger.info(f"unvalidated_access_token from tes.py: {unvalidated_access_token}")
-
     # Get issuers from config for DPoP validation
     # TODO: Update for other services
     issuers = [config["BASE_URL"]]
