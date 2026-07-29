@@ -124,7 +124,7 @@ flask = ["Flask"]
 type = "git"
 url = "https://github.com/uc-cdis/authutils.git"
 reference = "feat/dpop"
-resolved_reference = "a5aefff80f4c929dc73fbc79ee7c1018614d2138"
+resolved_reference = "9e9db826f891e3a8b1e298baa82bb15ae57480a6"
 
 [[package]]
 name = "azure-core"
