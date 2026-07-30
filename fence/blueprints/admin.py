@@ -7,7 +7,6 @@ will maintain coherence between both systems.
 import functools
 
 from flask import request, jsonify, Blueprint, current_app
-from flask import current_app
 
 from cdislogging import get_logger
 
@@ -145,6 +144,7 @@ def soft_delete_user(username):
     response = jsonify(admin.soft_delete_user(current_app.scoped_session(), username))
     return response
 
+
 @blueprint.route("/users/<username>/reactivate", methods=["POST"])
 @blueprint.route("/user/<username>/reactivate", methods=["POST"])
 @admin_login_required
@@ -155,7 +155,9 @@ def reactivate_user(username):
 
     Returns json object
     """
-    response = jsonify(admin.reactivate_soft_deleted_user(current_app.scoped_session(), username))
+    response = jsonify(
+        admin.reactivate_soft_deleted_user(current_app.scoped_session(), username)
+    )
     return response
 
 
