@@ -29,11 +29,23 @@ from fence.blueprints.data.indexd import (
 
 
 class BulkObjectAccessIds(BaseModel):
+    """Represents a mapping between a bulk object ID and the access IDs it can use.
+
+    TODO: Remove this model when the GA4GH endpoints are converted to FastAPI.
+    See PD-151.
+    """
+
     bulk_object_id: str
     bulk_access_ids: list[str]
 
 
 class BulkObjectAccessRequest(BaseModel):
+    """Represents the bulk GA4GH object-access request payload.
+
+    TODO: Remove this model when the GA4GH endpoints are converted to FastAPI.
+    See PD-151.
+    """
+
     passports: Optional[list[str]] = None
     bulk_object_access_ids: list[BulkObjectAccessIds]
 
@@ -47,6 +59,12 @@ class BulkObjectAccessRequest(BaseModel):
 
 
 class ResolvedDrsObject(BaseModel):
+    """Represents a resolved DRS object with its signed access URL.
+
+    TODO: Remove this model when the GA4GH endpoints are converted to FastAPI.
+    See PD-151.
+    """
+
     drs_object_id: str
     drs_access_id: str
     url: str
@@ -54,17 +72,35 @@ class ResolvedDrsObject(BaseModel):
 
 
 class UnresolvedDrsObject(BaseModel):
+    """Represents the unresolved DRS objects returned for an access request.
+
+    TODO: Remove this model when the GA4GH endpoints are converted to FastAPI.
+    See PD-151.
+    """
+
     error_code: int
     object_ids: list[str]
 
 
 class BulkObjectSummary(BaseModel):
+    """Represents the summary counts for a bulk object access response.
+
+    TODO: Remove this model when the GA4GH endpoints are converted to FastAPI.
+    See PD-151.
+    """
+
     requested: int
     resolved: int
     unresolved: int
 
 
 class BulkObjectAccessResponse(BaseModel):
+    """Represents the full bulk object access response payload.
+
+    TODO: Remove this model when the GA4GH endpoints are converted to FastAPI.
+    See PD-151.
+    """
+
     summary: BulkObjectSummary
     unresolved_drs_objects: UnresolvedDrsObject
     resolved_drs_object_access_urls: ResolvedDrsObject
