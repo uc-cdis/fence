@@ -70,7 +70,6 @@ import fence.blueprints.google
 import fence.blueprints.privacy
 import fence.blueprints.register
 import fence.blueprints.ga4gh
-import fence.blueprints.tes
 
 
 app = flask.Flask(__name__)
@@ -157,7 +156,7 @@ def app_register_blueprints(app):
     )
 
     app.register_blueprint(fence.blueprints.register.blueprint, url_prefix="/register")
-    app.register_blueprint(fence.blueprints.tes.blueprint, url_prefix="/ga4gh")
+    app.register_blueprint(fence.blueprints.ga4gh.blueprint, url_prefix="/ga4gh")
 
     fence.blueprints.misc.register_misc(app)
 
