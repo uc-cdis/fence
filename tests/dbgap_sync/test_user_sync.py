@@ -1327,3 +1327,15 @@ def test_sync_single_user_visas_updates_arborist_with_child_study(
     actual_user_projects = syncer._update_authz_in_arborist.call_args.args[1]
     assert actual_user_projects == expected_user_projects
     assert "phs099991.c1" in actual_user_projects["testuser"]
+
+@pytest.mark.parametrize("syncer", ["google"], indirect=True)
+@pytest.mark.parametrize("prune_users", [True, False])
+def test_sync_propagates_prune_users(syncer, monkeypatch, prune_users):
+    """The public sync entry point passes the pruning mode to the full sync."""
+
+    syncer._sync = MagicMock()
+    syncer.session = MagicMock()
+
+    syncer.sync(prune_users=prune_users)
+
+    syncer._sync.assert_called_once_with(syncer.session, prune_users=prune_users)

@@ -1554,12 +1554,19 @@ class UserSyncer(object):
         for user in user_projects_to_modify.keys():
             user_projects[user] = user_projects_to_modify[user]
 
-    def sync(self):
+    def sync(self, prune_users=True):
+        """Run a full user synchronization.
+
+        Args:
+            prune_users (bool): whether users with no remaining non-generic
+                policies may be deleted from Arborist during user.yaml
+                reconciliation. Defaults to ``True`` for backward compatibility.
+        """
         if self.session:
-            self._sync(self.session)
+            self._sync(self.session, prune_users=prune_users)
         else:
             with self.driver.session as s:
-                self._sync(s)
+                self._sync(s, prune_users=prune_users)
 
     def download(self):
         for dbgap_server in self.dbGaP:
@@ -1590,7 +1597,7 @@ class UserSyncer(object):
             self.logger.error(e)
             raise
 
-    def _sync(self, sess):
+    def _sync(self, sess, prune_users=True):
         """
         Collect files from dbgap server(s), sync csv and yaml files to storage
         backend and fence DB
@@ -1697,7 +1704,12 @@ class UserSyncer(object):
         # update the Arborist DB (user access)
         if self.arborist_client:
             self.logger.info("Synchronizing arborist with authorization info...")
-            success = self._update_authz_in_arborist(sess, user_projects, user_yaml)
+            success = self._update_authz_in_arborist(
+                sess,
+                user_projects,
+                user_yaml,
+                prune_users=prune_users,
+            )
             if success:
                 self.logger.info(
                     "Finished synchronizing authorization info to arborist"
@@ -2040,6 +2052,7 @@ class UserSyncer(object):
         user_yaml=None,
         single_user_sync=False,
         expires=None,
+        prune_users=True,
     ):
         """
         Assign users policies in arborist from the information in
@@ -2222,7 +2235,7 @@ class UserSyncer(object):
                 incoming_policies,
                 user_yaml,
                 expires=expires,
-                remove_users_with_no_policies=True,
+                remove_users_with_no_policies=prune_users,
             )
 
         if user_yaml:
