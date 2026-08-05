@@ -205,8 +205,6 @@ class AccessKey(Resource):
             )
             expires_in = min(expires_in, max_task_token_ttl)
 
-        # generate the result token BEFORE checking access, because a token is required to
-        # perform the authorization check, but only return it if the user DOES have access
         result = create_user_access_token(
             flask.current_app.keypairs[0],
             api_key,
@@ -214,7 +212,11 @@ class AccessKey(Resource):
             task_token_type=task_token_type,
         )
 
-        if not can_user_get_task_token(task_token_type, expires_in, token=result):
+        # we generate the result token BEFORE checking access, because a token is required to
+        # perform the authorization check, but we only return it if the user DOES have access
+        if task_token_type and not can_user_get_task_token(
+            task_token_type, expires_in, token=result
+        ):
             raise Forbidden(
                 f"You do not have access to obtain '{task_token_type}' tokens, or you do not have access to the token lifetime you requested"
             )
