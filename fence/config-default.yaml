@@ -530,7 +530,7 @@ MAX_ACCESS_TOKEN_TTL: 3600
 # applied even if the requesting user has access to request a longer-lived token in Arborist.
 # This is configured per task token type, and falls back to `MAX_ACCESS_TOKEN_TTL`.
 MAX_TASK_TOKEN_TTL: {}
-# TES: 345600
+# WORKFLOW: 345600
 
 # Task token types that can be requested by users.
 ALLOWED_TASK_TOKEN_TYPES: []

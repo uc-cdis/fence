@@ -12,7 +12,7 @@ from fence.jwt.utils import get_jwt_header
 logger = get_logger(__name__)
 
 
-def authorize(resource, method):
+def authorize(resource, method, token=None):
     """
     Check with arborist to verify the authz for a request. Throws a ``Forbidden`` error if the user is not authorized to access the resource.
 
@@ -25,17 +25,20 @@ def authorize(resource, method):
         method (str or list[str]):
             Identifier for the action the user is trying to do. Like ``resource``, this
             is something that has to exist in arborist already.
+        token (str):
+            If not provided, falls back to the token provided in the `Authorization` header.
     """
-    if not hasattr(flask.current_app, "arborist"):
+    if not hasattr(flask.current_app, "arborist") or not flask.current_app.arborist:
         raise Forbidden(
             "this fence instance is not configured with arborist;"
             " this endpoint is unavailable"
         )
-    if "Authorization" not in flask.request.headers:
-        logger.debug("request missing Authorization header; treating as anonymous")
-        token = None
-    else:
-        token = get_jwt_header()
+    if not token:
+        if "Authorization" not in flask.request.headers:
+            logger.debug("request missing Authorization header; treating as anonymous")
+            token = None
+        else:
+            token = get_jwt_header()
 
     if not flask.current_app.arborist.auth_request(
         jwt=token,
@@ -65,7 +68,7 @@ def check_arborist_auth(resource, method):
     return decorator
 
 
-def can_user_get_task_token(task_token_type: str, expires_in: int) -> bool:
+def can_user_get_task_token(task_token_type: str, expires_in: int, token: str) -> bool:
     """
     Checks a requested expiration against the user's authz.
     Example: a user with access to `/services/fence/task-token/FOO/100` can request a
@@ -77,6 +80,7 @@ def can_user_get_task_token(task_token_type: str, expires_in: int) -> bool:
     Args:
         task_token_type (str): the type of task token being requested
         expires_in (int): the requested expiration in seconds
+        token (str): the user's token, used to check authz
 
     Returns:
         bool: True if the user is authorized to request a task token of the given type and expiration, False otherwise
@@ -100,7 +104,7 @@ def can_user_get_task_token(task_token_type: str, expires_in: int) -> bool:
     resource_path = f"/services/fence/task-token/{task_token_type}/{expires_in}"
 
     try:
-        authorize(resource=resource_path, method="create")
+        authorize(resource=resource_path, method="create", token=token)
         return True
     except Forbidden:
         return False
