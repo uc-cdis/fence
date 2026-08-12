@@ -629,7 +629,7 @@ class BulkIndexedFiles(object):
     For bulk handling of files
 
     Args:
-        guids (list(str)): A list of GUIDs coresponding to files
+        guids (list(str)): A list of GUIDs corresponding to files
     """
 
     def __init__(self, guids):
