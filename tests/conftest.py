@@ -407,7 +407,7 @@ def mock_arborist_requests(request):
         defaults = {
             "arborist/health": {"GET": ("", 200)},
             "arborist/user/admin_user": {"GET": ("", 200), "DELETE": ("", 204)},
-            "arborist/auth/mapping": {"POST": ({}, "200")},
+            "arborist/auth/mapping": {"POST": ({}, 200)},
             "arborist/group": {
                 "GET": (
                     {"groups": [{"name": "data_uploaders", "users": ["test_user"]}]},

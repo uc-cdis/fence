@@ -4,7 +4,7 @@ import json
 DEFAULT_SCOPE = ["fence", "data", "user"]
 
 
-def get_api_key(client, encoded_credentials_jwt, scope=None):
+def get_api_key(client, encoded_credentials_jwt, scope=None, expires_in=None):
     """
     Args:
         client: client fixture
@@ -12,7 +12,7 @@ def get_api_key(client, encoded_credentials_jwt, scope=None):
     Return:
         pytest_flask.plugin.JSONResponse: the response from /oauth2/authorize
     """
-    path = "/credentials/cdis/"
+    path = f"/credentials/api/{f'?expires_in={expires_in}' if expires_in else ''}"
     headers = {
         "Content-Type": "application/x-www-form-urlencoded",
         "Authorization": "Bearer " + str(encoded_credentials_jwt),
@@ -36,6 +36,6 @@ def get_api_key_with_json(client, encoded_credentials_jwt, scope=None):
         "Authorization": "Bearer " + str(encoded_credentials_jwt),
     }
     response = client.post(
-        "/credentials/cdis/", headers=headers, data=json.dumps({"scope": scope})
+        "/credentials/api/", headers=headers, data=json.dumps({"scope": scope})
     )
     return response

@@ -25,4 +25,5 @@ def test_normal_token_not_blacklisted(app, encoded_jwt_refresh_token):
     Test that a (refresh) token which was not blacklisted returns not
     blacklisted.
     """
-    assert not is_token_blacklisted(encoded_jwt_refresh_token)
+    _, is_blacklisted = is_token_blacklisted(encoded_jwt_refresh_token)
+    assert not is_blacklisted
