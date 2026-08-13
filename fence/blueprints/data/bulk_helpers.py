@@ -88,10 +88,14 @@ def _auth_mapping_has_read_storage(auth_mapping, authz_key):
         return False
 
     authz_list = list(authz_key) if isinstance(authz_key, tuple) else [authz_key]
+    logger.error(
+        f"_auth_mapping_has_read_storage: {authz_list}, {auth_mapping}, {authz_key}"
+    )
     for resource in authz_list:
         methods_list = auth_mapping.get(resource)
         if not methods_list:
             continue
+        logger.error(f"Checking methods: {methods_list} for {resource}")
 
         if any(
             (m.get("service") == "fence" or m.get("service") == "*")
