@@ -244,8 +244,6 @@ class AuditServiceClient:
             "resource_paths": resource_paths,
             "action": action,
             "protocol": protocol,
-            "bulk": bulk,
-            "bulk_files": bulk_files,
         }
 
         if ("presigned_url" in AUDIT_SCHEMA_CACHE.get("audit_schema").keys()) and (
