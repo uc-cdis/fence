@@ -303,6 +303,70 @@ def test_valid_session_valid_access_token_diff_user(
         assert test_user_a["user_id"] == int(user_id)
 
 
+@pytest.mark.parametrize(
+    "expires_in,threshold,expect_renewal",
+    [
+        # inside the renewal window
+        (60, 300, True),
+        # renewal disabled
+        (60, 0, False),
+        # freshly issued token
+        (config["ACCESS_TOKEN_EXPIRES_IN"], 300, False),
+    ],
+)
+def test_access_token_renewal_threshold(
+    app, db_session, test_user_a, monkeypatch, expires_in, threshold, expect_renewal
+):
+    """An unexpired access token is replaced only when it is within the threshold."""
+    monkeypatch.setitem(config, "MOCK_AUTH", False)
+    monkeypatch.setitem(config, "ACCESS_TOKEN_RENEWAL_THRESHOLD", threshold)
+    monkeypatch.setitem(config, "RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION", False)
+
+    user = db_session.query(User).filter_by(id=test_user_a["user_id"]).first()
+    keypair = app.keypairs[0]
+
+    # user_id is what ends up in the session token's "sub", which the access token
+    # cookie is checked against
+    test_session_jwt = create_session_token(
+        keypair,
+        config.get("SESSION_TIMEOUT"),
+        context={"username": user.username, "user_id": user.id, "provider": "google"},
+    )
+    test_access_jwt = generate_signed_access_token(
+        kid=keypair.kid,
+        private_key=keypair.private_key,
+        user=user,
+        expires_in=expires_in,
+        scopes=["openid", "user"],
+        iss=config.get("BASE_URL"),
+    ).token
+
+    with app.test_client() as client:
+        client.set_cookie(
+            config["SESSION_COOKIE_NAME"],
+            test_session_jwt,
+            httponly=True,
+            samesite="Lax",
+        )
+        client.set_cookie(
+            config["ACCESS_TOKEN_COOKIE_NAME"],
+            test_access_jwt,
+            httponly=True,
+            samesite="Lax",
+        )
+
+        response = client.get("/user")
+        assert response.status_code == 200
+
+        new_access_token = _get_cookies_from_response(response).get("access_token", {})
+        assert bool(new_access_token) == expect_renewal
+
+        if expect_renewal:
+            original_exp = validate_jwt(test_access_jwt, purpose="access")["exp"]
+            renewed = validate_jwt(new_access_token["access_token"], purpose="access")
+            assert renewed["exp"] > original_exp
+
+
 def _get_cookies_from_response(response):
     raw_cookies = [
         header[1] for header in response.headers.items() if header[0] == "Set-Cookie"
