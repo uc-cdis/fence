@@ -34,7 +34,7 @@ ALLOWED_TASK_TOKEN_TYPES: []
 # and falls back to MAX_ACCESS_TOKEN_TTL.
 MAX_TASK_TOKEN_TTL: {}
 # Example:
-# TES: 345600
+# WORKFLOW: 345600
 ```
 
 - **`ALLOWED_TASK_TOKEN_TYPES`** — an allowlist of task token types the commons supports. A user can only request a token type that appears in this list, regardless of their Arborist permissions.
