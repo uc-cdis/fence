@@ -5,7 +5,7 @@ from fence.jwt.token import generate_signed_access_token
 from fence.config import config
 from fence.models import User
 
-from fence.jwt.keys import default_public_key
+from fence.jwt.keys import default_public_key, Keypair
 from fence.jwt.validate import validate_jwt
 
 from unittest.mock import MagicMock, patch, call
@@ -199,10 +199,12 @@ def test_valid_session_valid_access_token(
     user = db_session.query(User).filter_by(id=test_user_a["user_id"]).first()
     keypair = app.keypairs[0]
 
+    # without user_id the session token's "sub" is empty, and the access token below
+    # would be rejected as belonging to a different subject
     test_session_jwt = create_session_token(
         keypair,
         config.get("SESSION_TIMEOUT"),
-        context={"username": user.username, "provider": "google"},
+        context={"username": user.username, "user_id": user.id, "provider": "google"},
     )
 
     test_access_jwt = generate_signed_access_token(
@@ -238,6 +240,8 @@ def test_valid_session_valid_access_token(
         user_id = response.json.get("user_id") or response.json.get("sub")
         assert response.status_code == 200
         assert user_id == user.id
+        # the request's access token is usable and nowhere near expiring
+        assert "access_token" not in _get_cookies_from_response(response)
 
 
 def test_valid_session_valid_access_token_diff_user(
@@ -304,7 +308,7 @@ def test_valid_session_valid_access_token_diff_user(
 
 
 @pytest.mark.parametrize(
-    "expires_in,threshold,expect_renewal",
+    "expires_in,threshold_config,expect_renewal",
     [
         # inside the renewal window
         (60, 300, True),
@@ -315,11 +319,17 @@ def test_valid_session_valid_access_token_diff_user(
     ],
 )
 def test_access_token_renewal_threshold(
-    app, db_session, test_user_a, monkeypatch, expires_in, threshold, expect_renewal
+    app,
+    db_session,
+    test_user_a,
+    monkeypatch,
+    expires_in,
+    threshold_config,
+    expect_renewal,
 ):
     """An unexpired access token is replaced only when it is within the threshold."""
     monkeypatch.setitem(config, "MOCK_AUTH", False)
-    monkeypatch.setitem(config, "ACCESS_TOKEN_RENEWAL_THRESHOLD", threshold)
+    monkeypatch.setitem(config, "ACCESS_TOKEN_RENEWAL_THRESHOLD", threshold_config)
     monkeypatch.setitem(config, "RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION", False)
 
     user = db_session.query(User).filter_by(id=test_user_a["user_id"]).first()
@@ -365,6 +375,150 @@ def test_access_token_renewal_threshold(
             original_exp = validate_jwt(test_access_jwt, purpose="access")["exp"]
             renewed = validate_jwt(new_access_token["access_token"], purpose="access")
             assert renewed["exp"] > original_exp
+
+
+@pytest.mark.parametrize(
+    "session_state,access_token_state,renew_config,threshold_config,expect_created",
+    [
+        # no usable access token in the request
+        ("logged_in", "missing", False, 300, True),
+        ("logged_in", "expired", False, 300, True),
+        ("logged_in", "malformed", False, 300, True),
+        ("logged_in", "other_user", False, 300, True),
+        # inside and outside the renewal window
+        ("logged_in", "near_expiry", False, 300, True),
+        ("logged_in", "near_expiry", False, 0, False),
+        ("logged_in", "fresh", False, 300, False),
+        # RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION short-circuits both token checks
+        ("logged_in", "fresh", True, 300, True),
+        ("logged_in", "fresh", True, 0, True),
+        # nobody is logged in
+        ("anonymous", "missing", True, 300, False),
+        ("no_session_cookie", "missing", True, 300, False),
+    ],
+)
+def test_create_access_token_cookie_called(
+    app,
+    db_session,
+    test_user_a,
+    test_user_b,
+    monkeypatch,
+    session_state,
+    access_token_state,
+    renew_config,
+    threshold_config,
+    expect_created,
+):
+    """
+    The access token cookie is created only for a logged in user, and only when renewal
+    is forced, the request's access token is unusable, or it is near expiration.
+    """
+    monkeypatch.setitem(config, "MOCK_AUTH", False)
+    monkeypatch.setitem(config, "ACCESS_TOKEN_RENEWAL_THRESHOLD", threshold_config)
+    monkeypatch.setitem(config, "RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION", renew_config)
+
+    keypair = app.keypairs[0]
+    user = db_session.query(User).filter_by(id=test_user_a["user_id"]).first()
+    other_user = db_session.query(User).filter_by(id=test_user_b["user_id"]).first()
+
+    session_jwt = _session_token_for_state(keypair, session_state, user)
+    access_jwt = _access_token_for_state(keypair, access_token_state, user, other_user)
+
+    with app.test_client() as client:
+        if session_jwt:
+            client.set_cookie(
+                config["SESSION_COOKIE_NAME"],
+                session_jwt,
+                httponly=True,
+                samesite="Lax",
+            )
+        if access_jwt:
+            client.set_cookie(
+                config["ACCESS_TOKEN_COOKIE_NAME"],
+                access_jwt,
+                httponly=True,
+                samesite="Lax",
+            )
+
+        with patch(
+            "fence.resources.user.user_session._create_access_token_cookie"
+        ) as create_access_token_cookie:
+            response = client.get("/user")
+
+    assert response.status_code == (200 if session_state == "logged_in" else 401)
+    assert create_access_token_cookie.called == expect_created
+
+
+def _session_token_for_state(keypair: Keypair, state: str, user: User) -> str | None:
+    """
+    Build the session cookie value for a scenario.
+
+    Args:
+        keypair (fence.jwt.keys.Keypair): keypair to sign the token with
+        state (str): "logged_in", "anonymous" or "no_session_cookie"
+        user (fence.models.User): the user to log in
+
+    Returns:
+        str | None: encoded session token, or None to send no session cookie
+    """
+    if state == "no_session_cookie":
+        return None
+
+    contexts = {
+        # the session token's "sub" comes from user_id, and an access token whose
+        # subject doesn't match the session's is treated as invalid
+        "logged_in": {
+            "username": user.username,
+            "user_id": user.id,
+            "provider": "google",
+        },
+        "anonymous": {},
+    }
+
+    return create_session_token(
+        keypair, config.get("SESSION_TIMEOUT"), context=contexts[state]
+    )
+
+
+def _access_token_for_state(
+    keypair: Keypair, state: str, user: User, other_user: User
+) -> str | None:
+    """
+    Build the access token cookie value for a scenario.
+
+    Args:
+        keypair (fence.jwt.keys.Keypair): keypair to sign the token with
+        state (str): "missing", "fresh", "near_expiry", "expired", "malformed" or
+            "other_user"
+        user (fence.models.User): the logged in user
+        other_user (fence.models.User): a user who is not logged in
+
+    Returns:
+        str | None: encoded access token, or None to send no access token cookie
+    """
+    if state == "missing":
+        return None
+
+    if state == "malformed":
+        return "garbage-string-to-represent-an-invalid-access-token"
+
+    if state == "fresh" or state == "other_user":
+        expires_in = config["ACCESS_TOKEN_EXPIRES_IN"]
+    elif state == "near_expiry":
+        expires_in = 60
+    elif state == "expired":
+        expires_in = -10
+    else:
+        raise ValueError(f"unknown access token state: {state}")
+
+    return generate_signed_access_token(
+        kid=keypair.kid,
+        private_key=keypair.private_key,
+        user=other_user if state == "other_user" else user,
+        expires_in=expires_in,
+        scopes=["openid", "user"],
+        iss=config.get("BASE_URL"),
+    ).token
 
 
 def _get_cookies_from_response(response):
