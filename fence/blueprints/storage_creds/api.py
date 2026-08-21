@@ -2,16 +2,22 @@ import json
 
 import flask
 from flask_restful import Resource
-import jwt
 
-from fence.auth import require_auth_header, current_token, get_user_from_claims
+from fence.auth import require_auth_header, current_token
 from fence.authz.auth import can_user_get_task_token
 from fence.errors import Forbidden, UserError
 from fence.jwt.blacklist import blacklist_token
+from fence.jwt.dpop import jti_seen
 from fence.models import UserRefreshToken
 from fence.config import config
+from authutils.dpop import validate_dpop_proof
+from authutils.errors import InvalidNonceErrorAuthorizationServer
 
 from fence.resources.storage.cdis_jwt import create_user_access_token, create_api_key
+
+from cdislogging import get_logger
+
+logger = get_logger(__name__)
 
 
 class ApiKeyList(Resource):
@@ -151,7 +157,7 @@ class AccessKey(Resource):
         **Example:**
         .. code-block:: http
 
-               POST /hmac/ HTTP/1.1
+               POST /credentials/api/access_token HTTP/1.1
                Content-Type: application/json
                Accept: application/json
 
@@ -177,7 +183,7 @@ class AccessKey(Resource):
 
         # TODO Instead of using this endpoint for task tokens, implement oauth2 token exchange
         # (https://datatracker.ietf.org/doc/html/rfc8693): exchange a Refresh Token or API Key for
-        # a longer-lived, downscoped access token. authlib doesn’t support token exchange yet
+        # a longer-lived, downscoped access token. authlib doesn't support token exchange yet
         # (https://github.com/authlib/authlib/issues/821).
         # => https://ctds-planx.atlassian.net/browse/PD-190
         max_ttl = config.get("MAX_ACCESS_TOKEN_TTL", 3600)
@@ -205,11 +211,53 @@ class AccessKey(Resource):
             )
             expires_in = min(expires_in, max_task_token_ttl)
 
+        # If DPOP_ENABLED, task tokens require DPoP proof
+        cnf_claim = None
+        if task_token_type and config["DPOP_ENABLED"]:
+            # For the header: the underlying flask library handles case-insensitivity required
+            dpop_header = flask.request.headers.get("DPoP", "")
+
+            request_method = flask.request.method
+            # `htu` must match the URL the client signed. The path comes from the
+            # request because this resource is registered at several paths; the origin
+            # comes from config because flask's URL can reflect internal k8s routing.
+            request_url = f"{config['BASE_URL'].rstrip('/')}{flask.request.path}"
+
+            logger.debug(f"using request_method: {request_method}")
+            logger.debug(f"using request_url: {request_url}")
+
+            try:
+                _, client_jwk = validate_dpop_proof(
+                    dpop_header=dpop_header,
+                    request_method=request_method,
+                    request_url=request_url,
+                    unvalidated_access_token=None,
+                    require_nonce=True,
+                    secret=config["DPOP_SHARED_SECRET"],
+                    as_resource_server=False,
+                    jti_seen_callback=jti_seen,
+                )
+                cnf_claim = {"jkt": client_jwk.thumbprint()}
+            except InvalidNonceErrorAuthorizationServer as invalid_nonce_error:
+                # early error return with new nonce for client to resend
+                return (
+                    invalid_nonce_error.json,
+                    invalid_nonce_error.code,
+                    invalid_nonce_error.error_headers,
+                )
+            except ValueError as exc:
+                logger.info(f"Rejecting DPoP request: {exc}")
+                raise UserError("Invalid DPoP request")
+            except Exception as exc:
+                logger.error(f"Unknown error validating DPoP request: {exc}")
+                raise UserError("Error validating DPoP request")
+
         result = create_user_access_token(
             flask.current_app.keypairs[0],
             api_key,
             expires_in,
             task_token_type=task_token_type,
+            cnf=cnf_claim,
         )
 
         # we generate the result token BEFORE checking access, because a token is required to

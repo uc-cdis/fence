@@ -44,15 +44,18 @@ def create_session_token(keypair, expires_in, context=None):
     ).token
 
 
-def create_user_access_token(keypair, api_key, expires_in, task_token_type):
+def create_user_access_token(keypair, api_key, expires_in, task_token_type, cnf=None):
     """
-    create access token given a user's api key
+    Create access token given a user's api key, optionally DPoP-bound.
+
     Args:
         keypair: RSA keypair for signing jwt
         api_key: user created jwt token, the azp should match with user.id
         expires_in: expiration time in seconds
         task_token_type: type of task token to create, if any, otherwise None
-    Return:
+        cnf: Optional DPoP confirmation claim {"jkt": "<thumbprint>"}
+
+    Returns:
         access token
     """
 
@@ -79,4 +82,5 @@ def create_user_access_token(keypair, api_key, expires_in, task_token_type):
         audience=task_token_type,
         user=user,
         task_token_type=task_token_type,
+        dpop_jkt=cnf.get("jkt") if cnf else None,
     ).token
