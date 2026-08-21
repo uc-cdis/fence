@@ -4,6 +4,7 @@
 
 from alembic.config import main as alembic_main
 import pytest
+from sqlalchemy import text
 from sqlalchemy.exc import IntegrityError
 
 from fence.models import Client
@@ -14,11 +15,16 @@ from fence.utils import random_str
 def post_test_clean_up(app):
     yield
 
-    # clean up the client table
-    with app.db.session as db_session:
-        db_session.query(Client).delete()
+    # Rebuild from an empty schema rather than migrating back up. Postgres never
+    # reclaims the attnum (pg_attribute for the number of the columns up from 1) of a dropped column,
+    # so migrating this table down and up
+    # repeatedly walks it into the hard 1600-column ceiling on a database that
+    # outlives a single run (e.g. if you set up a test database and use it for years,
+    # you'll randomly hit a strange failure and not understand why.....)
+    with app.db.engine.begin() as connection:
+        connection.execute(text("DROP SCHEMA public CASCADE"))
+        connection.execute(text("CREATE SCHEMA public"))
 
-    # go back to the latest state of the DB
     alembic_main(["--raiseerr", "upgrade", "head"])
 
 
