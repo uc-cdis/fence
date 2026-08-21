@@ -115,6 +115,23 @@ def test_missing_dpop_header_is_rejected(client, api_key, dpop_enabled):
     assert "access_token" not in response.text
 
 
+def test_replayed_proof_is_rejected(client, api_key, client_key, dpop_enabled):
+    """A proof that already bought a token cannot be used again, per RFC 9449 11.1."""
+    proof = generate_dpop_proof(
+        client_key,
+        "POST",
+        PROOF_URL,
+        nonce=generate_stateless_nonce(DPOP_SHARED_SECRET),
+    )
+
+    first = request_task_token(client, api_key, proof)
+    replay = request_task_token(client, api_key, proof)
+
+    assert first.status_code == 200, first.text
+    assert replay.status_code == 400, replay.text
+    assert "access_token" not in replay.text
+
+
 @pytest.mark.parametrize(
     ("method", "url"),
     [

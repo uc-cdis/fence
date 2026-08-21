@@ -3,11 +3,11 @@ import json
 import flask
 from flask_restful import Resource
 
-from fence.auth import require_auth_header, current_token, get_jwt, GEN3_AUDIENCE
+from fence.auth import require_auth_header, current_token
 from fence.authz.auth import can_user_get_task_token
 from fence.errors import Forbidden, UserError
-from fence.jwt.blacklist import blacklist_token, is_blacklisted
-from fence.jwt.errors import JWTError
+from fence.jwt.blacklist import blacklist_token
+from fence.jwt.dpop import jti_seen
 from fence.models import UserRefreshToken
 from fence.config import config
 from authutils.dpop import validate_dpop_proof
@@ -218,15 +218,16 @@ class AccessKey(Resource):
             dpop_header = flask.request.headers.get("DPoP", "")
 
             request_method = flask.request.method
-            request_url = (
-                f"{config['BASE_URL'].rstrip('/')}/credentials/api/access_token"
-            )
+            # `htu` must match the URL the client signed. The path comes from the
+            # request because this resource is registered at several paths; the origin
+            # comes from config because flask's URL can reflect internal k8s routing.
+            request_url = f"{config['BASE_URL'].rstrip('/')}{flask.request.path}"
 
             logger.debug(f"using request_method: {request_method}")
             logger.debug(f"using request_url: {request_url}")
 
             try:
-                dpop_claims, client_jwk = validate_dpop_proof(
+                _, client_jwk = validate_dpop_proof(
                     dpop_header=dpop_header,
                     request_method=request_method,
                     request_url=request_url,
@@ -234,6 +235,7 @@ class AccessKey(Resource):
                     require_nonce=True,
                     secret=config["DPOP_SHARED_SECRET"],
                     as_resource_server=False,
+                    jti_seen_callback=jti_seen,
                 )
                 cnf_claim = {"jkt": client_jwk.thumbprint()}
             except InvalidNonceErrorAuthorizationServer as invalid_nonce_error:
@@ -243,7 +245,8 @@ class AccessKey(Resource):
                     invalid_nonce_error.code,
                     invalid_nonce_error.error_headers,
                 )
-            except (JWTError, ValueError) as exc:
+            except ValueError as exc:
+                logger.info(f"Rejecting DPoP request: {exc}")
                 raise UserError("Invalid DPoP request")
             except Exception as exc:
                 logger.error(f"Unknown error validating DPoP request: {exc}")

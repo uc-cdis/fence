@@ -537,7 +537,12 @@ DPOP_ENABLED: false
 #
 # You can use openssl to generate this (but remember you MUST use the SAME secret across services)
 # `openssl rand -base64 64`
-DPOP_SHARED_SECRET: None
+DPOP_SHARED_SECRET: null
+
+# Seconds a DPoP nonce stays valid. Only read when DPOP_ENABLED is true. authutils reads
+# this from the environment, so fence exports it; a DPOP_NONCE_TTL env var already in the
+# environment takes precedence over this field.
+DPOP_NONCE_TTL: 300
 
 # The number of seconds after an API KEY is issued until it expires.
 MAX_API_KEY_TTL: 2592000
