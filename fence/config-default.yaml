@@ -502,6 +502,12 @@ SESSION_TIMEOUT: 900
 # The maximum session lifetime in seconds.
 SESSION_LIFETIME: 28800
 
+# Renew the browser session's access token when it is within this many seconds of
+# expiring. Set to 0 to only replace the access token after it has already expired,
+# which leaves a window during which requests carry no access token at all (the
+# access token cookie expires at the same time as the token itself).
+ACCESS_TOKEN_RENEWAL_THRESHOLD: 300
+
 # The number of seconds the user's Google service account key used for
 # url signing will last before being expired/rotated
 # 30 days: 2592000 seconds
@@ -544,7 +550,7 @@ MAX_ACCESS_TOKEN_TTL: 3600
 # applied even if the requesting user has access to request a longer-lived token in Arborist.
 # This is configured per task token type, and falls back to `MAX_ACCESS_TOKEN_TTL`.
 MAX_TASK_TOKEN_TTL: {}
-# TES: 345600
+# WORKFLOW: 345600
 
 # Task token types that can be requested by users.
 ALLOWED_TASK_TOKEN_TYPES: []
@@ -1109,6 +1115,10 @@ SERVICE_ACCOUNT_LIMIT: 6
 # //////////////////////////////////////////////////////////////////////////////////////
 # whether or not to accept GA4GH Passports as a means of AuthN/Z to the DRS data access endpoint
 GA4GH_PASSPORTS_TO_DRS_ENABLED: false
+
+# Maximum number of objects allowed in a single bulk DRS request (POST /drs/v1/objects/access)
+# Protects against overly large requests that could impact performance
+MAX_BULK_DRS_REQUESTS: 100
 
 # RAS refresh_tokens expire in 15 days
 RAS_REFRESH_EXPIRATION: 1296000

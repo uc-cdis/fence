@@ -221,6 +221,8 @@ class AuditServiceClient:
         resource_paths=None,
         protocol=None,
         additional_data=[],
+        bulk=False,
+        bulk_files=[],
     ):
         """
         Create a presigned URL audit log, or do nothing if auditing is
@@ -255,6 +257,7 @@ class AuditServiceClient:
                 .get("version")
                 >= 1.1
             ):
+                additional_data.append({"bulk": bulk, "bulk_files": bulk_files})
                 data["additional_data"] = additional_data
 
         else:

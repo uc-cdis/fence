@@ -210,10 +210,6 @@ class AccessKey(Resource):
                 task_token_type, max_ttl
             )
             expires_in = min(expires_in, max_task_token_ttl)
-            if not can_user_get_task_token(task_token_type, expires_in):
-                raise Forbidden(
-                    f"You do not have access to obtain '{task_token_type}' tokens, or you do not have access to the token lifetime you requested"
-                )
 
         # If DPOP_ENABLED, task tokens require DPoP proof
         cnf_claim = None
@@ -260,4 +256,14 @@ class AccessKey(Resource):
             task_token_type=task_token_type,
             cnf=cnf_claim,
         )
+
+        # we generate the result token BEFORE checking access, because a token is required to
+        # perform the authorization check, but we only return it if the user DOES have access
+        if task_token_type and not can_user_get_task_token(
+            task_token_type, expires_in, token=result
+        ):
+            raise Forbidden(
+                f"You do not have access to obtain '{task_token_type}' tokens, or you do not have access to the token lifetime you requested"
+            )
+
         return flask.jsonify(dict(access_token=result))

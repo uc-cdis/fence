@@ -289,6 +289,6 @@ def test_can_user_get_task_token(
     )
     with app.app_context():
         assert (
-            can_user_get_task_token(task_token_type, expires_in)
+            can_user_get_task_token(task_token_type, expires_in, "test-token")
             == expected_can_user_get_task_token
         )
