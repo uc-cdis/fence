@@ -157,6 +157,8 @@ OPENID_CONNECT:
     firstname_claim_field: 'firstname'
     # lastname claim field from idp
     lastname_claim_field: 'lastname'
+    # preferred_username field from idp
+    preferred_username_claim_field: 'preferred_username'
     # organization claim field from idp
     organization_claim_field: 'org'
     # automatically register users using the info provided by the IdP in tokens
