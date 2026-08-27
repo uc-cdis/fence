@@ -94,7 +94,8 @@ def _auth_mapping_has_read_storage(auth_mapping, authz_key):
             continue
 
         if any(
-            m.get("service") == "fence" and "read-storage" in m.get("method", "")
+            (m.get("service") == "fence" or m.get("service") == "*")
+            and ("read-storage" in m.get("method", "") or "*" in m.get("method", ""))
             for m in methods_list
         ):
             return True

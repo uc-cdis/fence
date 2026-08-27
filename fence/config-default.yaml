@@ -502,6 +502,12 @@ SESSION_TIMEOUT: 900
 # The maximum session lifetime in seconds.
 SESSION_LIFETIME: 28800
 
+# Renew the browser session's access token when it is within this many seconds of
+# expiring. Set to 0 to only replace the access token after it has already expired,
+# which leaves a window during which requests carry no access token at all (the
+# access token cookie expires at the same time as the token itself).
+ACCESS_TOKEN_RENEWAL_THRESHOLD: 300
+
 # The number of seconds the user's Google service account key used for
 # url signing will last before being expired/rotated
 # 30 days: 2592000 seconds

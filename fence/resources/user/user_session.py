@@ -17,9 +17,13 @@ issuing of new JWTs with new expiration times. This absolute beginning of the
 session is used to calculate if the user has extended their session past the
 SESSION_LIFETIME. If that happens, we expire the session.
 
-During a valid session where a user is logged in, if there is no access token,
-a new one will be generated with expiration defined by ACCESS_TOKEN_EXPIRES_IN
-(in other words, the session token can refresh the access token).
+During a valid session where a user is logged in, the access token cookie is
+replaced when it is missing, when it has expired, or when it is within
+ACCESS_TOKEN_RENEWAL_THRESHOLD seconds of expiring. The new token's expiration is
+defined by ACCESS_TOKEN_EXPIRES_IN (in other words, the session token can refresh
+the access token). Renewing before expiration matters because the cookie's own
+expiry mirrors the token's, so once the token expires the browser stops sending it
+and requests reach other services with no access token at all.
 
 Before a session is opened with user information, an expiration check occurs.
 """
@@ -29,6 +33,7 @@ import pytz
 import time
 
 import flask
+import jwt
 from flask.sessions import SessionInterface, SessionMixin
 
 from fence.errors import Unauthorized
@@ -233,9 +238,11 @@ class UserSessionInterface(SessionInterface):
             # user is logged in AND one of the following:
             # 1. RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION = true in config
             # 2. current access token has expired (no access_token)
+            # 3. current access token is about to expire
             if user and (
                 config.get("RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION")
                 or not flask.g.access_token
+                or _access_token_near_expiration()
             ):
                 _create_access_token_cookie(app, session, response, user)
         else:
@@ -305,6 +312,35 @@ def _get_valid_access_token(app, session, request):
         return None
 
     return access_token
+
+
+def _access_token_near_expiration() -> bool:
+    """
+    Whether the request's access token is close enough to expiring that it should be
+    replaced before the response goes out.
+
+    WARNING: DOES NOT VALIDATE THE TOKEN. Expects an already validated token in
+             flask.g.access_token.
+
+    Returns:
+        bool: True if the token expires within ACCESS_TOKEN_RENEWAL_THRESHOLD seconds
+    """
+    threshold = config.get("ACCESS_TOKEN_RENEWAL_THRESHOLD") or 0
+    if not threshold or not flask.g.access_token:
+        return False
+
+    # skipping signature verification is safe here and ONLY here: this is the token
+    # _get_valid_access_token already validated earlier in this same request
+    expiration = jwt.decode(
+        flask.g.access_token,
+        algorithms=["RS256"],
+        options={"verify_signature": False},
+    ).get("exp")
+
+    if not expiration:
+        return False
+
+    return expiration - int(time.time()) <= threshold
 
 
 def _clear_session_if_expired(app, session):
