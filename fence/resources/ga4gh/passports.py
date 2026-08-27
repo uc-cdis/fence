@@ -474,6 +474,42 @@ def get_gen3_usernames_for_passport_from_cache(passport, db_session=None):
     return user_ids_from_passports
 
 
+def get_passport_expiration_from_cache(passport, db_session=None):
+    """
+    Return the expiration that was cached for a previously synced passport, which
+    ``sync_gen3_users_authz_from_ga4gh_passports`` sets to the earliest expiration
+    among the passport's valid visas (less
+    ``EXPIRED_AUTHZ_REMOVAL_JOB_FREQ_IN_SECONDS``).
+
+    Callers that need to bound something by the authority the passport actually
+    carried -- e.g. the lifetime of a token issued from it -- want this value.
+
+    Args:
+        passport (str): ga4gh encoded passport JWT
+        db_session (None, sqlalchemy session): optional database session to use
+
+    Returns:
+        int: expiration in unix time, or None if the passport is not cached
+    """
+    db_session = db_session or current_app.scoped_session()
+
+    passport_hash = hashlib.sha256(passport.encode("utf-8")).hexdigest()
+
+    if passport_hash in PASSPORT_CACHE:
+        _, expires = PASSPORT_CACHE[passport_hash]
+        return expires
+
+    cached_passport = (
+        db_session.query(GA4GHPassportCache)
+        .filter(GA4GHPassportCache.passport_hash == passport_hash)
+        .first()
+    )
+    if cached_passport:
+        return cached_passport.expires_at
+
+    return None
+
+
 def put_gen3_usernames_for_passport_into_cache(
     passport, user_ids_from_passports, expires_at, db_session=None
 ):

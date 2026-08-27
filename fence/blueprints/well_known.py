@@ -6,7 +6,7 @@ This blueprint defines the endpoints under ``.well-known/``, which includes:
 
 import flask
 
-from fence.models import ClientAuthType
+from fence.models import ClientAuthType, GrantType
 from fence.config import config
 
 
@@ -77,6 +77,10 @@ def openid_configuration():
         "context",
     ]
 
+    grant_types_supported = ["authorization_code", "implicit"]
+    if config.get("TOKEN_EXCHANGE", {}).get("enabled"):
+        grant_types_supported.append(GrantType.token_exchange.value)
+
     return flask.jsonify(
         {
             "issuer": config["BASE_URL"],
@@ -88,7 +92,7 @@ def openid_configuration():
             "scopes_supported": scopes_supported,
             "response_types_supported": ["openid", "code", "token"],
             "response_modes_supported": [],
-            "grant_types_supported": ["authorization_code", "implicit"],
+            "grant_types_supported": grant_types_supported,
             "subject_types_supported": subject_types_supported,
             "id_token_signing_alg_values_supported": ["RS256"],
             "id_token_encryption_alg_values_supported": [],

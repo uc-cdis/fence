@@ -1136,6 +1136,58 @@ USERSYNC:
 RAS_USERINFO_ENDPOINT: '/openid/connect/v1.1/userinfo'
 
 # //////////////////////////////////////////////////////////////////////////////////////
+# RFC 8693 TOKEN EXCHANGE
+# //////////////////////////////////////////////////////////////////////////////////////
+# Fence can act as an RFC 8693 Security Token Service: a client presents a GA4GH
+# passport from a trusted broker as the `subject_token` at the token endpoint, Fence
+# validates the passport, syncs the authorization its visas describe, and returns a
+# normal Fence access token.
+#
+# /!\ `allowed_subject_token_issuers` is the trust boundary for this grant. A token
+# from an issuer that is not listed here is never inspected beyond reading its `iss`.
+# This list is deliberately NOT `GA4GH_VISA_ISSUER_ALLOWLIST`, which contains this
+# Fence instance's own BASE_URL -- reusing it would let a client exchange a
+# Fence-issued passport for a fresh Fence token indefinitely.
+TOKEN_EXCHANGE:
+  enabled: false
+
+  # Map of issuer -> policy. Issuers must also appear in GA4GH_VISA_ISSUER_ALLOWLIST,
+  # since that is what the visa validation in the passport sync checks against.
+  allowed_subject_token_issuers: {}
+    # 'https://stsstg.nih.gov':
+    #   # `subject_token_type` values this issuer may use. Both supported values mean
+    #   # "a GA4GH passport JWT"; the GA4GH URN is a private token type identifier
+    #   # (RFC 8693 section 3 permits any URI) that lets a client be explicit.
+    #   subject_token_types:
+    #     - 'urn:ietf:params:oauth:token-type:jwt'
+    #     - 'urn:ga4gh:params:oauth:token-type:passport'
+    #
+    #   # client_ids allowed to exchange tokens from this issuer.
+    #   # empty/omitted means any client registered for the token-exchange grant
+    #   allowed_clients: []
+    #
+    #   # hard cap on the lifetime (seconds) of tokens issued from this issuer's
+    #   # passports. the issued token is always the *minimum* of this,
+    #   # ACCESS_TOKEN_EXPIRES_IN, the passport's own `exp`, and the earliest visa
+    #   # expiration found during the sync. GA4GH AAI caps access tokens at 1 hour.
+    #   max_token_lifetime: 3600
+    #
+    #   # scopes a token issued from this issuer's passports may carry. the granted
+    #   # scope is the intersection of the requested scope, the client's allowed
+    #   # scopes, and this list -- never a superset of any of them
+    #   allowed_scopes:
+    #     - 'openid'
+    #     - 'user'
+    #     - 'data'
+    #
+    #   # require the passport's own <iss, sub> to be one of the identities that the
+    #   # visas in that passport asserted. Identity comes from the passport's <iss,
+    #   # sub> and visas are treated as authorization only; with this set to false, a
+    #   # passport whose visas describe a *different* subject still yields a token for
+    #   # the passport subject (who would get no authorization out of the exchange).
+    #   require_passport_subject_visa_match: true
+
+# //////////////////////////////////////////////////////////////////////////////////////
 # CLIENT CREDENTIALS
 # //////////////////////////////////////////////////////////////////////////////////////
 # set to true to enable client credentials on download/{guid} and

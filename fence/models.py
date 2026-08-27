@@ -188,6 +188,7 @@ class GrantType(Enum):
     refresh = "refresh_token"
     implicit = "implicit"
     client_credentials = "client_credentials"
+    token_exchange = "urn:ietf:params:oauth:grant-type:token-exchange"
 
 
 class Client(Base, OAuth2ClientMixin):
@@ -268,6 +269,7 @@ class Client(Base, OAuth2ClientMixin):
             "refresh_token",
             "implicit",
             "client_credentials",
+            "urn:ietf:params:oauth:grant-type:token-exchange",
         ]
         assert all(
             grant_type in supported_grant_types
