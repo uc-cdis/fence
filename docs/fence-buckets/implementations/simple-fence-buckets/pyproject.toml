@@ -1,0 +1,61 @@
+[project]
+name = "fence-secrets-dynamic-buckets"
+version = "0.1.0"
+requires-python = ">=3.10"
+
+[tool.ruff]
+target-version = "py311"
+line-length = 100
+exclude = [
+    ".venv",
+    "venv",
+    "__pycache__",
+    "build",
+    "dist",
+]
+
+select = [
+  "E",   # pycodestyle errors
+  "F",   # pyflakes
+  "I",   # isort
+  "UP",  # pyupgrade
+  "B",   # flake8-bugbear
+  "C4",  # flake8-comprehensions
+  "SIM", # flake8-simplify
+  "ASYNC",
+  "S",   # flake8-bandit (basic)
+]
+ignore = [
+  "S101",  # use of assert (tests may use)
+]
+
+[tool.ruff.lint.isort]
+known-first-party = ["mock_fence", "fence"]
+combine-as-imports = true
+
+[tool.ruff.format]
+quote-style = "double"
+indent-style = "space"
+line-ending = "lf"
+
+[tool.mypy]
+python_version = "3.11"
+warn_unused_ignores = true
+warn_redundant_casts = true
+warn_unused_configs = true
+disallow_untyped_defs = true
+no_implicit_optional = true
+check_untyped_defs = true
+show_error_codes = true
+pretty = true
+ignore_missing_imports = true  # third-party deps (boto3, kubernetes) lack full typing
+plugins = []
+
+[mypy-sqlalchemy.*]
+ignore_missing_imports = true
+
+[mypy-boto3.*]
+ignore_missing_imports = true
+
+[mypy-kubernetes.*]
+ignore_missing_imports = true

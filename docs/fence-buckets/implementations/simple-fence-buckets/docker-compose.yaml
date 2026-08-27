@@ -1,0 +1,71 @@
+version: "3.9"
+services:
+  db:
+    image: postgres:15-alpine
+    environment:
+      POSTGRES_USER: fence
+      POSTGRES_PASSWORD: fence
+      POSTGRES_DB: fence
+    ports:
+      - "5433:5432"
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U fence"]
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    volumes:
+      - db_data:/var/lib/postgresql/data
+
+  localstack:
+    image: localstack/localstack:latest
+    environment:
+      - SERVICES=secretsmanager,sts,s3,iam
+      - DEFAULT_REGION=us-west-2
+      - AWS_DEFAULT_REGION=us-west-2
+    ports:
+      - "4566:4566"
+    volumes:
+      - "localstack_data:/var/lib/localstack"
+
+  fence-dev:
+    image: python:3.11-slim
+    depends_on:
+      - db
+      - localstack
+    working_dir: /app
+    command: bash -lc "pip install boto3 flask sqlalchemy psycopg2-binary && python -m http.server 8080"
+    environment:
+      # mimic Helm envs
+      FENCE_ENABLE_DYNAMIC_BUCKETS: "true"
+      FENCE_SECRETS_BACKEND: "aws_sm"
+      FENCE_SECRETS_REGION: "us-west-2"
+      FENCE_BUCKET_CACHE_TTL_SECONDS: "60"
+      FENCE_SECRET_CACHE_TTL_SECONDS: "30"
+      # SQLAlchemy DSN to the compose postgres
+      DATABASE_URL: "postgresql+psycopg2://fence:fence@db:5432/fence"
+      # Localstack endpoint; boto3 auto-discovers via env
+      AWS_ACCESS_KEY_ID: test
+      AWS_SECRET_ACCESS_KEY: test
+      AWS_DEFAULT_REGION: us-west-2
+      AWS_ENDPOINT_URL: http://localstack:4566
+    ports:
+      - "8080:8080"
+    volumes:
+      - ./:/app
+
+volumes:
+  db_data:
+  localstack_data:
+
+mock-fence:
+  image: python:3.11-slim
+  depends_on:
+    - db
+  working_dir: /app
+  command: bash -lc "pip install -r mock_fence/requirements.txt && python -m mock_fence.app"
+  environment:
+    DATABASE_URL: "postgresql+psycopg2://fence:fence@db:5432/fence"
+  ports:
+    - "8080:8080"
+  volumes:
+    - ./:/app
