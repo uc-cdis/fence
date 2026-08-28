@@ -3,9 +3,8 @@ from functools import wraps
 from cdislogging import get_logger
 from fence import config
 import flask
-from gen3authz.utils import is_path_prefix_of_path
 
-from fence.errors import Forbidden, Unauthorized
+from fence.errors import Forbidden
 from fence.jwt.utils import get_jwt_header
 
 
