@@ -252,7 +252,7 @@ class AccessKey(Resource):
                 logger.error(f"Unknown error validating DPoP request: {exc}")
                 raise UserError("Error validating DPoP request")
 
-        result = create_user_access_token(
+        result, user = create_user_access_token(
             flask.current_app.keypairs[0],
             api_key,
             expires_in,
@@ -263,7 +263,7 @@ class AccessKey(Resource):
         # we generate the result token BEFORE checking access, because a token is required to
         # perform the authorization check, but we only return it if the user DOES have access
         if task_token_type and not can_user_get_task_token(
-            task_token_type, expires_in, token=result
+            task_token_type, expires_in, username=user.username
         ):
             raise Forbidden(
                 f"You do not have access to obtain '{task_token_type}' tokens, or you do not have access to the token lifetime you requested"

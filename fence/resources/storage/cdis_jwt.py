@@ -56,7 +56,7 @@ def create_user_access_token(keypair, api_key, expires_in, task_token_type, cnf=
         cnf: Optional DPoP confirmation claim {"jkt": "<thumbprint>"}
 
     Returns:
-        access token
+        tuple: (access token, the User the api key belongs to)
     """
 
     try:
@@ -74,7 +74,7 @@ def create_user_access_token(keypair, api_key, expires_in, task_token_type, cnf=
             "Cannot issue an access token that would expire after the provided API key does. Please obtain a new API key and try again"
         )
 
-    return token.generate_signed_access_token(
+    access_token = token.generate_signed_access_token(
         keypair.kid,
         keypair.private_key,
         expires_in,
@@ -84,3 +84,5 @@ def create_user_access_token(keypair, api_key, expires_in, task_token_type, cnf=
         task_token_type=task_token_type,
         dpop_jkt=cnf.get("jkt") if cnf else None,
     ).token
+
+    return access_token, user
