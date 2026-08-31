@@ -1361,14 +1361,14 @@ email = ["email-validator"]
 
 [[package]]
 name = "gen3authz"
-version = "3.1.1"
+version = "3.1.2"
 description = "Gen3 authz client"
 optional = false
 python-versions = "<4.0,>=3.13"
 groups = ["main"]
 files = [
-    {file = "gen3authz-3.1.1-py3-none-any.whl", hash = "sha256:5223cdf841900ca9ca3c445a8cf4d12a90f73b0cb0a4450491dca42f3c020340"},
-    {file = "gen3authz-3.1.1.tar.gz", hash = "sha256:6bd36e1a6cb5b5141a9ea388ee33398fa7fd777b10f91386c5e28d946a18b505"},
+    {file = "gen3authz-3.1.2-py3-none-any.whl", hash = "sha256:f8394780a7ee55fba8d766b85aa75fb0fa4c16fc38bdbaf8994d91835688d7ef"},
+    {file = "gen3authz-3.1.2.tar.gz", hash = "sha256:e2540cd4243d0c3df6e0850869125f0a2b38e0b1ec6d6fd4e3574a06d3fd4e84"},
 ]
 
 [package.dependencies]
