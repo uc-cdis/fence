@@ -2,6 +2,9 @@
 Test using an API key to generate an access token.
 """
 
+from unittest import mock
+
+import flask
 import pytest
 import random
 import time
@@ -289,6 +292,54 @@ def test_can_user_get_task_token(
     )
     with app.app_context():
         assert (
-            can_user_get_task_token(task_token_type, expires_in, "test-token")
+            can_user_get_task_token(task_token_type, expires_in, "test-user")
             == expected_can_user_get_task_token
         )
+
+
+def test_can_user_get_task_token_asks_arborist_by_username(app, mock_arborist_requests):
+    """
+    Test that arborist is asked about the user by username rather than by JWT. Decoding a
+    fence-issued token makes arborist fetch fence's JWKS, and fence cannot serve that
+    request while it is still blocked on this one.
+    """
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
+
+    with app.app_context():
+        with mock.patch.object(
+            flask.current_app.arborist,
+            "auth_request",
+            wraps=flask.current_app.arborist.auth_request,
+        ) as auth_request:
+            assert can_user_get_task_token("FOO", 200, "test-user") is True
+
+        auth_request.assert_called_once()
+        assert auth_request.call_args.kwargs["user_id"] == "test-user"
+        assert not auth_request.call_args.kwargs["jwt"]
+
+
+def test_task_token_for_a_user_that_no_longer_exists(
+    client, encoded_creds_jwt, mock_arborist_requests
+):
+    """
+    Test that an api key naming a user who no longer exists is refused a task token.
+    The api key still validates, but no user resolves from it, so there is no identity
+    to authorize.
+    """
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
+
+    encoded_credentials_jwt = encoded_creds_jwt["jwt"]
+    response = get_api_key(client, encoded_credentials_jwt)
+    assert response.status_code == 200, response.text
+    api_key = response.json["api_key"]
+
+    with mock.patch(
+        "fence.resources.storage.cdis_jwt.get_user_from_claims", return_value=None
+    ):
+        response = client.post(
+            "/credentials/api/access_token?task_token=FOO&expires_in=200",
+            data={"api_key": api_key},
+            headers={"Authorization": "Bearer " + str(encoded_credentials_jwt)},
+        )
+
+    assert response.status_code == 403, response.text

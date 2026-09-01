@@ -2,7 +2,6 @@ import paramiko.ssh_exception
 import backoff
 import glob
 
-import httpx
 import jwt
 import os
 import re
