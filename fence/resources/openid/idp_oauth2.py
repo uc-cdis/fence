@@ -338,19 +338,24 @@ class Oauth2ClientBase(object):
             token_response = self.session.refresh_token(**refresh_kwargs)
 
             refresh_token = token_response["refresh_token"]
-            # Fetching the expires at from token_response.
-            # Defaulting to config settings.
             default_refresh_token_exp = self.settings.get(
                 "default_refresh_token_exp", config["DEFAULT_REFRESH_TOKEN_EXP"]
             )
-            expires_at = token_response.get(
-                "expires_at", time.time() + default_refresh_token_exp
-            )
+            try:
+                rt_claims = jwt.decode(
+                    refresh_token,
+                    options={"verify_signature": False},
+                )
+                refresh_token_expires_at = rt_claims.get(
+                    "exp", time.time() + default_refresh_token_exp
+                )
+            except Exception:
+                refresh_token_expires_at = time.time() + default_refresh_token_exp
 
             self.store_refresh_token(
                 user,
                 refresh_token=refresh_token,
-                expires=expires_at,
+                expires=refresh_token_expires_at,
                 db_session=db_session,
             )
 
