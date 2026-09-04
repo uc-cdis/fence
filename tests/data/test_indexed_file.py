@@ -979,7 +979,7 @@ def test_bulk_get_signed_url_for_file_calls_bulk_indexed_files_and_returns_resul
 
     monkeypatch.setattr(app, "scoped_session", lambda: MagicMock())
     expected_urls = ["https://signed1", "https://signed2"]
-    expected_response = {"urls": expected_urls, "failed_file_ids": []}
+    expected_response = {"urls": expected_urls, "failed_guids": []}
 
     with app.test_request_context(
         "/?userProject=test-project", headers={"User-Agent": "pytest"}

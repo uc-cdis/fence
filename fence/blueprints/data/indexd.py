@@ -262,7 +262,7 @@ def bulk_get_signed_url_for_file(
         )
 
     prepare_bulk_presigned_url_audit_log(requested_protocol, indexed_files)
-    signed_urls, users, failed_file_ids = indexed_files.get_signed_urls(
+    signed_urls, users, failed_guids = indexed_files.get_signed_urls(
         requested_protocol,
         expires_in,
         force_signed_url=force_signed_url,
@@ -270,7 +270,7 @@ def bulk_get_signed_url_for_file(
         users_from_passports=users_from_passports,
     )
 
-    return {"urls": signed_urls, "failed_file_ids": failed_file_ids}
+    return {"urls": signed_urls, "failed_guids": failed_guids}
 
 
 def get_bucket_from_urls(urls, protocol):
@@ -653,7 +653,7 @@ class BulkIndexedFiles(object):
         users_from_passports = users_from_passports or {}
         signed_urls = []
         users = []
-        failed_file_ids_map = defaultdict(list)
+        failed_guids_map = defaultdict(list)
 
         # BULK AUTHORIZATION: Collect all unique authz that need checking
         authz_needing_check = set()
@@ -741,7 +741,7 @@ class BulkIndexedFiles(object):
         for file_id in self.file_ids:
             authorized_user = None
             if file_id not in self.index_document:
-                failed_file_ids_map[404].append(file_id)
+                failed_guids_map[404].append(file_id)
                 continue
             file_authz = self.index_document.get(file_id).get("authz")
 
@@ -767,7 +767,7 @@ class BulkIndexedFiles(object):
                     else:
                         # User is not authorized
                         error_code = 403 if users_from_passports else 401
-                        failed_file_ids_map[error_code].append(file_id)
+                        failed_guids_map[error_code].append(file_id)
                         continue
             else:
                 # Handle ACL-only files (mirroring single-file logic)
@@ -779,7 +779,7 @@ class BulkIndexedFiles(object):
                     not temp_indexed_file.public_acl
                     and not temp_indexed_file.check_legacy_authorization("download")
                 ):
-                    failed_file_ids_map[401].append(file_id)
+                    failed_guids_map[401].append(file_id)
                     continue
 
                 # If we reach here, ACL authorization passed; no authorized_user needed for ACL case
@@ -799,23 +799,23 @@ class BulkIndexedFiles(object):
                 users.append(authorized_user)
 
             except NotFound:
-                failed_file_ids_map[404].append(file_id)
+                failed_guids_map[404].append(file_id)
 
             except Exception as e:
                 logger.error(
                     f"Unexpected error generating signed URL for {file_id}: {e}"
                 )
-                failed_file_ids_map[500].append(file_id)
+                failed_guids_map[500].append(file_id)
 
-        failed_file_ids = [
+        failed_guids = [
             {
                 "error_code": error_code,
                 "object_ids": object_ids,
             }
-            for error_code, object_ids in failed_file_ids_map.items()
+            for error_code, object_ids in failed_guids_map.items()
         ]
 
-        return signed_urls, users, failed_file_ids
+        return signed_urls, users, failed_guids
 
     def _get_signed_urls(
         self,

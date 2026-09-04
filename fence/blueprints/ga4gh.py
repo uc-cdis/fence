@@ -175,7 +175,7 @@ def get_ga4gh_signed_urls():
                     )
 
             # Process unresolved (failed) objects
-            failed_objects = result.get("failed_file_ids", [])
+            failed_objects = result.get("failed_guids", [])
             for failed in failed_objects:
                 error_code = failed.get("error_code", 500)
                 object_ids_list = failed.get("object_ids", [])

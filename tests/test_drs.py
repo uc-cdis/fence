@@ -1788,7 +1788,7 @@ def test_get_ga4gh_signed_urls_success(mock_bulk_get_signed_url_for_file, client
                 "headers": [],
             },
         ],
-        "failed_file_ids": [],
+        "failed_guids": [],
     }
 
     data = {
@@ -1858,7 +1858,7 @@ def test_get_ga4gh_signed_urls_multiple_access_ids(
                     "headers": [],
                 }
             ],
-            "failed_file_ids": [],
+            "failed_guids": [],
         },
         {
             "urls": [
@@ -1868,7 +1868,7 @@ def test_get_ga4gh_signed_urls_multiple_access_ids(
                     "headers": [],
                 }
             ],
-            "failed_file_ids": [],
+            "failed_guids": [],
         },
     ]
 
@@ -2010,7 +2010,7 @@ def test_get_ga4gh_signed_urls_missing_guid(mock_bulk_get_signed_url_for_file, c
                 "headers": [],
             }
         ],
-        "failed_file_ids": [
+        "failed_guids": [
             {
                 "error_code": 404,
                 "object_ids": ["missing_guid"],
@@ -2076,7 +2076,7 @@ def test_get_ga4gh_signed_urls_partial_authz_failure(
                 "headers": [],
             }
         ],
-        "failed_file_ids": [
+        "failed_guids": [
             {
                 "error_code": 403,
                 "object_ids": ["guid2"],
