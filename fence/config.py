@@ -36,6 +36,7 @@ class FenceConfig(Config):
             "SESSION_TIMEOUT",
             "SESSION_LIFETIME",
             "RENEW_ACCESS_TOKEN_BEFORE_EXPIRATION",
+            "ACCESS_TOKEN_RENEWAL_THRESHOLD",
             "GOOGLE_SERVICE_ACCOUNT_KEY_FOR_URL_SIGNING_EXPIRES_IN",
             "GOOGLE_USER_SERVICE_ACCOUNT_ACCESS_EXPIRES_IN",
             "GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN",
@@ -47,6 +48,8 @@ class FenceConfig(Config):
             "DEFAULT_BACKOFF_SETTINGS_MAX_TRIES",
             "ARBORIST_TIMEOUT",
             "HIDE_IDPS",
+            "GEN3_EMBEDDINGS_API_REGEX",
+            "MAX_BULK_CONTENT_GUIDS_COUNT",
         ]
         for default in defaults:
             self.force_default_if_none(default, default_cfg=default_config)

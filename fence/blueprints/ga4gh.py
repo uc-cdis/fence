@@ -18,6 +18,21 @@ from flask import current_app
 
 from fence.auth import login_required
 from fence.errors import UserError
+from collections import defaultdict
+from typing import Optional
+
+from flask import Blueprint, request, jsonify
+from pydantic import BaseModel, ValidationError
+from cdislogging import get_logger
+
+from fence.errors import (
+    NotSupported,
+    UserError,
+    Unauthorized,
+    Forbidden,
+    NotFound,
+    UnavailableError,
+)
 from fence.config import config
 
 
@@ -48,7 +63,43 @@ class BulkObjectAccessRequest(BaseModel):
         return result
 
 
+class BulkObjectAccessIds(BaseModel):
+    """Represents a mapping between a bulk object ID and the access IDs it can use.
+
+    TODO: Remove this model when the GA4GH endpoints are converted to FastAPI.
+    See PD-151.
+    """
+
+    bulk_object_id: str
+    bulk_access_ids: list[str]
+
+
+class BulkObjectAccessRequest(BaseModel):
+    """Represents the bulk GA4GH object-access request payload.
+
+    TODO: Remove this model when the GA4GH endpoints are converted to FastAPI.
+    See PD-151.
+    """
+
+    passports: Optional[list[str]] = None
+    bulk_object_access_ids: list[BulkObjectAccessIds]
+
+    def map_access_to_object_ids(self):
+        result = defaultdict(list)
+        for item in self.bulk_object_access_ids:
+            for access_id in item.bulk_access_ids:
+                result[access_id].append(item.bulk_object_id)
+
+        return result
+
+
 class ResolvedDrsObject(BaseModel):
+    """Represents a resolved DRS object with its signed access URL.
+
+    TODO: Remove this model when the GA4GH endpoints are converted to FastAPI.
+    See PD-151.
+    """
+
     drs_object_id: str
     drs_access_id: str
     url: str
@@ -56,17 +107,35 @@ class ResolvedDrsObject(BaseModel):
 
 
 class UnresolvedDrsObject(BaseModel):
+    """Represents the unresolved DRS objects returned for an access request.
+
+    TODO: Remove this model when the GA4GH endpoints are converted to FastAPI.
+    See PD-151.
+    """
+
     error_code: int
     object_ids: list[str]
 
 
 class BulkObjectSummary(BaseModel):
+    """Represents the summary counts for a bulk object access response.
+
+    TODO: Remove this model when the GA4GH endpoints are converted to FastAPI.
+    See PD-151.
+    """
+
     requested: int
     resolved: int
     unresolved: int
 
 
 class BulkObjectAccessResponse(BaseModel):
+    """Represents the full bulk object access response payload.
+
+    TODO: Remove this model when the GA4GH endpoints are converted to FastAPI.
+    See PD-151.
+    """
+
     summary: BulkObjectSummary
     unresolved_drs_objects: UnresolvedDrsObject
     resolved_drs_object_access_urls: ResolvedDrsObject
@@ -114,10 +183,10 @@ def get_ga4gh_signed_url(object_id, access_id):
 
 @blueprint.route("/drs/v1/objects/access", methods=["POST"])
 def get_ga4gh_signed_urls():
+    r_pays_project = flask.request.args.get("userProject", None)
+    no_force_sign_param = flask.request.args.get("no_force_sign", None)
     try:
-        bulk_request = BulkObjectAccessRequest(
-            **request.get_json(force=True, silent=True)
-        )
+        bulk_request = BulkObjectAccessRequest(**request.get_json(force=True))
     except ValidationError as e:
         return jsonify(e.errors()), 400
 
@@ -136,7 +205,7 @@ def get_ga4gh_signed_urls():
     total_requested_count = sum(
         len(ids) for ids in bulk_request.map_access_to_object_ids().values()
     )
-    max_bulk_requests = config.get("MAX_BULK_DRS_REQUESTS", 100)
+    max_bulk_requests = config.get("MAX_BULK_DRS_REQUESTS")
     if total_requested_count > max_bulk_requests:
         return (
             jsonify(
@@ -156,9 +225,11 @@ def get_ga4gh_signed_urls():
     for access_id, object_ids in access_to_object_ids.items():
         try:
             result = bulk_get_signed_url_for_file(
-                file_ids=object_ids,
+                guids=object_ids,
                 requested_protocol=access_id,
                 ga4gh_passports=bulk_request.passports,
+                r_pays_project=r_pays_project,
+                no_force_sign_param=no_force_sign_param,
             )
 
             # Process resolved URLs
@@ -220,17 +291,11 @@ def get_ga4gh_signed_urls():
         "resolved_drs_object_access_urls": resolved_urls,
     }
 
+    # If nothing resolved, return the most common error code instead of 200
+    if not resolved_urls and unresolved_by_code:
+        primary_error = max(
+            unresolved_by_code.keys(), key=lambda k: len(unresolved_by_code[k])
+        )
+        return jsonify(response), primary_error
+
     return jsonify(response), 200
-
-
-@blueprint.route(
-    "/__passport",
-    methods=["GET", "POST"],
-)
-@login_required({"user"})
-def get_passport():
-    info = get_current_user_info()
-    user_id = info["user_id"]
-    db_session = current_app.scoped_session()
-    passport = db_session.query(UserPassport).filter_by(user_id=int(user_id)).first()
-    return flask.jsonify({"passport": passport.passport})

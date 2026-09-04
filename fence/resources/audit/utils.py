@@ -100,7 +100,7 @@ def create_audit_log_for_request(response, duration):
 
             if audit_data.get("bulk_files"):
                 audit_data["additional_data"].append(
-                    "bulk_file_ids:"
+                    "bulk_guids:"
                     + ",".join(entry["file_id"] for entry in audit_data["bulk_files"])
                 )
 

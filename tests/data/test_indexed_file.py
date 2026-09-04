@@ -997,7 +997,9 @@ def test_bulk_get_signed_url_for_file_calls_bulk_indexed_files_and_returns_resul
                 return_value=(expected_urls, [None, None], []),
             ) as mock_get_signed_urls:
                 response = indexd.bulk_get_signed_url_for_file(
-                    ["guid1", "guid2"], requested_protocol="s3"
+                    ["guid1", "guid2"],
+                    requested_protocol="s3",
+                    r_pays_project="test-project",
                 )
 
     assert response == expected_response

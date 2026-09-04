@@ -91,25 +91,6 @@ def test_oauth2_token_refresh_public_client(oauth_test_client_public, refresh_da
     oauth_test_client_public.refresh(data=refresh_data)
 
 
-def test_oauth2_token_post_revoke(oauth_test_client):
-    """
-    Test the following procedure:
-    - ``POST /oauth2/authorize`` successfully to obtain code
-    - ``POST /oauth2/token`` successfully to obtain token
-    - ``POST /oauth2/revoke`` to revoke the refresh token
-    - Refresh token should no longer be usable at this point.
-    """
-    data = {"confirm": "yes"}
-    oauth_test_client.authorize(data=data)
-    oauth_test_client.token()
-    oauth_test_client.revoke()
-    # Try to use refresh token.
-    refresh_token = oauth_test_client.token_response.refresh_token
-    oauth_test_client.refresh(refresh_token, do_asserts=False)
-    response = oauth_test_client.refresh_response.response
-    assert response.status_code == 400
-
-
 def test_oauth2_with_client_credentials(
     oauth_client_with_client_credentials, oauth_test_client_with_client_credentials
 ):

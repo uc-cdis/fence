@@ -19,6 +19,10 @@ class BlacklistingError(APIError):
         self.code = 400
 
 
+class BlacklistingInvalidTokenError(APIError):
+    pass
+
+
 class InternalError(APIError):
     def __init__(self, message):
         super(InternalError, self).__init__(message)

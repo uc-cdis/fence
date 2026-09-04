@@ -3,6 +3,7 @@ import authutils.token.keys
 import authutils.token.validate
 import jwt
 
+from fence.auth import GEN3_AUDIENCE
 from fence.config import config
 from fence.errors import Unauthorized
 from fence.jwt.blacklist import is_blacklisted
@@ -93,7 +94,11 @@ def validate_jwt(
 
     # Can't set arg default to config[x] in fn def, so doing it this way.
     if aud is None:
-        aud = config["BASE_URL"]
+        aud = GEN3_AUDIENCE
+
+        # TODO: Remove this at the next release (> 13.2.0). Temporarily add the base url in the audience
+        # for backwards compatibility (to accept JWTs generated before the aud was enforced)
+        aud = [aud, config["BASE_URL"]]
 
     iss = config["BASE_URL"]
     if issuers is None:
@@ -126,71 +131,24 @@ def validate_jwt(
             **kwargs
         )
     except authutils.errors.JWTError as e:
-
-        ##### begin refresh token and API key patch block #####
-        # TODO: In the next release, remove this if/elif block and take the else block
-        # back out of the else.
-        # Old refresh tokens and API keys are not compatible with new validation, so to smooth
-        # the transition, allow old style refresh tokens/API keys with this patch;
-        # remove patch in next tag. Refresh tokens and API keys have default TTL of 30 days.
-        from authutils.errors import JWTAudienceError
-
+        msg = "Invalid token : {}".format(str(e))
         unverified_claims = jwt.decode(
             encoded_token, algorithms=["RS256"], options={"verify_signature": False}
         )
-        if unverified_claims.get("pur") == "refresh" and isinstance(
-            e, JWTAudienceError
-        ):
-            # Check everything else is fine minus the audience
-            try:
-                claims = authutils.token.validate.validate_jwt(
-                    encoded_token=encoded_token,
-                    aud="openid",
-                    scope=None,
-                    purpose="refresh",
-                    issuers=issuers,
-                    public_key=public_key,
-                    attempt_refresh=attempt_refresh,
-                    **kwargs
-                )
-            except Error as e:
-                raise JWTError("Invalid refresh token: {}".format(e))
-        elif unverified_claims.get("pur") == "api_key" and isinstance(
-            e, JWTAudienceError
-        ):
-            # Check everything else is fine minus the audience
-            try:
-                claims = authutils.token.validate.validate_jwt(
-                    encoded_token=encoded_token,
-                    aud="fence",
-                    scope=None,
-                    purpose="api_key",
-                    issuers=issuers,
-                    public_key=public_key,
-                    attempt_refresh=attempt_refresh,
-                    **kwargs
-                )
-            except Error as e:
-                raise JWTError("Invalid API key: {}".format(e))
-        else:
-            ##### end refresh token, API key patch block #####
-            msg = "Invalid token : {}".format(str(e))
-            unverified_claims = jwt.decode(
-                encoded_token, algorithms=["RS256"], options={"verify_signature": False}
-            )
-            if not unverified_claims.get("scope") or "" in unverified_claims["scope"]:
-                msg += "; was OIDC client configured with scopes?"
-            raise JWTError(msg)
+        if not unverified_claims.get("scope") or "" in unverified_claims["scope"]:
+            msg += "; was OIDC client configured with scopes?"
+        raise JWTError(msg)
     if purpose:
         validate_purpose(claims, purpose)
     if require_purpose and "pur" not in claims:
         raise JWTError("token {} missing purpose (`pur`) claim".format(claims["jti"]))
 
-    # For refresh tokens and API keys specifically, check that they are not
-    # blacklisted.
-    if require_purpose and (claims["pur"] == "refresh" or claims["pur"] == "api_key"):
-        if is_blacklisted(claims["jti"]):
-            raise JWTError("token is blacklisted")
+    # For access/refresh tokens and API keys specifically, check that they are not
+    # denylisted. For access tokens, only check that if it's a task token.
+    if require_purpose and claims["pur"] in ["refresh", "api_key", "access"]:
+        if claims["pur"] != "access" or "task_token_type" in claims.get("context", {}):
+            if is_blacklisted(claims["jti"]):
+                raise JWTError("token is denylisted")
 
     return claims
 

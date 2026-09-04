@@ -1,5 +1,9 @@
+import json
+
+from cdislogging import get_logger
 import flask
 from flask import current_app
+import jwt
 
 from fence.auth import require_auth_header
 from fence.blueprints.storage_creds.api import AccessKey, ApiKey, ApiKeyList
@@ -7,12 +11,19 @@ from fence.blueprints.storage_creds.google import GoogleCredentialsList
 from fence.blueprints.storage_creds.google import GoogleCredentials
 from fence.blueprints.storage_creds.other import OtherCredentialsList
 from fence.blueprints.storage_creds.other import OtherCredentials
+from fence.errors import Unauthorized
+from fence.jwt.blacklist import is_token_blacklisted
+from fence.jwt.utils import get_jwt_header
 from fence.resources.storage import get_endpoints_descriptions
 from fence.restful import RestfulApi
 from fence.config import config
 
+
+logger = get_logger(__name__)
+
+
 ALL_RESOURCES = {
-    "/api": "access to CDIS APIs",
+    "/api": "access to Gen3 APIs",
     "/ceph": "access to Ceph storage",
     "/cleversafe": "access to cleversafe storage",
     "/aws-s3": "access to AWS S3 storage",
@@ -62,11 +73,11 @@ def make_creds_blueprint():
         .. code-block:: JavaScript
 
             {
-                "/api": "access to CDIS APIs",
+                "/api": "access to Gen3 APIs",
                 "/ceph": "access to Ceph storage",
                 "/cleversafe": "access to cleversafe storage",
-                "/aws-s3", "access to AWS S3 storage"
-                "/google", "access to Google Cloud storage"
+                "/aws-s3": "access to AWS S3 storage",
+                "/google": "access to Google Cloud storage"
             }
         """
         services = set(
@@ -79,5 +90,43 @@ def make_creds_blueprint():
         return flask.jsonify(
             get_endpoints_descriptions(services, current_app.scoped_session())
         )
+
+    @blueprint.route("/token/denylisted", methods=["POST"])
+    def check_if_token_denylisted():
+        """
+        Check if a token is in the denylist/revoked. Return 403 if it is.
+
+        If the token cannot be parsed, assume it is not denylisted and that the invalid
+        token will be rejected by downstream APIs.
+
+        This endpoint is intended to be leveraged by an upstream gateway or proxy to block requests from denylisted tokens.
+        WARNING: It is NOT intended for this endpoint to be exposed externally to be called directly by users.
+        """
+        # use the value of the request body `token` field if present, fall back to the request's
+        # Authorization header otherwise.
+        try:
+            body = json.loads(flask.request.data)
+        except json.JSONDecodeError:
+            logger.debug(
+                "request body is not valid JSON; falling back to Authorization header"
+            )
+            body = {}
+        encoded_token = body.get("token")
+        try:
+            if not encoded_token:
+                encoded_token = get_jwt_header()
+            claims, is_denylisted = is_token_blacklisted(encoded_token)
+        except (jwt.exceptions.InvalidTokenError, Unauthorized) as e:
+            logger.info(
+                f"No provided token, or provided token is invalid: `{e}`. Token not denylisted."
+            )
+            return "", 200
+
+        if is_denylisted:
+            logger.warning(
+                f'Blocking attempt to use a denylisted token. jti={claims.get("jti")}; azp={claims.get("azp")}; sub={claims.get("sub")}; username={claims.get("context", {}).get("user", {}).get("name")}'
+            )
+            return "Token is denylisted", 403
+        return "", 200
 
     return blueprint
