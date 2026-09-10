@@ -5,8 +5,9 @@ on: pull_request
 jobs:
   integration_tests:
     name: Integration tests
-    uses: uc-cdis/.github/.github/workflows/integration_tests.yaml@chore/debug_github_long_test_duration_issue
+    uses: uc-cdis/.github/.github/workflows/integration_tests.yaml@master
     with:
+      TEST_REPO_BRANCH: chore/test_failure_timeout
       SERVICE_TO_TEST: fence
     secrets:
       CI_TEST_ORCID_USERID: ${{ secrets.CI_TEST_ORCID_USERID }}
