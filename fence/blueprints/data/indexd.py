@@ -70,7 +70,6 @@ ACTION_DICT = {
 }
 
 SUPPORTED_PROTOCOLS = ["s3", "http", "ftp", "https", "gs", "az"]
-PROTOCOLS_REQUIRING_GOOGLE_SYNC = {"gs"}
 SUPPORTED_ACTIONS = ["upload", "download"]
 ANONYMOUS_USER_ID = "-1"
 ANONYMOUS_USERNAME = "anonymous"
@@ -105,13 +104,9 @@ def get_signed_url_for_file(
 
     users_from_passports = {}
     if ga4gh_passports:
-        # Note: We don't need to check for None requested_protocol here, as using a ga4gh_passport requires specifying
-        # a protocol
+        # users_from_passports = {"username": Fence.User}
         users_from_passports = sync_gen3_users_authz_from_ga4gh_passports(
-            ga4gh_passports,
-            db_session=db_session,
-            skip_google_updates=requested_protocol
-            not in PROTOCOLS_REQUIRING_GOOGLE_SYNC,
+            ga4gh_passports, db_session=db_session
         )
 
     # Collect audit headers (including X-Forwarded headers and User-Agent) to include in audit log

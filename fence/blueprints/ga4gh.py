@@ -1,3 +1,18 @@
+from collections import defaultdict
+from typing import Optional
+
+from flask import Blueprint, request, jsonify
+from pydantic import BaseModel, ValidationError
+from cdislogging import get_logger
+
+from fence.errors import (
+    NotSupported,
+    UserError,
+    Unauthorized,
+    Forbidden,
+    NotFound,
+    UnavailableError,
+)
 import flask
 from flask import current_app
 
@@ -26,6 +41,26 @@ from fence.blueprints.data.indexd import (
     BulkIndexedFiles,
     bulk_get_signed_url_for_file,
 )
+from fence.models import UserPassport
+from fence.resources.user import get_current_user_info
+
+
+class BulkObjectAccessIds(BaseModel):
+    bulk_object_id: str
+    bulk_access_ids: list[str]
+
+
+class BulkObjectAccessRequest(BaseModel):
+    passports: Optional[list[str]] = None
+    bulk_object_access_ids: list[BulkObjectAccessIds]
+
+    def map_access_to_object_ids(self):
+        result = defaultdict(list)
+        for item in self.bulk_object_access_ids:
+            for access_id in item.bulk_access_ids:
+                result[access_id].append(item.bulk_object_id)
+
+        return result
 
 
 class BulkObjectAccessIds(BaseModel):
