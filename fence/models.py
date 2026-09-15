@@ -705,6 +705,15 @@ class GA4GHPassportCache(Base):
     user_ids = Column(ARRAY(String(255)), nullable=False)
 
 
+class DPoPProofJTI(Base):
+    __tablename__ = "dpop_proof_jti"
+
+    # Unbounded on purpose: authutils caps jti length
+    jti = Column(Text, primary_key=True)
+    # The point in unix time past which the proof is too old to be replayed anyway.
+    exp = Column(BigInteger, nullable=False)
+
+
 class GA4GHVisaV1(Base):
 
     __tablename__ = "ga4gh_visa_v1"

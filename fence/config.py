@@ -50,6 +50,8 @@ class FenceConfig(Config):
             "HIDE_IDPS",
             "GEN3_EMBEDDINGS_API_REGEX",
             "MAX_BULK_CONTENT_GUIDS_COUNT",
+            "DPOP_ENABLED",
+            "DPOP_NONCE_TTL",
         ]
         for default in defaults:
             self.force_default_if_none(default, default_cfg=default_config)
@@ -75,6 +77,56 @@ class FenceConfig(Config):
             logger.debug(
                 "Environment variable 'INDEXD_PASSWORD' empty or not set: using 'INDEXD_PASSWORD' field from config file"
             )
+
+        if self._configs.get("DPOP_ENABLED"):
+            logger.info("DPoP is enabled.")
+
+            # allow setting DPOP_SHARED_SECRET connection string via env var
+            if os.environ.get("DPOP_SHARED_SECRET"):
+                logger.info(
+                    "Found environment variable 'DPOP_SHARED_SECRET': overriding 'DPOP_SHARED_SECRET' field from config file"
+                )
+                self["DPOP_SHARED_SECRET"] = os.environ["DPOP_SHARED_SECRET"]
+            else:
+                logger.info(
+                    "Environment variable 'DPOP_SHARED_SECRET' empty or not set: using 'DPOP_SHARED_SECRET' field from config file"
+                )
+
+            if not self["DPOP_SHARED_SECRET"]:
+                raise Exception(
+                    "DPOP_ENABLED is set but DPOP_SHARED_SECRET field empty or not set."
+                )
+
+            # allow setting DPOP_NONCE_TTL via env var
+            if os.environ.get("DPOP_NONCE_TTL"):
+                logger.info(
+                    "Found environment variable 'DPOP_NONCE_TTL': overriding 'DPOP_NONCE_TTL' field from config file"
+                )
+                self["DPOP_NONCE_TTL"] = os.environ["DPOP_NONCE_TTL"]
+            else:
+                logger.info(
+                    "Environment variable 'DPOP_NONCE_TTL' empty or not set: using 'DPOP_NONCE_TTL' field from config file"
+                )
+
+            try:
+                nonce_ttl = int(self["DPOP_NONCE_TTL"])
+            except (TypeError, ValueError):
+                raise Exception(
+                    "DPOP_NONCE_TTL must be a whole number of seconds, got: {}".format(
+                        self["DPOP_NONCE_TTL"]
+                    )
+                )
+            if nonce_ttl <= 0:
+                raise Exception(
+                    "DPOP_NONCE_TTL must be greater than 0, got: {}".format(nonce_ttl)
+                )
+
+            # authutils reads this from the environment every time it mints or verifies a
+            # nonce, so exporting it is what makes the config value take effect at all.
+            # Parsing it here turns a bad value into a boot failure rather than a 500 on
+            # the first token request.
+            self["DPOP_NONCE_TTL"] = nonce_ttl
+            os.environ["DPOP_NONCE_TTL"] = str(nonce_ttl)
 
         if "ROOT_URL" not in self._configs and "BASE_URL" in self._configs:
             url = urllib.parse.urlparse(self._configs["BASE_URL"])
