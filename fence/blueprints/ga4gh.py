@@ -151,9 +151,7 @@ def get_ga4gh_signed_urls():
     r_pays_project = flask.request.args.get("userProject", None)
     no_force_sign_param = flask.request.args.get("no_force_sign", None)
     try:
-        bulk_request = BulkObjectAccessRequest(
-            **request.get_json(force=True, silent=True)
-        )
+        bulk_request = BulkObjectAccessRequest(**request.get_json(force=True))
     except ValidationError as e:
         return jsonify(e.errors()), 400
 
