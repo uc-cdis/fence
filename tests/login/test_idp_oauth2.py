@@ -374,6 +374,100 @@ def test_post_login_with_group_prefix(mock_get_auth_info, app):
             assert mock_arborist.add_user_to_group.call_count == 3
 
 
+@patch("fence.resources.openid.idp_oauth2.Oauth2ClientBase.store_refresh_token")
+@patch("fence.resources.openid.idp_oauth2.jwt.decode")
+@patch("authlib.integrations.requests_client.OAuth2Session.refresh_token")
+def test_get_access_token_uses_jwt_exp(
+    mock_refresh_token, mock_jwt_decode, mock_store_refresh_token, mock_db_session
+):
+    """
+    Test that get_access_token decodes the refresh token JWT and uses its exp claim
+    as the expiry passed to store_refresh_token.
+    """
+    mock_settings = {
+        "client_id": "test_client_id",
+        "client_secret": "test_client_secret",
+        "redirect_url": "http://localhost/callback",
+        "discovery_url": "http://localhost/.well-known/openid-configuration",
+        "user_id_field": "sub",
+    }
+
+    user = MagicMock()
+    user.upstream_refresh_tokens = [
+        MagicMock(refresh_token="valid_refresh_token", expires=9999999999),
+    ]
+
+    oauth2_client = Oauth2ClientBase(
+        settings=mock_settings, logger=MagicMock(), idp="test_idp"
+    )
+
+    new_refresh_token = "new_refresh_token"
+    expected_exp = 9888888888
+
+    mock_refresh_token.return_value = {
+        "access_token": "new_access_token",
+        "id_token": "new_id_token",
+        "refresh_token": new_refresh_token,
+        "expires_at": 1111111111,  # should NOT be used, this was the old way
+    }
+    mock_jwt_decode.return_value = {"exp": expected_exp}
+
+    oauth2_client.get_access_token(user, "https://token.endpoint", mock_db_session)
+
+    mock_store_refresh_token.assert_called_once_with(
+        user,
+        refresh_token=new_refresh_token,
+        expires=expected_exp,
+        db_session=mock_db_session,
+    )
+
+
+@patch("fence.resources.openid.idp_oauth2.Oauth2ClientBase.store_refresh_token")
+@patch("fence.resources.openid.idp_oauth2.jwt.decode")
+@patch("authlib.integrations.requests_client.OAuth2Session.refresh_token")
+def test_get_access_token_falls_back_when_jwt_decode_fails(
+    mock_refresh_token, mock_jwt_decode, mock_store_refresh_token, mock_db_session
+):
+    """
+    Test that get_access_token falls back to time.time() + default_refresh_token_exp
+    when jwt.decode raises an exception.
+    """
+    default_exp = 1209600  # 14 days in seconds
+    mock_settings = {
+        "client_id": "test_client_id",
+        "client_secret": "test_client_secret",
+        "redirect_url": "http://localhost/callback",
+        "discovery_url": "http://localhost/.well-known/openid-configuration",
+        "default_refresh_token_exp": default_exp,
+        "user_id_field": "sub",
+    }
+
+    user = MagicMock()
+    user.upstream_refresh_tokens = [
+        MagicMock(refresh_token="valid_refresh_token", expires=9999999999),
+    ]
+
+    oauth2_client = Oauth2ClientBase(
+        settings=mock_settings, logger=MagicMock(), idp="test_idp"
+    )
+
+    mock_refresh_token.return_value = {
+        "access_token": "new_access_token",
+        "id_token": "new_id_token",
+        "refresh_token": "new_refresh_token",
+    }
+    mock_jwt_decode.side_effect = Exception("decode error")
+
+    import time
+
+    before = time.time()
+    oauth2_client.get_access_token(user, "https://token.endpoint", mock_db_session)
+    after = time.time()
+
+    call_kwargs = mock_store_refresh_token.call_args[1]
+    assert before + default_exp <= call_kwargs["expires"] <= after + default_exp
+
+
 @patch("fence.resources.openid.idp_oauth2.Oauth2ClientBase.get_jwt_keys")
 @patch("authlib.integrations.requests_client.OAuth2Session.fetch_token")
 @patch("fence.resources.openid.idp_oauth2.jwt.decode")  # Mock jwt.decode
