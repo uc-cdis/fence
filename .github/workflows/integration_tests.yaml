@@ -5,7 +5,7 @@ on: pull_request
 jobs:
   integration_tests:
     name: Integration tests
-    uses: uc-cdis/.github/.github/workflows/integration_tests.yaml@master
+    uses: uc-cdis/.github/.github/workflows/integration_tests.yaml@chore/add_timeout_restart_worker
     with:
       TEST_REPO_BRANCH: chore/test_failure_timeout
       SERVICE_TO_TEST: fence
