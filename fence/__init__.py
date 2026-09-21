@@ -1,4 +1,3 @@
-# Override the default_digest_method for Signer before flask and flask_wtf are loaded.
 import hashlib
 from itsdangerous import Signer
 
@@ -15,10 +14,13 @@ from authutils.oauth2.client import OAuthClient
 from azure.storage.blob import BlobServiceClient
 from azure.core.exceptions import ResourceNotFoundError
 from cdislogging import get_logger
-import flask
-from flask_cors import CORS
-from flask_wtf.csrf import validate_csrf
+from contextlib import asynccontextmanager
+from fastapi import FastAPI, Request
+from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import JSONResponse
 from gen3authz.client.arborist.client import ArboristClient
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.responses import Response
 from sqlalchemy.orm import scoped_session
 
 
@@ -72,8 +74,61 @@ import fence.blueprints.register
 import fence.blueprints.ga4gh
 
 
-app = flask.Flask(__name__)
-CORS(app=app, headers=["content-type", "accept"], expose_headers="*")
+app = FastAPI()
+
+app.add_middleware(
+    CORSMiddleware,
+    allow_origins=["*"],
+    allow_methods=["*"],
+    allow_headers=["content-type", "accept"],
+    expose_headers=["*"],
+)
+
+
+class CSRFMiddleware(BaseHTTPMiddleware):
+    """
+    Skips CSRF validation when:
+      - An Authorization header is present (machine-to-machine / token auth)
+      - There is no session username (unauthenticated request)
+      - ENABLE_CSRF_PROTECTION is False in config
+      - The HTTP method is GET (safe method)
+
+    Otherwise validates either the x-csrf-token header or the csrf_token
+    form field against the signed token stored in the session.
+    """
+
+    async def dispatch(self, request: Request, call_next):
+
+        has_auth = "authorization" in request.headers
+        session = request.session if hasattr(request, "session") else {}
+        no_username = not session.get("username")
+
+        if has_auth or no_username:
+            return await call_next(request)
+
+        if not config.get("ENABLE_CSRF_PROTECTION", True):
+            return await call_next(request)
+
+        if request.method == "GET":
+            return await call_next(request)
+
+        try:
+            csrf_header = request.headers.get("x-csrf-token")
+            form = await request.form()
+            csrf_formfield = form.get("csrf_token")
+
+            assert csrf_header is None or csrf_formfield is None
+
+            referer = request.headers.get("referer")
+            assert referer, "Referer header missing"
+            logger.debug("HTTP REFERER " + str(referer))
+        except Exception as e:
+            raise UserError("CSRF verification failed: {}. Request aborted".format(e))
+
+        return await call_next(request)
+
+
+app.add_middleware(CSRFMiddleware)
 
 
 def warn_about_logger():
@@ -84,7 +139,7 @@ def warn_about_logger():
 
 
 def app_init(
-    app,
+    app: FastAPI,
     root_dir=None,
     config_path=None,
     config_file_name=None,
@@ -98,7 +153,9 @@ def app_init(
         file_name=config_file_name,
     )
     app_sessions(app)
-    app_register_blueprints(app)
+
+    app_register_routers(app)
+    # app_register_blueprints(app)
     server.init_app(app, query_client=query_client)
     logger.info(
         f"Prometheus metrics are{'' if config['ENABLE_PROMETHEUS_METRICS'] else ' NOT'} enabled."
@@ -130,38 +187,39 @@ def app_sessions(app):
     app.session_interface = UserSessionInterface()
 
 
-def app_register_blueprints(app):
-    app.register_blueprint(fence.blueprints.oauth2.blueprint, url_prefix="/oauth2")
-    app.register_blueprint(fence.blueprints.user.blueprint, url_prefix="/user")
+def app_register_routers(app: FastAPI):
+    """
+    Register API routers
 
-    creds_blueprint = fence.blueprints.storage_creds.make_creds_blueprint()
-    app.register_blueprint(creds_blueprint, url_prefix="/credentials")
+    Args:
+        app (FastAPI)
+    """
+    app.include_router(fence.blueprints.oauth2.router, prefix="/oauth2")
+    app.include_router(fence.blueprints.user.router, prefix="/user")
 
-    app.register_blueprint(fence.blueprints.admin.blueprint, url_prefix="/admin")
-    app.register_blueprint(
-        fence.blueprints.well_known.blueprint, url_prefix="/.well-known"
-    )
+    creds_router = fence.blueprints.storage_creds.make_creds_router()
+    app.include_router(creds_router, prefix="/credentials")
 
-    login_blueprint = fence.blueprints.login.make_login_blueprint()
-    app.register_blueprint(login_blueprint, url_prefix="/login")
+    app.include_router(fence.blueprints.admin.router, prefix="/admin")
+    app.include_router(fence.blueprints.well_known.router, prefix="/.well-known")
 
-    link_blueprint = fence.blueprints.link.make_link_blueprint()
-    app.register_blueprint(link_blueprint, url_prefix="/link")
+    login_router = fence.blueprints.login.make_login_router()
+    app.include_router(login_router, prefix="/login")
 
-    google_blueprint = fence.blueprints.google.make_google_blueprint()
-    app.register_blueprint(google_blueprint, url_prefix="/google")
+    link_router = fence.blueprints.link.make_link_router()
+    app.include_router(link_router, prefix="/link")
 
-    app.register_blueprint(
-        fence.blueprints.privacy.blueprint, url_prefix="/privacy-policy"
-    )
+    google_router = fence.blueprints.google.make_google_router()
+    app.include_router(google_router, prefix="/google")
 
-    app.register_blueprint(fence.blueprints.register.blueprint, url_prefix="/register")
-    app.register_blueprint(fence.blueprints.ga4gh.blueprint, url_prefix="/ga4gh")
+    app.include_router(fence.blueprints.privacy.router, prefix="/privacy-policy")
+    app.include_router(fence.blueprints.register.router, prefix="/register")
+    app.include_router(fence.blueprints.ga4gh.router, prefix="/ga4gh")
 
     fence.blueprints.misc.register_misc(app)
 
-    @app.route("/")
-    def root():
+    @app.get("/")
+    async def root():
         """
         Register the root URL.
         """
@@ -170,51 +228,47 @@ def app_register_blueprints(app):
             "user endpoint": "/user",
             "keypair endpoint": "/credentials",
         }
-        return flask.jsonify(endpoints)
+        return JSONResponse(endpoints)
 
-    @app.route("/logout")
-    def logout_endpoint():
+    @app.get("/logout")
+    async def logout_endpoint(
+        request: Request, next: str = None, force_era_global_logout: str = "false"
+    ):
         root = config.get("BASE_URL", "")
-        request_next = flask.request.args.get("next", root)
-        force_era_global_logout = (
-            flask.request.args.get("force_era_global_logout") == "true"
-        )
+        request_next = next or root
+        _force_era = force_era_global_logout == "true"
         if request_next.startswith("https") or request_next.startswith("http"):
             next_url = request_next
         else:
             next_url = build_redirect_url(config.get("ROOT_URL", ""), request_next)
         if domain(next_url) not in allowed_login_redirects():
             raise UserError("invalid logout redirect URL: {}".format(next_url))
-        return logout(
-            next_url=next_url, force_era_global_logout=force_era_global_logout
-        )
+        return logout(next_url=next_url, force_era_global_logout=_force_era)
 
-    @app.route("/jwt/keys")
-    def public_keys():
+    @app.get("/jwt/keys")
+    async def public_keys():
         """
         Return the public keys which can be used to verify JWTs signed by fence.
 
-        The return value should look like this:
+        Response format:
             {
                 "keys": [
-                    {
-                        "key-01": " ... [public key here] ... "
-                    }
+                    ["<kid>", "<public key>"]
                 ]
             }
         """
-        return flask.jsonify(
+        return JSONResponse(
             {"keys": [(keypair.kid, keypair.public_key) for keypair in app.keypairs]}
         )
 
-    @app.route("/metrics")
-    def metrics_endpoint():
+    @app.get("/metrics")
+    async def metrics_endpoint():
         """
         WARNING: There is no authz control on this endpoint!
-        In cloud-automation setups, access to this endpoint is blocked at the revproxy level.
+        In cloud-automation setups, access is blocked at the revproxy level.
         """
         data, content_type = metrics.get_latest_metrics()
-        return flask.Response(data, content_type=content_type)
+        return Response(data, media_type=content_type)
 
 
 def _check_azure_storage(app):
@@ -338,22 +392,16 @@ def _check_buckets_aws_creds_and_region(app):
 
 
 def app_config(
-    app,
+    app: FastAPI,
     root_dir=None,
     config_path=None,
     file_name=None,
 ):
     """
-    Set up the config for the Flask app.
+    Set up the config for the FastAPI app.
     """
     if root_dir is None:
         root_dir = os.path.dirname(os.path.dirname(os.path.realpath(__file__)))
-
-    # logger.info("Loading settings...")
-    settings_cfg = flask.Config(app.config.root_path)
-
-    # # dump the settings into the config singleton before loading a configuration file
-    config.update(dict(settings_cfg))
 
     # load the configuration file
     config.load(
@@ -362,9 +410,8 @@ def app_config(
         file_name=file_name,
     )
 
-    # load all config back into flask app config for now, we should PREFER getting config
-    # directly from the fence config singleton in the code though.
-    app.config.update(**config._configs)
+    # Attach config dict to app.state so it is accessible via request.app.state.config
+    app.state.config = config._configs
 
     _setup_arborist_client(app)
     _setup_audit_service_client(app)
@@ -389,7 +436,7 @@ def _setup_data_endpoint_and_boto(app):
         creds = config["AWS_CREDENTIALS"]
         buckets = config.get("S3_BUCKETS", {})
         app.boto = BotoManager(creds, buckets, logger=logger)
-        app.register_blueprint(fence.blueprints.data.blueprint, url_prefix="/data")
+        app.include_router(fence.blueprints.data.router, prefix="/data")
 
 
 def _load_keys(app, root_dir):
@@ -482,11 +529,11 @@ def _setup_oidc_clients(app):
             setattr(app, f"{clean_idp}_client", client)
 
 
-def _setup_arborist_client(app):
-    if app.config.get("ARBORIST"):
+def _setup_arborist_client(app: FastAPI):
+    if config.get("ARBORIST"):
         app.arborist = ArboristClient(
             arborist_base_url=config["ARBORIST"],
-            timeout=app.config.get("ARBORIST_TIMEOUT", 30),
+            timeout=config.get("ARBORIST_TIMEOUT", 30),
         )
     else:
         logger.info("Arborist not configured")
@@ -498,57 +545,29 @@ def _setup_audit_service_client(app):
     # allows us to call `app.audit_service_client.create_x_log()` from
     # anywhere without checking if audit logs are enabled. The client
     # checks that for us.
-    service_url = app.config.get("AUDIT_SERVICE") or urljoin(
-        app.config["BASE_URL"], "/audit"
-    )
+    service_url = config.get("AUDIT_SERVICE") or urljoin(config["BASE_URL"], "/audit")
     app.audit_service_client = AuditServiceClient(
         service_url=service_url, logger=logger
     )
 
 
-@app.errorhandler(Exception)
-def handle_error(error):
-    """
-    Register an error handler for general exceptions.
-    """
+@app.exception_handler(Exception)
+async def handle_error(request: Request, error: Exception):
     return get_error_response(error)
 
 
-@app.before_request
-def check_csrf():
-    has_auth = "Authorization" in flask.request.headers
-    no_username = not flask.session.get("username")
-    if has_auth or no_username:
-        return
-    if not config.get("ENABLE_CSRF_PROTECTION", True):
-        return
-    if flask.request.method != "GET":
-        try:
-            csrf_header = flask.request.headers.get("x-csrf-token")
-            csrf_formfield = flask.request.form.get("csrf_token")
-            # validate_csrf checks the input (a signed token) against the raw
-            # token stored in session["csrf_token"].
-            # (session["csrf_token"] is managed by flask-wtf.)
-            # To pass CSRF check, there must exist EITHER an x-csrf-token header
-            # OR a csrf_token form field that matches the token in the session.
-            assert (
-                csrf_header
-                and validate_csrf(csrf_header) is None
-                or csrf_formfield
-                and validate_csrf(csrf_formfield) is None
-            )
-
-            referer = flask.request.headers.get("referer")
-            assert referer, "Referer header missing"
-            logger.debug("HTTP REFERER " + str(referer))
-        except Exception as e:
-            raise UserError("CSRF verification failed: {}. Request aborted".format(e))
-
-
-@app.teardown_appcontext
-def remove_scoped_session(*args, **kwargs):
+@asynccontextmanager
+async def lifespan(app: FastAPI):
+    # startup — nothing required here yet
+    yield
+    # shutdown — remove scoped session (replaces teardown_appcontext)
     if hasattr(app, "scoped_session"):
         try:
             app.scoped_session.remove()
         except Exception as exc:
             logger.warning(f"could not remove app.scoped_session. Error: {exc}")
+
+
+# Wire the lifespan into the app that was created at module level.
+# (If you use the factory pattern exclusively, pass lifespan= to FastAPI() directly.)
+app.router.lifespan_context = lifespan

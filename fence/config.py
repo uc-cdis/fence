@@ -6,6 +6,8 @@ import gen3cirrus
 from os.path import expanduser
 from gen3config import Config
 
+from starlette.config import Config as StarConfig
+
 from cdislogging import get_logger
 
 logger = get_logger(__name__)
@@ -16,6 +18,19 @@ DEFAULT_CFG_PATH = os.path.join(
 
 # Folders to look in for the *config.yaml for fence
 CONFIG_SEARCH_FOLDERS = ["/var/www/fence", "{}/.gen3/fence".format(expanduser("~"))]
+
+
+# ENV = os.getenv("ENV", "production")
+# CURRENT_DIR = os.path.dirname(os.path.realpath(__file__))
+# if ENV == "test":
+#     PATH = os.path.abspath(f"{CURRENT_DIR}/../tests/.env")
+# else:
+#     PATH = os.path.abspath(f"{CURRENT_DIR}/../.env")
+# config = Config(DEFAULT_CFG_PATH)
+# starconfig = StarConfig(DEFAULT_CFG_PATH)
+# DEBUG = starconfig("DEBUG", cast=bool, default=False)
+
+# URL_PREFIX = starconfig("URL_PREFIX", default=None)
 
 
 class FenceConfig(Config):
