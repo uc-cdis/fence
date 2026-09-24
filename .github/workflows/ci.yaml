@@ -24,7 +24,7 @@ jobs:
     name: Build Image and Push
     needs: Security
     # https://github.com/uc-cdis/.github/blob/master/.github/workflows/image_build_push.yaml
-    uses: uc-cdis/.github/.github/workflows/image_build_push_native.yaml@master
+    uses: uc-cdis/.github/.github/workflows/image_build_push_slim.yaml@feat/GPE-1121
     secrets:
       ECR_AWS_ACCESS_KEY_ID: ${{ secrets.ECR_AWS_ACCESS_KEY_ID }}
       ECR_AWS_SECRET_ACCESS_KEY: ${{ secrets.ECR_AWS_SECRET_ACCESS_KEY }}
