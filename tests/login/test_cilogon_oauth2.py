@@ -109,6 +109,7 @@ def test_get_auth_info_success(
         {"sub": "mock_user_id"},
         "mock_refresh_token",
         "mock_access_token",
+        "mock_raw_access_token",
     )
 
     auth_info = cilogon_client.get_auth_info("mock_code")
@@ -136,6 +137,7 @@ def test_get_auth_info_missing_sub(mock_get_jwt_claims_identity, cilogon_client)
         {},  # No 'sub' in claims
         "mock_refresh_token",
         "mock_access_token",
+        "mock_raw_access_token",
     )
 
     auth_info = cilogon_client.get_auth_info("mock_code")
