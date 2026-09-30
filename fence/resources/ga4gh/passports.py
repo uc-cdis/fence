@@ -17,6 +17,7 @@ from flask import current_app
 
 from fence.jwt.validate import validate_jwt
 from fence.config import config
+from fence.errors import Unauthorized
 from fence.models import (
     create_user,
     query_for_user,
@@ -158,12 +159,16 @@ def sync_gen3_users_authz_from_ga4gh_passports(
         for user in users_from_current_passport:
             users_from_all_passports[user.username] = user
 
-        put_gen3_usernames_for_passport_into_cache(
-            passport=passport,
-            user_ids_from_passports=list(users_from_all_passports.keys()),
-            expires_at=min_visa_expiration,
-            db_session=db_session,
-        )
+        usernames_from_current_passport = [
+            user.username for user in users_from_current_passport
+        ]
+        if usernames_from_current_passport:
+            put_gen3_usernames_for_passport_into_cache(
+                passport=passport,
+                user_ids_from_passports=usernames_from_current_passport,
+                expires_at=min_visa_expiration,
+                db_session=db_session,
+            )
 
     db_session.commit()
 
@@ -200,6 +205,17 @@ def get_unvalidated_visas_from_valid_passport(passport, pkey_cache=None):
             )
         )
         # ignore malformed/invalid passports
+        return []
+
+    # Check the issuer before anything reads a key. validate_jwt resolves the signing
+    # key by fetching the issuer's discovery document and then whatever jwks_uri that
+    # document names, and only compares `iss` against the allowlist afterwards - so
+    # without this gate an unverified `iss` chooses an outbound request target.
+    if not _issuer_is_allowed(passport_issuer):
+        logger.error(
+            "Passport issuer {} is not in GA4GH_VISA_ISSUER_ALLOWLIST. "
+            "Discarding passport.".format(passport_issuer)
+        )
         return []
 
     public_key = pkey_cache.get(passport_issuer, {}).get(passport_kid)
@@ -246,6 +262,14 @@ def validate_visa(raw_visa, pkey_cache=None):
         raise Exception(
             "Visa Document Tokens are not currently supported by passing "
             '"jku" in the header. Only Visa Access Tokens are supported.'
+        )
+
+    # The issuer decides where validate_jwt goes looking for a key,
+    # so it is checked before that happens.
+    visa_issuer = get_iss(raw_visa)
+    if not _issuer_is_allowed(visa_issuer):
+        raise Exception(
+            f"Visa issuer {visa_issuer} is not in GA4GH_VISA_ISSUER_ALLOWLIST"
         )
 
     logger.info("Attempting to validate visa")
@@ -333,6 +357,17 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id, db_session=None):
         idp_name = IssSubPairToUser.ISSUER_TO_IDP.get(issuer)
         logger.debug(f"issuer_to_idp: {IssSubPairToUser.ISSUER_TO_IDP}")
         if not gen3_user:
+            if not config["ALLOW_NEW_USER_ON_LOGIN"]:
+                # Deployments that turn this off expect accounts to arrive only
+                # through their own provisioning process; a visa identity must not be
+                # able to create one here either.
+                logger.info(
+                    f"Refusing to create a Fence user for issuer {issuer} because "
+                    "ALLOW_NEW_USER_ON_LOGIN is disabled"
+                )
+                raise Unauthorized(
+                    "New user is not yet authorized/activated in the system"
+                )
             gen3_user = create_user(db_session, logger, username, idp_name=idp_name)
             if not idp_name:
                 logger.info(
@@ -363,7 +398,17 @@ def get_or_create_gen3_user_from_iss_sub(issuer, subject_id, db_session=None):
         db_session.add(iss_sub_pair_to_user)
         db_session.commit()
 
-    return iss_sub_pair_to_user.user
+    gen3_user = iss_sub_pair_to_user.user
+    if gen3_user.active == False:
+        # Returning this user would re-grant and refresh their arborist policies,
+        # undoing a deactivation rather than merely failing to notice it.
+        logger.info(
+            f"Refusing to resolve deactivated Fence user {gen3_user.username} "
+            "from a visa identity"
+        )
+        raise Unauthorized("User is known but not authorized/activated in the system")
+
+    return gen3_user
 
 
 def _sync_validated_visa_authorization(
@@ -522,6 +567,20 @@ def put_gen3_usernames_for_passport_into_cache(
         f"database. "
         f"Expires: {expires_at}"
     )
+
+
+def _issuer_is_allowed(issuer: str) -> bool:
+    """
+    Whether an issuer is trusted to sign passports and visas for this deployment.
+
+    Args:
+        issuer (str): the ``iss`` claim, which is unverified at the point this is
+            consulted
+
+    Returns:
+        bool: True if the issuer appears in GA4GH_VISA_ISSUER_ALLOWLIST
+    """
+    return issuer in config.get("GA4GH_VISA_ISSUER_ALLOWLIST", [])
 
 
 # TODO to be called after login

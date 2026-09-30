@@ -502,7 +502,7 @@ def allowed_login_redirects():
     Return:
         List[str]: allowed redirect URLs
     """
-    allowed = config.get("LOGIN_REDIRECT_WHITELIST", [])
+    allowed = list(config.get("LOGIN_REDIRECT_WHITELIST", []))
     allowed.append(config["BASE_URL"])
     with flask.current_app.db.session as session:
         clients = session.query(Client).all()
@@ -518,9 +518,18 @@ def domain(url):
     """
     Return just the domain for a URL, no schema or path etc. This is to consistently
     compare different URLs from flask, the config, and from the user.
+
+    A URL whose authority is present but whose scheme is omitted ("//host/path") names
+    a different host while still starting with a slash, so it is parsed rather than
+    treated as a path on this application. Browsers normalize backslashes to forward
+    slashes in the authority position, so "/\\host" and "\\\\host" get the same
+    treatment.
     """
     if not url:
         return ""
-    if url.startswith("/"):
+    normalized = url.replace("\\", "/")
+    if normalized.startswith("//"):
+        return urlparse(normalized).netloc
+    if normalized.startswith("/"):
         return urlparse(config["BASE_URL"]).netloc
     return urlparse(url).netloc

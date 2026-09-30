@@ -175,3 +175,27 @@ def test_invalid_redirect_fails(client, idp):
         "/login/{}?redirect=https://evil-site.net".format(get_idp_route_name(idp))
     )
     assert response.status_code == 400
+
+
+@pytest.mark.parametrize(
+    "redirect",
+    [
+        "//evil-site.net",
+        "//evil-site.net/steal",
+        "/\\evil-site.net",
+        "\\\\evil-site.net",
+    ],
+)
+@pytest.mark.parametrize("idp", all_available_idps())
+def test_authority_relative_redirect_fails(client, idp, redirect):
+    """
+    Check that an authority-relative redirect is rejected rather than being mistaken
+    for a path on this application.
+
+    A URL beginning ``//`` names a different host but still starts with a slash, and
+    browsers normalize a leading ``/\\`` or ``\\\\`` the same way.
+    """
+    response = client.get(
+        "/login/{}?redirect={}".format(get_idp_route_name(idp), redirect)
+    )
+    assert response.status_code == 400

@@ -356,22 +356,6 @@ def logout(next_url, force_era_global_logout=False):
     return redirect_response
 
 
-def check_scope(scope):
-    def wrapper(f):
-        @wraps(f)
-        def check_scope_and_call(*args, **kwargs):
-            if "_all" in flask.g.scopes or scope in flask.g.scopes:
-                return f(*args, **kwargs)
-            else:
-                raise Unauthorized(
-                    "Requested scope {} can't access this endpoint".format(scope)
-                )
-
-        return check_scope_and_call
-
-    return wrapper
-
-
 def login_required(scope=None):
     """
     Create decorator to require a user session

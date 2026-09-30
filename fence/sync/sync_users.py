@@ -58,6 +58,9 @@ def _format_policy_id(path, privilege):
 def download_dir(sftp, remote_dir, local_dir):
     """
     Recursively download file from remote_dir to local_dir
+
+    Entries whose filename cannot be used safely are logged and skipped.
+
     Args:
         remote_dir(str)
         local_dir(str)
@@ -66,12 +69,44 @@ def download_dir(sftp, remote_dir, local_dir):
     dir_items = sftp.listdir_attr(remote_dir)
 
     for item in dir_items:
+        # Filenames come off the wire, and paramiko filters only the exact names "."
+        # and ".." - it passes "../x" and "/abs/x" straight through, and os.path.join
+        # would honor either, letting a hostile server choose where we write.
+        local_path = _safe_local_path(local_dir, item.filename)
+        if not local_path:
+            logger.warning(
+                "usersync: refusing remote entry with unsafe filename %r under %r",
+                item.filename,
+                remote_dir,
+            )
+            continue
+
         remote_path = remote_dir + "/" + item.filename
-        local_path = os.path.join(local_dir, item.filename)
         if S_ISDIR(item.st_mode):
             download_dir(sftp, remote_path, local_path)
         else:
             sftp.get(remote_path, local_path)
+
+
+def _safe_local_path(local_dir: str, remote_filename: str) -> str | None:
+    """
+    Resolve a server-supplied filename to a destination inside local_dir.
+
+    Containment rests on reducing the name to its basename: the result holds no path
+    separators, so it cannot traverse out of local_dir however the server spelled it.
+
+    Args:
+        local_dir(str): the directory the download is confined to
+        remote_filename(str): filename as reported by the remote server
+
+    Returns:
+        str: the destination path, or None if the filename cannot be used safely
+    """
+    filename = os.path.basename(remote_filename.replace("\\", "/"))
+    if not filename or filename in (os.curdir, os.pardir):
+        return None
+
+    return os.path.join(local_dir, filename)
 
 
 def arborist_role_for_permission(permission):
@@ -374,7 +409,7 @@ class UserSyncer(object):
             # when converting the YAML from fence-config,
             # python reads it as Python string literal. So "\" turns into "\\"
             # which messes with the regex match
-            pattern.replace("\\\\", "\\")
+            pattern = pattern.replace("\\\\", "\\")
             if re.match(pattern, os.path.basename(filepath)):
                 return True
         return False
