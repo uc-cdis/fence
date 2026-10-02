@@ -81,7 +81,7 @@ class FenceConfig(Config):
         if self._configs.get("DPOP_ENABLED"):
             logger.info("DPoP is enabled.")
 
-            # allow setting DPOP_SHARED_SECRET connection string via env var
+            # allow setting DPOP_SHARED_SECRET via env var
             if os.environ.get("DPOP_SHARED_SECRET"):
                 logger.info(
                     "Found environment variable 'DPOP_SHARED_SECRET': overriding 'DPOP_SHARED_SECRET' field from config file"
