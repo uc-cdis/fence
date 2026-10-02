@@ -1,0 +1,49 @@
+# Signing keys. `keys/` is gitignored, so a clean checkout never has it, but a
+# developer's working tree does and `COPY . /fence` would bake it into the image.
+keys/
+*.pem
+*.key
+jwt-keys.tar
+
+# Deployment secrets and local config
+fence-config.yaml
+*config*.local.yaml
+.env
+.netrc
+
+# Local virtualenvs and caches, which would shadow the image's /venv
+.venv/
+venv/
+ENV/
+__pycache__/
+*.py[cod]
+.mypy_cache/
+.pytest_cache/
+.cache/
+.coverage
+.coverage.*
+htmlcov/
+coverage.xml
+.tox/
+.hypothesis/
+
+# Build artifacts
+build/
+dist/
+*.egg-info/
+.eggs/
+
+# Editor, OS, and agent scratch
+.idea/
+.vscode/
+.DS_Store
+.claude/
+.serena/
+
+# Compose files and docs, not needed at runtime
+docker-compose*.yml
+*.md
+!README.md
+
+# Note: `.git` is deliberately NOT ignored - the builder stage runs
+# `git rev-parse HEAD` and `git describe` to generate version_data.py.
