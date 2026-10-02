@@ -2,8 +2,15 @@
 Test DPoP enforcement on ``POST /credentials/api/access_token``.
 """
 
+import time
+
 import pytest
-from authutils.dpop import generate_dpop_proof, generate_stateless_nonce
+from authutils.dpop import (
+    DPOP_PROOF_CLOCK_SKEW_LEEWAY,
+    DPOP_PROOF_MAX_TTL,
+    generate_dpop_proof,
+    generate_stateless_nonce,
+)
 from joserfc import jwk
 
 from fence.config import config
@@ -130,6 +137,73 @@ def test_replayed_proof_is_rejected(client, api_key, client_key, dpop_enabled):
     assert first.status_code == 200, first.text
     assert replay.status_code == 400, replay.text
     assert "access_token" not in replay.text
+
+
+def test_future_dated_proof_cannot_be_replayed_while_still_valid(
+    client, api_key, client_key, dpop_enabled, monkeypatch
+):
+    """A future-dated proof stays replay-protected for its whole validity window."""
+    monkeypatch.setenv("DPOP_NONCE_TTL", "3600")
+    start = time.time()
+    now = start
+    monkeypatch.setattr(time, "time", lambda: now)
+
+    nonce = generate_stateless_nonce(DPOP_SHARED_SECRET)
+    now = start + DPOP_PROOF_CLOCK_SKEW_LEEWAY
+    proof = generate_dpop_proof(client_key, "POST", PROOF_URL, nonce=nonce)
+
+    now = start
+    first = request_task_token(client, api_key, proof)
+    # past the plain proof TTL, but still inside the window the future-dated `iat` buys
+    now = start + DPOP_PROOF_MAX_TTL + DPOP_PROOF_CLOCK_SKEW_LEEWAY // 2
+    replay = request_task_token(client, api_key, proof)
+
+    assert first.status_code == 200, first.text
+    assert replay.status_code == 400, replay.text
+    assert "access_token" not in replay.text
+
+
+def test_invalid_api_key_is_rejected_before_the_nonce_challenge(
+    client, client_key, dpop_enabled
+):
+    """An invalid API key gets a 401, not a DPoP nonce challenge."""
+    proof = generate_dpop_proof(client_key, "POST", PROOF_URL)
+
+    response = request_task_token(client, "not-a-real-api-key", proof)
+
+    assert response.status_code == 401, response.text
+    assert "DPoP-Nonce" not in response.headers
+
+
+def test_proof_sent_with_an_invalid_api_key_is_not_consumed(
+    client, api_key, client_key, dpop_enabled
+):
+    """An invalid API key does not spend the proof sent with it."""
+    proof = generate_dpop_proof(
+        client_key,
+        "POST",
+        PROOF_URL,
+        nonce=generate_stateless_nonce(DPOP_SHARED_SECRET),
+    )
+
+    rejected = request_task_token(client, "not-a-real-api-key", proof)
+    accepted = request_task_token(client, api_key, proof)
+
+    assert rejected.status_code == 401, rejected.text
+    assert accepted.status_code == 200, accepted.text
+
+
+def test_unauthorized_user_is_refused_before_the_nonce_challenge(
+    client, api_key, client_key, dpop_enabled, mock_arborist_requests
+):
+    """A user without task token access gets a 403, not a DPoP nonce challenge."""
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": False}, 200)}})
+    proof = generate_dpop_proof(client_key, "POST", PROOF_URL)
+
+    response = request_task_token(client, api_key, proof)
+
+    assert response.status_code == 403, response.text
+    assert "DPoP-Nonce" not in response.headers
 
 
 @pytest.mark.parametrize(

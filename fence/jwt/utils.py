@@ -18,9 +18,7 @@ def get_jwt_header():
         header = flask.request.headers["Authorization"]
     except KeyError:
         raise Unauthorized("missing authorization header")
-    if not header.lower().startswith("bearer") and not header.lower().startswith(
-        "dpop"
-    ):
+    if header.lower().split(" ", 1)[0] not in ("bearer", "dpop"):
         raise Unauthorized(
             "unexpected Authorization header format (expected `Bearer` or `DPoP`)"
         )

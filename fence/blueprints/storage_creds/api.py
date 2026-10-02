@@ -13,7 +13,11 @@ from fence.config import config
 from authutils.dpop import validate_dpop_proof
 from authutils.errors import InvalidNonceErrorAuthorizationServer
 
-from fence.resources.storage.cdis_jwt import create_user_access_token, create_api_key
+from fence.resources.storage.cdis_jwt import (
+    create_api_key,
+    create_user_access_token,
+    validate_api_key,
+)
 
 from cdislogging import get_logger
 
@@ -211,6 +215,23 @@ class AccessKey(Resource):
             )
             expires_in = min(expires_in, max_task_token_ttl)
 
+        # The api key and the user's access are checked before the DPoP proof, so that a
+        # caller who will be refused anyway never gets a nonce.
+        api_key_claims, user = validate_api_key(api_key, expires_in)
+
+        # `user` is None when the api key validates but the user it names no longer
+        # exists for some reason; such a user holds no policies and so cannot be granted
+        # a task token
+        if task_token_type and not (
+            user
+            and can_user_get_task_token(
+                task_token_type, expires_in, username=user.username
+            )
+        ):
+            raise Forbidden(
+                f"You do not have access to obtain '{task_token_type}' tokens, or you do not have access to the token lifetime you requested"
+            )
+
         # If DPOP_ENABLED, task tokens require DPoP proof
         cnf_claim = None
         if task_token_type and config["DPOP_ENABLED"]:
@@ -252,27 +273,13 @@ class AccessKey(Resource):
                 logger.error(f"Unknown error validating DPoP request: {exc}")
                 raise UserError("Error validating DPoP request")
 
-        # minting the token is what validates the api key and resolves the user it
-        # belongs to, so it happens before access is checked
-        result, user = create_user_access_token(
+        result = create_user_access_token(
             flask.current_app.keypairs[0],
-            api_key,
+            api_key_claims,
+            user,
             expires_in,
             task_token_type=task_token_type,
             cnf=cnf_claim,
         )
-
-        # the token is only returned if the user DOES have access. `user` is None when the
-        # api key validates but the user it names no longer exists for some reason; such a user holds no
-        # policies and so cannot be granted a task token
-        if task_token_type and not (
-            user
-            and can_user_get_task_token(
-                task_token_type, expires_in, username=user.username
-            )
-        ):
-            raise Forbidden(
-                f"You do not have access to obtain '{task_token_type}' tokens, or you do not have access to the token lifetime you requested"
-            )
 
         return flask.jsonify(dict(access_token=result))

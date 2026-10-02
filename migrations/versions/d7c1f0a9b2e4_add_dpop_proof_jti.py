@@ -24,6 +24,9 @@ def upgrade():
         sa.Column("exp", sa.BigInteger(), nullable=False),
         sa.PrimaryKeyConstraint("jti"),
     )
+    op.create_index(
+        op.f("ix_dpop_proof_jti_exp"), "dpop_proof_jti", ["exp"], unique=False
+    )
 
 
 def downgrade():

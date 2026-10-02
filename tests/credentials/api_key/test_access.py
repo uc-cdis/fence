@@ -311,7 +311,7 @@ def test_can_user_get_task_token_asks_arborist_by_username(app, mock_arborist_re
             "auth_request",
             wraps=flask.current_app.arborist.auth_request,
         ) as auth_request:
-            assert can_user_get_task_token("FOO", 200, "test-user") is True
+            assert can_user_get_task_token("FOO", 200, "test-user")
 
         auth_request.assert_called_once()
         assert auth_request.call_args.kwargs["user_id"] == "test-user"

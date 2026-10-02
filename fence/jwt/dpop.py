@@ -5,7 +5,7 @@ Track DPoP proof `jti` values so that a proof cannot be replayed.
 import time
 
 import flask
-from authutils.dpop import DPOP_PROOF_MAX_TTL
+from authutils.dpop import DPOP_PROOF_CLOCK_SKEW_LEEWAY, DPOP_PROOF_MAX_TTL
 from sqlalchemy.exc import IntegrityError
 
 from fence.models import DPoPProofJTI
@@ -29,7 +29,14 @@ def jti_seen(jti):
     with flask.current_app.db.session as session:
         # A proof older than this is rejected on `iat` alone, so its id stops mattering.
         session.query(DPoPProofJTI).filter(DPoPProofJTI.exp < now).delete()
-        session.add(DPoPProofJTI(jti=jti, exp=now + DPOP_PROOF_MAX_TTL))
+        # `iat` may be up to the clock-skew leeway in the future, which keeps the proof
+        # acceptable that much longer, so its id has to be kept that much longer too.
+        session.add(
+            DPoPProofJTI(
+                jti=jti,
+                exp=now + DPOP_PROOF_MAX_TTL + DPOP_PROOF_CLOCK_SKEW_LEEWAY,
+            )
+        )
         try:
             # The insert is what detects the replay: the primary key makes it fail for
             # the second caller even when two requests race in separate processes.

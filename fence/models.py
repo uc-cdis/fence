@@ -711,7 +711,7 @@ class DPoPProofJTI(Base):
     # Unbounded on purpose: authutils caps jti length
     jti = Column(Text, primary_key=True)
     # The point in unix time past which the proof is too old to be replayed anyway.
-    exp = Column(BigInteger, nullable=False)
+    exp = Column(BigInteger, nullable=False, index=True)
 
 
 class GA4GHVisaV1(Base):
