@@ -353,10 +353,14 @@ class Client(Base, OAuth2ClientMixin):
     # Replaces Authlib method. Our logic does not actually look at token_auth_endpoint value
     def check_endpoint_auth_method(self, method, endpoint):
         """
-        Only basic auth is supported. If anything else gets added, change this
+        Only basic auth and private_key_jwt are supported for confidential clients.
         """
         if endpoint == "token":
-            protected_types = [ClientAuthType.basic.value, ClientAuthType.post.value]
+            protected_types = [
+                ClientAuthType.basic.value,
+                ClientAuthType.post.value,
+                "private_key_jwt",  # SMART Backend Services (CONF-0120)
+            ]
             return (self.is_confidential and method in protected_types) or (
                 not self.is_confidential and method == ClientAuthType.none.value
             )
@@ -390,6 +394,9 @@ class AuthorizationCode(Base, OAuth2AuthorizationCodeMixin):
     nonce = Column(String, nullable=True)
 
     refresh_token_expires_in = Column(Integer, nullable=True)
+
+    code_challenge = Column(String, nullable=True)
+    code_challenge_method = Column(String, nullable=True)
 
     _scope = Column(Text, default="")
 
