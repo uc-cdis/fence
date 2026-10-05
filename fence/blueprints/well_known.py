@@ -2,6 +2,9 @@
 This blueprint defines the endpoints under ``.well-known/``, which includes:
 - OIDC provider configuration
 - JWK endpoint ``/jwks``
+
+The SMART App Launch 2.0 discovery document (``/.well-known/smart-configuration``) is
+served by gen3-fhir-proxy, which is the FHIR-aware layer that SMART clients interact with.
 """
 
 import flask
