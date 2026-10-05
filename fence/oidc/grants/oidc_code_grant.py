@@ -38,7 +38,10 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
 
         Certain parameters in the ``AuthorizationCode`` are filled out using
         the arguments passed from the OAuth request (the redirect URI, scope,
-        and nonce).
+        nonce, and PKCE code_challenge).
+
+        For PKCE support (RFC 7636), we persist the code_challenge and
+        code_challenge_method if provided by the client.
         """
 
         # requested lifetime (in seconds) for the refresh token
@@ -48,6 +51,11 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
             default=config["REFRESH_TOKEN_EXPIRES_IN"],
         )
 
+        # Extract PKCE parameters from the request (RFC 7636)
+        # code_challenge is required for public clients, optional for confidential
+        code_challenge = request.data.get("code_challenge")
+        code_challenge_method = request.data.get("code_challenge_method", "S256")
+
         code = AuthorizationCode(
             code=generate_token(50),
             client_id=client.client_id,
@@ -55,6 +63,8 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
             scope=request.scope,
             user_id=grant_user.id,
             nonce=request.data.get("nonce"),
+            code_challenge=code_challenge,
+            code_challenge_method=code_challenge_method,
             refresh_token_expires_in=refresh_token_expires_in,
         )
 
@@ -73,6 +83,9 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
 
         Returns:
            authorization code string
+
+        For PKCE support (RFC 7636), we persist the code_challenge and
+        code_challenge_method if provided by the client.
         """
         # requested lifetime (in seconds) for the refresh token
         refresh_token_expires_in = get_valid_expiration_from_request(
@@ -82,6 +95,12 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
         )
 
         client = request.client
+        # Extract PKCE parameters from the request (RFC 7636)
+        code_challenge = request.payload.data.get("code_challenge")
+        code_challenge_method = request.payload.data.get(
+            "code_challenge_method", "S256"
+        )
+
         code = AuthorizationCode(
             code=code,
             client_id=client.client_id,
@@ -89,6 +108,8 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
             scope=request.payload.scope,
             user_id=request.user.id,
             nonce=request.payload.data.get("nonce"),
+            code_challenge=code_challenge,
+            code_challenge_method=code_challenge_method,
             refresh_token_expires_in=refresh_token_expires_in,
         )
 
@@ -224,13 +245,15 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
     def validate_token_request(self):
         """
         Validate token request by checking allowed grant type,
-        making sure authorization code is found, and redirect URI is valid
+        making sure authorization code is found, redirect URI is valid,
+        and PKCE code_verifier matches the stored code_challenge.
 
         Raises:
             UnauthorizedClientError: if grant type is incorrect
             InvalidRequestError: if authorization code is absent
             InvalidGrantError: if authorization code is invalid
             InvalidGrantError: if redirect_uri is invalid
+            InvalidGrantError: if PKCE verification fails
         """
         # authenticate the client if client authentication is included
         logger.debug("Authenticating token client..")
@@ -260,7 +283,69 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
         if original_redirect_uri and redirect_uri != original_redirect_uri:
             raise InvalidGrantError("Invalid 'redirect_uri' in request.")
 
+        # PKCE validation (RFC 7636)
+        # If code_challenge was stored during authorization,
+        # verify that the code_verifier in the token request matches
+        code_challenge = authorization_code.code_challenge
+        if code_challenge:
+            code_verifier = self.request.payload.data.get("code_verifier")
+            if not code_verifier:
+                raise InvalidGrantError(
+                    "PKCE code_verifier is required (code_challenge was provided during authorization)"
+                )
+
+            # Validate the code_verifier matches the stored code_challenge
+            self._validate_code_verifier(
+                code_verifier, code_challenge, authorization_code.code_challenge_method
+            )
+
         # save for create_token_response
         self.request.client = client
         self.request.authorization_code = authorization_code
         self.execute_hook("after_validate_token_request")
+
+    def _validate_code_verifier(
+        self, code_verifier, code_challenge, code_challenge_method
+    ):
+        """
+        Validate the code_verifier against the stored code_challenge per RFC 7636 PKCE.
+
+        Args:
+            code_verifier: The code_verifier from the token request
+            code_challenge: The stored code_challenge from the authorization code
+            code_challenge_method: The challenge method used ("S256" or "plain")
+
+        Raises:
+            InvalidGrantError: If PKCE verification fails
+        """
+        import hashlib
+        import base64
+
+        # RFC 7636 Section 4.2: code_verifier = ABD... (random string)
+        # RFC 7636 Section 4.3: code_challenge = base64url(sha256(code_verifier)) for S256
+        #                        code_challenge = code_verifier for plain
+
+        try:
+            if code_challenge_method == "S256":
+                # Calculate SHA256 hash of code_verifier and encode as base64url
+                sha256_hash = hashlib.sha256(code_verifier.encode("utf-8")).digest()
+                expected_challenge = (
+                    base64.urlsafe_b64encode(sha256_hash).decode("utf-8").rstrip("=")
+                )
+            elif code_challenge_method == "plain":
+                expected_challenge = code_verifier
+            else:
+                # Unsupported challenge method - treat as validation failure
+                logger.warning(
+                    f"Unsupported PKCE code_challenge_method: {code_challenge_method}"
+                )
+                raise InvalidGrantError("Invalid PKCE code_challenge_method")
+
+            # Compare challenges
+            if code_challenge != expected_challenge:
+                logger.warning(f"PKCE verification failed: code_challenge mismatch")
+                raise InvalidGrantError("Invalid PKCE code_verifier")
+
+        except (ValueError, UnicodeDecodeError) as e:
+            logger.warning(f"PKCE verification error: {e}")
+            raise InvalidGrantError("Invalid PKCE code_verifier")
