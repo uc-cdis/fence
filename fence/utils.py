@@ -100,7 +100,16 @@ def create_client(
     auth_method = "client_secret_basic" if confidential else "none"
 
     allowed_scopes = allowed_scopes or config["CLIENT_ALLOWED_SCOPES"]
-    if not set(allowed_scopes).issubset(set(config["CLIENT_ALLOWED_SCOPES"])):
+    _extra_prefixes = tuple(config.get("EXTRA_ALLOWED_SCOPE_PREFIXES", []))
+    _extra_literals = frozenset(config.get("EXTRA_ALLOWED_SCOPES", []))
+    non_extra_scopes = [
+        s
+        for s in allowed_scopes
+        if not (
+            (_extra_prefixes and s.startswith(_extra_prefixes)) or s in _extra_literals
+        )
+    ]
+    if not set(non_extra_scopes).issubset(set(config["CLIENT_ALLOWED_SCOPES"])):
         raise ValueError(
             "Each allowed scope must be one of: {}".format(
                 config["CLIENT_ALLOWED_SCOPES"]
