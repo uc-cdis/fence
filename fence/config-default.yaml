@@ -25,6 +25,27 @@
 APP_NAME: 'Gen3 Data Commons'
 # Where fence microservice is deployed
 BASE_URL: 'http://localhost/user'
+
+# Extra scope prefixes (e.g. "patient/", "user/") and exact scope literals
+# (e.g. "fhirUser", "launch") that are allowed when registering OAuth clients,
+# in addition to CLIENT_ALLOWED_SCOPES. Scopes matching these patterns bypass
+# the CLIENT_ALLOWED_SCOPES allowlist check.
+EXTRA_ALLOWED_SCOPE_PREFIXES: []
+EXTRA_ALLOWED_SCOPES: []
+
+# Adds extra claims to ID tokens when a matching scope is requested.
+# Each key is both the scope name and the claim name added to the token.
+# base_url_env: environment variable holding the base URL prefix.
+# user_tag: user tag key whose value is appended to the base URL.
+# The claim is set to "{base_url}/{tag_value}" when scope is present and the
+# user has the named tag. Leave empty ({}) to disable.
+#
+# Example (SMART on FHIR fhirUser claim):
+#   SCOPE_EXTRA_CLAIMS:
+#     fhirUser:
+#       base_url_env: MY_FHIR_BASE_URL
+#       user_tag: fhir_user_id
+SCOPE_EXTRA_CLAIMS: {}
 # postgres db to connect to
 # connection url format:
 #     postgresql://[user[:password]@][netloc][:port][/dbname]
