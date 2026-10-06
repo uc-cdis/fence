@@ -21,15 +21,24 @@ class GoogleOauth2Client(Oauth2ClientBase):
             HTTP_PROXY=HTTP_PROXY,
         )
 
-    def get_auth_url(self):
+    def get_auth_url(self, state=None):
         """
         Get authorization uri from discovery doc
+
+        Args:
+            state (str, optional): OAuth2 ``state`` to send to Google, to be
+                checked against when Google redirects back. When omitted, a
+                random state the caller never sees is sent instead, so the
+                callback has nothing to validate against.
+
+        Returns:
+            str: the authorization url to send the user to
         """
         authorization_endpoint = self.get_value_from_discovery_doc(
             "authorization_endpoint", "https://accounts.google.com/o/oauth2/v2/auth"
         )
         uri, _ = self.session.create_authorization_url(
-            authorization_endpoint, prompt="login"
+            authorization_endpoint, prompt="login", state=state
         )
 
         return uri
