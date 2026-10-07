@@ -24,7 +24,7 @@ def test_get_auth_info(microsoft_oauth2_client):
     expected_value = {"email": "user@contoso.com"}
     with patch(
         "fence.resources.openid.idp_oauth2.Oauth2ClientBase.get_jwt_claims_identity",
-        return_value=return_value,
+        return_value=(return_value, {}, {}, "mock_raw_access_token"),
     ):
         user_id = microsoft_oauth2_client.get_auth_info(code="123")
         for key, value in expected_value.items():
@@ -41,7 +41,7 @@ def test_get_auth_info_missing_claim(microsoft_oauth2_client):
     access_token = {}
     with patch(
         "fence.resources.openid.idp_oauth2.Oauth2ClientBase.get_jwt_claims_identity",
-        return_value=(return_value, refresh_token, access_token),
+        return_value=(return_value, refresh_token, access_token, "mock_raw_access_token"),
     ):
         user_id = microsoft_oauth2_client.get_auth_info(code="123")
         assert user_id == expected_value  # nosec

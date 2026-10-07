@@ -100,6 +100,46 @@ class Oauth2ClientBase(object):
             return None
         return resp.json()["keys"]
 
+    def get_userinfo(self, raw_access_token):
+        """
+        Fetch user information from the provider's userinfo endpoint.
+
+        Args:
+            raw_access_token (str): The access token to use for authentication.
+
+        Returns:
+            dict: The JSON response from the userinfo endpoint, or an empty dict if the request fails.
+        """
+        userinfo_endpoint = self.get_value_from_discovery_doc("userinfo_endpoint", "")
+        if userinfo_endpoint and raw_access_token:
+            header = {"Authorization": "Bearer " + raw_access_token}
+            res = requests.get(userinfo_endpoint, headers=header, proxies=self.get_proxies())
+            if res.status_code == 200:
+                self.logger.info(f"Successfully retrieved userinfo from {userinfo_endpoint}")
+                return res.json()
+            else:
+                self.logger.error("Unable to get userinfo: status_code: {}, message: {}".format(res.status_code, res.text))
+        return {}
+
+    def _get_claim_value(self, field, claims, userinfo):
+        """
+        Helper method to retrieve a claim value from either the ID token claims or the userinfo response.
+        Supports the 'userinfo.' prefix to explicitly request a value from the userinfo endpoint.
+
+        Args:
+            field (str): The name of the field/claim to retrieve.
+            claims (dict): Claims extracted from the ID token.
+            userinfo (dict): Data retrieved from the userinfo endpoint.
+
+        Returns:
+            any: The value of the requested claim, or None if not found.
+        """
+        if not field:
+            return None
+        if field.startswith("userinfo."):
+            return userinfo.get(field[9:]) if userinfo else None
+        return claims.get(field)
+
     def get_jwt_claims_identity(self, token_endpoint, jwks_endpoint, code):
         """
         Get jwt identity claims
@@ -108,6 +148,7 @@ class Oauth2ClientBase(object):
         token = self.get_token(token_endpoint, code)
 
         refresh_token = token.get("refresh_token", None)
+        raw_access_token = token.get("access_token", None)
 
         keys = self.get_jwt_keys(jwks_endpoint)
 
@@ -145,7 +186,7 @@ class Oauth2ClientBase(object):
             except JWTError as e:
                 raise JWTError(f"Invalid token: {e}")
 
-        return decoded_id_token, refresh_token, decoded_access_token
+        return decoded_id_token, refresh_token, decoded_access_token, raw_access_token
 
     def get_value_from_discovery_doc(self, key, default_value):
         """
@@ -241,7 +282,7 @@ class Oauth2ClientBase(object):
         try:
             token_endpoint = self.get_value_from_discovery_doc("token_endpoint", "")
             jwks_endpoint = self.get_value_from_discovery_doc("jwks_uri", "")
-            claims, refresh_token, access_token = self.get_jwt_claims_identity(
+            claims, refresh_token, access_token, raw_access_token = self.get_jwt_claims_identity(
                 token_endpoint, jwks_endpoint, code
             )
 
@@ -257,6 +298,18 @@ class Oauth2ClientBase(object):
             lastname_claim_field = self.settings.get("lastname_claim_field", "lastname")
             email_claim_field = self.settings.get("email_claim_field", "email")
 
+            fields_to_check = [
+                user_id_field,
+                organization_claim_field,
+                firstname_claim_field,
+                lastname_claim_field,
+                email_claim_field
+            ]
+
+            userinfo = None
+            if any(f.startswith("userinfo.") for f in fields_to_check if f):
+                userinfo = self.get_userinfo(raw_access_token)
+
             if self.read_authz_groups_from_tokens:
                 try:
                     group_claim_field = self.settings.get("group_claim_field", "groups")
@@ -271,21 +324,25 @@ class Oauth2ClientBase(object):
                     )
                     raise Exception(e)
 
-            if claims.get(user_id_field):
-                if user_id_field == "email" and not claims.get("email_verified"):
-                    return {"error": "Email is not verified"}
+            user_id_value = self._get_claim_value(user_id_field, claims, userinfo)
+
+            if user_id_value:
                 return {
-                    user_id_field: claims[user_id_field],
+                    user_id_field: user_id_value,
                     "mfa": self.has_mfa_claim(claims),
                     "refresh_token": refresh_token,
                     "iat": claims.get("iat"),
                     "exp": claims.get("exp"),
                     "groups": groups,
                     "group_prefix": group_prefix,
-                    "org": claims.get(organization_claim_field),
-                    "firstname": claims.get(firstname_claim_field),
-                    "lastname": claims.get(lastname_claim_field),
-                    "email": claims.get(email_claim_field),
+                    organization_claim_field: self._get_claim_value(organization_claim_field, claims, userinfo),
+                    firstname_claim_field: self._get_claim_value(firstname_claim_field, claims, userinfo),
+                    lastname_claim_field: self._get_claim_value(lastname_claim_field, claims, userinfo),
+                    email_claim_field: self._get_claim_value(email_claim_field, claims, userinfo),
+                    "org": self._get_claim_value(organization_claim_field, claims, userinfo),
+                    "firstname": self._get_claim_value(firstname_claim_field, claims, userinfo),
+                    "lastname": self._get_claim_value(lastname_claim_field, claims, userinfo),
+                    "email": self._get_claim_value(email_claim_field, claims, userinfo),
                 }
             else:
                 self.logger.exception(
