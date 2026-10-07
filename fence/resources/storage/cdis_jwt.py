@@ -44,24 +44,23 @@ def create_session_token(keypair, expires_in, context=None):
     ).token
 
 
-def create_user_access_token(keypair, api_key, expires_in, task_token_type):
+def validate_api_key(api_key, expires_in):
     """
-    create access token given a user's api key
-    Args:
-        keypair: RSA keypair for signing jwt
-        api_key: user created jwt token, the azp should match with user.id
-        expires_in: expiration time in seconds
-        task_token_type: type of task token to create, if any, otherwise None
-    Return:
-        access token
-    """
+    Validate a user's api key for exchange into an access token.
 
+    Args:
+        api_key: user created jwt token, the azp should match with user.id
+        expires_in: requested lifetime of the access token, in seconds
+
+    Returns:
+        tuple: (the api key's claims, the User the api key belongs to)
+
+    Raises:
+        Unauthorized: if the api key is invalid
+        UserError: if the access token would outlive the api key
+    """
     try:
         claims = validate_jwt(api_key, scope={"fence"}, purpose="api_key")
-        scopes = (
-            config["TASK_TOKEN_DEFAULT_SCOPES"] if task_token_type else claims["scope"]
-        )
-
         user = get_user_from_claims(claims)
     except Exception as e:
         raise Unauthorized(str(e))
@@ -71,6 +70,32 @@ def create_user_access_token(keypair, api_key, expires_in, task_token_type):
             "Cannot issue an access token that would expire after the provided API key does. Please obtain a new API key and try again"
         )
 
+    return claims, user
+
+
+def create_user_access_token(
+    keypair, api_key_claims, user, expires_in, task_token_type, cnf=None
+):
+    """
+    Create access token from an already validated api key, optionally DPoP-bound.
+
+    Args:
+        keypair: RSA keypair for signing jwt
+        api_key_claims: claims of the api key, as returned by `validate_api_key`
+        user: the User the api key belongs to, as returned by `validate_api_key`
+        expires_in: expiration time in seconds
+        task_token_type: type of task token to create, if any, otherwise None
+        cnf: Optional DPoP confirmation claim {"jkt": "<thumbprint>"}
+
+    Returns:
+        str: access token
+    """
+    scopes = (
+        config["TASK_TOKEN_DEFAULT_SCOPES"]
+        if task_token_type
+        else api_key_claims["scope"]
+    )
+
     return token.generate_signed_access_token(
         keypair.kid,
         keypair.private_key,
@@ -79,4 +104,5 @@ def create_user_access_token(keypair, api_key, expires_in, task_token_type):
         audience=task_token_type,
         user=user,
         task_token_type=task_token_type,
+        dpop_jkt=cnf.get("jkt") if cnf else None,
     ).token

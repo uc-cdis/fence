@@ -368,6 +368,7 @@ def generate_signed_access_token(
     client_id=None,
     linked_google_email=None,
     task_token_type=None,
+    dpop_jkt=None,
 ):
     """
     Generate a JWT access token and output a UTF-8
@@ -379,6 +380,7 @@ def generate_signed_access_token(
         expires_in (int): seconds until expiration
         scopes (List[str]): oauth scopes for user
         user (fence.models.User): optional - User to generate ID token for
+        dpop_jkt (str, optional): DPoP proof JWT key thumbprint for cnf claim
 
     Return:
         str: encoded JWT access token signed with ``private_key``
@@ -418,6 +420,10 @@ def generate_signed_access_token(
         "context": {},
         "azp": client_id or "",
     }
+
+    # Add DPoP proof binding if provided
+    if dpop_jkt:
+        claims["cnf"] = {"jkt": dpop_jkt}
 
     sub = None
     if user:

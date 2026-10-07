@@ -2,6 +2,7 @@ import authutils.errors
 import authutils.token.keys
 import authutils.token.validate
 import jwt
+from cdislogging import get_logger
 
 from fence.auth import GEN3_AUDIENCE
 from fence.config import config
@@ -9,6 +10,8 @@ from fence.errors import Unauthorized
 from fence.jwt.blacklist import is_blacklisted
 from fence.jwt.errors import JWTError, JWTPurposeError
 from fence.jwt.utils import get_jwt_header
+
+logger = get_logger(__name__)
 
 
 def validate_purpose(claims, pur):
@@ -115,9 +118,25 @@ def validate_jwt(
     except jwt.InvalidTokenError as e:
         raise JWTError(e)
     attempt_refresh = attempt_refresh and (token_iss != iss)
-    public_key = public_key or authutils.token.keys.get_public_key_for_token(
-        encoded_token, attempt_refresh=attempt_refresh, pkey_cache=pkey_cache
-    )
+
+    if not public_key:
+        # `token_iss` is unverified here and it is what key discovery derives its
+        # outbound request from, so reject unknown issuers before making it. The
+        # issuer is checked again against the validated claims further down.
+        if not issuers:
+            logger.error(
+                "no allowed token issuers are configured; refusing key discovery"
+            )
+            raise JWTError("no allowed token issuers are configured")
+        if token_iss not in set(issuers):
+            raise JWTError(
+                "Invalid token : invalid issuer {}; expected one of: {}".format(
+                    token_iss, sorted(issuers)
+                )
+            )
+        public_key = authutils.token.keys.get_public_key_for_token(
+            encoded_token, attempt_refresh=attempt_refresh, pkey_cache=pkey_cache
+        )
 
     try:
         claims = authutils.token.validate.validate_jwt(
