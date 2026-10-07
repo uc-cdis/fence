@@ -100,7 +100,16 @@ def create_client(
     auth_method = "client_secret_basic" if confidential else "none"
 
     allowed_scopes = allowed_scopes or config["CLIENT_ALLOWED_SCOPES"]
-    if not set(allowed_scopes).issubset(set(config["CLIENT_ALLOWED_SCOPES"])):
+    _extra_prefixes = tuple(config.get("EXTRA_ALLOWED_SCOPE_PREFIXES", []))
+    _extra_literals = frozenset(config.get("EXTRA_ALLOWED_SCOPES", []))
+    non_extra_scopes = [
+        s
+        for s in allowed_scopes
+        if not (
+            (_extra_prefixes and s.startswith(_extra_prefixes)) or s in _extra_literals
+        )
+    ]
+    if not set(non_extra_scopes).issubset(set(config["CLIENT_ALLOWED_SCOPES"])):
         raise ValueError(
             "Each allowed scope must be one of: {}".format(
                 config["CLIENT_ALLOWED_SCOPES"]
@@ -457,13 +466,43 @@ DEFAULT_BACKOFF_SETTINGS = {
 }
 
 
+# SMART scope prefixes (SMART App Launch 2.0 + SMART Backend Services)
+_SMART_SCOPE_PREFIXES = ("patient/", "user/", "system/", "launch/")
+_SMART_SCOPE_LITERALS = frozenset(
+    ["openid", "fhirUser", "profile", "online_access", "offline_access", "launch"]
+)
+
+
+def _is_smart_scope(scope: str) -> bool:
+    return scope.startswith(_SMART_SCOPE_PREFIXES) or scope in _SMART_SCOPE_LITERALS
+
+
+def _requires_user_context(scope: str) -> bool:
+    """Return True for SMART scopes that require a logged-in user (not Backend Services)."""
+    return _is_smart_scope(scope) and not scope.startswith("system/")
+
+
 def validate_scopes(request_scopes, client):
     if not client:
         raise Exception("Client object is None")
 
     if request_scopes:
         scopes = scope_to_list(request_scopes)
-        # can we get some debug logs here that log the client, what scopes they have, and what scopes were requested
+
+        is_smart_request = any(_is_smart_scope(scope) for scope in scopes)
+
+        if is_smart_request:
+            # Backend Services use only system/ scopes — openid is not required or expected.
+            # User-facing SMART flows (authorization_code, EHR launch) MUST include openid.
+            needs_user_context = any(_requires_user_context(scope) for scope in scopes)
+            if needs_user_context and "openid" not in scopes:
+                logger.debug(
+                    "SMART user-facing request lacks 'openid'. Requested: %s",
+                    " ".join(scopes),
+                )
+                raise InvalidScopeError("Failed to Authorize due to unsupported scope")
+            return True
+
         if not client.check_requested_scopes(set(scopes)):
             logger.debug(
                 "Request Scope are "

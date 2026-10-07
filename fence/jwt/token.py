@@ -538,6 +538,17 @@ def generate_id_token(
 
     if user.tags:
         claims["context"]["user"]["tags"] = {tag.key: tag.value for tag in user.tags}
+        import os
+
+        for claim_name, claim_cfg in config.get("SCOPE_EXTRA_CLAIMS", {}).items():
+            if claim_name not in (scopes or []):
+                continue
+            base_url = os.environ.get(claim_cfg.get("base_url_env", ""), "").rstrip("/")
+            tag_value = claims["context"]["user"]["tags"].get(
+                claim_cfg.get("user_tag", "")
+            )
+            if base_url and tag_value:
+                claims[claim_name] = f"{base_url}/{tag_value}"
 
     linked_google_email = kwargs.get("linked_google_email")
     linked_google_account_exp = kwargs.get("linked_google_account_exp")

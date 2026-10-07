@@ -31,7 +31,7 @@ from fence.jwt.blacklist import blacklist_encoded_token
 from fence.jwt.errors import JWTError
 from fence.jwt.token import SCOPE_DESCRIPTION
 from fence.models import Client
-from fence.oidc.endpoints import RevocationEndpoint
+from fence.oidc.endpoints import IntrospectionEndpoint, RevocationEndpoint
 from fence.oidc.server import server
 from fence.utils import clear_cookies
 from fence.user import get_current_user
@@ -414,6 +414,17 @@ def revoke_token():
             exc_info=True,
         )
         return "", 200
+
+
+@blueprint.route("/introspect", methods=["POST"])
+def introspect_token():
+    """
+    Token introspection per RFC 7662 and SMART App Launch (CONF-0123).
+
+    Requires HTTP Basic auth with a registered client_id and client_secret.
+    Returns RFC 7662 introspection response with SMART patient context if present.
+    """
+    return server.create_endpoint_response(IntrospectionEndpoint.ENDPOINT_NAME)
 
 
 @blueprint.route("/errors", methods=["GET"])

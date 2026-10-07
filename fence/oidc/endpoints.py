@@ -1,5 +1,8 @@
+import time
+
 from authlib.oauth2.rfc6749.errors import InvalidClientError, OAuth2Error
 import authlib.oauth2.rfc7009
+import authlib.oauth2.rfc7662
 import bcrypt
 import flask
 
@@ -126,3 +129,72 @@ class JWTToken(object):
         """
 
         return self.client_id == client.client_id
+
+
+class JWTIntrospectionToken:
+    """Wraps a validated JWT for use with IntrospectionEndpoint."""
+
+    def __init__(self, claims):
+        self.claims = claims
+
+    def is_expired(self):
+        return time.time() > self.claims.get("exp", 0)
+
+    def is_revoked(self):
+        jti = self.claims.get("jti")
+        return bool(jti) and fence.jwt.blacklist.is_blacklisted(jti)
+
+    def check_client(self, client):
+        return self.claims.get("azp") == client.client_id
+
+
+class IntrospectionEndpoint(authlib.oauth2.rfc7662.IntrospectionEndpoint):
+    """Token introspection per RFC 7662 / SMART App Launch (CONF-0123)."""
+
+    def query_token(self, token_string, token_type_hint):
+        from fence.jwt.validate import validate_jwt
+        from fence.jwt.errors import JWTError
+
+        try:
+            claims = validate_jwt(
+                encoded_token=token_string,
+                scope=None,
+                options={"verify_aud": False},
+            )
+            return JWTIntrospectionToken(claims)
+        except Exception:
+            return None
+
+    def check_permission(self, token, client, request):
+        return True
+
+    def introspect_token(self, token):
+        claims = token.claims
+        scope = claims.get("scope", "")
+        if isinstance(scope, list):
+            scope = " ".join(scope)
+
+        payload = {
+            k: v
+            for k, v in {
+                "scope": scope,
+                "client_id": claims.get("azp"),
+                "sub": claims.get("sub"),
+                "iss": claims.get("iss"),
+                "exp": claims.get("exp"),
+                "iat": claims.get("iat"),
+                "jti": claims.get("jti"),
+                "token_type": "Bearer",
+            }.items()
+            if v is not None
+        }
+
+        context = claims.get("context", {})
+        user_name = context.get("user", {}).get("name")
+        if user_name:
+            payload["username"] = user_name
+        patient_id = context.get("patient")
+        if patient_id:
+            payload["patient"] = patient_id
+
+        return payload
