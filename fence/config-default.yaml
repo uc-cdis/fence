@@ -296,6 +296,7 @@ OPENID_CONNECT:
     # and server FQDN.
     redirect_url: '{{BASE_URL}}/login/cilogon/login/'
     scope: 'openid email profile'
+    user_id_field: ''  # optional (default "sub"); claims field to get the user_id from
     # if mock is true, will fake a successful login response for login
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
