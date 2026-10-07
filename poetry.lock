@@ -109,14 +109,16 @@ name = "authutils"
 version = "9.0.0"
 description = "Gen3 auth utility functions"
 optional = false
-python-versions = ">=3.13, <4.0"
+python-versions = "<4.0,>=3.13"
 groups = ["main"]
-files = []
-develop = false
+files = [
+    {file = "authutils-9.0.0-py3-none-any.whl", hash = "sha256:36cb55840ae1d381d87935a8609340d1e48b69deb9f24d22012b4437ba73de37"},
+    {file = "authutils-9.0.0.tar.gz", hash = "sha256:07a9dfcb7a90613241d6087f37feb6f72da5cb974c2b7478aa3d100e06401584"},
+]
 
 [package.dependencies]
 authlib = ">=1.6.6"
-cached-property = "~=1.4"
+cached-property = ">=1.4,<2.0"
 cdiserrors = "*"
 cdislogging = "*"
 cryptography = ">=50.0.0"
@@ -125,18 +127,12 @@ joserfc = ">=1.7.3"
 pyjwt = {version = ">=2.11.0,<3.0", extras = ["crypto"]}
 starlette = "*"
 werkzeug = ">=3.1.5"
-xmltodict = "~=0.9"
+xmltodict = ">=0.9,<1.0"
 
 [package.extras]
 datamodelutils = ["datamodelutils"]
 fastapi = ["fastapi"]
 flask = ["Flask"]
-
-[package.source]
-type = "git"
-url = "https://github.com/uc-cdis/authutils.git"
-reference = "feat/dpop"
-resolved_reference = "12bd550c8d0b66fccc544d7c76c876137b652bd8"
 
 [[package]]
 name = "azure-core"
@@ -4017,4 +4013,4 @@ files = [
 [metadata]
 lock-version = "2.1"
 python-versions = ">=3.13,<4.0.0"
-content-hash = "80bd92dee82a136d1ad9ebe82e033805faf8069b90377e83531a31a160fd0ec7"
+content-hash = "4c1834c62417f80cec51f6a079dd2c4a09b5d3256d37a84d3bc207f2f7aa5c4c"
