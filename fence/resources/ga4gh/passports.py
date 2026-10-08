@@ -67,12 +67,14 @@ def sync_gen3_users_authz_from_ga4gh_passports(
             if cached_usernames:
                 # there's a chance a given username exists in the cache but no longer in
                 # the database. if not all are in db, ignore the cache and actually parse
-                # and validate the passport
+                # and validate the passport.
+                # A deactivated user is treated the same way, so that the full path
+                # refuses them instead of the cache handing back their access.
                 all_users_exist_in_db = True
                 usernames_to_update = {}
                 for username in cached_usernames:
                     user = query_for_user(session=db_session, username=username)
-                    if not user:
+                    if not user or user.active == False:
                         all_users_exist_in_db = False
                         continue
                     usernames_to_update[user.username] = user

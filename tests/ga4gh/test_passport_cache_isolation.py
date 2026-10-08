@@ -21,12 +21,12 @@ from fence.models import GA4GHPassportCache
 from tests.conftest import NoAsyncMagicMock
 
 
-VICTIM_SUB = "victim-sub-0001"
-ATTACKER_SUB = "attacker-sub-0002"
+USER_A_SUB = "user-a-sub-0001"
+USER_B_SUB = "user-b-sub-0002"
 ISSUER = "https://stsstg.nih.gov"
 
-VICTIM_USERNAME = VICTIM_SUB + ISSUER[len("https://") :]
-ATTACKER_USERNAME = ATTACKER_SUB + ISSUER[len("https://") :]
+USER_A_USERNAME = USER_A_SUB + ISSUER[len("https://") :]
+USER_B_USERNAME = USER_B_SUB + ISSUER[len("https://") :]
 
 INDEXD_RECORD = {
     "did": "1",
@@ -144,18 +144,18 @@ def test_cache_entry_holds_only_its_own_passports_users(
     mock_httpx_get.return_value = httpx.Response(200, json={"keys": keys})
 
     now = int(time.time())
-    victim_passport = _encode_passport(
-        VICTIM_SUB, rsa_private_key, kid, now, "phs000991"
+    user_a_passport = _encode_passport(
+        USER_A_SUB, rsa_private_key, kid, now, "phs000991"
     )
-    attacker_passport = _encode_passport(
-        ATTACKER_SUB, rsa_private_key, kid, now, "phs000961"
+    user_b_passport = _encode_passport(
+        USER_B_SUB, rsa_private_key, kid, now, "phs000961"
     )
 
     usernames = passports_module.sync_gen3_users_authz_from_ga4gh_passports(
-        [victim_passport, attacker_passport],
+        [user_a_passport, user_b_passport],
         db_session=db_session,
     )
-    assert set(usernames) == {VICTIM_USERNAME, ATTACKER_USERNAME}
+    assert set(usernames) == {USER_A_USERNAME, USER_B_USERNAME}
 
     cached_by_hash = {
         row.passport_hash: row.user_ids
@@ -163,8 +163,8 @@ def test_cache_entry_holds_only_its_own_passports_users(
     }
 
     for encoded_passport, expected_username in (
-        (victim_passport, VICTIM_USERNAME),
-        (attacker_passport, ATTACKER_USERNAME),
+        (user_a_passport, USER_A_USERNAME),
+        (user_b_passport, USER_B_USERNAME),
     ):
         entry_hash = _passport_hash(encoded_passport)
         assert cached_by_hash.get(entry_hash) == [expected_username]

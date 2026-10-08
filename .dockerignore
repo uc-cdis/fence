@@ -1,8 +1,8 @@
 # Signing keys. `keys/` is gitignored, so a clean checkout never has it, but a
 # developer's working tree does and `COPY . /fence` would bake it into the image.
 keys/
-*.pem
-*.key
+**/*.pem
+**/*.key
 jwt-keys.tar
 
 # Deployment secrets and local config
@@ -15,8 +15,8 @@ fence-config.yaml
 .venv/
 venv/
 ENV/
-__pycache__/
-*.py[cod]
+**/__pycache__/
+**/*.py[cod]
 .mypy_cache/
 .pytest_cache/
 .cache/
@@ -42,6 +42,8 @@ dist/
 
 # Compose files and docs, not needed at runtime
 docker-compose*.yml
+# Root-only on purpose: `fence/static/privacy_policy.md` is served by
+# /privacy-policy and must stay in the image, so this must not become `**/*.md`.
 *.md
 !README.md
 

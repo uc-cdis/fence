@@ -264,6 +264,9 @@ def init_multipart_upload():
 
     blank_index = BlankIndex(file_name=params["file_name"], guid=guid)
 
+    if guid:
+        _authorize_upload_to_existing_record(blank_index.index_document)
+
     default_expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
     expires_in = get_valid_expiration(
         params.get("expires_in"),

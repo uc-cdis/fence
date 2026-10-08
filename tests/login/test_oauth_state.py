@@ -51,7 +51,7 @@ def test_callback_rejects_code_with_no_state(client, session_with_state):
     """A callback carrying only a code is refused."""
     session_with_state()
 
-    response = client.get(IDP_ROUTE + "?code=ATTACKER_CODE")
+    response = client.get(IDP_ROUTE + "?code=UNSOLICITED_CODE")
 
     assert response.status_code == 401
 
@@ -60,14 +60,14 @@ def test_callback_rejects_forged_state(client, session_with_state):
     """A callback whose state was not issued by this session is refused."""
     session_with_state()
 
-    response = client.get(IDP_ROUTE + "?code=ATTACKER_CODE&state=attacker-chosen")
+    response = client.get(IDP_ROUTE + "?code=UNSOLICITED_CODE&state=unissued-state")
 
     assert response.status_code == 401
 
 
 def test_callback_rejects_state_with_no_session(client):
     """A callback arriving with no login in progress is refused."""
-    response = client.get(IDP_ROUTE + f"?code=ATTACKER_CODE&state={ISSUED_STATE}")
+    response = client.get(IDP_ROUTE + f"?code=UNSOLICITED_CODE&state={ISSUED_STATE}")
 
     assert response.status_code == 401
 
@@ -81,7 +81,7 @@ def test_callback_accepts_issued_state(client, session_with_state):
     """
     session_with_state()
 
-    response = client.get(IDP_ROUTE + f"?code=ATTACKER_CODE&state={ISSUED_STATE}")
+    response = client.get(IDP_ROUTE + f"?code=UNSOLICITED_CODE&state={ISSUED_STATE}")
 
     assert response.status_code != 401
 
@@ -90,8 +90,8 @@ def test_issued_state_is_single_use(client, session_with_state):
     """Replaying a state that was already consumed is refused."""
     session_with_state()
 
-    first = client.get(IDP_ROUTE + f"?code=ATTACKER_CODE&state={ISSUED_STATE}")
-    second = client.get(IDP_ROUTE + f"?code=ATTACKER_CODE&state={ISSUED_STATE}")
+    first = client.get(IDP_ROUTE + f"?code=UNSOLICITED_CODE&state={ISSUED_STATE}")
+    second = client.get(IDP_ROUTE + f"?code=UNSOLICITED_CODE&state={ISSUED_STATE}")
 
     assert first.status_code != 401
     assert second.status_code == 401
@@ -115,7 +115,7 @@ def test_state_issued_by_login_is_accepted_by_callback(app, client, monkeypatch)
         "state"
     ]
 
-    response = client.get(IDP_ROUTE + f"?code=ATTACKER_CODE&state={issued_state}")
+    response = client.get(IDP_ROUTE + f"?code=UNSOLICITED_CODE&state={issued_state}")
 
     assert response.status_code != 401
 

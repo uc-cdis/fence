@@ -1,27 +1,35 @@
 """
-`POST /data/upload` accepts a caller-supplied GUID. When that GUID names a record that
-already exists, the presigned PUT that comes back writes to that record's storage key,
-so the caller has to be authorized against that record - holding the generic upload
-permission is not enough.
+`POST /data/upload` and `POST /data/multipart/init` accept a caller-supplied GUID. When
+that GUID names a record that already exists, the upload that comes back writes to that
+record's storage key, so the caller has to be authorized against that record - holding
+the generic upload permission is not enough.
 """
 
 import copy
 import json
 
 import mock
+import pytest
 
 
-VICTIM_AUTHZ = "/programs/VICTIM_ONLY"
+EXISTING_RECORD_AUTHZ = "/programs/EXISTING_RECORD_PROGRAM"
 UPLOAD_RESOURCE = "/data_file"
+
+# Each upload endpoint that accepts a GUID, and the response field that proves the
+# upload was handed out.
+UPLOAD_ENDPOINTS = {
+    "/data/upload": "url",
+    "/data/multipart/init": "uploadId",
+}
 
 EXISTING_RECORD = {
     "did": "existing-guid",
     "rev": "abcd1234",
     "baseid": "base-id",
-    "file_name": "victim_file.txt",
-    "authz": [VICTIM_AUTHZ],
+    "file_name": "existing_file.txt",
+    "authz": [EXISTING_RECORD_AUTHZ],
     "acl": [],
-    "urls": ["s3://bucket1/existing-guid/victim_file.txt"],
+    "urls": ["s3://bucket1/existing-guid/existing_file.txt"],
     "uploader": "someone_else",
     "hashes": {},
     "metadata": {},
@@ -74,23 +82,35 @@ def _arborist_allowing(allowed_resources):
     return handle_request
 
 
+@pytest.fixture(params=sorted(UPLOAD_ENDPOINTS))
+def upload_endpoint(request):
+    """Each upload endpoint that accepts a caller-supplied GUID."""
+    return request.param
+
+
 def _post_upload_for_existing_guid(
-    client, encoded_creds_jwt, record, allowed_resources
+    client, encoded_creds_jwt, record, allowed_resources, endpoint
 ):
-    """Request an upload URL for an existing GUID and return the response."""
+    """Request an upload for an existing GUID from `endpoint` and return the response."""
     data_requests_mocker = mock.patch(
         "fence.blueprints.data.indexd.requests", new_callable=mock.Mock
     )
     arborist_requests_mocker = mock.patch(
         "gen3authz.client.arborist.client.httpx.Client.request", new_callable=mock.Mock
     )
-    with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests:
+    multipart_init_mocker = mock.patch(
+        "fence.blueprints.data.indexd.BlankIndex.init_multipart_upload",
+        return_value="test-upload-id",
+    )
+    with data_requests_mocker as data_requests, arborist_requests_mocker as arborist_requests, (
+        multipart_init_mocker
+    ):
         data_requests.get.return_value = MockResponse(record)
         data_requests.get.return_value.status_code = 200
         arborist_requests.side_effect = _arborist_allowing(allowed_resources)
 
         return client.post(
-            "/data/upload",
+            endpoint,
             headers={
                 "Authorization": "Bearer " + encoded_creds_jwt.jwt,
                 "Content-Type": "application/json",
@@ -100,7 +120,13 @@ def _post_upload_for_existing_guid(
 
 
 def test_upload_denied_without_permission_on_the_existing_record(
-    app, client, auth_client, encoded_creds_jwt, user_client, aws_signed_url
+    app,
+    client,
+    auth_client,
+    encoded_creds_jwt,
+    user_client,
+    aws_signed_url,
+    upload_endpoint,
 ):
     """A caller with only the generic upload permission cannot target another record."""
     response = _post_upload_for_existing_guid(
@@ -108,28 +134,42 @@ def test_upload_denied_without_permission_on_the_existing_record(
         encoded_creds_jwt,
         EXISTING_RECORD,
         allowed_resources={UPLOAD_RESOURCE},
+        endpoint=upload_endpoint,
     )
 
     assert response.status_code == 403
 
 
 def test_upload_allowed_with_permission_on_the_existing_record(
-    app, client, auth_client, encoded_creds_jwt, user_client, aws_signed_url
+    app,
+    client,
+    auth_client,
+    encoded_creds_jwt,
+    user_client,
+    aws_signed_url,
+    upload_endpoint,
 ):
     """A caller authorized on the record's authz may request its upload URL."""
     response = _post_upload_for_existing_guid(
         client,
         encoded_creds_jwt,
         EXISTING_RECORD,
-        allowed_resources={UPLOAD_RESOURCE, VICTIM_AUTHZ},
+        allowed_resources={UPLOAD_RESOURCE, EXISTING_RECORD_AUTHZ},
+        endpoint=upload_endpoint,
     )
 
     assert response.status_code == 201
-    assert "url" in response.json
+    assert UPLOAD_ENDPOINTS[upload_endpoint] in response.json
 
 
 def test_upload_to_unauthz_record_denied_for_other_uploader(
-    app, client, auth_client, encoded_creds_jwt, user_client, aws_signed_url
+    app,
+    client,
+    auth_client,
+    encoded_creds_jwt,
+    user_client,
+    aws_signed_url,
+    upload_endpoint,
 ):
     """With no authz on the record, a caller who is not the uploader is refused."""
     record = copy.deepcopy(EXISTING_RECORD)
@@ -141,13 +181,20 @@ def test_upload_to_unauthz_record_denied_for_other_uploader(
         encoded_creds_jwt,
         record,
         allowed_resources={UPLOAD_RESOURCE},
+        endpoint=upload_endpoint,
     )
 
     assert response.status_code == 403
 
 
 def test_upload_to_unauthz_record_allowed_for_its_uploader(
-    app, client, auth_client, encoded_creds_jwt, user_client, aws_signed_url
+    app,
+    client,
+    auth_client,
+    encoded_creds_jwt,
+    user_client,
+    aws_signed_url,
+    upload_endpoint,
 ):
     """
     With no authz on the record, its own uploader may still request an upload URL.
@@ -164,7 +211,8 @@ def test_upload_to_unauthz_record_allowed_for_its_uploader(
         encoded_creds_jwt,
         record,
         allowed_resources={UPLOAD_RESOURCE},
+        endpoint=upload_endpoint,
     )
 
     assert response.status_code == 201
-    assert "url" in response.json
+    assert UPLOAD_ENDPOINTS[upload_endpoint] in response.json

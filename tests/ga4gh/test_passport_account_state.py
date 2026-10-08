@@ -12,13 +12,46 @@ import pytest
 
 from fence.config import config
 from fence.errors import Unauthorized
-from fence.models import query_for_user
-from fence.resources.ga4gh.passports import get_or_create_gen3_user_from_iss_sub
+from fence.models import GA4GHPassportCache, query_for_user
+from fence.resources.ga4gh import passports as passports_module
+from fence.resources.ga4gh.passports import (
+    get_or_create_gen3_user_from_iss_sub,
+    put_gen3_usernames_for_passport_into_cache,
+    sync_gen3_users_authz_from_ga4gh_passports,
+)
 
 
 ISSUER = "https://stsstg.nih.gov"
 SUBJECT_ID = "account-state-subject"
 USERNAME = SUBJECT_ID + ISSUER[len("https://") :]
+
+
+@pytest.fixture
+def cached_passport_for_user(app, db_session, monkeypatch):
+    """
+    Create the visa identity's user and cache a passport as already resolving to them.
+
+    The cached passport is not a valid JWT: a cache hit is trusted without
+    re-validation, so anything that falls through to full validation is discarded.
+    That makes the result show whether the cache alone resolved the user.
+    """
+    monkeypatch.setattr(passports_module, "PASSPORT_CACHE", {})
+    db_session.query(GA4GHPassportCache).delete()
+    db_session.commit()
+
+    passport = "previously-validated-passport"
+    with app.app_context():
+        user = get_or_create_gen3_user_from_iss_sub(
+            ISSUER, SUBJECT_ID, db_session=db_session
+        )
+        put_gen3_usernames_for_passport_into_cache(
+            passport=passport,
+            user_ids_from_passports=[USERNAME],
+            expires_at=int(time.time()) + 1000,
+            db_session=db_session,
+        )
+        db_session.commit()
+    return passport, user
 
 
 def test_new_user_is_created_when_allowed(app, db_session):
@@ -101,3 +134,37 @@ def test_existing_user_still_resolves_when_new_users_disallowed(
         )
 
     assert resolved.id == created.id
+
+
+def test_cached_passport_resolves_active_user(
+    app, db_session, cached_passport_for_user
+):
+    """A cache hit for an active user resolves that user without re-validation."""
+    passport, _ = cached_passport_for_user
+
+    with app.app_context():
+        users = sync_gen3_users_authz_from_ga4gh_passports(
+            [passport], db_session=db_session
+        )
+
+    assert list(users) == [USERNAME]
+
+
+def test_cached_passport_does_not_resolve_deactivated_user(
+    app, db_session, cached_passport_for_user
+):
+    """
+    A cache hit does not resolve a user deactivated after their passport was cached.
+
+    Otherwise deactivation would not take effect until the cache entry expired.
+    """
+    passport, user = cached_passport_for_user
+    user.active = False
+    db_session.commit()
+
+    with app.app_context():
+        users = sync_gen3_users_authz_from_ga4gh_passports(
+            [passport], db_session=db_session
+        )
+
+    assert USERNAME not in users

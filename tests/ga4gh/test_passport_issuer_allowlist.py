@@ -1,8 +1,8 @@
 """
 Passport and visa validation resolves a signing key over the network from the token's
-own ``iss`` claim, which could be attacker-controlled until the signature is checked. The
-issuer allowlist must therefore be consulted before any key retrieval, or a submitted
-token can steer outbound requests regardless of whether it is ultimately rejected.
+own ``iss`` claim, which is untrusted until the signature is checked. The issuer
+allowlist must therefore be consulted before any key retrieval, or a submitted token can
+steer outbound requests regardless of whether it is ultimately rejected.
 """
 
 import time
@@ -18,24 +18,24 @@ from fence.resources.ga4gh.passports import (
 )
 
 
-EVIL_ISSUER = "https://evil.example.com/oidc"
+UNLISTED_ISSUER = "https://unlisted-issuer.example.com/oidc"
 
 
 def _encode_token(private_key, kid, claims):
-    """Sign `claims` with the given key so the token is well formed but foreign."""
+    """Sign `claims` with the given key so the token is well formed but unlisted."""
     return jwt.encode(claims, key=private_key, headers={"kid": kid}, algorithm="RS256")
 
 
 @pytest.fixture
-def evil_passport(rsa_private_key, kid):
+def unlisted_passport(rsa_private_key, kid):
     """A structurally valid passport whose issuer is not on the allowlist."""
     now = int(time.time())
     return _encode_token(
         rsa_private_key,
         kid,
         {
-            "iss": EVIL_ISSUER,
-            "sub": "attacker",
+            "iss": UNLISTED_ISSUER,
+            "sub": "unlisted-user",
             "iat": now,
             "exp": now + 1000,
             "scope": "openid ga4gh_passport_v1",
@@ -45,15 +45,15 @@ def evil_passport(rsa_private_key, kid):
 
 
 @pytest.fixture
-def evil_visa(rsa_private_key, kid):
+def unlisted_visa(rsa_private_key, kid):
     """A structurally valid visa whose issuer is not on the allowlist."""
     now = int(time.time())
     return _encode_token(
         rsa_private_key,
         kid,
         {
-            "iss": EVIL_ISSUER,
-            "sub": "attacker",
+            "iss": UNLISTED_ISSUER,
+            "sub": "unlisted-user",
             "iat": now,
             "exp": now + 1000,
             "scope": "openid ga4gh_passport_v1",
@@ -67,34 +67,36 @@ def evil_visa(rsa_private_key, kid):
     )
 
 
-def test_passport_with_foreign_issuer_yields_no_visas(app, evil_passport):
+def test_passport_with_unlisted_issuer_yields_no_visas(app, unlisted_passport):
     """A passport from an issuer outside the allowlist contributes no visas."""
     with app.app_context():
-        assert get_unvalidated_visas_from_valid_passport(evil_passport) == []
+        assert get_unvalidated_visas_from_valid_passport(unlisted_passport) == []
 
 
-def test_passport_with_foreign_issuer_makes_no_outbound_request(app, evil_passport):
-    """Rejecting a foreign-issuer passport does not fetch keys from its issuer."""
+def test_passport_with_unlisted_issuer_makes_no_outbound_request(
+    app, unlisted_passport
+):
+    """Rejecting an unlisted-issuer passport does not fetch keys from its issuer."""
     with patch("httpx.get") as mock_get:
         with app.app_context():
-            get_unvalidated_visas_from_valid_passport(evil_passport)
+            get_unvalidated_visas_from_valid_passport(unlisted_passport)
 
     assert not mock_get.called
 
 
-def test_visa_with_foreign_issuer_is_rejected(app, evil_visa):
+def test_visa_with_unlisted_issuer_is_rejected(app, unlisted_visa):
     """A visa from an issuer outside the allowlist is rejected."""
     with app.app_context():
         with pytest.raises(Exception):
-            validate_visa(evil_visa)
+            validate_visa(unlisted_visa)
 
 
-def test_visa_with_foreign_issuer_makes_no_outbound_request(app, evil_visa):
-    """Rejecting a foreign-issuer visa does not fetch keys from its issuer."""
+def test_visa_with_unlisted_issuer_makes_no_outbound_request(app, unlisted_visa):
+    """Rejecting an unlisted-issuer visa does not fetch keys from its issuer."""
     with patch("httpx.get") as mock_get:
         with app.app_context():
             with pytest.raises(Exception):
-                validate_visa(evil_visa)
+                validate_visa(unlisted_visa)
 
     assert not mock_get.called
 

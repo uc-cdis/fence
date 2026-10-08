@@ -1,6 +1,6 @@
 """
 `download_dir` copies files off a remote SFTP server, so every filename it receives is
-untrusted input. A malicious or compromised server can answer a directory listing with
+untrusted input. A misbehaving or compromised server can answer a directory listing with
 path separators or an absolute path, which must not redirect the local write.
 """
 

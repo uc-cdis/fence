@@ -524,6 +524,11 @@ def domain(url):
     treated as a path on this application. Browsers normalize backslashes to forward
     slashes in the authority position, so "/\\host" and "\\\\host" get the same
     treatment.
+
+    Control characters are not handled here: a URL like "/\\t/host" reads as a path
+    to this function but not to Werkzeug, which is why
+    ``fence.blueprints.login.redirect.validate_redirect`` rejects them before
+    calling this.
     """
     if not url:
         return ""
