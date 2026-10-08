@@ -6,7 +6,9 @@ new users on login does not gain them here either.
 """
 
 import time
+from unittest.mock import patch
 
+import httpx
 import jwt
 import pytest
 
@@ -24,6 +26,37 @@ from fence.resources.ga4gh.passports import (
 ISSUER = "https://stsstg.nih.gov"
 SUBJECT_ID = "account-state-subject"
 USERNAME = SUBJECT_ID + ISSUER[len("https://") :]
+DEACTIVATED_SUBJECT_ID = "deactivated-subject"
+
+
+def _encode_passport(sub, private_key, kid, current_time):
+    """Build a signed passport carrying one signed visa for `sub`."""
+    visa = {
+        "iss": ISSUER,
+        "sub": sub,
+        "iat": current_time,
+        "exp": current_time + 1000,
+        "scope": "openid ga4gh_passport_v1 email profile",
+        "ga4gh_visa_v1": {
+            "type": "https://ras.nih.gov/visas/v1.1",
+            "asserted": current_time,
+            "value": "https://stsstg.nih.gov/passport/dbgap/v1.1",
+            "source": "https://ncbi.nlm.nih.gov/gap",
+        },
+    }
+    passport = {
+        "iss": ISSUER,
+        "sub": sub,
+        "iat": current_time,
+        "exp": current_time + 1000,
+        "scope": "openid ga4gh_passport_v1 email profile",
+        "ga4gh_passport_v1": [
+            jwt.encode(visa, key=private_key, headers={"kid": kid}, algorithm="RS256")
+        ],
+    }
+    return jwt.encode(
+        passport, key=private_key, headers={"kid": kid}, algorithm="RS256"
+    )
 
 
 @pytest.fixture
@@ -168,3 +201,42 @@ def test_cached_passport_does_not_resolve_deactivated_user(
         )
 
     assert USERNAME not in users
+
+
+@patch("httpx.get")
+def test_deactivated_identity_blocks_sync_for_every_passport(
+    mock_httpx_get, app, db_session, kid, rsa_private_key, monkeypatch
+):
+    """
+    A passport for a deactivated user refuses the request before any access is synced.
+
+    That includes an active user's passport submitted ahead of it in the same request,
+    whose arborist access would otherwise be granted and left in place.
+    """
+    monkeypatch.setattr(passports_module, "PASSPORT_CACHE", {})
+    db_session.query(GA4GHPassportCache).delete()
+    db_session.commit()
+    keys = [keypair.public_key_to_jwk() for keypair in app.keypairs]
+    mock_httpx_get.return_value = httpx.Response(200, json={"keys": keys})
+
+    now = int(time.time())
+    with app.app_context():
+        deactivated = get_or_create_gen3_user_from_iss_sub(
+            ISSUER, DEACTIVATED_SUBJECT_ID, db_session=db_session
+        )
+        deactivated.active = False
+        db_session.commit()
+
+        passports = [
+            _encode_passport(SUBJECT_ID, rsa_private_key, kid, now),
+            _encode_passport(DEACTIVATED_SUBJECT_ID, rsa_private_key, kid, now),
+        ]
+        with patch.object(
+            passports_module, "_sync_validated_visa_authorization"
+        ) as mock_sync:
+            with pytest.raises(Unauthorized):
+                sync_gen3_users_authz_from_ga4gh_passports(
+                    passports, db_session=db_session
+                )
+
+    mock_sync.assert_not_called()

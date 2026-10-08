@@ -54,11 +54,18 @@ def sync_gen3_users_authz_from_ga4gh_passports(
     Return:
         list: a list of users, each corresponding to a valid visa identity
               embedded within the passports passed in
+
+    Raises:
+        Unauthorized: if any visa identity maps to a deactivated user, or to a new
+            user while ALLOW_NEW_USER_ON_LOGIN is off. Nothing is synced to Arborist
+            for any passport in that case.
     """
     db_session = db_session or current_app.scoped_session()
 
     # {"username": user, "username2": user2}
     users_from_all_passports = {}
+
+    resolved_passports = []
     for passport in passports:
         try:
             cached_usernames = get_gen3_usernames_for_passport_from_cache(
@@ -129,12 +136,25 @@ def sync_gen3_users_authz_from_ga4gh_passports(
             )
             continue
 
-        users_from_current_passport = []
-        for (issuer, subject_id), visas in identity_to_visas.items():
-            gen3_user = get_or_create_gen3_user_from_iss_sub(
-                issuer, subject_id, db_session=db_session
+        users_and_visas = [
+            (
+                get_or_create_gen3_user_from_iss_sub(
+                    issuer, subject_id, db_session=db_session
+                ),
+                visas,
             )
+            for (issuer, subject_id), visas in identity_to_visas.items()
+        ]
+        for gen3_user, _ in users_and_visas:
+            users_from_all_passports[gen3_user.username] = gen3_user
+        resolved_passports.append((passport, users_and_visas, min_visa_expiration))
 
+    # Every identity in every passport is resolved above before any authorization is
+    # synced here, so a refused identity (which raises Unauthorized) fails the request
+    # without having granted arborist access to the identities resolved before it
+    for passport, users_and_visas, min_visa_expiration in resolved_passports:
+        users_from_current_passport = []
+        for gen3_user, visas in users_and_visas:
             ga4gh_visas = [
                 GA4GHVisaV1(
                     user=gen3_user,
@@ -157,9 +177,6 @@ def sync_gen3_users_authz_from_ga4gh_passports(
                 skip_google_updates=skip_google_updates,
             )
             users_from_current_passport.append(gen3_user)
-
-        for user in users_from_current_passport:
-            users_from_all_passports[user.username] = user
 
         usernames_from_current_passport = [
             user.username for user in users_from_current_passport
