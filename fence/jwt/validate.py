@@ -135,8 +135,8 @@ def validate_jwt(
         unverified_claims = jwt.decode(
             encoded_token, algorithms=["RS256"], options={"verify_signature": False}
         )
-        if not unverified_claims.get("scope") or "" in unverified_claims["scope"]:
-            msg += "; was OIDC client configured with scopes?"
+        # if not unverified_claims.get("scope") or "" in unverified_claims["scope"]:
+        #     msg += "; was OIDC client configured with scopes?"
         raise JWTError(msg)
     if purpose:
         validate_purpose(claims, purpose)

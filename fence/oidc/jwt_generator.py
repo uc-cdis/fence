@@ -7,7 +7,7 @@ from fence.jwt.token import (
     generate_signed_id_token,
     generate_signed_refresh_token,
 )
-from fence.models import AuthorizationCode, User
+from fence.models import AuthorizationCode, GrantType, User
 from fence.oidc.errors import OIDCError
 from fence.resources.google.utils import (
     get_linked_google_account_email,
@@ -58,6 +58,8 @@ def generate_token(client, grant_type, **kwargs):
         return generate_implicit_response(client, grant_type, **kwargs)
     elif grant_type == "client_credentials":
         return generate_client_response(client, **kwargs)
+    elif grant_type == GrantType.token_exchange.value:
+        return generate_token_exchange_response(client, **kwargs)
 
 
 def generate_implicit_response(
@@ -254,6 +256,73 @@ def generate_token_response(
         "access_token": access_token,
         "refresh_token": refresh_token,
         "expires_in": expires_in,
+    }
+
+
+def generate_token_exchange_response(
+    client, user=None, expires_in=None, scope=None, **kwargs
+):
+    """
+    Generate the token response for the RFC 8693 token exchange grant.
+
+    Unlike the other grants here, ``expires_in`` is honored rather than read from
+    config: the token exchange grant clamps the lifetime to the authority behind
+    the subject token (see
+    ``fence.oidc.grants.token_exchange_grant.TokenExchangeGrant``).
+
+    No refresh token is issued -- a refresh token would outlive the visas that
+    justified the exchange.
+
+    Args:
+        client (Client): OIDC client that initiated the exchange
+        user (fence.models.User): the user the subject token resolved to
+        expires_in (int): token lifetime in seconds, already clamped
+        scope (List[str]): the granted scopes
+
+    Return:
+        dict: token response
+            {
+                "access_token": "",
+                "issued_token_type": "urn:ietf:params:oauth:token-type:access_token",
+                "token_type": "Bearer",
+                "expires_in": 1200,
+                "scope": "openid user",
+            }
+    """
+    # imported here to avoid a circular import at module load
+    from fence.oidc.grants.token_exchange_grant import TOKEN_TYPE_ACCESS_TOKEN
+
+    # prevent those bothersome "not bound to session" errors
+    if user not in current_app.scoped_session():
+        user = current_app.scoped_session().query(User).filter_by(id=user.id).first()
+
+    if not user:
+        raise OIDCError("subject token did not resolve to a user")
+
+    keypair = flask.current_app.keypairs[0]
+
+    expires_in = expires_in or config["ACCESS_TOKEN_EXPIRES_IN"]
+
+    if not isinstance(scope, list):
+        scope = scope.split(" ")
+
+    access_token = generate_signed_access_token(
+        kid=keypair.kid,
+        private_key=keypair.private_key,
+        user=user,
+        expires_in=expires_in,
+        scopes=scope,
+        client_id=client.client_id,
+        linked_google_email=get_linked_google_account_email(user.id),
+    ).token
+
+    return {
+        "access_token": access_token,
+        # REQUIRED by RFC 8693 section 2.2.1
+        "issued_token_type": TOKEN_TYPE_ACCESS_TOKEN,
+        "token_type": "Bearer",
+        "expires_in": expires_in,
+        "scope": " ".join(scope),
     }
 
 

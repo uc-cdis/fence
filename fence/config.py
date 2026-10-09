@@ -172,6 +172,60 @@ class FenceConfig(Config):
 
         self._validate_parent_child_studies(self._configs["dbGaP"])
 
+        self._validate_token_exchange(
+            self._configs.get("TOKEN_EXCHANGE") or {},
+            self._configs.get("GA4GH_VISA_ISSUER_ALLOWLIST") or [],
+            self._configs.get("BASE_URL"),
+        )
+
+    @staticmethod
+    def _validate_token_exchange(token_exchange, visa_issuer_allowlist, base_url):
+        """
+        Validate the RFC 8693 token exchange configuration. Misconfiguration here
+        either fails closed in confusing ways or opens up the trust boundary, so
+        catch it at startup.
+        """
+        if not token_exchange.get("enabled"):
+            return
+
+        allowed_issuers = token_exchange.get("allowed_subject_token_issuers") or {}
+        if not allowed_issuers:
+            raise Exception(
+                "TOKEN_EXCHANGE is enabled but TOKEN_EXCHANGE.allowed_subject_token_issuers "
+                "is empty, so no token could ever be exchanged."
+            )
+
+        for issuer, policy in allowed_issuers.items():
+            policy = policy or {}
+            if not isinstance(policy, dict):
+                raise TypeError(
+                    f"Expected the TOKEN_EXCHANGE policy for issuer '{issuer}' to be "
+                    "a dictionary."
+                )
+
+            if issuer == base_url:
+                raise Exception(
+                    f"TOKEN_EXCHANGE.allowed_subject_token_issuers contains this "
+                    f"Fence instance ('{issuer}'). Allowing Fence to exchange its own "
+                    "tokens would let a client extend access indefinitely without "
+                    "re-authenticating."
+                )
+
+            if issuer not in visa_issuer_allowlist:
+                raise Exception(
+                    f"TOKEN_EXCHANGE.allowed_subject_token_issuers contains '{issuer}', "
+                    "which is not in GA4GH_VISA_ISSUER_ALLOWLIST. The visa validation "
+                    "in the passport sync checks against that list, so no passport "
+                    "from this issuer could be used."
+                )
+
+            allowed_scopes = policy.get("allowed_scopes")
+            if allowed_scopes and "openid" not in allowed_scopes:
+                raise Exception(
+                    f"The TOKEN_EXCHANGE policy for issuer '{issuer}' does not allow "
+                    "the 'openid' scope, which every Fence token requires."
+                )
+
     @staticmethod
     def _validate_parent_child_studies(dbgap_configs):
         if isinstance(dbgap_configs, list):
