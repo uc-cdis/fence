@@ -501,6 +501,18 @@ def validate_scopes(request_scopes, client):
                     " ".join(scopes),
                 )
                 raise InvalidScopeError("Failed to Authorize due to unsupported scope")
+            # SMART scopes are allowed beyond CLIENT_ALLOWED_SCOPES, but any
+            # non-SMART scopes in the request still must be on the client allowlist.
+            non_smart_scopes = {s for s in scopes if not _is_smart_scope(s)}
+            if non_smart_scopes and not set(client.allowed_scopes).issuperset(
+                non_smart_scopes
+            ):
+                logger.debug(
+                    "Non-SMART scopes %s not in client allowed scopes %s",
+                    non_smart_scopes,
+                    client.scope,
+                )
+                raise InvalidScopeError("Failed to Authorize due to unsupported scope")
             return True
 
         if not client.check_requested_scopes(set(scopes)):
