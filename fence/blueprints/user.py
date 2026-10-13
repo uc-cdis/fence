@@ -106,7 +106,7 @@ def upload_certificate(certificate):
     certificates = flask.g.user.application.certificates_uploaded
     if set(REQUIRED_CERTIFICATES.keys()).issubset(set(c.name for c in certificates)):
         title = "User application for {}".format(flask.g.user.username)
-        if getattr(flask.g, "client"):
+        if getattr(flask.g, "client", None):
             title += " from {}".format(flask.g.client)
         if "EMAIL_SERVER" in config:
             content = "Application for user: {}\n" "email: {}".format(
