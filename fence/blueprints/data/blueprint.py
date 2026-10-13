@@ -3,7 +3,7 @@ import json
 import hashlib
 
 from cdislogging import get_logger
-from cdispyutils.config import get_value
+from gen3pyutils.config import get_value
 import requests
 
 from fence.auth import login_required, require_auth_header, current_token, get_jwt
