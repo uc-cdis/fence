@@ -8,7 +8,7 @@ new users on login does not gain them here either.
 import time
 from unittest.mock import patch
 
-import httpx
+import httpx2
 import jwt
 import pytest
 
@@ -203,7 +203,7 @@ def test_cached_passport_does_not_resolve_deactivated_user(
     assert USERNAME not in users
 
 
-@patch("httpx.get")
+@patch("httpx2.get")
 def test_deactivated_identity_blocks_sync_for_every_passport(
     mock_httpx_get, app, db_session, kid, rsa_private_key, monkeypatch
 ):
@@ -217,7 +217,7 @@ def test_deactivated_identity_blocks_sync_for_every_passport(
     db_session.query(GA4GHPassportCache).delete()
     db_session.commit()
     keys = [keypair.public_key_to_jwk() for keypair in app.keypairs]
-    mock_httpx_get.return_value = httpx.Response(200, json={"keys": keys})
+    mock_httpx_get.return_value = httpx2.Response(200, json={"keys": keys})
 
     now = int(time.time())
     with app.app_context():

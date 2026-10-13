@@ -10,7 +10,7 @@ import time
 from unittest.mock import patch
 
 import flask
-import httpx
+import httpx2
 import jwt
 import responses
 
@@ -100,7 +100,7 @@ def _passport_hash(encoded_passport):
 
 
 @responses.activate
-@patch("httpx.get")
+@patch("httpx2.get")
 @patch("fence.resources.google.utils._create_proxy_group")
 @patch("fence.scripting.fence_create.ArboristClient")
 def test_cache_entry_holds_only_its_own_passports_users(
@@ -141,7 +141,7 @@ def test_cache_entry_holds_only_its_own_passports_users(
     mock_google_proxy_group.return_value = google_proxy_group
 
     keys = [keypair.public_key_to_jwk() for keypair in flask.current_app.keypairs]
-    mock_httpx_get.return_value = httpx.Response(200, json={"keys": keys})
+    mock_httpx_get.return_value = httpx2.Response(200, json={"keys": keys})
 
     now = int(time.time())
     user_a_passport = _encode_passport(

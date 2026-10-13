@@ -77,7 +77,7 @@ def test_passport_with_unlisted_issuer_makes_no_outbound_request(
     app, unlisted_passport
 ):
     """Rejecting an unlisted-issuer passport does not fetch keys from its issuer."""
-    with patch("httpx.get") as mock_get:
+    with patch("httpx2.get") as mock_get:
         with app.app_context():
             get_unvalidated_visas_from_valid_passport(unlisted_passport)
 
@@ -93,7 +93,7 @@ def test_visa_with_unlisted_issuer_is_rejected(app, unlisted_visa):
 
 def test_visa_with_unlisted_issuer_makes_no_outbound_request(app, unlisted_visa):
     """Rejecting an unlisted-issuer visa does not fetch keys from its issuer."""
-    with patch("httpx.get") as mock_get:
+    with patch("httpx2.get") as mock_get:
         with app.app_context():
             with pytest.raises(Exception):
                 validate_visa(unlisted_visa)
@@ -129,7 +129,7 @@ def test_allowlisted_issuer_is_not_rejected_by_the_precheck(app, rsa_private_key
         },
     )
 
-    with patch("httpx.get") as mock_get:
+    with patch("httpx2.get") as mock_get:
         mock_get.return_value.status_code = 200
         mock_get.return_value.json.return_value = {"keys": []}
         with app.app_context():
