@@ -51,11 +51,12 @@ class FencePrivateKeyJWT(JWTBearerClientAssertion):
         key_set = JsonWebKey.import_key_set(jwks)
         kid = headers.get("kid")
         if kid:
-            key = key_set.find_by_kid(kid)
-            if not key:
+            try:
+                key = key_set.find_by_kid(kid)
+            except (ValueError, KeyError):
                 raise InvalidClientError(f"No key with kid={kid!r} in client JWKS")
             return key
-        keys = list(key_set)
-        if not keys:
+        # No kid: return the first key in the set
+        if not key_set.keys:
             raise InvalidClientError("Client JWKS contains no keys")
-        return keys[0]
+        return key_set.keys[0]
