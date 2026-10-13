@@ -59,6 +59,8 @@ def openid_configuration():
     authorization_endpoint = path_to(flask.url_for("oauth2.authorize"))
     token_endpoint = path_to(flask.url_for("oauth2.get_token"))
     userinfo_endpoint = path_to(flask.url_for("user.user_info"))
+    introspection_endpoint = path_to(flask.url_for("oauth2.introspect_token"))
+    revocation_endpoint = path_to(flask.url_for("oauth2.revoke_token"))
     registration_endpoint = None  # not yet supported
 
     # List all the scopes allowed in OAuth2 requests.
@@ -99,7 +101,12 @@ def openid_configuration():
             "request_object_signing_alg_values_supported": [],
             "request_object_encryption_alg_values_supported": [],
             "request_object_encryption_enc_values_supported": [],
-            "token_endpoint_auth_methods_supported": [ClientAuthType.basic.value],
+            "introspection_endpoint": introspection_endpoint,
+            "revocation_endpoint": revocation_endpoint,
+            "token_endpoint_auth_methods_supported": [
+                ClientAuthType.basic.value,
+                "private_key_jwt",
+            ],
             "display_values_supported": ["page"],
             "claim_types_supported": ["normal"],
             "claims_supported": claims_supported,
