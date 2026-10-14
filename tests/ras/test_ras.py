@@ -1,6 +1,6 @@
 import asyncio
 import flask
-import httpx
+import httpx2
 import time
 import mock
 import jwt
@@ -487,7 +487,7 @@ def test_update_visa_token_with_invalid_visa(
         assert query_visa == existing_encoded_visa or query_visa == encoded_visa
 
 
-@mock.patch("httpx.get")
+@mock.patch("httpx2.get")
 @mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_userinfo")
 @mock.patch("fence.resources.openid.ras_oauth2.RASOauth2Client.get_access_token")
 @mock.patch(
@@ -576,7 +576,7 @@ def test_update_visa_fetch_pkey(
     # one of which is rsa_private_key (and its corresponding public key), which
     # we just used to sign new_visa.
     keys = [keypair.public_key_to_jwk() for keypair in flask.current_app.keypairs]
-    mock_httpx_get.return_value = httpx.Response(200, json={"keys": keys})
+    mock_httpx_get.return_value = httpx2.Response(200, json={"keys": keys})
 
     oidc = config.get("OPENID_CONNECT", {})
     ras_client = RASClient(
