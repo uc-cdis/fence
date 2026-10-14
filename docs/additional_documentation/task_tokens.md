@@ -104,3 +104,37 @@ With this policy, `u1` can request a `FOO` task token only with a TTL == 100 sec
 | `MAX_TASK_TOKEN_TTL[{type}]` (operator config, falls back to `MAX_ACCESS_TOKEN_TTL`) | Hard ceiling on TTL for unscoped requests — applies unconditionally. For exact-value (time-scoped) grants, exceeding this ceiling causes the request to fail rather than being capped |
 
 For unscoped (basic access) requests, the effective TTL is the **minimum** of the user-requested TTL (or the operator max, if `expires_in` was omitted) and the operator-configured `MAX_TASK_TOKEN_TTL`. For time-scoped (exact-value) requests, the granted TTL is exactly the Arborist-configured value — but only if that value does not exceed `MAX_TASK_TOKEN_TTL`; otherwise the request fails.
+
+## DPoP-Bound Task Tokens (optional)
+
+Fence can require task tokens to be bound to a key held by the client, using DPoP ([RFC 9449](https://datatracker.ietf.org/doc/html/rfc9449)). A bound task token carries a `cnf.jkt` claim (the thumbprint of the client's public key), and a service that validates DPoP only accepts it alongside a fresh proof signed by that same key. A leaked bound token is useless without the key.
+
+### Requesting a bound task token
+
+With DPoP enabled, a task token request must carry a DPoP proof in the `DPoP` header:
+
+1. The client sends the request with a proof that has no nonce. Fence responds `400` with `{"error": "use_dpop_nonce"}` and a `DPoP-Nonce` response header.
+2. The client retries with a new proof that includes that nonce. Fence responds with a task token bound to the proof's key.
+
+Each proof can only be used once. The API key and the user's Arborist access are checked before the proof, so an invalid API key gets a `401` and a user without access gets a `403`, rather than a nonce challenge.
+
+Requests for regular (non-task) access tokens are unaffected.
+
+### Operator setup
+
+```yaml
+# When true, task token requests require a DPoP proof and issue bound tokens.
+DPOP_ENABLED: false
+
+# Signs and verifies DPoP nonces. MUST be identical in every service that does DPoP
+# validation (e.g. gen3-workflow), or nonces issued by one service are rejected by another.
+# Generate with: openssl rand -base64 64
+DPOP_SHARED_SECRET: null
+
+# Seconds a DPoP nonce stays valid.
+DPOP_NONCE_TTL: 300
+```
+
+- **`DPOP_SHARED_SECRET`** should be provided through the `DPOP_SHARED_SECRET` environment variable (sourced from a Kubernetes Secret, for example) rather than the config file. The environment variable takes precedence over the config field. Fence refuses to start if `DPOP_ENABLED` is true and no secret is set.
+- **`DPOP_NONCE_TTL`** can also be set through the `DPOP_NONCE_TTL` environment variable, which takes precedence over the config field.
+- Fence rejects replayed proofs by recording them in the `dpop_proof_jti` table, so the database migration that adds it must be run before enabling DPoP.
