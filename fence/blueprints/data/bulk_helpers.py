@@ -74,21 +74,62 @@ def collect_authz_needing_check(guids, index_document, auth_roles):
     return authz_needing_check
 
 
+def _authz_key_resources(authz_key):
+    """Return the list of resource paths an authz key stands for."""
+    return list(authz_key) if isinstance(authz_key, tuple) else [authz_key]
+
+
+def _is_authorized_for_read_storage(auth_mapping, authz_key, jwt=None, user_id=None):
+    """
+    Determine whether the caller may read-storage every resource in an authz key.
+
+    Arborist's ``auth_request`` over the full resource list is the decision, matching
+    the single-object path: a record carrying several resources requires access to
+    all of them. The auth mapping only screens out keys with no matching resource at
+    all, so arborist is not called for keys that cannot pass.
+
+    Args:
+        auth_mapping: Arborist authorization mapping for a user or token.
+        authz_key: Normalized authz key from indexd metadata.
+        jwt: Bearer token to authorize, or None when authorizing by user_id or
+            anonymously.
+        user_id: Username to authorize, for passport-based access.
+
+    Returns:
+        True if arborist authorizes fence read-storage on every resource in the key.
+    """
+    if not _auth_mapping_has_read_storage(auth_mapping, authz_key):
+        return False
+
+    return bool(
+        flask.current_app.arborist.auth_request(
+            jwt=jwt,
+            user_id=user_id,
+            service="fence",
+            methods="read-storage",
+            resources=_authz_key_resources(authz_key),
+        )
+    )
+
+
 def _auth_mapping_has_read_storage(auth_mapping, authz_key):
     """Determine whether the Arborist auth mapping grants read-storage for an authz key.
+
+    This is a pre-filter, not an authorization decision: it passes when any one
+    resource in the key matches.
 
     Args:
         auth_mapping: Arborist authorization mapping for a user or token.
         authz_key: Normalized authz key from indexd metadata.
 
     Returns:
-        True if the auth_mapping contains a fence read-storage permission for the key.
+        True if the auth_mapping contains a fence read-storage permission for any
+        resource in the key.
     """
     if auth_mapping is None:
         return False
 
-    authz_list = list(authz_key) if isinstance(authz_key, tuple) else [authz_key]
-    for resource in authz_list:
+    for resource in _authz_key_resources(authz_key):
         methods_list = auth_mapping.get(resource)
         if not methods_list:
             continue
@@ -133,7 +174,9 @@ def build_authz_to_authorized_username(authz_needing_check, users_from_passports
             for authz_key in authz_needing_check:
                 if authz_key in authz_to_authorized_username:
                     continue
-                if _auth_mapping_has_read_storage(auth_mapping, authz_key):
+                if _is_authorized_for_read_storage(
+                    auth_mapping, authz_key, user_id=username
+                ):
                     authz_to_authorized_username[authz_key] = username
     else:
         try:
@@ -148,7 +191,7 @@ def build_authz_to_authorized_username(authz_needing_check, users_from_passports
             auth_mapping = {}
 
         for authz_key in authz_needing_check:
-            if _auth_mapping_has_read_storage(auth_mapping, authz_key):
+            if _is_authorized_for_read_storage(auth_mapping, authz_key, jwt=token):
                 authz_to_authorized_username[authz_key] = None
 
     return authz_to_authorized_username

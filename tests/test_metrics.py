@@ -40,6 +40,7 @@ from fence.resources.audit.utils import _clean_authorization_request_url
 from fence.resources.audit.client import AUDIT_SCHEMA_CACHE, AuditServiceClient
 from fence.errors import InternalError
 from tests import utils
+from tests.conftest import LOGIN_STATE_FOR_TESTS, seed_login_state
 from tests.conftest import all_available_idps
 
 # `reset_prometheus_metrics` must be imported even if not used so the autorun fixture gets triggered
@@ -665,15 +666,22 @@ def test_login_log_login_endpoint(
             data={},
             status_code=201,
         )
+        # `prometheus_metrics_before` issues a request of its own, which rewrites the
+        # session cookie and drops the state the fixture seeded.
+        if idp not in ("fence", "shibboleth"):
+            seed_login_state(client, idp_name)
+
         path = f"/login/{get_idp_route_name(idp)}/{callback_endpoint}"
         response = client.get(path, headers=headers)
         print(f"Response: {response.status_code}, Body: {response.data}")
         assert response.status_code == 200, response.text
+        # audit logs redact the `code` and `state` query parameters
+        logged_path = path.replace(LOGIN_STATE_FOR_TESTS, "redacted")
         user_sub = db_session.query(User).filter(User.username == username).first().id
         audit_service_requests.post.assert_called_once_with(
             "http://audit-service/log/login",
             json={
-                "request_url": path,
+                "request_url": logged_path,
                 "status_code": 200,
                 "username": username,
                 "sub": user_sub,
@@ -829,7 +837,8 @@ def test_login_log_push_to_sqs(
     )
     get_auth_info_patch.start()
 
-    path = "/login/google/login"
+    state = seed_login_state(client, "google")
+    path = f"/login/google/login?state={state}"
     response = client.get(path)
     assert response.status_code == 200, response.text
     # not checking the parameters here because we can't json.dumps "sub: ANY"
