@@ -27,6 +27,11 @@ SCOPE_DESCRIPTION = {
     "google_service_account": "Allow registration of external Google service accounts to access data.",
     "admin": "View and update user authorizations.",
     "ga4gh_passport_v1": "Retrieve GA4GH Passports and Visas",
+    # SMART on FHIR scopes (SMART App Launch 2.0)
+    "fhirUser": "Know your FHIR user identity.",
+    "launch": "Launch this app in the context of an EHR session.",
+    "launch/patient": "Access this app in the context of a specific patient.",
+    "offline_access": "Allow this app to access data on your behalf even when you are not logged in.",
 }
 
 
