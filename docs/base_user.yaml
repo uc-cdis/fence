@@ -75,7 +75,7 @@ authz:
     role_ids:
       - indexd_admin
     resource_paths:
-      - /programs
+      - /services/indexd/admin
   - id: open_data_reader
     role_ids:
       - peregrine_reader

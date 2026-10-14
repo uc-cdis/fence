@@ -605,6 +605,32 @@ def db(app, request):
     return app.db
 
 
+LOGIN_STATE_FOR_TESTS = "test-issued-login-state"
+
+
+def seed_login_state(client, idp_name, state=LOGIN_STATE_FOR_TESTS):
+    """
+    Give the test client a session holding an issued login state for an IdP.
+
+    Call this immediately before the callback request. Fence rewrites the session
+    cookie on every response, so any intervening request through the same client
+    discards a state seeded earlier.
+
+    Args:
+        client: the Flask test client to seed
+        idp_name (str): name of the identity provider, as the callback knows it
+        state (str): the state value to issue
+
+    Returns:
+        str: the state that was issued
+    """
+    from fence.blueprints.login.base import state_session_key
+
+    with client.session_transaction() as test_session:
+        test_session[state_session_key(idp_name)] = state
+    return state
+
+
 @pytest.fixture
 def prometheus_metrics_before(client):
     resp = client.get("/metrics")
@@ -1881,7 +1907,9 @@ def mock_authn_user_flask_context(app):
 
 
 @pytest.fixture
-def mocks_for_idp_oauth2_callbacks(idp, rsa_private_key, mock_arborist_requests):
+def mocks_for_idp_oauth2_callbacks(
+    idp, rsa_private_key, mock_arborist_requests, client
+):
     """
     Setup mocks necessary to make calls to OAuth2 callback endpoints, depending on which IdP
     is being used. Return values needed by the calling test.
@@ -1963,6 +1991,14 @@ def mocks_for_idp_oauth2_callbacks(idp, rsa_private_key, mock_arborist_requests)
             f"flask.current_app.{idp}_client.get_auth_info", mocked_get_auth_info
         )
         get_auth_info_patch.start()
+
+    # `DefaultOAuth2Callback` only accepts a callback carrying the login state it
+    # issued. The fence-as-IdP and Shibboleth callbacks override `get` and manage
+    # their own session state, so they are left alone here.
+    if idp not in ("fence", "shibboleth"):
+        seed_login_state(client, idp_name)
+        separator = "&" if "?" in callback_endpoint else "?"
+        callback_endpoint += f"{separator}state={LOGIN_STATE_FOR_TESTS}"
 
     yield idp_name, username, callback_endpoint, headers
 

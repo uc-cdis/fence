@@ -1,12 +1,18 @@
 import os
 
+from fence.blueprints.login.base import state_session_key
 from fence.resources.storage.cdis_jwt import create_session_token
 from fence.config import config
 from fence.sync.sync_users import UserSyncer
 
 
 def test_google_login_error_handling(client):
-    r = client.get("/login/google/login?code=abc")
+    """An unusable authorization code is reported as a client error."""
+    issued_state = "test-issued-login-state"
+    with client.session_transaction() as test_session:
+        test_session[state_session_key("google")] = issued_state
+
+    r = client.get(f"/login/google/login?code=abc&state={issued_state}")
     assert r.status_code == 400
 
 
