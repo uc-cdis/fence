@@ -1,5 +1,8 @@
 import time
+from email.utils import parsedate_to_datetime
+
 import flask
+import jwt
 from fence.resources.storage.cdis_jwt import create_session_token
 from fence.jwt.token import generate_signed_access_token
 from fence.config import config
@@ -519,6 +522,60 @@ def _access_token_for_state(
         scopes=["openid", "user"],
         iss=config.get("BASE_URL"),
     ).token
+
+
+def test_session_cookie_expires_matches_jwt_exp(
+    app, db_session, test_user_a, monkeypatch
+):
+    """
+    Regression test: the session cookie Expires attribute must equal the JWT exp
+    in the cookie value after renewal.
+
+    Before the fix, get_updated_token() updated _encoded_token but not
+    session_token, so get_expiration_time() stamped the previous token's exp on
+    the cookie Expires attribute while the cookie value held a JWT with a newer exp.
+    """
+    monkeypatch.setitem(config, "MOCK_AUTH", False)
+    user = db_session.query(User).filter_by(id=test_user_a["user_id"]).first()
+    keypair = app.keypairs[0]
+
+    initial_session_jwt = create_session_token(
+        keypair,
+        config.get("SESSION_TIMEOUT"),
+        context={"username": user.username, "user_id": user.id, "provider": "google"},
+    )
+
+    # Age the token so the renewed JWT will have a strictly later exp, making
+    # any mismatch between the cookie Expires and JWT exp detectable.
+    time.sleep(1)
+
+    with app.test_client() as client:
+        client.set_cookie(
+            config["SESSION_COOKIE_NAME"],
+            initial_session_jwt,
+            httponly=True,
+            samesite="Lax",
+        )
+
+        response = client.get("/user")
+        assert response.status_code == 200
+
+        cookies = _get_cookies_from_response(response)
+        session_cookie = cookies.get(config["SESSION_COOKIE_NAME"], {})
+        expires_str = session_cookie.get("Expires")
+        assert expires_str, "session cookie must carry an Expires attribute"
+
+        cookie_exp_ts = int(parsedate_to_datetime(expires_str).timestamp())
+
+        renewed_jwt = client.get_cookie(config["SESSION_COOKIE_NAME"]).value
+        jwt_exp = jwt.decode(
+            renewed_jwt, algorithms=["RS256"], options={"verify_signature": False}
+        )["exp"]
+
+        assert cookie_exp_ts == jwt_exp, (
+            f"cookie Expires ({cookie_exp_ts}) must equal JWT exp ({jwt_exp}), "
+            f"drift={jwt_exp - cookie_exp_ts}s"
+        )
 
 
 def _get_cookies_from_response(response):

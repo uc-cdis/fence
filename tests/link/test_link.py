@@ -1,4 +1,5 @@
 import flask
+import pytest
 import time
 from urllib.parse import urlparse, parse_qs, urlunparse
 
@@ -161,6 +162,7 @@ def test_google_link_auth_return(
     proxy_group_id = encoded_creds_jwt["proxy_group_id"]
 
     test_auth_code = "abc123"
+    test_state = "test-link-state"
     redirect = "http://localhost"
     google_account = "some-authed-google-account@gmail.com"
 
@@ -169,6 +171,7 @@ def test_google_link_auth_return(
         config.get("SESSION_TIMEOUT"),
         context={
             "google_link": True,
+            "google_link_state": test_state,
             "user_id": user_id,
             "google_proxy_group_id": proxy_group_id,
             "redirect": redirect,
@@ -186,7 +189,10 @@ def test_google_link_auth_return(
     # simulate successfully authed reponse with user email
     google_auth_get_user_info_mock.return_value = {"email": google_account}
 
-    r = client.get("/link/google/callback", query_string={"code": test_auth_code})
+    r = client.get(
+        "/link/google/callback",
+        query_string={"code": test_auth_code, "state": test_state},
+    )
 
     assert r.status_code == 302
     parsed_url = urlparse(r.headers["Location"])
@@ -214,6 +220,131 @@ def test_google_link_auth_return(
 
     assert add_google_email_to_proxy_group_mock.called
     # TODO assert add_google_email_to_proxy_group_mock called with correct junk
+
+
+@pytest.mark.parametrize("forged_state", [None, "attacker-chosen-state"])
+def test_google_link_callback_rejects_forged_state(
+    app,
+    client,
+    db_session,
+    encoded_creds_jwt,
+    google_auth_get_user_info_mock,
+    add_google_email_to_proxy_group_mock,
+    forged_state,
+):
+    """A callback that doesn't echo the state issued by /link/google links nothing."""
+    attacker_google_account = "attacker@gmail.com"
+
+    _start_google_link_flow(client, encoded_creds_jwt)
+
+    # the authorization code is the attacker's, the session cookie is the victim's
+    google_auth_get_user_info_mock.return_value = {"email": attacker_google_account}
+    query_string = {"code": "attacker-auth-code"}
+    if forged_state:
+        query_string["state"] = forged_state
+
+    r = client.get("/link/google/callback", query_string=query_string)
+
+    assert r.status_code == 401
+    assert not add_google_email_to_proxy_group_mock.called
+    assert (
+        not db_session.query(UserGoogleAccount)
+        .filter(UserGoogleAccount.email == attacker_google_account)
+        .first()
+    )
+
+
+def test_google_link_callback_accepts_issued_state(
+    app,
+    client,
+    db_session,
+    encoded_creds_jwt,
+    google_auth_get_user_info_mock,
+    add_google_email_to_proxy_group_mock,
+):
+    """A callback echoing the state issued by /link/google links the account."""
+    user_id = encoded_creds_jwt["user_id"]
+    google_account = "some-authed-google-account@gmail.com"
+
+    state = _start_google_link_flow(client, encoded_creds_jwt)
+
+    google_auth_get_user_info_mock.return_value = {"email": google_account}
+
+    r = client.get(
+        "/link/google/callback", query_string={"code": "abc123", "state": state}
+    )
+
+    assert r.status_code == 302
+    _, query_params = split_url_and_query_params(r.headers["Location"])
+    assert query_params["linked_email"][0] == google_account
+    assert (
+        db_session.query(UserGoogleAccount)
+        .filter(
+            UserGoogleAccount.email == google_account,
+            UserGoogleAccount.user_id == user_id,
+        )
+        .first()
+    )
+    assert add_google_email_to_proxy_group_mock.called
+
+
+def test_google_link_through_google_login_callback(
+    app,
+    client,
+    db_session,
+    encoded_creds_jwt,
+    google_auth_get_user_info_mock,
+    add_google_email_to_proxy_group_mock,
+):
+    """Linking completes when Google returns to the login callback Google is given."""
+    user_id = encoded_creds_jwt["user_id"]
+    google_account = "some-authed-google-account@gmail.com"
+
+    state = _start_google_link_flow(client, encoded_creds_jwt)
+
+    google_auth_get_user_info_mock.return_value = {"email": google_account}
+
+    r_login_callback = client.get(
+        "/login/google/login", query_string={"code": "abc123", "state": state}
+    )
+    assert r_login_callback.status_code == 302
+
+    r = client.get(str(r_login_callback.location).replace(config["BASE_URL"], ""))
+
+    assert r.status_code == 302
+    _, query_params = split_url_and_query_params(r.headers["Location"])
+    assert query_params["linked_email"][0] == google_account
+    assert (
+        db_session.query(UserGoogleAccount)
+        .filter(
+            UserGoogleAccount.email == google_account,
+            UserGoogleAccount.user_id == user_id,
+        )
+        .first()
+    )
+    assert add_google_email_to_proxy_group_mock.called
+
+
+def _start_google_link_flow(client, encoded_creds_jwt, redirect="http://localhost"):
+    """
+    Run the authed ``GET /link/google`` and return the state sent to Google.
+
+    Args:
+        client: flask test client, which keeps the resulting session cookie
+        encoded_creds_jwt: the ``encoded_creds_jwt`` fixture for the linking user
+        redirect (str): redirect to come back to once linking finishes
+
+    Returns:
+        str: the OAuth2 ``state`` in the authorization URL the user is sent to
+    """
+    r = client.get(
+        "/link/google",
+        query_string={"redirect": redirect},
+        headers={"Authorization": "Bearer " + encoded_creds_jwt["jwt"]},
+    )
+    assert r.status_code == 302
+    _, query_params = split_url_and_query_params(r.location)
+    return query_params["state"][0]
 
 
 def test_patch_google_link(
@@ -463,6 +594,7 @@ def test_google_link_g_account_exists(
     proxy_group_id = encoded_creds_jwt["proxy_group_id"]
 
     test_auth_code = "abc123"
+    test_state = "test-link-state"
     redirect = "http://localhost"
     google_account = "some-authed-google-account@gmail.com"
 
@@ -471,6 +603,7 @@ def test_google_link_g_account_exists(
         config.get("SESSION_TIMEOUT"),
         context={
             "google_link": True,
+            "google_link_state": test_state,
             "user_id": user_id,
             "google_proxy_group_id": proxy_group_id,
             "redirect": redirect,
@@ -493,7 +626,10 @@ def test_google_link_g_account_exists(
     # simulate successfully authed reponse with user email
     google_auth_get_user_info_mock.return_value = {"email": google_account}
 
-    r = client.get("/link/google/callback", query_string={"code": test_auth_code})
+    r = client.get(
+        "/link/google/callback",
+        query_string={"code": test_auth_code, "state": test_state},
+    )
 
     assert not add_new_g_acnt_mock.called
     assert r.status_code == 302
@@ -535,6 +671,7 @@ def test_google_link_g_account_access_extension(
 
     original_expiration = 1000
     test_auth_code = "abc123"
+    test_state = "test-link-state"
     redirect = "http://localhost"
     google_account = "some-authed-google-account@gmail.com"
 
@@ -543,6 +680,7 @@ def test_google_link_g_account_access_extension(
         config.get("SESSION_TIMEOUT"),
         context={
             "google_link": True,
+            "google_link_state": test_state,
             "user_id": user_id,
             "google_proxy_group_id": proxy_group_id,
             "redirect": redirect,
@@ -571,7 +709,10 @@ def test_google_link_g_account_access_extension(
     # simulate successfully authed reponse with user email
     google_auth_get_user_info_mock.return_value = {"email": google_account}
 
-    r = client.get("/link/google/callback", query_string={"code": test_auth_code})
+    r = client.get(
+        "/link/google/callback",
+        query_string={"code": test_auth_code, "state": test_state},
+    )
 
     account_in_proxy_group = (
         db_session.query(UserGoogleAccountToProxyGroup)
@@ -628,6 +769,7 @@ def test_google_link_g_account_exists_linked_to_different_user(
     proxy_group_id = encoded_creds_jwt["proxy_group_id"]
 
     test_auth_code = "abc123"
+    test_state = "test-link-state"
     redirect = "http://localhost"
     google_account = "some-authed-google-account@gmail.com"
 
@@ -636,6 +778,7 @@ def test_google_link_g_account_exists_linked_to_different_user(
         config.get("SESSION_TIMEOUT"),
         context={
             "google_link": True,
+            "google_link_state": test_state,
             "user_id": user_id + 5,  # <- NOT the user whose g acnt exists
             "google_proxy_group_id": proxy_group_id,
             "redirect": redirect,
@@ -657,7 +800,10 @@ def test_google_link_g_account_exists_linked_to_different_user(
     # simulate successfully authed reponse with user email
     google_auth_get_user_info_mock.return_value = {"email": google_account}
 
-    r = client.get("/link/google/callback", query_string={"code": test_auth_code})
+    r = client.get(
+        "/link/google/callback",
+        query_string={"code": test_auth_code, "state": test_state},
+    )
 
     assert not add_new_g_acnt_mock.called
 
@@ -695,6 +841,7 @@ def test_google_link_no_proxy_group(
     user_id = encoded_creds_jwt["user_id"]
 
     test_auth_code = "abc123"
+    test_state = "test-link-state"
     redirect = "http://localhost"
     google_account = "some-authed-google-account@gmail.com"
 
@@ -703,6 +850,7 @@ def test_google_link_no_proxy_group(
         config.get("SESSION_TIMEOUT"),
         context={
             "google_link": True,
+            "google_link_state": test_state,
             "user_id": user_id,
             "google_proxy_group_id": None,  # <- no proxy group
             "redirect": redirect,
@@ -724,7 +872,10 @@ def test_google_link_no_proxy_group(
     # simulate successfully authed reponse with user email
     google_auth_get_user_info_mock.return_value = {"email": google_account}
 
-    r = client.get("/link/google/callback", query_string={"code": test_auth_code})
+    r = client.get(
+        "/link/google/callback",
+        query_string={"code": test_auth_code, "state": test_state},
+    )
 
     assert not add_new_g_acnt_mock.called
 

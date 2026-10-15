@@ -14,7 +14,7 @@ import gen3cirrus
 from gen3cirrus import GoogleCloudManager
 from gen3cirrus import AwsService
 from cdislogging import get_logger
-from cdispyutils.config import get_value
+from gen3pyutils.config import get_value
 import flask
 from flask import current_app
 import requests
