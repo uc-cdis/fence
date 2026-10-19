@@ -254,6 +254,7 @@ def generate_token_response(
         "access_token": access_token,
         "refresh_token": refresh_token,
         "expires_in": expires_in,
+        "scope": " ".join(scope),
     }
 
 
@@ -293,4 +294,5 @@ def generate_client_response(client, expires_in=None, scope=None, **kwargs):
         "token_type": "Bearer",
         "access_token": access_token,
         "expires_in": expires_in,
+        "scope": " ".join(scope),
     }

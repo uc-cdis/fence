@@ -7,6 +7,10 @@ TODO (rudyardrichter, 2018-11-06): clean up/consolidate indexd response mocks
 from collections import OrderedDict
 import json
 import os
+
+# Must be set before fence (and prometheus_client) is imported.
+os.makedirs("/tmp/prometheus_metrics", exist_ok=True)
+os.environ.setdefault("PROMETHEUS_MULTIPROC_DIR", "/tmp/prometheus_metrics")
 import copy
 import time
 import flask
