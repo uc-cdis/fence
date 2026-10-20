@@ -644,7 +644,6 @@ dbGaP:
     # providing a list of additional_allowed_project_id_patterns allows usersyn to
     # read any filename that matches the patterns in the list.
     allow_non_dbGaP_whitelist: false
-    additional_allowed_project_id_patterns: []
     # parse out the consent from the dbgap accession number such that something
     # like "phs000123.v1.p1.c2" becomes "phs000123.c2".
     #
@@ -876,6 +875,7 @@ ARBORIST_TIMEOUT: 30
 AUDIT_SERVICE: 'http://audit-service'
 ENABLE_AUDIT_LOGS:
   presigned_url: false
+  # also covers tokens issued by RFC 8693 token exchange (see TOKEN_EXCHANGE)
   login: false
 # `PUSH_AUDIT_LOGS_CONFIG.type` is one of: [api, aws_sqs].
 # - if type == api: logs are created by hitting the log creation endpoint.
@@ -1140,6 +1140,80 @@ USERSYNC:
   visa_types:
     ras: ['https://ras.nih.gov/visas/v1', 'https://ras.nih.gov/visas/v1.1']
 RAS_USERINFO_ENDPOINT: '/openid/connect/v1.1/userinfo'
+
+# //////////////////////////////////////////////////////////////////////////////////////
+# RFC 8693 TOKEN EXCHANGE
+# //////////////////////////////////////////////////////////////////////////////////////
+# Fence can act as an RFC 8693 Security Token Service: a client presents a token
+# from a trusted issuer as the `subject_token` at the token endpoint, and Fence
+# returns a normal Fence access token for the token's subject.
+#
+# - A GA4GH passport is validated, the authorization its visas describe is synced,
+#   and the issued token is bounded by the earliest visa expiration.
+# - Any other JWT is rejected with `unsupported_grant_type`: exchanging a JWT
+#   that is not a passport is not currently supported.
+#
+# /!\ `allowed_subject_token_issuers` is the trust boundary for this grant. A token
+# from an issuer that is not listed here is never inspected beyond reading its `iss`.
+# This list is deliberately NOT `GA4GH_VISA_ISSUER_ALLOWLIST`, which contains this
+# Fence instance's own BASE_URL -- reusing it would let a client exchange a
+# Fence-issued passport for a fresh Fence token indefinitely.
+TOKEN_EXCHANGE:
+  enabled: false
+
+  # Map of issuer -> policy. If GA4GH_PASSPORTS_TO_DRS_ENABLED or
+  # GLOBAL_PARSE_VISAS_ON_LOGIN is true, every issuer must also appear in
+  # GA4GH_VISA_ISSUER_ALLOWLIST, since that is what the visa validation in the
+  # passport sync checks against. Otherwise, an issuer missing from it only logs a
+  # warning at startup, and none of its tokens can be exchanged.
+  allowed_subject_token_issuers: {}
+    # 'https://stsstg.nih.gov':
+    #   # `subject_token_type` values this issuer's tokens may be sent as. REQUIRED;
+    #   # there is no default, so a token type added in a later Fence release is
+    #   # never turned on by an upgrade. Supported:
+    #   # - 'urn:ietf:params:oauth:token-type:jwt': a GA4GH passport, sent as a
+    #   #   generic JWT. Non-passport JWTs are currently rejected.
+    #   # - 'urn:ga4gh:params:oauth:token-type:passport': a GA4GH passport. Provided to support clients that
+    #   #    will use the private token type for passports defined by GA4GH AAI
+    #   allowed_subject_token_types:
+    #     - 'urn:ga4gh:params:oauth:token-type:passport'
+    #
+    #   # `requested_token_type` values this issuer's tokens may be exchanged for.
+    #   # Supported:
+    #   # - 'urn:ietf:params:oauth:token-type:access_token' (the default)
+    #   allowed_requested_token_types:
+    #     - 'urn:ietf:params:oauth:token-type:access_token'
+    #
+    #   # names of the clients allowed to exchange tokens from this issuer (the
+    #   # name given to `fence-create client-create --client`), not client_ids.
+    #   # every client_id with a listed name is allowed, so a client stays
+    #   # allowed when its credentials are rotated.
+    #   # empty/omitted means any client registered for the token-exchange grant
+    #   allowed_clients: []
+    #
+    #   # hard cap on the lifetime (seconds) of tokens issued from this issuer's
+    #   # tokens. the issued token is always the *minimum* of this,
+    #   # ACCESS_TOKEN_EXPIRES_IN, the subject token's own `exp`, and for a passport,
+    #   # the earliest visa expiration found during the sync. this can only shorten
+    #   # a token: a value above ACCESS_TOKEN_EXPIRES_IN has no effect, and Fence
+    #   # logs a warning at startup. defaults to ACCESS_TOKEN_EXPIRES_IN.
+    #   max_token_lifetime: 600
+    #
+    #   # scopes a token issued from this issuer's tokens may carry. the granted
+    #   # scope is the intersection of the requested scope, the client's allowed
+    #   # scopes, and this list -- never a superset of any of them
+    #   allowed_scopes:
+    #     - 'openid'
+    #     - 'user'
+    #     - 'data'
+    #
+    #   # passports only: require the passport's own <iss, sub> to be one of the
+    #   # identities that the visas in that passport asserted. Identity comes from the
+    #   # passport's <iss, sub> and visas are treated as authorization only; with this
+    #   # set to false, a passport whose visas describe a *different* subject still
+    #   # yields a token for the passport subject (who would get no authorization out
+    #   # of the exchange).
+    #   require_passport_subject_visa_match: true
 
 # //////////////////////////////////////////////////////////////////////////////////////
 # CLIENT CREDENTIALS
