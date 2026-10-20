@@ -7,7 +7,7 @@ https://datatracker.ietf.org/doc/html/rfc8693
 import time
 from unittest.mock import MagicMock, patch
 
-import httpx
+import httpx2
 import flask
 import jwt
 import pytest
@@ -85,8 +85,8 @@ def mock_httpx_get_jwks(app):
     with the test keypair validate.
     """
     keys = [keypair.public_key_to_jwk() for keypair in flask.current_app.keypairs]
-    with patch("httpx.get") as mock_get:
-        mock_get.return_value = httpx.Response(200, json={"keys": keys})
+    with patch("httpx2.get") as mock_get:
+        mock_get.return_value = httpx2.Response(200, json={"keys": keys})
         yield mock_get
 
 
@@ -1103,7 +1103,7 @@ class TestIssuerKeyResolution:
     therefore only resolvable if the path survives into the key URL, and getting
     it wrong looks identical to a missing key at the call site.
 
-    The other tests here mock ``httpx.get`` to answer any URL, so they cannot
+    The other tests here mock ``httpx2.get`` to answer any URL, so they cannot
     tell a correct key URL from a wrong one. These assert the URL directly.
 
     Both cases stop at key lookup: the served JWKS deliberately omits the
@@ -1126,11 +1126,11 @@ class TestIssuerKeyResolution:
     @staticmethod
     def _exchange_recording_urls(client, exchange_client, passport, responder):
         """
-        Run an exchange with ``httpx.get`` patched to answer via ``responder``,
+        Run an exchange with ``httpx2.get`` patched to answer via ``responder``,
         recording every URL requested.
 
         Args:
-            responder (Callable[[str], httpx.Response]): given a URL, return the
+            responder (Callable[[str], httpx2.Response]): given a URL, return the
                 response to serve for it
         Return:
             tuple: (list of requested URLs, the flask test response)
@@ -1142,7 +1142,7 @@ class TestIssuerKeyResolution:
             return responder(str(url))
 
         try:
-            with patch("httpx.get", side_effect=fake_get):
+            with patch("httpx2.get", side_effect=fake_get):
                 response = exchange(
                     client,
                     exchange_client,
@@ -1166,8 +1166,8 @@ class TestIssuerKeyResolution:
 
         def responder(url):
             if url.endswith("/.well-known/openid-configuration"):
-                return httpx.Response(404, text="not found")
-            return httpx.Response(200, json=self.JWKS_WITHOUT_TEST_KID)
+                return httpx2.Response(404, text="not found")
+            return httpx2.Response(200, json=self.JWKS_WITHOUT_TEST_KID)
 
         requested, response = self._exchange_recording_urls(
             client,
@@ -1195,11 +1195,11 @@ class TestIssuerKeyResolution:
 
         def responder(url):
             if url.endswith("/.well-known/openid-configuration"):
-                return httpx.Response(
+                return httpx2.Response(
                     200,
                     json={"issuer": TEST_ISSUER_WITH_PATH, "jwks_uri": jwks_uri},
                 )
-            return httpx.Response(200, json=self.JWKS_WITHOUT_TEST_KID)
+            return httpx2.Response(200, json=self.JWKS_WITHOUT_TEST_KID)
 
         requested, response = self._exchange_recording_urls(
             client,
