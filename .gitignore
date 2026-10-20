@@ -107,6 +107,10 @@ tests/resources/keys/*.pem
 .DS_Store
 .vscode
 .idea
+.serena
+.claude
+AGENTS.md
+CLAUDE.md
 
 # snyk
 .dccache
