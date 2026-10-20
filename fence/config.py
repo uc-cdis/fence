@@ -224,6 +224,136 @@ class FenceConfig(Config):
 
         self._validate_parent_child_studies(self._configs["dbGaP"])
 
+        self._validate_token_exchange(
+            self._configs.get("TOKEN_EXCHANGE") or {},
+            self._configs.get("GA4GH_VISA_ISSUER_ALLOWLIST") or [],
+            self._configs.get("BASE_URL"),
+            passports_in_use=bool(self._configs.get("GA4GH_PASSPORTS_TO_DRS_ENABLED"))
+            or self._configs.get("GLOBAL_PARSE_VISAS_ON_LOGIN") is True,
+            access_token_expires_in=self._configs.get("ACCESS_TOKEN_EXPIRES_IN"),
+        )
+
+    @staticmethod
+    def _validate_token_exchange(
+        token_exchange,
+        visa_issuer_allowlist,
+        base_url,
+        passports_in_use,
+        access_token_expires_in,
+    ):
+        """
+        Validate the token exchange configuration.
+
+        Args:
+            token_exchange (dict): the TOKEN_EXCHANGE configuration
+            visa_issuer_allowlist (list): GA4GH_VISA_ISSUER_ALLOWLIST
+            base_url (str): this Fence instance's BASE_URL
+            passports_in_use (bool): whether this instance otherwise relies on
+                GA4GH_VISA_ISSUER_ALLOWLIST (passports at DRS, or visas parsed on
+                every login), in which case every exchange issuer must be in it
+            access_token_expires_in (int): ACCESS_TOKEN_EXPIRES_IN, which no
+                exchanged token outlives
+        """
+        if not token_exchange.get("enabled"):
+            return
+
+        from fence.oidc.token_exchange import (
+            REQUESTED_TOKEN_HANDLERS,
+            SUBJECT_TOKEN_HANDLERS,
+        )
+        from fence.oidc.token_exchange.base import DEFAULT_REQUESTED_TOKEN_TYPES
+
+        allowed_issuers = token_exchange.get("allowed_subject_token_issuers") or {}
+        if not allowed_issuers:
+            raise Exception(
+                "TOKEN_EXCHANGE is enabled but "
+                "TOKEN_EXCHANGE.allowed_subject_token_issuers is empty, so no token "
+                "could ever be exchanged."
+            )
+
+        for issuer, policy in allowed_issuers.items():
+            policy = policy or {}
+            if not isinstance(policy, dict):
+                raise TypeError(
+                    f"Expected the TOKEN_EXCHANGE policy for issuer '{issuer}' to be "
+                    "a dictionary."
+                )
+
+            if issuer == base_url:
+                raise Exception(
+                    f"TOKEN_EXCHANGE.allowed_subject_token_issuers contains this "
+                    f"Fence instance ('{issuer}'). Allowing Fence to exchange its own "
+                    "tokens would let a client extend access indefinitely without "
+                    "re-authenticating."
+                )
+
+            subject_token_types = policy.get("allowed_subject_token_types") or []
+            if not subject_token_types:
+                raise Exception(
+                    f"The TOKEN_EXCHANGE policy for issuer '{issuer}' has no "
+                    "allowed_subject_token_types, so none of its tokens could ever "
+                    "be exchanged."
+                )
+            for token_type in subject_token_types:
+                if token_type not in SUBJECT_TOKEN_HANDLERS:
+                    raise Exception(
+                        f"The TOKEN_EXCHANGE policy for issuer '{issuer}' allows "
+                        f"subject_token_type '{token_type}', which this version of "
+                        f"Fence cannot accept. Supported: "
+                        f"{sorted(SUBJECT_TOKEN_HANDLERS)}"
+                    )
+
+            requested_token_types = policy.get(
+                "allowed_requested_token_types", DEFAULT_REQUESTED_TOKEN_TYPES
+            )
+            if not requested_token_types:
+                raise Exception(
+                    f"The TOKEN_EXCHANGE policy for issuer '{issuer}' has an empty "
+                    "allowed_requested_token_types, so none of its tokens could ever "
+                    "be exchanged."
+                )
+            for token_type in requested_token_types:
+                if token_type not in REQUESTED_TOKEN_HANDLERS:
+                    raise Exception(
+                        f"The TOKEN_EXCHANGE policy for issuer '{issuer}' allows "
+                        f"requested_token_type '{token_type}', which this version of "
+                        f"Fence cannot issue. Supported: "
+                        f"{sorted(REQUESTED_TOKEN_HANDLERS)}"
+                    )
+
+            if issuer not in visa_issuer_allowlist:
+                message = (
+                    f"TOKEN_EXCHANGE.allowed_subject_token_issuers contains '{issuer}', "
+                    "which is not in GA4GH_VISA_ISSUER_ALLOWLIST. The visa validation "
+                    "in the passport sync checks against that list, so no token from "
+                    "this issuer can be exchanged."
+                )
+                if passports_in_use:
+                    raise Exception(message)
+                logger.warning(message)
+
+            allowed_scopes = policy.get("allowed_scopes")
+            if allowed_scopes and "openid" not in allowed_scopes:
+                raise Exception(
+                    f"The TOKEN_EXCHANGE policy for issuer '{issuer}' does not allow "
+                    "the 'openid' scope, which Fence requires."
+                )
+
+            max_token_lifetime = policy.get("max_token_lifetime")
+            if (
+                max_token_lifetime
+                and access_token_expires_in
+                and int(max_token_lifetime) > int(access_token_expires_in)
+            ):
+                logger.warning(
+                    f"The TOKEN_EXCHANGE policy for issuer '{issuer}' sets "
+                    f"max_token_lifetime to {max_token_lifetime}, which is longer "
+                    f"than ACCESS_TOKEN_EXPIRES_IN ({access_token_expires_in}). "
+                    "max_token_lifetime can only shorten an exchanged token, so "
+                    f"tokens from this issuer will last at most "
+                    f"{access_token_expires_in} seconds."
+                )
+
     @staticmethod
     def _validate_parent_child_studies(dbgap_configs):
         if isinstance(dbgap_configs, list):
