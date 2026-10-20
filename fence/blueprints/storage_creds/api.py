@@ -4,7 +4,7 @@ import flask
 from flask_restful import Resource
 
 from fence.auth import require_auth_header, current_token
-from fence.authz.auth import can_user_get_task_token
+from fence.authz.auth import authorize as authz_authorize, can_user_get_task_token
 from fence.errors import Forbidden, UserError
 from fence.jwt.blacklist import blacklist_token
 from fence.jwt.dpop import jti_seen
@@ -127,9 +127,10 @@ class ApiKey(Resource):
     @require_auth_header({"credentials"})
     def delete(self, access_key):
         """
-        Delete a key for user
+        Delete a key for user, or for any user if the caller is an admin
 
-        :param access_key: existing access key that belongs to this user
+        :param access_key: existing access key that belongs to this user, or to
+            any user if the caller is an admin
 
         :statuscode 204 Success
         :statuscode 403 Forbidden to delete access key
@@ -139,13 +140,18 @@ class ApiKey(Resource):
 
         jti = access_key
         with flask.current_app.db.session as session:
-            api_key = (
-                session.query(UserRefreshToken)
-                .filter_by(jti=jti, userid=user_id)
-                .first()
-            )
+            api_key = session.query(UserRefreshToken).filter_by(jti=jti).first()
         if not api_key:
-            flask.abort(404, "token not found with JTI {} for current user".format(jti))
+            flask.abort(404, "token not found with JTI {}".format(jti))
+
+        # Check if the admin can delete the token.
+        if str(api_key.userid) != user_id:
+            authz_authorize(
+                "/services/fence/admin",
+                "delete",
+                user_id=current_token["context"]["user"]["name"],
+            )
+
         blacklist_token(jti, api_key.expires)
 
         return "", 204
