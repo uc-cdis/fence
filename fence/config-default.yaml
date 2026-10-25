@@ -538,6 +538,10 @@ DPOP_ENABLED: false
 #
 # You can use openssl to generate this (but remember you MUST use the SAME secret across services)
 # `openssl rand -base64 64`
+#
+# Can be set via the DPOP_SHARED_SECRET env var, which takes precedence over this field.
+# Required only for the web app when DPOP_ENABLED is true (it refuses to start without it);
+# CLI and job processes such as fence-create don't need it.
 DPOP_SHARED_SECRET: null
 
 # Seconds a DPoP nonce stays valid. Only read when DPOP_ENABLED is true. authutils reads

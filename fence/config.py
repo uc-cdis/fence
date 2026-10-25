@@ -92,9 +92,12 @@ class FenceConfig(Config):
                     "Environment variable 'DPOP_SHARED_SECRET' empty or not set: using 'DPOP_SHARED_SECRET' field from config file"
                 )
 
+            # Only the web app signs or verifies nonces, so a missing secret is enforced in
+            # `fence.app_config` rather than here; CLI and job processes load config without it.
             if not self["DPOP_SHARED_SECRET"]:
-                raise Exception(
-                    "DPOP_ENABLED is set but DPOP_SHARED_SECRET field empty or not set."
+                logger.warning(
+                    "DPOP_ENABLED is set but DPOP_SHARED_SECRET field empty or not set. "
+                    "This is fine for CLI/job processes but the web app will refuse to start."
                 )
 
             # allow setting DPOP_NONCE_TTL via env var
