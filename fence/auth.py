@@ -279,6 +279,48 @@ def get_openid_config_for_idp(open_id_connect):
     return well_known_resp
 
 
+def get_idp_config(provider):
+    """
+    Return the `OPENID_CONNECT` config of an IdP. Generic OIDC IdPs are stored
+    in the session under their lowercased config key, so the key is matched
+    case-insensitively.
+    Args:
+        provider (str): name of the IdP of the current session
+    Returns:
+        dict: the IdP's config, or None
+    """
+    if not provider:
+        return None
+    for idp, idp_config in (config.get("OPENID_CONNECT") or {}).items():
+        if idp.lower() == provider.lower() and isinstance(idp_config, dict):
+            return idp_config
+    return None
+
+
+def build_idp_logout_url(idp_config, next_url):
+    """
+    Build the URL that logs the user out at an IdP (OpenID Connect
+    RP-Initiated Logout): the IdP's `logout_url` with `client_id` and the
+    post-logout redirect parameter added to its query string.
+    Args:
+        idp_config (dict): the IdP's `OPENID_CONNECT` config, with `logout_url`
+        next_url (str): where the IdP redirects the user after logout
+    Returns:
+        str: the IdP logout URL
+    """
+    parts = urllib.parse.urlsplit(idp_config["logout_url"])
+    query = urllib.parse.parse_qsl(parts.query, keep_blank_values=True)
+    client_id = idp_config.get("client_id")
+    if client_id and "client_id" not in dict(query):
+        query.append(("client_id", client_id))
+    redirect_param_name = (
+        idp_config.get("logout_redirect_param_name") or "post_logout_redirect_uri"
+    )
+    query = [(k, v) for k, v in query if k != redirect_param_name]
+    query.append((redirect_param_name, next_url))
+    return urllib.parse.urlunsplit(parts._replace(query=urllib.parse.urlencode(query)))
+
+
 def logout(next_url, force_era_global_logout=False):
     """
     Return a redirect which another logout from IDP or the provided redirect.
@@ -344,6 +386,8 @@ def logout(next_url, force_era_global_logout=False):
                     logger.error(
                         "end_session_endpoint not found in well-known config. Cognito Session not invalidated. Logging out from Gen3"
                     )
+    elif (idp_config := get_idp_config(provider)) and idp_config.get("logout_url"):
+        provider_logout = build_idp_logout_url(idp_config, next_url)
 
     flask.session.clear()
     try:
