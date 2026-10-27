@@ -1,4 +1,4 @@
-# To build: docker build -t fence:latest .
+# To build: docker build -t fence:latest . TEST CI
 # To run interactive:
 #   docker run -v ~/.gen3/fence/fence-config.yaml:/var/www/fence/fence-config.yaml -v ./keys/:/fence/keys/ fence:latest
 # To check running container do: docker exec -it CONTAINER bash
