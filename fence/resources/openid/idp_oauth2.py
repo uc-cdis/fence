@@ -255,6 +255,9 @@ class Oauth2ClientBase(object):
                 "firstname_claim_field", "firstname"
             )
             lastname_claim_field = self.settings.get("lastname_claim_field", "lastname")
+
+            preferred_username_claim_field = self.settings.get("preferred_username_claim_field", "preferred_username")
+
             email_claim_field = self.settings.get("email_claim_field", "email")
 
             if self.read_authz_groups_from_tokens:
@@ -286,6 +289,7 @@ class Oauth2ClientBase(object):
                     "firstname": claims.get(firstname_claim_field),
                     "lastname": claims.get(lastname_claim_field),
                     "email": claims.get(email_claim_field),
+                    "preferred_username": claims.get(preferred_username_claim_field),
                 }
             else:
                 self.logger.exception(
