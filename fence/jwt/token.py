@@ -27,6 +27,11 @@ SCOPE_DESCRIPTION = {
     "google_service_account": "Allow registration of external Google service accounts to access data.",
     "admin": "View and update user authorizations.",
     "ga4gh_passport_v1": "Retrieve GA4GH Passports and Visas",
+    # SMART on FHIR scopes (SMART App Launch 2.0)
+    "fhirUser": "Know your FHIR user identity.",
+    "launch": "Launch this app in the context of an EHR session.",
+    "launch/patient": "Access this app in the context of a specific patient.",
+    "offline_access": "Allow this app to access data on your behalf even when you are not logged in.",
 }
 
 
@@ -189,9 +194,10 @@ def generate_signed_session_token(kid, private_key, expires_in, context=None):
     token = jwt.encode(claims, private_key, headers=headers, algorithm="RS256")
     token = to_unicode(token, "UTF-8")
 
-    # Browser may clip cookies larger than 4096 bytes
-    if len(token) > 4096:
-        raise JWTSizeError("JWT exceeded 4096 bytes")
+    # Browser may clip cookies larger than 4096 bytes; allow up to 8192
+    # to accommodate long OAuth2 redirect URLs with many FHIR scopes
+    if len(token) > 8192:
+        raise JWTSizeError("JWT exceeded 8192 bytes")
 
     return JWTResult(token=token, kid=kid, claims=claims)
 
@@ -544,6 +550,17 @@ def generate_id_token(
 
     if user.tags:
         claims["context"]["user"]["tags"] = {tag.key: tag.value for tag in user.tags}
+        import os
+
+        for claim_name, claim_cfg in config.get("SCOPE_EXTRA_CLAIMS", {}).items():
+            if claim_name not in (scopes or []):
+                continue
+            base_url = os.environ.get(claim_cfg.get("base_url_env", ""), "").rstrip("/")
+            tag_value = claims["context"]["user"]["tags"].get(
+                claim_cfg.get("user_tag", "")
+            )
+            if base_url and tag_value:
+                claims[claim_name] = f"{base_url}/{tag_value}"
 
     linked_google_email = kwargs.get("linked_google_email")
     linked_google_account_exp = kwargs.get("linked_google_account_exp")
