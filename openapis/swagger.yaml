@@ -669,6 +669,8 @@ paths:
                 $ref: '#/components/schemas/BulkDownloadResponse'
         '400':
           description: 'Invalid input: UUID not found or invalid location'
+        '413':
+          description: 'More GUIDs than the MAX_BULK_DRS_REQUESTS configuration allows'
   '/ga4gh/drs/v1/objects/{object_id}/access/{access_id}':
     get:
       summary: GA4GH DRS Access API to get a URL for fetching bytes.
