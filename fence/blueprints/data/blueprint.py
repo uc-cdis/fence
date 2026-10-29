@@ -19,6 +19,7 @@ from fence.blueprints.data.indexd import (
 )
 from fence.config import config
 from fence.errors import Forbidden, InternalError, NotSupported, UserError, Unauthorized
+from fence.resources.audit.utils import enable_audit_logging
 from fence.utils import get_valid_expiration
 
 
@@ -401,6 +402,7 @@ def download_file(file_id):
 
 
 @blueprint.route("/download/bulk", methods=["POST"])
+@enable_audit_logging
 def download_bulk_files():
     """
     Get a presigned url to download a file given by file_id.
@@ -414,6 +416,21 @@ def download_bulk_files():
         raise UserError("missing required argument `guids`")
 
     guids = params["guids"]
+    if not isinstance(guids, list) or not all(isinstance(guid, str) for guid in guids):
+        raise UserError("`guids` must be a list of strings")
+
+    max_bulk_requests = config.get("MAX_BULK_DRS_REQUESTS")
+    if len(guids) > max_bulk_requests:
+        return (
+            flask.jsonify(
+                {
+                    "error_code": 413,
+                    "error_description": f"Request too large: {len(guids)} objects requested, maximum is {max_bulk_requests}",
+                }
+            ),
+            413,
+        )
+
     requested_protocol = flask.request.args.get("protocol", None)
     r_pays_project = flask.request.args.get("userProject", None)
     no_force_sign_param = flask.request.args.get("no_force_sign", None)

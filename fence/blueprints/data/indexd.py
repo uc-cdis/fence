@@ -187,7 +187,6 @@ def get_signed_url_for_file(
     return {"url": signed_url}
 
 
-@enable_audit_logging
 def bulk_get_signed_url_for_file(
     guids,
     requested_protocol=None,
@@ -198,6 +197,10 @@ def bulk_get_signed_url_for_file(
 ):
     """
     Generate signed access URLs for multiple indexed files.
+
+    Adds one entry per requested file to `flask.g.audit_data["bulk_files"]`.
+    The calling route needs `@enable_audit_logging` to send them.
+
     Args:
         guids (list[str]): GUIDs of indexed files to retrieve URLs for.
         requested_protocol (str, optional): Desired access protocol
@@ -234,37 +237,25 @@ def bulk_get_signed_url_for_file(
         users_from_passports = sync_gen3_users_authz_from_ga4gh_passports(
             ga4gh_passports, db_session=db_session
         )
-    if users_from_passports:
-        if len(users_from_passports) > 1:
-            logger.warning(
-                "audit service doesn't support multiple users for a "
-                "single request yet, so just log userinfo here"
-            )
-            for username, user in users_from_passports.items():
-                audit_data = {
-                    "username": username,
-                    "sub": user.id,
-                    "additional_data": audit_headers or [],
-                }
-                logger.info(
-                    f"passport with multiple user ids is attempting data access. audit log: {audit_data}"
-                )
-        else:
-            username, user = next(iter(users_from_passports.items()))
-            flask.g.audit_data = {
-                "username": username,
-                "sub": user.id,
-                "additional_data": audit_headers or [],
-            }
+    if len(users_from_passports) == 1:
+        username, user = next(iter(users_from_passports.items()))
+        requester = {"username": username, "sub": user.id}
+    elif users_from_passports:
+        # Path for multiple users_from_passports.
+        # Concatenate the multple usernames, e.g. "alice" and "bob" -> "alice,bob"
+        # TODO - add this for non bulk endpoints
+        requester = {"username": ",".join(sorted(users_from_passports)), "sub": None}
     else:
         auth_info = _get_auth_info_for_id_or_from_request(
             sub_type=int, db_session=db_session
         )
-        flask.g.audit_data = {
-            "username": auth_info["username"],
-            "sub": auth_info["user_id"],
-            "additional_data": audit_headers or [],
-        }
+        requester = {"username": auth_info["username"], "sub": auth_info["user_id"]}
+
+    # Add to flask.g.audit data instead of replacing the whole dict.
+    # A DRS request calls this once per access ID (e.g. gs and s3).
+    audit_data = flask.g.setdefault("audit_data", {})
+    audit_data["additional_data"] = audit_headers or []
+    audit_data.setdefault("bulk_files", [])
 
     indexed_files = BulkIndexedFiles(guids)
 
@@ -280,13 +271,16 @@ def bulk_get_signed_url_for_file(
             "is not supported by this instance of Gen3."
         )
 
-    prepare_bulk_presigned_url_audit_log(requested_protocol, indexed_files)
     signed_urls, users, failed_guids = indexed_files.get_signed_urls(
         requested_protocol,
         expires_in,
         force_signed_url=force_signed_url,
         r_pays_project=r_pays_project,
         users_from_passports=users_from_passports,
+    )
+    # Process after signing so each file is logged with its own status/user
+    prepare_bulk_presigned_url_audit_logs(
+        requested_protocol, indexed_files, signed_urls, users, failed_guids, requester
     )
 
     return {"urls": signed_urls, "failed_guids": failed_guids}
@@ -371,38 +365,49 @@ def prepare_presigned_url_audit_log(protocol, indexed_file):
     flask.g.audit_data["protocol"] = protocol
 
 
-def prepare_bulk_presigned_url_audit_log(protocol, indexed_files):
+def prepare_bulk_presigned_url_audit_logs(
+    protocol, indexed_files, signed_urls, users, failed_guids, requester
+):
     """
-    Store audit data for bulk signed URL requests.
+    Add one presigned URL audit log per requested file to
+    flask.g.audit_data["bulk_files"], with status code, resource paths and
+    protocol.
+
+    Args:
+        protocol (str): requested protocol
+        indexed_files (BulkIndexedFiles): the requested files
+        signed_urls (list[dict]): {"drs_object_id", "url"} for successful files
+        users (list[User | None]): the passport user who was authorized for
+            each entry of `signed_urls`, or None
+        failed_guids (list[dict]): {"error_code", "object_ids"} for failed files
+        requester (dict): username and sub to log for files that no
+            passport user was authorized for
     """
+    status_codes = {}
+    authorized_users = {}
+    for signed_url, user in zip(signed_urls, users):
+        status_codes[signed_url["drs_object_id"]] = 200
+        authorized_users[signed_url["drs_object_id"]] = user
+    for failure in failed_guids:
+        for file_id in failure["object_ids"]:
+            status_codes[file_id] = failure["error_code"]
 
-    all_resource_paths = []
-    per_file_info = []
-
-    for file_id, doc in indexed_files.index_document.items():
-        resource_paths = doc.get("authz") or doc.get("acl") or []
-
-        # Determine protocol fallback like single-file version
+    for file_id in indexed_files.guids:
+        document = indexed_files.index_document.get(file_id, {})
         file_protocol = protocol
-        if not file_protocol and doc.get("urls"):
-            file_protocol = IndexedFileLocation.from_url(doc["urls"][0]).protocol
-
-        all_resource_paths.extend(resource_paths)
-
-        per_file_info.append(
+        if not file_protocol and document.get("urls"):
+            file_protocol = IndexedFileLocation.from_url(document["urls"][0]).protocol
+        # log the passport user authorized for this file if any, else the requester
+        user = authorized_users.get(file_id)
+        flask.g.audit_data["bulk_files"].append(
             {
-                "file_id": file_id,
-                "resource_paths": resource_paths,
+                "guid": file_id,
+                "status_code": status_codes[file_id],
+                "resource_paths": document.get("authz") or document.get("acl") or [],
                 "protocol": file_protocol,
+                **({"username": user.username, "sub": user.id} if user else requester),
             }
         )
-
-    flask.g.audit_data["resource_paths"] = list(set(all_resource_paths))
-    flask.g.audit_data["protocol"] = protocol
-    flask.g.audit_data["bulk"] = True
-
-    # Optional but VERY useful for debugging / observability
-    flask.g.audit_data["bulk_files"] = per_file_info
 
 
 def _check_acl_authorization(bulk, file_id):

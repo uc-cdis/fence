@@ -14,6 +14,10 @@ from fence.utils import DEFAULT_BACKOFF_SETTINGS
 AUDIT_SCHEMA_CACHE = SimpleCache(default_timeout=1800)  # cached for 30m
 
 
+SQS_MAX_BATCH_ENTRIES = 10
+SQS_MAX_BATCH_BYTES = 256 * 1024
+
+
 class AuditServiceClient:
     def __init__(self, service_url, logger):
         self.service_url = service_url.rstrip("/")
@@ -234,7 +238,124 @@ class AuditServiceClient:
             return
 
         self._set_schema_models_cache()
+        self._create_audit_log(
+            "presigned_url",
+            self._presigned_url_log_data(
+                request_url,
+                status_code,
+                username,
+                sub,
+                guid,
+                action,
+                resource_paths,
+                protocol,
+                additional_data,
+                bulk,
+                bulk_files,
+            ),
+        )
 
+    def create_presigned_url_logs(self, logs):
+        """
+        Create several presigned URL audit logs.
+        SQS logs are pushed in batches.
+
+        Args:
+            logs (list[dict]): one dict of `create_presigned_url_log`
+                arguments per log
+
+        Raises:
+            InternalError: if any of the logs could not be created
+        """
+        if not logs or not is_audit_enabled("presigned_url"):
+            return
+
+        self._set_schema_models_cache()
+        bodies = [self._presigned_url_log_data(**log) for log in logs]
+        if self.push_type == "aws_sqs":
+            failed_count = self._push_to_sqs_in_batches("presigned_url", bodies)
+        else:
+            failed_count = 0
+            for body in bodies:
+                try:
+                    self._create_audit_log("presigned_url", body)
+                except Exception:
+                    self.logger.exception(
+                        f"Unable to create presigned_url audit log `{body}`"
+                    )
+                    failed_count += 1
+
+        if failed_count:
+            raise InternalError(
+                f"Unable to create {failed_count} of {len(bodies)} audit logs"
+            )
+
+    def _push_to_sqs_in_batches(self, category, bodies):
+        """
+        Push audit logs to SQS with `send_message_batch`.
+
+        Args:
+            category (str): audit log category
+            bodies (list[dict]): audit log data, one dict per log
+
+        Returns:
+            int: the number of logs that could not be pushed
+        """
+        sqs_url = config["PUSH_AUDIT_LOGS_CONFIG"]["aws_sqs_config"]["sqs_url"]
+        messages = [json.dumps({**body, "category": category}) for body in bodies]
+        failed_count = 0
+        for batch in _sqs_batches(messages):
+            entries = [
+                {"Id": str(index), "MessageBody": message}
+                for index, message in enumerate(batch)
+            ]
+            try:
+                response = self.sqs.send_message_batch(
+                    QueueUrl=sqs_url, Entries=entries
+                )
+            except Exception:
+                self.logger.exception(
+                    f"Error pushing {len(batch)} audit logs to SQS '{sqs_url}'"
+                )
+                failed_count += len(batch)
+                continue
+
+            # a successful call can still reject some of the entries
+            for failure in response.get("Failed", []):
+                self.logger.error(
+                    f"Error pushing audit log to SQS '{sqs_url}': "
+                    f"{failure.get('Code')} {failure.get('Message')}. "
+                    f"Log: {batch[int(failure['Id'])]}"
+                )
+                failed_count += 1
+
+        return failed_count
+
+    def _presigned_url_log_data(
+        self,
+        request_url,
+        status_code,
+        username,
+        sub,
+        guid,
+        action,
+        resource_paths=None,
+        protocol=None,
+        additional_data=None,
+        bulk=False,
+        bulk_files=None,
+    ):
+        """
+        Build the body of a presigned URL audit log for the cached audit
+        schema version.
+
+        Args: presigned URL audit log data fields
+
+        Returns:
+            dict: the audit log body
+        """
+        additional_data = [] if additional_data is None else additional_data
+        bulk_files = [] if bulk_files is None else bulk_files
         data = {
             "request_url": request_url,
             "status_code": status_code,
@@ -265,7 +386,7 @@ class AuditServiceClient:
                 "Could not retrieve presigned_url version from audit schema"
             )
 
-        self._create_audit_log("presigned_url", data)
+        return data
 
     def create_login_log(
         self,
@@ -324,3 +445,32 @@ class AuditServiceClient:
             pass
 
         self._create_audit_log("login", data)
+
+
+def _sqs_batches(messages):
+    """
+    Group SQS message bodies into `send_message_batch` batches that stay
+    within `SQS_MAX_BATCH_ENTRIES` and `SQS_MAX_BATCH_BYTES`. A message larger
+    than `SQS_MAX_BATCH_BYTES` gets a batch of its own.
+
+    Args:
+        messages (list[str]): message bodies
+
+    Yields:
+        list[str]: the message bodies of one batch
+    """
+    batch = []
+    batch_bytes = 0
+    for message in messages:
+        message_bytes = len(message.encode("utf-8"))
+        if batch and (
+            len(batch) == SQS_MAX_BATCH_ENTRIES
+            or batch_bytes + message_bytes > SQS_MAX_BATCH_BYTES
+        ):
+            yield batch
+            batch = []
+            batch_bytes = 0
+        batch.append(message)
+        batch_bytes += message_bytes
+    if batch:
+        yield batch
