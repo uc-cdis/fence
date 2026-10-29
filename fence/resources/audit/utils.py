@@ -14,6 +14,10 @@ from fence.auth import get_user_from_claims
 
 logger = get_logger(__name__)
 
+BULK_DOWNLOAD_ENDPOINTS = frozenset(
+    ["/data/download/bulk", "/ga4gh/drs/v1/objects/access"]
+)
+
 
 def is_audit_enabled(category=None):
     enable_audit_logs = config["ENABLE_AUDIT_LOGS"] or {}
@@ -45,7 +49,7 @@ def create_audit_log_for_request(response, duration):
     Right before returning the response to the user (see `after_this_request`
     in `enable_audit_logging` decorator), record an audit log. The data we
     need to record the logs are stored in `flask.g.audit_data` before reaching
-    this code.
+    this code. Bulk presigned url endpoints send one log per file.
 
     TODO The audit service has the ability to record presigned URL "upload" logs but we are not
     currently sending those logs. We would need to:
@@ -93,23 +97,22 @@ def create_audit_log_for_request(response, duration):
                     request_url=request_url,
                     **audit_data,
                 )
-        elif method == "POST" and endpoint.startswith("/ga4gh/drs/v1/objects/access"):
-            request_url = _clean_authorization_request_url(request_url)
-            audit_data.get("additional_data", []).append(f"duration:{duration}")
-            audit_data.get("additional_data", []).append(f"http_method:{method}")
-
-            if audit_data.get("bulk_files"):
-                audit_data["additional_data"].append(
-                    "bulk_guids:"
-                    + ",".join(entry["file_id"] for entry in audit_data["bulk_files"])
-                )
-
-            flask.current_app.audit_service_client.create_presigned_url_log(
-                status_code=response.status_code,
-                request_url=request_url,
-                guid="bulk",
-                action="download",
-                **audit_data,
+        elif method == "POST" and endpoint in BULK_DOWNLOAD_ENDPOINTS:
+            additional_data = audit_data.get("additional_data", []) + [
+                f"duration:{duration}",
+                f"http_method:{method}",
+            ]
+            flask.current_app.audit_service_client.create_presigned_url_logs(
+                [
+                    {
+                        **file_log,
+                        "request_url": request_url,
+                        "action": "download",
+                        "additional_data": list(additional_data),
+                        "bulk": True,
+                    }
+                    for file_log in audit_data.get("bulk_files", [])
+                ]
             )
 
     except Exception:
