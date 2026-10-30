@@ -341,6 +341,18 @@ def test_logout_generic_idp_without_logout_url(client, db_session, generic_idps)
     assert r.location == redirect
 
 
+def test_logout_generic_idp_logout_url_error(client, db_session, generic_idps):
+    """
+    Test /logout still logs out of Gen3 and redirects straight to next when
+    building the IdP logout URL fails
+    """
+    redirect = "https://test-url.com"
+    with mock.patch("fence.auth.build_idp_logout_url", side_effect=Exception("boom")):
+        r = _logout(client, "generic_idp_a", redirect)
+    assert r.status_code == 302
+    assert r.location == redirect
+
+
 def test_logout_cognito_ignores_logout_url(client, db_session, monkeypatch):
     """
     Test the built-in cognito IdP keeps its discovery-based logout when a

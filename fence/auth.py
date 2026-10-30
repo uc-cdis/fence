@@ -387,7 +387,12 @@ def logout(next_url, force_era_global_logout=False):
                         "end_session_endpoint not found in well-known config. Cognito Session not invalidated. Logging out from Gen3"
                     )
     elif (idp_config := get_idp_config(provider)) and idp_config.get("logout_url"):
-        provider_logout = build_idp_logout_url(idp_config, next_url)
+        try:
+            provider_logout = build_idp_logout_url(idp_config, next_url)
+        except Exception as e:
+            logger.error(
+                f"Could not build the logout URL for IdP {provider}. IdP session not invalidated, logging out from Gen3. Error: {e}"
+            )
 
     flask.session.clear()
     try:
