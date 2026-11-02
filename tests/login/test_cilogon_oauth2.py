@@ -155,3 +155,71 @@ def test_get_auth_info_exception(mock_get_jwt_claims_identity, cilogon_client):
     assert "error" in auth_info
     assert "Can't get your CILogon sub" in auth_info["error"]
     cilogon_client.logger.exception.assert_called_once_with("Can't get user info")
+
+
+@patch("fence.resources.openid.cilogon_oauth2.Oauth2ClientBase.get_jwt_claims_identity")
+def test_get_auth_info_configured_user_id_field(
+    mock_get_jwt_claims_identity, mock_settings, mock_logger
+):
+    """
+    Test that get_auth_info uses the configured `user_id_field` instead of "sub".
+    """
+    mock_settings["user_id_field"] = "email"
+    client = CilogonOauth2Client(mock_settings, mock_logger)
+    mock_get_jwt_claims_identity.return_value = (
+        {"sub": "mock_user_id", "email": "user@example.com"},
+        "mock_refresh_token",
+        "mock_access_token",
+    )
+
+    auth_info = client.get_auth_info("mock_code")
+
+    assert auth_info == {"email": "user@example.com", "sub": "mock_user_id"}
+
+
+@patch("fence.resources.openid.cilogon_oauth2.Oauth2ClientBase.get_jwt_claims_identity")
+def test_get_auth_info_configured_user_id_field_missing(
+    mock_get_jwt_claims_identity, mock_settings, mock_logger
+):
+    """
+    Test that get_auth_info returns an error when the configured `user_id_field`
+    claim is missing.
+    """
+    mock_settings["user_id_field"] = "email"
+    client = CilogonOauth2Client(mock_settings, mock_logger)
+    mock_get_jwt_claims_identity.return_value = (
+        {"sub": "mock_user_id"},
+        "mock_refresh_token",
+        "mock_access_token",
+    )
+
+    auth_info = client.get_auth_info("mock_code")
+
+    assert auth_info == {"error": "Can't get user's CILogon email"}
+
+
+@pytest.mark.parametrize(
+    "cilogon_settings,expected_username_field",
+    [
+        ({}, "sub"),
+        ({"user_id_field": ""}, "sub"),
+        ({"user_id_field": "email"}, "email"),
+    ],
+)
+def test_cilogon_callback_username_field(
+    app, monkeypatch, cilogon_settings, expected_username_field
+):
+    """
+    Test that CilogonCallback uses the configured `user_id_field` as the
+    username field and falls back to "sub".
+    """
+    from fence.blueprints.login.cilogon import CilogonCallback
+    from fence.config import config
+
+    monkeypatch.setitem(config["OPENID_CONNECT"], "cilogon", cilogon_settings)
+    monkeypatch.setattr(app, "cilogon_client", MagicMock(), raising=False)
+
+    with app.app_context():
+        callback = CilogonCallback()
+
+    assert callback.username_field == expected_username_field

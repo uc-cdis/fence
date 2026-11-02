@@ -8,7 +8,7 @@ import flask
 from flask import current_app
 from flask_wtf import FlaskForm
 from wtforms import StringField
-from wtforms.validators import DataRequired, Email, ValidationError
+from wtforms.validators import DataRequired, Email
 
 from cdislogging import get_logger
 
@@ -86,7 +86,7 @@ def register_user():
     # and we check that one and only one of user.email or form.email is non-empty.
     if user.email:
         if flask.request.form.get("email"):
-            raise ValidationError(
+            raise UserError(
                 "Received unexpected 'email' field; this user is already associated with the "
                 "email '{}', so the form should not have had an email field".format(
                     user.email
@@ -119,14 +119,17 @@ def register_user():
 def add_user_registration_info_to_database(
     user: User, firstname: str, lastname: str, organization: str, email: str
 ):
-    user.additional_info = user.additional_info or {}
     registration_info = {
         "firstname": firstname,
         "lastname": lastname,
         "org": organization,
         "email": email,
     }
-    user.additional_info["registration_info"] = registration_info
+    # Rebind rather than mutate: `additional_info` is a plain JSONB column, so
+    # SQLAlchemy only notices the change if the attribute is assigned a new object.
+    additional_info = dict(user.additional_info or {})
+    additional_info["registration_info"] = registration_info
+    user.additional_info = additional_info
     current_app.scoped_session().add(user)
     current_app.scoped_session().commit()
 

@@ -106,6 +106,14 @@ class UserSession(SessionMixin):
                 self.session_token["context"],
             )
             self._encoded_token = token
+            # Sync the decoded dict so get_expiration_time reads the new exp,
+            # not the previous token's exp (which would make the cookie Expires
+            # attribute stale relative to the JWT value in the cookie).
+            self.session_token = jwt.decode(
+                token,
+                algorithms=["RS256"],
+                options={"verify_signature": False},
+            )
 
         return self._encoded_token
 

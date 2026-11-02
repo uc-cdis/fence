@@ -243,7 +243,7 @@ def _get_auth_response_for_prompts(prompts, grant, user, client, scope):
                 # For a POST, return the redirect in JSON instead of headers.
                 if flask.request.method == "POST":
                     redirect_response = flask.make_response(
-                        flask.jsonify({"redirect": response.headers["Location"]})
+                        flask.jsonify({"redirect": flask.url_for(".authorize")})
                     )
                 else:
                     redirect_response = flask.make_response(

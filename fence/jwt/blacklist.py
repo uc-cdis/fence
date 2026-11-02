@@ -107,8 +107,8 @@ def blacklist_encoded_token(encoded_token, public_key=None):
         - Add entry with ``jti`` to ``BlacklistedToken`` table
     """
     # Decode token and get claims.
-    public_key = public_key or keys.default_public_key()
     try:
+        public_key = public_key or _public_key_for_token(encoded_token)
         claims = jwt.decode(
             encoded_token,
             public_key,
@@ -169,8 +169,12 @@ def is_token_blacklisted(encoded_token, public_key=None):
     Return:
         token: decoded JWT claims
         bool: whether JWT is blacklisted
+
+    Raises:
+        jwt.InvalidTokenError: if the token cannot be decoded, or no loaded keypair
+            matches its ``kid``
     """
-    public_key = public_key or keys.default_public_key()
+    public_key = public_key or _public_key_for_token(encoded_token)
     token = jwt.decode(
         encoded_token,
         public_key,
@@ -178,3 +182,36 @@ def is_token_blacklisted(encoded_token, public_key=None):
         options={"verify_aud": False, "verify_exp": False},
     )
     return token, is_blacklisted(token["jti"])
+
+
+def _public_key_for_token(encoded_token: str) -> str:
+    """
+    Resolve the public key matching a token's ``kid``.
+
+    Every loaded keypair is published in the JWKS and is accepted when a token is
+    validated, so revocation has to consider all of them rather than only the current
+    signing key: after a key rotation the previous keypair stays loaded so that
+    outstanding refresh tokens and API keys keep working, and those are exactly the
+    credentials a caller needs to be able to revoke.
+
+    Args:
+        encoded_token (str): the JWT whose signature is about to be checked
+
+    Returns:
+        str: PEM-encoded public key for the token's ``kid``
+
+    Raises:
+        jwt.InvalidTokenError: if no loaded keypair matches the token's ``kid``
+    """
+    # Read the kid from the header rather than via authutils' helpers: those decode
+    # the claims with exp verification on, and an expired token still has to be
+    # checkable against the denylist.
+    kid = jwt.get_unverified_header(encoded_token).get("kid")
+    if not kid:
+        return keys.default_public_key()
+
+    for keypair in flask.current_app.keypairs:
+        if keypair.kid == kid:
+            return keypair.public_key
+
+    raise jwt.InvalidTokenError("no loaded keypair matches kid {}".format(kid))

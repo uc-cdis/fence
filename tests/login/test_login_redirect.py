@@ -175,3 +175,54 @@ def test_invalid_redirect_fails(client, idp):
         "/login/{}?redirect=https://evil-site.net".format(get_idp_route_name(idp))
     )
     assert response.status_code == 400
+
+
+@pytest.mark.parametrize(
+    "redirect",
+    [
+        "//external-site.net",
+        "//external-site.net/path",
+        "/\\external-site.net",
+        "\\\\external-site.net",
+    ],
+)
+@pytest.mark.parametrize("idp", all_available_idps())
+def test_authority_relative_redirect_fails(client, idp, redirect):
+    """
+    Check that an authority-relative redirect is rejected rather than being mistaken
+    for a path on this application.
+
+    A URL beginning ``//`` names a different host but still starts with a slash, and
+    browsers normalize a leading ``/\\`` or ``\\\\`` the same way.
+    """
+    response = client.get(
+        "/login/{}?redirect={}".format(get_idp_route_name(idp), redirect)
+    )
+    assert response.status_code == 400
+
+
+@pytest.mark.parametrize(
+    "encoded_redirect",
+    [
+        "/%09/external-site.net",
+        "/%09/%09external-site.net",
+        "/%0A/external-site.net",
+        "/%0D/external-site.net",
+        "%09//external-site.net",
+        "/%7F/external-site.net",
+    ],
+)
+@pytest.mark.parametrize("idp", all_available_idps())
+def test_control_character_redirect_fails(client, idp, encoded_redirect):
+    """
+    Check that a redirect containing ASCII control characters is rejected.
+
+    Werkzeug deletes tab, CR and LF when it writes the ``Location`` header, so
+    ``/<tab>/external-site.net`` would otherwise pass as a local path and leave as
+    ``//external-site.net``. The redirect is sent percent-encoded, as a crafted link
+    would carry it, so the decoded value fence sees holds the raw character.
+    """
+    response = client.get(
+        "/login/{}?redirect={}".format(get_idp_route_name(idp), encoded_redirect)
+    )
+    assert response.status_code == 400

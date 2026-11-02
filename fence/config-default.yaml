@@ -113,6 +113,15 @@ OPENID_CONNECT:
     user_id_field: ''  # optional (default "sub"); claims field to get the user_id from
     email_field: ''  # optional (default "email"); claims field to get the user email from
     scope: ''  # optional (default "openid")
+    # optional; IdP logout endpoint (`end_session_endpoint`). If set, `/logout?next=<next>`
+    # redirects there with `client_id` and `post_logout_redirect_uri=<next>` added; the IdP must
+    # allow `<next>` as post-logout redirect URI. E.g. `https://idp/logout` with
+    # `next=https://gen3.example.com/` becomes:
+    #   https://idp/logout?client_id=<client_id>&post_logout_redirect_uri=https%3A%2F%2Fgen3.example.com%2F
+    logout_url: ''
+    # optional (default "post_logout_redirect_uri"); redirect parameter name for non-standard
+    # IdPs, e.g. `logout_uri` for AWS Cognito
+    logout_redirect_param_name: ''
     multifactor_auth_claim_info: # optional, include if you're using arborist to enforce mfa on a per-file level
       claim: '' # claims field that indicates mfa, either the acr or acm claim.
       values: [ "" ] # possible values that indicate mfa was used. At least one value configured here is required to be in the token
@@ -296,6 +305,7 @@ OPENID_CONNECT:
     # and server FQDN.
     redirect_url: '{{BASE_URL}}/login/cilogon/login/'
     scope: 'openid email profile'
+    user_id_field: ''  # optional (default "sub"); claims field to get the user_id from
     # if mock is true, will fake a successful login response for login
     # WARNING: DO NOT ENABLE IN PRODUCTION (for testing purposes only)
     mock: false
@@ -524,6 +534,29 @@ GOOGLE_ACCOUNT_ACCESS_EXPIRES_IN: 86400
 
 # The number of seconds after a pre-signed url is issued until it expires.
 MAX_PRESIGNED_URL_TTL: 3600
+
+# DPoP (RFC 9449) Configuration
+# When true, /credentials/api/access_token will accept DPoP proofs and issue bound tokens.
+# When false, DPoP headers are ignored and plain Bearer tokens are issued.
+DPOP_ENABLED: false
+
+# This secret MUST be the same as other services `DPOP_SHARED_SECRET` to ensure the nonce can be
+# generated and validated by any service. e.g. if we use dpop in Service Foo, then that service
+# MUST have the EXACT SAME `DPOP_SHARED_SECRET` as this and all other services. This is used
+# by authutils.
+#
+# You can use openssl to generate this (but remember you MUST use the SAME secret across services)
+# `openssl rand -base64 64`
+#
+# Can be set via the DPOP_SHARED_SECRET env var, which takes precedence over this field.
+# Required only for the web app when DPOP_ENABLED is true (it refuses to start without it);
+# CLI and job processes such as fence-create don't need it.
+DPOP_SHARED_SECRET: null
+
+# Seconds a DPoP nonce stays valid. Only read when DPOP_ENABLED is true. authutils reads
+# this from the environment, so fence exports it; a DPOP_NONCE_TTL env var already in the
+# environment takes precedence over this field.
+DPOP_NONCE_TTL: 300
 
 # The number of seconds after an API KEY is issued until it expires.
 MAX_API_KEY_TTL: 2592000

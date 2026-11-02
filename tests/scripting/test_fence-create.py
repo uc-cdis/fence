@@ -595,7 +595,7 @@ def test_delete_user_with_access_privilege(app, db_session):
     assert db_session.query(User).count() == before_insert_count, remaining_usernames
 
 
-def test_create_user_access_token_with_no_found_user(
+def test_jwt_creator_access_token_with_no_found_user(
     app, db_session, kid, rsa_private_key
 ):
     user = User(username="test_user")
@@ -631,7 +631,7 @@ def test_create_user_refresh_token_with_no_found_user(
         jwt_creator.create_refresh_token()
 
 
-def test_create_user_access_token_bad_header(
+def test_jwt_creator_access_token_bad_header(
     app, db_session, client, kid, rsa_private_key, oauth_client
 ):
     user = User(username="test_user")
@@ -650,7 +650,7 @@ def test_create_user_access_token_bad_header(
     assert r.status_code == 401
 
 
-def test_create_user_access_token(
+def test_jwt_creator_access_token(
     app, db_session, client, kid, rsa_private_key, oauth_client
 ):
     user = User(username="test_user")
