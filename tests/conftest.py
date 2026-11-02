@@ -697,6 +697,7 @@ def db_session(db, patch_app_db_session):
     yield session
 
     # clear out user and project tables upon function close in case unit test didn't
+    session.query(models.Application).delete()
     session.query(models.User).delete()
     session.query(models.IssSubPairToUser).delete()
     session.query(models.Project).delete()
