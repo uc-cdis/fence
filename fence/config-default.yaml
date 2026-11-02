@@ -113,6 +113,15 @@ OPENID_CONNECT:
     user_id_field: ''  # optional (default "sub"); claims field to get the user_id from
     email_field: ''  # optional (default "email"); claims field to get the user email from
     scope: ''  # optional (default "openid")
+    # optional; IdP logout endpoint (`end_session_endpoint`). If set, `/logout?next=<next>`
+    # redirects there with `client_id` and `post_logout_redirect_uri=<next>` added; the IdP must
+    # allow `<next>` as post-logout redirect URI. E.g. `https://idp/logout` with
+    # `next=https://gen3.example.com/` becomes:
+    #   https://idp/logout?client_id=<client_id>&post_logout_redirect_uri=https%3A%2F%2Fgen3.example.com%2F
+    logout_url: ''
+    # optional (default "post_logout_redirect_uri"); redirect parameter name for non-standard
+    # IdPs, e.g. `logout_uri` for AWS Cognito
+    logout_redirect_param_name: ''
     multifactor_auth_claim_info: # optional, include if you're using arborist to enforce mfa on a per-file level
       claim: '' # claims field that indicates mfa, either the acr or acm claim.
       values: [ "" ] # possible values that indicate mfa was used. At least one value configured here is required to be in the token
