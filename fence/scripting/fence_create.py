@@ -467,6 +467,7 @@ def download_dbgap_files(
     sync_from_local_yaml_file=None,
     arborist=None,
     folder=None,
+    prune_users=True,
 ):
     syncer = init_syncer(
         dbGaP,
@@ -494,6 +495,7 @@ def sync_users(
     sync_from_local_yaml_file=None,
     arborist=None,
     folder=None,
+    prune_users=True,
 ):
     syncer = init_syncer(
         dbGaP,
@@ -508,7 +510,7 @@ def sync_users(
     )
     if not syncer:
         exit(1)
-    syncer.sync()
+    syncer.sync(prune_users=prune_users)
 
 
 def create_sample_data(DB, yaml_file_path):
