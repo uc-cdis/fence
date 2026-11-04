@@ -98,6 +98,7 @@ def create_audit_log_for_request(response, duration):
                     **audit_data,
                 )
         elif method == "POST" and endpoint in BULK_DOWNLOAD_ENDPOINTS:
+            request_url = _clean_authorization_request_url(request_url)
             additional_data = audit_data.get("additional_data", []) + [
                 f"duration:{duration}",
                 f"http_method:{method}",
