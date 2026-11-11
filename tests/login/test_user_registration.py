@@ -245,6 +245,29 @@ def test_registration_without_registered_users_group_does_not_create_arborist_us
     arborist.create_user.assert_not_called()
 
 
+def test_registration_with_registered_users_group_creates_arborist_user(
+    app: flask.Flask, db_session: Session, test_user_a: Dict
+) -> None:
+    """With a REGISTERED_USERS_GROUP, registering creates the user in Arborist."""
+    user = db_session.query(User).filter_by(username=test_user_a.username).one()
+    arborist = MagicMock()
+    arborist.list_groups.return_value = {"groups": [{"name": "registered"}]}
+    arborist.add_user_to_group.return_value = True
+
+    with app.app_context(), patch.object(app, "arborist", arborist), patch.dict(
+        config, {"REGISTERED_USERS_GROUP": "registered"}
+    ):
+        add_user_registration_info_to_database(
+            user,
+            "Kathryn",
+            "Janeway",
+            "Starfleet Academy",
+            "seeyouin7years@example.com",
+        )
+
+    arborist.create_user.assert_called_once_with({"name": test_user_a.username})
+
+
 def test_registration_adds_user_to_registered_users_group(
     app: flask.Flask, db_session: Session, test_user_a: Dict
 ) -> None:
