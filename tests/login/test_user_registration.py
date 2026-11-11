@@ -6,6 +6,7 @@ import pytest
 
 from fence.blueprints.login import get_idp_route_name
 from fence.blueprints.login.base import _login_and_register
+from fence.blueprints.register import add_user_registration_info_to_database
 from fence.config import config
 from fence.errors import UserError
 from tests.conftest import all_available_idps
@@ -80,6 +81,31 @@ def test_login_with_auto_registration(
 
         # Ensure user was added to the database
         mock_add_user_registration_info_to_database.assert_called()
+
+
+def test_registration_creates_arborist_user_without_registered_users_group(
+    monkeypatch,
+):
+    """Registration provisions Arborist even when no default group is configured."""
+    app = flask.Flask(__name__)
+    user = MagicMock(username="lisa@example.com", additional_info=None)
+    session = MagicMock()
+    arborist = MagicMock()
+    app.scoped_session = MagicMock(return_value=session)
+    app.arborist = arborist
+    monkeypatch.setitem(config, "REGISTERED_USERS_GROUP", "")
+
+    with app.app_context():
+        add_user_registration_info_to_database(
+            user,
+            firstname="Lisa",
+            lastname="Simpson",
+            organization="Springfield Elementary",
+            email="lisa@example.com",
+        )
+
+    arborist.create_user.assert_called_once_with({"name": "lisa@example.com"})
+    arborist.add_user_to_group.assert_not_called()
 
 
 @pytest.mark.parametrize(
