@@ -224,9 +224,9 @@ class AuditServiceClient:
         action,
         resource_paths=None,
         protocol=None,
-        additional_data=[],
+        additional_data=None,
         bulk=False,
-        bulk_files=[],
+        bulk_files=None,
     ):
         """
         Create a presigned URL audit log, or do nothing if auditing is
