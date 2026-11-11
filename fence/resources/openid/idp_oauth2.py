@@ -451,8 +451,8 @@ class Oauth2ClientBase(object):
         their group memberships with Arborist.
 
         This method refreshes the user's access token using an identity provider (IdP),
-        retrieves and decodes the token, and optionally synchronizes the user's group
-        memberships between the IdP and Arborist if the `groups` configuration is enabled.
+        retrieves and decodes the token, and optionally adds the user to the Arborist groups
+        listed in the token if the `is_authz_groups_sync_enabled` setting is enabled.
 
         Args:
             user (User): The user object, which contains details like username and identity provider.
@@ -462,21 +462,24 @@ class Oauth2ClientBase(object):
             **kwargs: Additional keyword arguments.
 
         Raises:
-            Exception: If there is an issue with retrieving the access token, decoding the token,
-            or synchronizing the user's groups.
+            Exception: If there is an issue with retrieving or decoding the access token, or
+                if a request to Arborist times out. Arborist error responses when adding the
+                user to a group are logged, not raised.
 
         Workflow:
-        1. Retrieves the token endpoint and JWKS URI from the identity provider's discovery document.
+        1. Retrieves the token endpoint from the identity provider's discovery document.
         2. Uses the user's refresh token to get a new access token and persists it in the database.
-        3. Decodes the ID token using the JWKS (JSON Web Key Set) retrieved from the IdP.
+        3. Decodes the access token using the public key for the ID token.
         4. If group synchronization is enabled:
            a. Retrieves the list of groups from Arborist.
-           b. Retrieves the user's groups from the IdP.
-           c. Adds the user to groups in Arborist that match the groups from the IdP.
-           d. Removes the user from groups in Arborist that they are no longer part of in the IdP.
+           b. Retrieves the user's groups from the access token.
+           c. Adds the user to groups in Arborist that match the groups from the IdP, first
+              creating the user in Arborist if there is at least one matching group.
+              Memberships expire (see `group_membership_expiration_duration`), so the user
+              stays in groups they are no longer part of in the IdP until then.
 
         Logging:
-        - Logs the group membership synchronization activities (adding/removing users from groups).
+        - Logs each group the user is being added to.
         - Logs any issues encountered while refreshing the token or during group synchronization.
 
         Warnings:
@@ -556,16 +559,31 @@ class Oauth2ClientBase(object):
                     refresh_token_expires_at, configured_expires_at
                 )
 
+                matching_group_names = [
+                    arborist_group["name"]
+                    for arborist_group in arborist_groups
+                    if arborist_group["name"] in idp_group_names
+                ]
+
+                if matching_group_names:
+                    # The user may not exist in Arborist yet: registration and usersync only
+                    # keep users there who have access, and Arborist rejects adding an unknown
+                    # user to a group. `create_user` is a no-op for existing users.
+                    self.arborist.create_user(dict(name=user.username))
+
                 # Add user to all matching groups from IDP
-                for arborist_group in arborist_groups:
-                    if arborist_group["name"] in idp_group_names:
-                        self.logger.info(
-                            f"Adding {user.username} to group: {arborist_group['name']}, sub: {user.id} exp: {group_membership_expires_at}"
-                        )
-                        self.arborist.add_user_to_group(
-                            username=user.username,
-                            group_name=arborist_group["name"],
-                            expires_at=group_membership_expires_at,
+                for group_name in matching_group_names:
+                    self.logger.info(
+                        f"Adding {user.username} to group: {group_name}, sub: {user.id} exp: {group_membership_expires_at}"
+                    )
+                    success = self.arborist.add_user_to_group(
+                        username=user.username,
+                        group_name=group_name,
+                        expires_at=group_membership_expires_at,
+                    )
+                    if not success:
+                        self.logger.error(
+                            f"Could not add {user.username} to group: {group_name}"
                         )
             else:
                 self.logger.warning(

@@ -143,9 +143,10 @@ OPENID_CONNECT:
     # verify and synchronize user group memberships between the identity provider (IdP)
     # and the local authorization system (Arborist). When enabled, the refresh token is stored, the system retrieves
     # the user's group information from their token issued by the IdP and compares it against
-    # the groups defined in the local system. Based on the comparison, the user is added to
-    # or removed from relevant groups in the local system to ensure their group memberships
-    # remain up-to-date. If this flag is disabled, no group synchronization occurs
+    # the groups defined in the local system. Based on the comparison, the user is added to the matching
+    # groups in the local system. Memberships expire and are renewed each time the user's token is
+    # refreshed, so a user who leaves a group in the IdP is removed once that membership expires, not
+    # right away. If this flag is disabled, no group synchronization occurs
     is_authz_groups_sync_enabled: true
     # Key used to retrieve group information from the token
     group_claim_field: "groups"
