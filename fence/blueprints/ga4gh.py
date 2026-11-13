@@ -19,6 +19,7 @@ from fence.errors import (
     UnavailableError,
 )
 from fence.config import config
+from fence.resources.audit.utils import enable_audit_logging
 
 
 from fence.blueprints.data.indexd import (
@@ -147,6 +148,7 @@ def get_ga4gh_signed_url(object_id, access_id):
 
 
 @blueprint.route("/drs/v1/objects/access", methods=["POST"])
+@enable_audit_logging
 def get_ga4gh_signed_urls():
     r_pays_project = flask.request.args.get("userProject", None)
     no_force_sign_param = flask.request.args.get("no_force_sign", None)
