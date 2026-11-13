@@ -931,42 +931,66 @@ def test_delete_call_not_successful(app, public_bucket_indexd_client):
             assert indexed_file.delete()
 
 
-def test_prepare_bulk_presigned_url_audit_log_combines_authz_and_acl(app):
+def test_prepare_bulk_presigned_url_audit_logs_one_log_per_file(app):
     """
-    Test fence.blueprints.data.indexd.prepare_bulk_presigned_url_audit_log populates
-    audit data correctly for bulk file requests.
+    Every requested file gets its own audit log, with its own status code,
+    resource paths (authz, else ACL), protocol (requested, else the file's
+    first location) and authorizing user (else the requester).
     """
 
     class DummyBulkIndexedFiles:
+        guids = ["guid1", "guid2", "missing"]
         index_document = {
             "guid1": {
-                "urls": ["s3://bucket/key1"],
+                "urls": ["gs://bucket/key1"],
                 "authz": ["/programs/DEV/projects/test"],
             },
-            "guid2": {"urls": ["gs://bucket/key2"], "acl": ["*"]},
+            "guid2": {"urls": ["s3://bucket/key2"], "acl": ["phs000178"]},
         }
+
+    authorized_user = MagicMock(username="passport_user", id=7)
+    requester = {"username": "requester", "sub": 3}
 
     with app.test_request_context():
-        indexd.flask.g.audit_data = {}
-        indexd.prepare_bulk_presigned_url_audit_log("s3", DummyBulkIndexedFiles())
-
-        assert set(indexd.flask.g.audit_data["resource_paths"]) == {
-            "/programs/DEV/projects/test",
-            "*",
-        }
-        assert indexd.flask.g.audit_data["protocol"] == "s3"
-        assert indexd.flask.g.audit_data["bulk"] is True
-        assert len(indexd.flask.g.audit_data["bulk_files"]) == 2
-        assert {
-            entry["file_id"] for entry in indexd.flask.g.audit_data["bulk_files"]
-        } == {
-            "guid1",
-            "guid2",
-        }
-        assert all(
-            entry["protocol"] == "s3"
-            for entry in indexd.flask.g.audit_data["bulk_files"]
+        indexd.flask.g.audit_data = {"bulk_files": []}
+        indexd.prepare_bulk_presigned_url_audit_logs(
+            None,
+            DummyBulkIndexedFiles(),
+            signed_urls=[{"drs_object_id": "guid1", "url": "https://signed1"}],
+            users=[authorized_user],
+            failed_guids=[
+                {"error_code": 401, "object_ids": ["guid2"]},
+                {"error_code": 404, "object_ids": ["missing"]},
+            ],
+            requester=requester,
         )
+
+        assert indexd.flask.g.audit_data["bulk_files"] == [
+            {
+                "guid": "guid1",
+                "status_code": 200,
+                "resource_paths": ["/programs/DEV/projects/test"],
+                "protocol": "gs",
+                "username": "passport_user",
+                "sub": 7,
+            },
+            {
+                "guid": "guid2",
+                "status_code": 401,
+                "resource_paths": ["phs000178"],
+                "protocol": "s3",
+                "username": "requester",
+                "sub": 3,
+            },
+            {
+                "guid": "missing",
+                "status_code": 404,
+                "resource_paths": [],
+                "protocol": None,
+                "username": "requester",
+                "sub": 3,
+            },
+        ]
 
 
 def test_bulk_get_signed_url_for_file_calls_bulk_indexed_files_and_returns_results(
@@ -978,7 +1002,10 @@ def test_bulk_get_signed_url_for_file_calls_bulk_indexed_files_and_returns_resul
     """
 
     monkeypatch.setattr(app, "scoped_session", lambda: MagicMock())
-    expected_urls = ["https://signed1", "https://signed2"]
+    expected_urls = [
+        {"drs_object_id": "guid1", "url": "https://signed1"},
+        {"drs_object_id": "guid2", "url": "https://signed2"},
+    ]
     expected_response = {"urls": expected_urls, "failed_guids": []}
 
     with app.test_request_context(
