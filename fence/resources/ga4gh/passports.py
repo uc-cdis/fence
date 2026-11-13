@@ -127,6 +127,12 @@ def sync_gen3_users_authz_from_ga4gh_passports(
         expired_authz_removal_job_freq_in_seconds = config[
             "EXPIRED_AUTHZ_REMOVAL_JOB_FREQ_IN_SECONDS"
         ]
+
+        # Buffer between when the arborist policy expires and when the cache expires.
+        # Used in cases where a passport is cached but the policy expires before the
+        # authz check happens for presigned-url generation
+        arborist_exp_cache_buffer_in_seconds = 5
+
         min_visa_expiration -= expired_authz_removal_job_freq_in_seconds
         if min_visa_expiration <= int(time.time()):
             logger.warning(
@@ -172,7 +178,7 @@ def sync_gen3_users_authz_from_ga4gh_passports(
             _sync_validated_visa_authorization(
                 gen3_user=gen3_user,
                 ga4gh_visas=ga4gh_visas,
-                expiration=min_visa_expiration,
+                expiration=min_visa_expiration + arborist_exp_cache_buffer_in_seconds,
                 db_session=db_session,
                 skip_google_updates=skip_google_updates,
             )

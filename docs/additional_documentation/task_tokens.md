@@ -135,6 +135,6 @@ DPOP_SHARED_SECRET: null
 DPOP_NONCE_TTL: 300
 ```
 
-- **`DPOP_SHARED_SECRET`** should be provided through the `DPOP_SHARED_SECRET` environment variable (sourced from a Kubernetes Secret, for example) rather than the config file. The environment variable takes precedence over the config field. Fence refuses to start if `DPOP_ENABLED` is true and no secret is set.
+- **`DPOP_SHARED_SECRET`** should be provided through the `DPOP_SHARED_SECRET` environment variable (sourced from a Kubernetes Secret, for example) rather than the config file. The environment variable takes precedence over the config field. The fence web app refuses to start if `DPOP_ENABLED` is true and no secret is set. CLI and job processes (`fence-create migrate`, usersync, cronjobs, etc.) don't use the secret and start without it.
 - **`DPOP_NONCE_TTL`** can also be set through the `DPOP_NONCE_TTL` environment variable, which takes precedence over the config field.
 - Fence rejects replayed proofs by recording them in the `dpop_proof_jti` table, so the database migration that adds it must be run before enabling DPoP.

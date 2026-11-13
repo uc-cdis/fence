@@ -113,6 +113,15 @@ OPENID_CONNECT:
     user_id_field: ''  # optional (default "sub"); claims field to get the user_id from
     email_field: ''  # optional (default "email"); claims field to get the user email from
     scope: ''  # optional (default "openid")
+    # optional; IdP logout endpoint (`end_session_endpoint`). If set, `/logout?next=<next>`
+    # redirects there with `client_id` and `post_logout_redirect_uri=<next>` added; the IdP must
+    # allow `<next>` as post-logout redirect URI. E.g. `https://idp/logout` with
+    # `next=https://gen3.example.com/` becomes:
+    #   https://idp/logout?client_id=<client_id>&post_logout_redirect_uri=https%3A%2F%2Fgen3.example.com%2F
+    logout_url: ''
+    # optional (default "post_logout_redirect_uri"); redirect parameter name for non-standard
+    # IdPs, e.g. `logout_uri` for AWS Cognito
+    logout_redirect_param_name: ''
     multifactor_auth_claim_info: # optional, include if you're using arborist to enforce mfa on a per-file level
       claim: '' # claims field that indicates mfa, either the acr or acm claim.
       values: [ "" ] # possible values that indicate mfa was used. At least one value configured here is required to be in the token
@@ -134,9 +143,10 @@ OPENID_CONNECT:
     # verify and synchronize user group memberships between the identity provider (IdP)
     # and the local authorization system (Arborist). When enabled, the refresh token is stored, the system retrieves
     # the user's group information from their token issued by the IdP and compares it against
-    # the groups defined in the local system. Based on the comparison, the user is added to
-    # or removed from relevant groups in the local system to ensure their group memberships
-    # remain up-to-date. If this flag is disabled, no group synchronization occurs
+    # the groups defined in the local system. Based on the comparison, the user is added to the matching
+    # groups in the local system. Memberships expire and are renewed each time the user's token is
+    # refreshed, so a user who leaves a group in the IdP is removed once that membership expires, not
+    # right away. If this flag is disabled, no group synchronization occurs
     is_authz_groups_sync_enabled: true
     # Key used to retrieve group information from the token
     group_claim_field: "groups"
@@ -538,6 +548,10 @@ DPOP_ENABLED: false
 #
 # You can use openssl to generate this (but remember you MUST use the SAME secret across services)
 # `openssl rand -base64 64`
+#
+# Can be set via the DPOP_SHARED_SECRET env var, which takes precedence over this field.
+# Required only for the web app when DPOP_ENABLED is true (it refuses to start without it);
+# CLI and job processes such as fence-create don't need it.
 DPOP_SHARED_SECRET: null
 
 # Seconds a DPoP nonce stays valid. Only read when DPOP_ENABLED is true. authutils reads
@@ -1122,8 +1136,9 @@ SERVICE_ACCOUNT_LIMIT: 6
 # whether or not to accept GA4GH Passports as a means of AuthN/Z to the DRS data access endpoint
 GA4GH_PASSPORTS_TO_DRS_ENABLED: false
 
-# Maximum number of objects allowed in a single bulk DRS request (POST /drs/v1/objects/access)
-# Protects against overly large requests that could impact performance
+# Maximum number of objects allowed in a single bulk download request for:
+# - POST /ga4gh/drs/v1/objects/access
+# - POST /data/download/bulk
 MAX_BULK_DRS_REQUESTS: 100
 
 # RAS refresh_tokens expire in 15 days

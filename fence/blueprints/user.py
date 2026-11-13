@@ -81,8 +81,8 @@ def upload_certificate(certificate):
     allowed_extension = ["pdf", "png", "jpg", "jpeg", "txt"]
     if not extension or extension not in allowed_extension:
         raise UserError(
-            "Invalid extension in parameter, acceptable extensions are {}".format(
-                ", ".join(allowed_extension)
+            "Invalid extension in parameter, acceptable extensions are {}; received '{}'".format(
+                ", ".join(allowed_extension), extension
             )
         )
 
@@ -102,13 +102,16 @@ def upload_certificate(certificate):
     cert.extension = extension
     cert.data = flask.request.data
     current_app.scoped_session().merge(cert)
+    current_app.scoped_session().commit()
 
-    certificates = flask.g.user.application.certificates_uploaded
-    if set(REQUIRED_CERTIFICATES.keys()).issubset(set(c.name for c in certificates)):
-        title = "User application for {}".format(flask.g.user.username)
-        if getattr(flask.g, "client", None):
-            title += " from {}".format(flask.g.client)
-        if "EMAIL_SERVER" in config:
+    if "EMAIL_SERVER" in config:
+        certificates = flask.g.user.application.certificates_uploaded
+        if set(REQUIRED_CERTIFICATES.keys()).issubset(
+            set(c.name for c in certificates)
+        ):
+            title = "User application for {}".format(flask.g.user.username)
+            if getattr(flask.g, "client"):
+                title += " from {}".format(flask.g.client)
             content = "Application for user: {}\n" "email: {}".format(
                 flask.g.user.username, flask.g.user.email
             )

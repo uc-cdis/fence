@@ -190,7 +190,6 @@ class AccessKey(Resource):
         # a longer-lived, downscoped access token. authlib doesn't support token exchange yet
         # (https://github.com/authlib/authlib/issues/821).
         # => https://ctds-planx.atlassian.net/browse/PD-190
-        max_ttl = config.get("MAX_ACCESS_TOKEN_TTL", 3600)
         task_token_type = flask.request.args.get("task_token") or None
         if (
             task_token_type
@@ -199,21 +198,29 @@ class AccessKey(Resource):
             raise UserError(
                 f"Invalid 'task_token' value '{task_token_type}'. Allowed task token types are: {config['ALLOWED_TASK_TOKEN_TYPES']}"
             )
+
+        # get and validate the `expires_in` parameter
+        max_ttl = config.get("MAX_ACCESS_TOKEN_TTL", 3600)
+        if task_token_type:
+            # the classic max token TTL only applies to task tokens if a TTL is not configured for
+            # this specific task token type
+            max_ttl = config["MAX_TASK_TOKEN_TTL"].get(task_token_type, max_ttl)
         try:
             expires_in = int(flask.request.args.get("expires_in", max_ttl))
         except ValueError:
             raise UserError(
                 f"Invalid 'expires_in' value '{flask.request.args['expires_in']}'"
             )
-        if not task_token_type:
-            expires_in = min(expires_in, max_ttl)
-        else:
-            # the classic max token TTL does not apply to task tokens, use the task token TTL
-            # instead
-            max_task_token_ttl = config["MAX_TASK_TOKEN_TTL"].get(
-                task_token_type, max_ttl
+        if expires_in <= 0:
+            raise UserError(
+                f"Invalid 'expires_in' value '{flask.request.args['expires_in']}'"
             )
-            expires_in = min(expires_in, max_task_token_ttl)
+
+        # check `expires_in` against the max expiration allowed
+        if expires_in > max_ttl:
+            raise UserError(
+                f"Requested 'expires_in' value '{expires_in}s' is greater than the max allowed '{max_ttl}s'"
+            )
 
         # The api key and the user's access are checked before the DPoP proof, so that a
         # caller who will be refused anyway never gets a nonce.

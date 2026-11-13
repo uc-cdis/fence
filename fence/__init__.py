@@ -337,6 +337,18 @@ def _check_buckets_aws_creds_and_region(app):
             )
 
 
+def _validate_dpop_config():
+    """
+    The web app signs and verifies DPoP nonces, so it requires DPOP_SHARED_SECRET when
+    DPoP is enabled. This is not checked in `FenceConfig.post_process` because CLI and job
+    processes (fence-create, usersync, etc.) also load the config and never need the secret.
+    """
+    if config.get("DPOP_ENABLED") and not config.get("DPOP_SHARED_SECRET"):
+        raise Exception(
+            "DPOP_ENABLED is set but DPOP_SHARED_SECRET field empty or not set."
+        )
+
+
 def app_config(
     app,
     root_dir=None,
@@ -361,6 +373,7 @@ def app_config(
         search_folders=CONFIG_SEARCH_FOLDERS,
         file_name=file_name,
     )
+    _validate_dpop_config()
 
     # load all config back into flask app config for now, we should PREFER getting config
     # directly from the fence config singleton in the code though.

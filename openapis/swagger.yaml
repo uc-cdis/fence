@@ -1,7 +1,7 @@
 ---
 openapi: 3.0.0
 servers:
-  - url: 'https://example.domain/'
+  - url: 'https://example.domain'
 info:
   title: Fence OpenAPI Specification
   version: 0.1.0
@@ -387,6 +387,45 @@ paths:
             '*/*':
               schema:
                 $ref: '#/components/schemas/UserInfo'
+  /user/cert:
+    get:
+      tags:
+        - user
+      summary: List missing certificates
+      description: List a user's missing certificates, as defined by Fence's REQUIRED_CERTIFICATES
+      operationId: getUserMissingCert
+      responses:
+        '200':
+          description: successful operation
+  /user/cert/{certificate}:
+    get:
+      tags:
+        - user
+      summary: Download a certificate
+      parameters:
+        - name: certificate
+          required: true
+          in: path
+          schema:
+            type: string
+      operationId: getUserCert
+      responses:
+        '200':
+          description: successful operation
+    put:
+      tags:
+        - user
+      summary: Upload a certificate
+      parameters:
+        - name: certificate
+          required: true
+          in: path
+          schema:
+            type: string
+      operationId: postUserCert
+      responses:
+        '201':
+          description: successful operation
   '/admin/user/{username}':
     get:
       tags:
@@ -669,6 +708,8 @@ paths:
                 $ref: '#/components/schemas/BulkDownloadResponse'
         '400':
           description: 'Invalid input: UUID not found or invalid location'
+        '413':
+          description: 'More GUIDs than the MAX_BULK_DRS_REQUESTS configuration allows'
   '/ga4gh/drs/v1/objects/{object_id}/access/{access_id}':
     get:
       summary: GA4GH DRS Access API to get a URL for fetching bytes.
