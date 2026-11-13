@@ -1,7 +1,8 @@
 import pytest
 import asyncio
+import time
 from unittest.mock import AsyncMock, patch, MagicMock
-from fence.models import User
+from fence.models import User, UpstreamRefreshToken, create_user
 from fence.resources.openid.idp_oauth2 import Oauth2ClientBase as OIDCClient
 from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
 from fence.job.access_token_updater import TokenAndAuthUpdater
@@ -80,34 +81,155 @@ def access_token_updater_config(mock_oidc_clients):
         return updater
 
 
-def test_get_user_from_db(
-    run_async, access_token_updater_config, mock_db_session, mock_users
+def _add_user(db_session, username, idp_name=None, token_expires=()):
+    """Create a real user with the given IdP and one refresh token per expiry."""
+    user = create_user(db_session, MagicMock(), username, idp_name=idp_name)
+    for i, expires in enumerate(token_expires):
+        db_session.add(
+            UpstreamRefreshToken(
+                user=user, refresh_token=f"{username}-rt-{i}", expires=expires
+            )
+        )
+    db_session.commit()
+    return user
+
+
+@pytest.fixture
+def refreshable_users_db(db_session):
+    """
+    Users covering every case get_user_from_db has to filter. The updater under
+    test is configured with clients for "ras" and "test_oidc" only.
+    """
+    db_session.query(UpstreamRefreshToken).delete()
+    db_session.query(User).delete()
+    db_session.commit()
+
+    future = int(time.time()) + 3600
+    users = {
+        "ras_with_token_1": _add_user(db_session, "ras_with_token_1", "ras", [future]),
+        "ras_no_token": _add_user(db_session, "ras_no_token", "ras"),
+        "google_with_token": _add_user(
+            db_session, "google_with_token", "google", [future]
+        ),
+        "no_idp_with_token": _add_user(db_session, "no_idp_with_token", None, [future]),
+        "oidc_with_token": _add_user(
+            db_session, "oidc_with_token", "test_oidc", [future]
+        ),
+        "ras_with_token_2": _add_user(db_session, "ras_with_token_2", "ras", [future]),
+    }
+    return users
+
+
+REFRESHABLE_IN_ID_ORDER = ["ras_with_token_1", "oidc_with_token", "ras_with_token_2"]
+
+
+def test_get_user_from_db_only_returns_refreshable_users(
+    run_async, access_token_updater_config, db_session, refreshable_users_db
 ):
-    """Test the get_user_from_db method."""
-    mock_db_session.query().slice().all.return_value = mock_users
-
-    users = run_async(
-        access_token_updater_config.get_user_from_db(mock_db_session, chunk_idx=0)
-    )
-    assert len(users) == 2
-    assert users[0].username == "testuser1"
-    assert users[1].username == "testuser2"
+    """
+    Only users whose IdP has a refresh client and who have a stored refresh token
+    are returned, in id order.
+    """
+    access_token_updater_config.chunk_size = 100
+    users = run_async(access_token_updater_config.get_user_from_db(db_session))
+    assert [u.username for u in users] == REFRESHABLE_IN_ID_ORDER
 
 
-def test_producer(run_async, access_token_updater_config, mock_db_session, mock_users):
-    """Test the producer method."""
+def test_get_user_from_db_keyset_pagination_survives_deletes(
+    run_async, access_token_updater_config, db_session, refreshable_users_db
+):
+    """
+    Removing a returned user's tokens between pages must not skip the next user,
+    which offset pagination would do.
+    """
+    updater = access_token_updater_config
+    updater.chunk_size = 1
+
+    page_1 = run_async(updater.get_user_from_db(db_session, 0))
+    assert [u.username for u in page_1] == ["ras_with_token_1"]
+    last_id = page_1[0].id
+
+    # e.g. get_access_token / invalid_grant deleting the user's only token mid-run
+    db_session.query(UpstreamRefreshToken).filter(
+        UpstreamRefreshToken.user_id == last_id
+    ).delete()
+    db_session.commit()
+
+    page_2 = run_async(updater.get_user_from_db(db_session, last_id))
+    assert [u.username for u in page_2] == ["oidc_with_token"]
+
+
+def test_producer(
+    run_async, access_token_updater_config, db_session, refreshable_users_db
+):
+    """The producer pages through and enqueues exactly the refreshable users."""
+    access_token_updater_config.chunk_size = 2  # forces multiple pages
     queue = asyncio.Queue()
-    mock_db_session.query().slice().all.return_value = mock_users
 
-    # Run producer to add users to queue
-    run_async(access_token_updater_config.producer(mock_db_session, queue, chunk_idx=0))
+    run_async(access_token_updater_config.producer(db_session, queue))
 
-    assert queue.qsize() == len(mock_users)
-    assert not queue.empty()
+    produced = []
+    while not queue.empty():
+        produced.append(run_async(queue.get()).username)
+    assert produced == REFRESHABLE_IN_ID_ORDER
 
-    # Dequeue to check correctness
-    user = run_async(queue.get())
-    assert user.username == "testuser1"
+
+def test_producer_no_refresh_clients(
+    run_async, access_token_updater_config, db_session, refreshable_users_db
+):
+    """With no clients configured, nothing is produced."""
+    access_token_updater_config.oidc_clients_requiring_token_refresh = {}
+    queue = asyncio.Queue()
+    run_async(access_token_updater_config.producer(db_session, queue))
+    assert queue.empty()
+
+
+def test_delete_expired_refresh_tokens(access_token_updater_config, db_session):
+    """
+    Expired tokens are deleted in bulk, valid ones kept, and the affected users are
+    logged once at WARNING.
+    """
+    db_session.query(UpstreamRefreshToken).delete()
+    db_session.query(User).delete()
+    db_session.commit()
+
+    now = int(time.time())
+    mixed = _add_user(db_session, "mixed", "ras", [now - 10, now + 3600])
+    expired_only = _add_user(db_session, "expired_only", "ras", [now - 10])
+    valid_only = _add_user(db_session, "valid_only", "ras", [now + 3600])
+
+    updater = access_token_updater_config
+    updater.logger = MagicMock()
+    updater._delete_expired_refresh_tokens(db_session)
+
+    remaining = {
+        (row.user.username, row.expires > now)
+        for row in db_session.query(UpstreamRefreshToken).all()
+    }
+    assert remaining == {("mixed", True), ("valid_only", True)}
+
+    updater.logger.warning.assert_called_once()
+    message = updater.logger.warning.call_args[0][0]
+    assert "2 expired upstream refresh token(s)" in message
+    assert "expired_only" in message and "mixed" in message
+    assert "valid_only" not in message
+
+
+def test_delete_expired_refresh_tokens_nothing_expired(
+    access_token_updater_config, db_session
+):
+    """No expired tokens: nothing deleted, nothing logged."""
+    db_session.query(UpstreamRefreshToken).delete()
+    db_session.query(User).delete()
+    db_session.commit()
+    _add_user(db_session, "valid_only", "ras", [int(time.time()) + 3600])
+
+    updater = access_token_updater_config
+    updater.logger = MagicMock()
+    updater._delete_expired_refresh_tokens(db_session)
+
+    assert db_session.query(UpstreamRefreshToken).count() == 1
+    updater.logger.warning.assert_not_called()
 
 
 def test_worker(run_async, access_token_updater_config, mock_users):

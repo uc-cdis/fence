@@ -4,9 +4,10 @@ import time
 
 from cdislogging import get_logger
 from flask import current_app
+from sqlalchemy.orm import selectinload
 
 from fence.config import config
-from fence.models import User
+from fence.models import IdentityProvider, UpstreamRefreshToken, User
 from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
 from fence.resources.openid.idp_oauth2 import Oauth2ClientBase as OIDCClient
 
@@ -100,7 +101,9 @@ class TokenAndAuthUpdater(object):
         updater_queue = asyncio.Queue(maxsize=self.n_workers)
         loop = asyncio.get_event_loop()
 
-        producers = loop.create_task(self.producer(db_session, queue, chunk_idx=0))
+        self._delete_expired_refresh_tokens(db_session)
+
+        producers = loop.create_task(self.producer(db_session, queue))
         workers = [
             loop.create_task(self.worker(j, queue, updater_queue))
             for j in range(self.n_workers)
@@ -126,30 +129,76 @@ class TokenAndAuthUpdater(object):
             )
         )
 
-    async def get_user_from_db(self, db_session, chunk_idx):
+    def _delete_expired_refresh_tokens(self, db_session):
         """
-        Window function to get chunks of data from the table
+        Delete every expired upstream refresh token in one statement, and log the
+        affected users once. Those users can't be refreshed until they log in again.
         """
-        start, stop = self.chunk_size * chunk_idx, self.chunk_size * (chunk_idx + 1)
-        users = db_session.query(User).slice(start, stop).all()
-        return users
+        now = int(time.time())
+        expired = (
+            db_session.query(UpstreamRefreshToken.id, User.username)
+            .join(User, UpstreamRefreshToken.user_id == User.id)
+            .filter(UpstreamRefreshToken.expires <= now)
+            .all()
+        )
+        if not expired:
+            return
 
-    async def producer(self, db_session, queue, chunk_idx):
+        token_ids = [token_id for token_id, _ in expired]
+        usernames = sorted({username for _, username in expired})
+        (
+            db_session.query(UpstreamRefreshToken)
+            .filter(UpstreamRefreshToken.id.in_(token_ids))
+            .delete(synchronize_session=False)
+        )
+        db_session.commit()
+        self.logger.warning(
+            f"Deleted {len(token_ids)} expired upstream refresh token(s) for "
+            f"{len(usernames)} user(s); they must log in again to resume visa "
+            f"refresh: {usernames}"
+        )
+
+    async def get_user_from_db(self, db_session, after_user_id=0):
+        """
+        Get the next chunk of users that can be refreshed: their IdP has a client in
+        oidc_clients_requiring_token_refresh and they have at least one stored
+        refresh token.
+
+        Pages by primary key (keyset) rather than offset, so token rows being deleted
+        or replaced mid-run can't shift the window and skip users.
+        """
+        idp_names = list(self.oidc_clients_requiring_token_refresh)
+        if not idp_names:
+            return []
+        return (
+            db_session.query(User)
+            .join(User.identity_provider)
+            .filter(IdentityProvider.name.in_(idp_names))
+            .filter(User.upstream_refresh_tokens.any())
+            .filter(User.id > after_user_id)
+            .order_by(User.id)
+            .limit(self.chunk_size)
+            .options(selectinload(User.upstream_refresh_tokens))
+            .all()
+        )
+
+    async def producer(self, db_session, queue):
         """
         Produces users from db and puts them in a queue for processing
         """
-        chunk_size = self.chunk_size
+        last_user_id = 0
         while True:
-            users = await self.get_user_from_db(db_session, chunk_idx)
-
-            if users == None:
+            users = await self.get_user_from_db(db_session, last_user_id)
+            if not users:
                 break
+            # read before yielding: updaters commit on this session, which expires
+            # loaded instances
+            last_user_id = users[-1].id
             for user in users:
                 self.logger.info("Producer producing user {}".format(user.username))
                 await queue.put(user)
-            if len(users) < chunk_size:
+            if len(users) < self.chunk_size:
                 break
-            chunk_idx += 1
 
     async def worker(self, name, queue, updater_queue):
         """
