@@ -513,7 +513,8 @@ def get_gen3_usernames_for_passport_from_cache(passport, db_session=None):
         else:
             # expired, so remove it
             del PASSPORT_CACHE[passport_hash]
-            user_ids_from_passports = None  # explicit cache miss for expired passports
+            # explicit cache miss for expired passports
+            user_ids_from_passports = None
 
     # try to retrieve from database cache
     cached_passport = (
