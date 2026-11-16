@@ -228,7 +228,7 @@ def test_delete_expired_refresh_tokens_nothing_expired(
     updater._delete_expired_refresh_tokens(db_session)
 
     assert db_session.query(UpstreamRefreshToken).count() == 1
-    updater.logger.warning.assert_not_called()
+    assert not updater.logger.method_calls
 
 
 def _run_update_tokens(run_async, updater, db_session, failing=()):
