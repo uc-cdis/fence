@@ -152,13 +152,13 @@ class TokenAndAuthUpdater(object):
             .delete(synchronize_session=False)
         )
         db_session.commit()
-        self.logger.warning(
+        self.logger.info(
             f"Deleted {len(token_ids)} expired upstream refresh token(s) for "
             f"{len(usernames)} user(s); they must log in again to resume visa "
             f"refresh: {usernames}"
         )
 
-    async def get_user_from_db(self, db_session, after_user_id=0):
+    async def get_users_from_db(self, db_session, after_user_id=0):
         """
         Get the next chunk of users that can be refreshed: their IdP has a client in
         oidc_clients_requiring_token_refresh and they have at least one stored
@@ -188,11 +188,9 @@ class TokenAndAuthUpdater(object):
         """
         last_user_id = 0
         while True:
-            users = await self.get_user_from_db(db_session, last_user_id)
+            users = await self.get_users_from_db(db_session, last_user_id)
             if not users:
                 break
-            # read before yielding: updaters commit on this session, which expires
-            # loaded instances
             last_user_id = users[-1].id
             for user in users:
                 self.logger.info("Producer producing user {}".format(user.username))

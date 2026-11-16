@@ -338,16 +338,16 @@ def add_visa_manually(db_session, user, rsa_private_key, kid, expires=None, sub=
     return encoded_visa, visa
 
 
-def fake_ras_login(username, subject, email=None, db_session=None):
+def fake_ras_login(username, subject, db_session, email=None):
     """
     Mock a login by creating a sub/iss mapping in the db and logging them into a
-    session.
+    session. Stores a valid upstream refresh token as part of the log in process.
 
     Args:
         username (str): Username from IdP
         subject (str): sub id in tokens from IdP
-        email (None, optional): email if provided
         db_session (None, optional): db session to use
+        email (None, optional): email if provided
     """
     ras_client = RASOauth2Client(
         config["OPENID_CONNECT"]["ras"],

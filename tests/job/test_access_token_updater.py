@@ -7,6 +7,8 @@ from fence.resources.openid.idp_oauth2 import Oauth2ClientBase as OIDCClient
 from fence.resources.openid.ras_oauth2 import RASOauth2Client as RASClient
 from fence.job.access_token_updater import TokenAndAuthUpdater
 
+REFRESHABLE_IN_ID_ORDER = ["ras_with_token_1", "oidc_with_token", "ras_with_token_2"]
+
 
 @pytest.fixture(scope="session", autouse=True)
 def event_loop():
@@ -120,9 +122,6 @@ def refreshable_users_db(db_session):
     return users
 
 
-REFRESHABLE_IN_ID_ORDER = ["ras_with_token_1", "oidc_with_token", "ras_with_token_2"]
-
-
 def test_get_user_from_db_only_returns_refreshable_users(
     run_async, access_token_updater_config, db_session, refreshable_users_db
 ):
@@ -131,7 +130,7 @@ def test_get_user_from_db_only_returns_refreshable_users(
     are returned, in id order.
     """
     access_token_updater_config.chunk_size = 100
-    users = run_async(access_token_updater_config.get_user_from_db(db_session))
+    users = run_async(access_token_updater_config.get_users_from_db(db_session))
     assert [u.username for u in users] == REFRESHABLE_IN_ID_ORDER
 
 
@@ -145,7 +144,7 @@ def test_get_user_from_db_keyset_pagination_survives_deletes(
     updater = access_token_updater_config
     updater.chunk_size = 1
 
-    page_1 = run_async(updater.get_user_from_db(db_session, 0))
+    page_1 = run_async(updater.get_users_from_db(db_session, 0))
     assert [u.username for u in page_1] == ["ras_with_token_1"]
     last_id = page_1[0].id
 
@@ -155,7 +154,7 @@ def test_get_user_from_db_keyset_pagination_survives_deletes(
     ).delete()
     db_session.commit()
 
-    page_2 = run_async(updater.get_user_from_db(db_session, last_id))
+    page_2 = run_async(updater.get_users_from_db(db_session, last_id))
     assert [u.username for u in page_2] == ["oidc_with_token"]
 
 
@@ -208,8 +207,8 @@ def test_delete_expired_refresh_tokens(access_token_updater_config, db_session):
     }
     assert remaining == {("mixed", True), ("valid_only", True)}
 
-    updater.logger.warning.assert_called_once()
-    message = updater.logger.warning.call_args[0][0]
+    updater.logger.info.assert_called_once()
+    message = updater.logger.info.call_args[0][0]
     assert "2 expired upstream refresh token(s)" in message
     assert "expired_only" in message and "mixed" in message
     assert "valid_only" not in message
@@ -230,6 +229,106 @@ def test_delete_expired_refresh_tokens_nothing_expired(
 
     assert db_session.query(UpstreamRefreshToken).count() == 1
     updater.logger.warning.assert_not_called()
+
+
+def _run_update_tokens(run_async, updater, db_session, failing=()):
+    """
+    Run the fence-visa-update job with a mocked RAS client, which raises for the
+    usernames in `failing`.
+
+    Returns the mocked client, to check which users were refreshed.
+    """
+
+    def update_user_authorization(user, pkey_cache, db_session):
+        if user.username in failing:
+            raise Exception(f"refresh failed for {user.username}")
+
+    ras_client = MagicMock(spec=RASClient)
+    ras_client.idp = "ras"
+    ras_client.update_user_authorization.side_effect = update_user_authorization
+    updater.oidc_clients_requiring_token_refresh = {"ras": ras_client}
+
+    run_async(asyncio.wait_for(updater.update_tokens(db_session), timeout=10))
+    return ras_client
+
+
+def _refreshed_usernames(client):
+    """The users update_user_authorization was called for, in call order"""
+    return [
+        call.args[0].username
+        for call in client.update_user_authorization.call_args_list
+    ]
+
+
+@pytest.fixture
+def users_by_token_state(db_session):
+    """
+    A RAS user with a valid token, a RAS user with only an expired token, and a RAS
+    user with no token.
+
+    Returns the time the tokens were stored.
+    """
+    db_session.query(UpstreamRefreshToken).delete()
+    db_session.query(User).delete()
+    db_session.commit()
+    now = int(time.time())
+    _add_user(db_session, "valid_token_user", "ras", [now + 3600])
+    _add_user(db_session, "expired_token_user", "ras", [now - 10])
+    _add_user(db_session, "no_token_user", "ras")
+    return now
+
+
+def test_update_tokens_only_refreshes_users_with_valid_token(
+    run_async, access_token_updater_config, db_session, users_by_token_state
+):
+    """
+    Tests that only the user with a valid refresh token is refreshed, exactly once.
+    """
+    ras_client = _run_update_tokens(run_async, access_token_updater_config, db_session)
+
+    valid_token_user = (
+        db_session.query(User).filter_by(username="valid_token_user").one()
+    )
+    ras_client.update_user_authorization.assert_called_once_with(
+        valid_token_user,
+        pkey_cache=access_token_updater_config.pkey_cache,
+        db_session=db_session,
+    )
+
+    remaining = {
+        row.user.username for row in db_session.query(UpstreamRefreshToken).all()
+    }
+    assert remaining == {"valid_token_user"}
+
+
+def test_update_tokens_continues_after_client_raises(
+    run_async, access_token_updater_config, db_session, users_by_token_state
+):
+    """
+    Tests that an error for one user is logged and the job goes on to the next user,
+    instead of failing or hanging the run.
+    """
+    tokens_expire = users_by_token_state + 3600
+    _add_user(db_session, "failing_user", "ras", [tokens_expire])
+    _add_user(db_session, "user_after_failure", "ras", [tokens_expire])
+    logger = access_token_updater_config.logger = MagicMock()
+
+    ras_client = _run_update_tokens(
+        run_async,
+        access_token_updater_config,
+        db_session,
+        failing={"failing_user"},
+    )
+
+    assert _refreshed_usernames(ras_client) == [
+        "valid_token_user",
+        "failing_user",
+        "user_after_failure",
+    ]
+
+    logger.error.assert_called_once()
+    error_message = logger.error.call_args.args[0]
+    assert "failing_user" in error_message
 
 
 def test_worker(run_async, access_token_updater_config, mock_users):
