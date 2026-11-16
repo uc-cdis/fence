@@ -346,7 +346,7 @@ def fake_ras_login(username, subject, db_session, email=None):
     Args:
         username (str): Username from IdP
         subject (str): sub id in tokens from IdP
-        db_session (None, optional): db session to use
+        db_session (SQLAlchemy Session): db session to use
         email (None, optional): email if provided
     """
     ras_client = RASOauth2Client(
