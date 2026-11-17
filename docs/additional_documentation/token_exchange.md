@@ -140,8 +140,8 @@ Errors are returned as RFC 6749 §5.2 error responses, except where noted.
 | `invalid_request` | `subject_token` or `subject_token_type` is missing, `subject_token` is not a JWT, `actor_token` was sent, or a token type has no handler or is not allowed for the issuer |
 | `invalid_target` | `audience` or `resource` was sent |
 | `invalid_scope` | a requested scope is not available, or `openid` is not |
-| `invalid_grant` | the issuer is not trusted; the subject token fails validation, has no `sub`, or is a passport without the `openid` scope; a JWT that is not a passport was sent as the passport type; the passport has no usable visas, or its visas do not describe its subject; or the authority behind it expires too soon to issue a token |
-| HTTP 401 (not an RFC 6749 error response) | a user the exchange resolves is deactivated, or would have to be created while `ALLOW_NEW_USER_ON_LOGIN` is off |
+| `invalid_grant` | the issuer is not trusted; the subject token fails validation, has no `sub`, or is a passport without the `openid` scope; a JWT that is not a passport was sent as the passport type; the passport has no usable visas, or its visas do not describe its subject; the passport's subject is a deactivated user that its visas do not name (possible only with `require_passport_subject_visa_match` off); the passport subject's username matches `GLOBAL_USERNAME_DENY_REGEX`; or the authority behind it expires too soon to issue a token |
+| HTTP 401 (not an RFC 6749 error response) | a user that the passport's visas name is deactivated; or a user (one the visas name, or the passport's subject) would have to be created while `ALLOW_NEW_USER_ON_LOGIN` is off |
 
 ## Supporting a new token type
 

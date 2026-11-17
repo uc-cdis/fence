@@ -164,6 +164,7 @@ def make_passport(
     visa_exp=None,
     visa_subject=None,
     visas=None,
+    passport_claims=None,
 ):
     """
     Build an encoded GA4GH passport containing one RAS-style visa.
@@ -173,6 +174,8 @@ def make_passport(
             passport's ``sub`` (to exercise identity resolution)
         visas (list): explicit list of encoded visas, e.g. [] for a passport with
             no usable visas
+        passport_claims (dict): claims to set on the passport, overriding the
+            defaults. A value of None removes the claim
 
     Return:
         str: the encoded passport
@@ -224,6 +227,11 @@ def make_passport(
         "jti": str(uuid.uuid4()),
         "ga4gh_passport_v1": visas,
     }
+    for claim, value in (passport_claims or {}).items():
+        if value is None:
+            passport.pop(claim, None)
+        else:
+            passport[claim] = value
     return jwt.encode(
         passport,
         key=rsa_private_key,

@@ -316,6 +316,72 @@ class TestRequestValidation:
         # rejected for not being a passport, not for failing validation
         assert "not a GA4GH passport" in response.json["error_description"]
 
+    def test_passport_without_sub(
+        self,
+        client,
+        db_session,
+        token_exchange_config,
+        token_exchange_client,
+        mock_httpx_get_jwks,
+        kid,
+        rsa_private_key,
+    ):
+        """
+        Tests a passport with no 'sub' is rejected before anything is synced.
+        """
+        with patch(
+            "fence.resources.ga4gh.passports.sync_gen3_users_authz_from_ga4gh_passports"
+        ) as mock_sync:
+            response = exchange(
+                client,
+                token_exchange_client,
+                subject_token=make_passport(
+                    kid, rsa_private_key, passport_claims={"sub": None}
+                ),
+                subject_token_type=TOKEN_TYPE_JWT,
+            )
+        assert response.status_code == 400, response.json
+        assert response.json["error"] == "invalid_grant"
+        assert not mock_sync.called
+
+    def test_passport_without_openid_scope(
+        self,
+        client,
+        db_session,
+        token_exchange_config,
+        token_exchange_client,
+        mock_httpx_get_jwks,
+        kid,
+        rsa_private_key,
+    ):
+        """
+        Tests a passport without the 'openid' scope is rejected before anything is
+        synced.
+        """
+        with patch(
+            "fence.resources.ga4gh.passports.sync_gen3_users_authz_from_ga4gh_passports"
+        ) as mock_sync, patch(
+            "fence.oidc.token_exchange.subject_handlers.logger"
+        ) as mock_logger:
+            response = exchange(
+                client,
+                token_exchange_client,
+                subject_token=make_passport(
+                    kid,
+                    rsa_private_key,
+                    passport_claims={"scope": "ga4gh_passport_v1 email profile"},
+                ),
+                subject_token_type=TOKEN_TYPE_JWT,
+            )
+        assert response.status_code == 400, response.json
+        assert response.json["error"] == "invalid_grant"
+        assert not mock_sync.called
+        # the description is deliberately generic; make sure this was rejected
+        # for the scope and not for failing signature validation
+        assert any(
+            "'openid' scope" in str(call) for call in mock_logger.info.call_args_list
+        )
+
     def test_non_passport_jwt_unsupported(
         self,
         client,
@@ -760,7 +826,7 @@ class TestTokenIssuance:
         assert response.status_code == 400, response.json
         assert response.json["error"] == "invalid_grant"
 
-    def test_visas_for_a_different_subject(
+    def test_visas_for_a_different_subject_rejected_when_match_required(
         self,
         mock_arborist,
         mock_google_proxy_group,
@@ -776,18 +842,17 @@ class TestTokenIssuance:
         """
         Identity comes from the passport's <iss, sub>, so a passport whose visas
         assert a different subject would produce a token with no authorization.
-        require_passport_subject_visa_match rejects it instead.
+        require_passport_subject_visa_match (on by default) rejects it instead.
         """
         mock_google_proxy_group.return_value = google_proxy_group
-        passport = make_passport(
-            kid, rsa_private_key, visa_subject="some-other-subject"
-        )
         passport_subject_username = TEST_SUBJECT + TEST_ISSUER[len("https://") :]
 
         response = exchange(
             client,
             token_exchange_client,
-            subject_token=passport,
+            subject_token=make_passport(
+                kid, rsa_private_key, visa_subject="some-other-subject"
+            ),
             subject_token_type=TOKEN_TYPE_JWT,
         )
         assert response.status_code == 400, response.json
@@ -798,17 +863,44 @@ class TestTokenIssuance:
             is None
         )
 
-        # with the check off, the exchange succeeds for the passport subject
+    def test_visas_for_a_different_subject_allowed_when_match_not_required(
+        self,
+        mock_arborist,
+        mock_google_proxy_group,
+        client,
+        db_session,
+        token_exchange_config,
+        token_exchange_client,
+        synced_passport,
+        google_proxy_group,
+        kid,
+        rsa_private_key,
+    ):
+        """
+        With require_passport_subject_visa_match off, the exchange succeeds and
+        the token is for the passport's own subject, not the visas' subject.
+        """
+        mock_google_proxy_group.return_value = google_proxy_group
         token_exchange_config["allowed_subject_token_issuers"][TEST_ISSUER][
             "require_passport_subject_visa_match"
         ] = False
+
         response = exchange(
             client,
             token_exchange_client,
-            subject_token=passport,
+            subject_token=make_passport(
+                kid, rsa_private_key, visa_subject="some-other-subject"
+            ),
             subject_token_type=TOKEN_TYPE_JWT,
         )
         assert response.status_code == 200, response.json
+        claims = jwt.decode(
+            response.json["access_token"],
+            options={"verify_signature": False},
+            algorithms=["RS256"],
+        )
+        user = db_session.query(User).filter_by(id=int(claims["sub"])).first()
+        assert user.username == TEST_SUBJECT + TEST_ISSUER[len("https://") :]
 
     def test_deactivated_subject_without_visa_match(
         self,
@@ -925,6 +1017,186 @@ class TestTokenIssuance:
         assert response.status_code == 400, response.json
         assert response.json["error"] == "invalid_grant"
         assert "access_token" not in response.json
+
+    def test_deactivated_user_unauthorized(
+        self,
+        mock_arborist,
+        mock_google_proxy_group,
+        client,
+        db_session,
+        token_exchange_config,
+        token_exchange_client,
+        synced_passport,
+        google_proxy_group,
+        kid,
+        rsa_private_key,
+    ):
+        """
+        The sync refuses to resolve a deactivated user its visas assert. That is
+        an HTTP 401 rather than an RFC 6749 error response.
+        """
+        mock_google_proxy_group.return_value = google_proxy_group
+        deactivated_user = User(
+            username=TEST_SUBJECT + TEST_ISSUER[len("https://") :], active=False
+        )
+        db_session.add(deactivated_user)
+        iss_sub_pair = IssSubPairToUser(iss=TEST_ISSUER, sub=TEST_SUBJECT)
+        iss_sub_pair.user = deactivated_user
+        db_session.add(iss_sub_pair)
+        db_session.commit()
+
+        response = exchange(
+            client,
+            token_exchange_client,
+            subject_token=make_passport(kid, rsa_private_key),
+            subject_token_type=TOKEN_TYPE_JWT,
+        )
+        assert response.status_code == 401
+        assert "access_token" not in response.get_data(as_text=True)
+
+    def test_new_user_unauthorized_when_new_users_not_allowed(
+        self,
+        mock_arborist,
+        mock_google_proxy_group,
+        monkeypatch,
+        client,
+        db_session,
+        token_exchange_config,
+        token_exchange_client,
+        synced_passport,
+        google_proxy_group,
+        kid,
+        rsa_private_key,
+    ):
+        """
+        With ALLOW_NEW_USER_ON_LOGIN off, the sync refuses to create a user for
+        the visa identity. That is an HTTP 401 rather than an RFC 6749 error
+        response, and no user is left behind.
+        """
+        mock_google_proxy_group.return_value = google_proxy_group
+        monkeypatch.setitem(config, "ALLOW_NEW_USER_ON_LOGIN", False)
+
+        response = exchange(
+            client,
+            token_exchange_client,
+            subject_token=make_passport(kid, rsa_private_key),
+            subject_token_type=TOKEN_TYPE_JWT,
+        )
+        assert response.status_code == 401
+        assert "access_token" not in response.get_data(as_text=True)
+        assert (
+            db_session.query(User)
+            .filter_by(username=TEST_SUBJECT + TEST_ISSUER[len("https://") :])
+            .first()
+            is None
+        )
+
+    def test_new_passport_subject_unauthorized_when_new_users_not_allowed(
+        self,
+        mock_arborist,
+        mock_google_proxy_group,
+        monkeypatch,
+        client,
+        db_session,
+        token_exchange_config,
+        token_exchange_client,
+        synced_passport,
+        google_proxy_group,
+        kid,
+        rsa_private_key,
+    ):
+        """
+        Tests that new users cannot token exchange if ALLOW_NEW_USER_ON_LOGIN is false.
+        """
+        mock_google_proxy_group.return_value = google_proxy_group
+        monkeypatch.setitem(config, "ALLOW_NEW_USER_ON_LOGIN", False)
+        token_exchange_config["allowed_subject_token_issuers"][TEST_ISSUER][
+            "require_passport_subject_visa_match"
+        ] = False
+
+        visa_subject = "some-other-subject"
+        db_session.add(User(username=visa_subject + TEST_ISSUER[len("https://") :]))
+        db_session.commit()
+
+        response = exchange(
+            client,
+            token_exchange_client,
+            subject_token=make_passport(
+                kid, rsa_private_key, visa_subject=visa_subject
+            ),
+            subject_token_type=TOKEN_TYPE_JWT,
+        )
+        assert response.status_code == 401
+        assert "access_token" not in response.get_data(as_text=True)
+        assert (
+            db_session.query(User)
+            .filter_by(username=TEST_SUBJECT + TEST_ISSUER[len("https://") :])
+            .first()
+            is None
+        )
+
+    def test_same_passport_exchanged_twice(
+        self,
+        mock_arborist,
+        mock_google_proxy_group,
+        client,
+        db_session,
+        token_exchange_config,
+        token_exchange_client,
+        synced_passport,
+        google_proxy_group,
+        kid,
+        rsa_private_key,
+    ):
+        """
+        Tests the second exchange of a passport is resolved from the passport cache
+        and is not synced again, and still issues a token
+        for the same user, bounded by the cached visa expiration.
+        """
+        from fence.resources.ga4gh import passports
+
+        mock_google_proxy_group.return_value = google_proxy_group
+        visa_lifetime = config["EXPIRED_AUTHZ_REMOVAL_JOB_FREQ_IN_SECONDS"] + 400
+        passport = make_passport(
+            kid, rsa_private_key, visa_exp=int(time.time()) + visa_lifetime
+        )
+
+        responses = []
+        with patch(
+            "fence.resources.ga4gh.passports.get_unvalidated_visas_from_valid_passport",
+            wraps=passports.get_unvalidated_visas_from_valid_passport,
+        ) as mock_validate_passport:
+            for _ in range(2):
+                responses.append(
+                    exchange(
+                        client,
+                        token_exchange_client,
+                        subject_token=passport,
+                        subject_token_type=TOKEN_TYPE_JWT,
+                    )
+                )
+
+        for response in responses:
+            assert response.status_code == 200, response.json
+        # the second exchange came from the cache
+        assert mock_validate_passport.call_count == 1
+
+        subjects = {
+            jwt.decode(
+                response.json["access_token"],
+                options={"verify_signature": False},
+                algorithms=["RS256"],
+            )["sub"]
+            for response in responses
+        }
+        assert len(subjects) == 1
+        user = db_session.query(User).filter_by(id=int(subjects.pop())).first()
+        assert user.username == TEST_SUBJECT + TEST_ISSUER[len("https://") :]
+
+        # both are bounded by the visa expiration, which the second exchange
+        # read back from the cache
+        for response in responses:
+            assert 300 < response.json["expires_in"] <= 400
 
 
 @pytest.fixture(scope="function")
