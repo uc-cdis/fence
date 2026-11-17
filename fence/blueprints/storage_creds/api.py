@@ -133,24 +133,28 @@ class ApiKey(Resource):
             any user if the caller is an admin
 
         :statuscode 204 Success
-        :statuscode 403 Forbidden to delete access key
-        :statuscode 404 Access key doesn't exist
+        :statuscode 404 Access key doesn't exist, or the caller is neither its
+            owner nor an admin
         """
         user_id = current_token["sub"]
 
         jti = access_key
         with flask.current_app.db.session as session:
             api_key = session.query(UserRefreshToken).filter_by(jti=jti).first()
+        not_found_msg = "token not found with JTI {}".format(jti)
         if not api_key:
-            flask.abort(404, "token not found with JTI {}".format(jti))
+            flask.abort(404, not_found_msg)
 
         # Check if the admin can delete the token.
         if str(api_key.userid) != user_id:
-            authz_authorize(
-                "/services/fence/admin",
-                "delete",
-                user_id=current_token["context"]["user"]["name"],
-            )
+            try:
+                authz_authorize(
+                    "/services/fence/admin",
+                    "delete",
+                    user_id=current_token["context"]["user"]["name"],
+                )
+            except Forbidden:
+                flask.abort(404, not_found_msg)
 
         blacklist_token(jti, api_key.expires)
 

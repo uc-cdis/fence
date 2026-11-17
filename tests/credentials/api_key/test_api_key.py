@@ -97,3 +97,41 @@ def test_delete_api_key_not_found(client, encoded_creds_jwt, mock_arborist_reque
         headers={"Authorization": "Bearer " + str(encoded_creds_jwt["jwt"])},
     )
     assert response.status_code == 404, response.text
+
+
+def test_delete_api_key_not_owner_or_admin(
+    client,
+    oauth_client,
+    encoded_creds_jwt,
+    kid,
+    rsa_private_key,
+    mock_arborist_requests,
+):
+    """
+    Test that a user who is neither the owner nor an admin gets a 404 when deleting an existing API key,
+    so key existence isn't leaked, and that the key is not revoked.
+    """
+    response = get_api_key(client, encoded_creds_jwt["jwt"])
+    assert response.status_code == 200, response.text
+    key_id = response.json["key_id"]
+    api_key = response.json["api_key"]
+
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": False}, 200)}})
+    other_user_jwt = jwt.encode(
+        utils.authorized_download_credentials_context_claims(
+            "other-user", 80, oauth_client["client_id"]
+        ),
+        key=rsa_private_key,
+        headers={"kid": kid},
+        algorithm="RS256",
+    )
+
+    response = client.delete(
+        f"/credentials/api/{key_id}",
+        headers={"Authorization": f"Bearer {other_user_jwt}"},
+    )
+    assert response.status_code == 404, response.text
+
+    # the key must still be usable
+    response = client.post("/credentials/api/access_token", data={"api_key": api_key})
+    assert response.status_code == 200, response.text
