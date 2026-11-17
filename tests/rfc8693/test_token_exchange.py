@@ -437,7 +437,7 @@ class TestRequestValidation:
         assert response.status_code == 400, response.json
         assert response.json["error"] == "unauthorized_client"
 
-    def test_client_allowed_by_name(
+    def test_client_allowed_by_client_id(
         self,
         client,
         token_exchange_config,
@@ -447,27 +447,8 @@ class TestRequestValidation:
         rsa_private_key,
     ):
         """
-        ``allowed_clients`` lists client names. A JWT sent as a passport gets
+        ``allowed_clients`` lists client_ids. A JWT sent as a passport gets
         past the client check and is then rejected for not being a passport.
-        """
-        token_exchange_config["allowed_subject_token_issuers"][TEST_ISSUER][
-            "allowed_clients"
-        ] = [token_exchange_client["name"]]
-        response = exchange(
-            client,
-            token_exchange_client,
-            subject_token=make_jwt(kid, rsa_private_key),
-            subject_token_type=TOKEN_TYPE_GA4GH_PASSPORT,
-        )
-        assert response.status_code == 400, response.json
-        assert response.json["error"] == "invalid_grant"
-        assert "not a GA4GH passport" in response.json["error_description"]
-
-    def test_client_id_does_not_match_allowed_clients(
-        self, client, token_exchange_config, token_exchange_client, kid, rsa_private_key
-    ):
-        """
-        ``allowed_clients`` is not matched against client_ids.
         """
         token_exchange_config["allowed_subject_token_issuers"][TEST_ISSUER][
             "allowed_clients"
@@ -479,34 +460,26 @@ class TestRequestValidation:
             subject_token_type=TOKEN_TYPE_GA4GH_PASSPORT,
         )
         assert response.status_code == 400, response.json
-        assert response.json["error"] == "unauthorized_client"
+        assert response.json["error"] == "invalid_grant"
+        assert "not a GA4GH passport" in response.json["error_description"]
 
-    def test_rotated_client_allowed(
-        self,
-        client,
-        token_exchange_config,
-        token_exchange_client,
-        rotated_token_exchange_client,
-        mock_httpx_get_jwks,
-        kid,
-        rsa_private_key,
+    def test_client_name_does_not_match_allowed_clients(
+        self, client, token_exchange_config, token_exchange_client, kid, rsa_private_key
     ):
         """
-        Rotated credentials have a new client_id under the same name, so the
-        client stays allowed without a config change.
+        ``allowed_clients`` is not matched against client names.
         """
         token_exchange_config["allowed_subject_token_issuers"][TEST_ISSUER][
             "allowed_clients"
         ] = [token_exchange_client["name"]]
         response = exchange(
             client,
-            rotated_token_exchange_client,
+            token_exchange_client,
             subject_token=make_jwt(kid, rsa_private_key),
             subject_token_type=TOKEN_TYPE_GA4GH_PASSPORT,
         )
         assert response.status_code == 400, response.json
-        assert response.json["error"] == "invalid_grant"
-        assert "not a GA4GH passport" in response.json["error_description"]
+        assert response.json["error"] == "unauthorized_client"
 
     def test_unsupported_requested_token_type(
         self, client, token_exchange_config, token_exchange_client, kid, rsa_private_key

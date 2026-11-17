@@ -23,7 +23,7 @@ TOKEN_EXCHANGE:
       allowed_requested_token_types:
         - 'urn:ietf:params:oauth:token-type:access_token'
       allowed_clients:
-        - 'my-exchange-client'
+        - '<client_id of my-exchange-client>'
       max_token_lifetime: 600
       allowed_scopes:
         - 'openid'
@@ -51,7 +51,7 @@ from it.
 |---|---|---|---|
 | `allowed_subject_token_types` | none; required | `subject_token_type` values this issuer's tokens may be sent as | A non-empty list of one or both of:<br>• `urn:ietf:params:oauth:token-type:jwt`: a generic JWT. Only passports are exchanged; any other JWT is rejected with `unsupported_grant_type`<br>• `urn:ga4gh:params:oauth:token-type:passport`: the client states the token is a passport; a JWT that is not one is rejected with `invalid_grant`<br>Fence refuses to start if the list is missing or empty, or names any other type |
 | `allowed_requested_token_types` | `[urn:ietf:params:oauth:token-type:access_token]` | `requested_token_type` values this issuer's tokens may be exchanged for | A non-empty list. The only supported value is `urn:ietf:params:oauth:token-type:access_token`. Fence refuses to start if the list is set but empty, or names any other type |
-| `allowed_clients` | any client registered for the grant | names of the clients allowed to exchange this issuer's tokens | A list of client **names**, not client IDs, so a client keeps access after its credentials are rotated. Unset or empty allows any client that has the token exchange grant type. A client not in the list gets `unauthorized_client` |
+| `allowed_clients` | any client registered for the grant | client IDs of the clients allowed to exchange this issuer's tokens | A list of **client IDs**, not client names. `fence-create client-rotate` issues a new client ID under the same name, so add the new ID here before the client switches to its rotated credentials. Unset or empty allows any client that has the token exchange grant type. A client not in the list gets `unauthorized_client` |
 | `max_token_lifetime` | `ACCESS_TOKEN_EXPIRES_IN` | hard cap (seconds) on the issued token's lifetime | A positive whole number of seconds. Unset means no cap beyond `ACCESS_TOKEN_EXPIRES_IN`. It can only shorten a token: a value above `ACCESS_TOKEN_EXPIRES_IN` has no effect, and Fence logs a warning at startup. The issued lifetime is also bounded by the subject token's `exp` and, for passports, the earliest visa expiration |
 | `allowed_scopes` | the client's scopes | scopes an exchanged token may carry | A list of scopes, intersected with the client's allowed scopes; the issued token never has a scope outside either list. Must include `openid`: Fence refuses to start if this is set without it. Unset or empty means the client's scopes. A requested scope outside the result gets `invalid_scope` |
 | `require_passport_subject_visa_match` | `true` | require the passport's subject to be among the identities its visas assert | `true` or `false`. Applies only to passports. With `false`, a passport whose visas describe a different subject still yields a token for the passport's subject, which gets no authorization from those visas |

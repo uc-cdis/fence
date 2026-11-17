@@ -72,8 +72,8 @@ def token_exchange_client(db_session):
     A confidential client registered for the token exchange grant.
 
     The client_id and name differ, as they do for a client created with
-    ``fence-create``, so that tests can tell which one ``allowed_clients``
-    matches.
+    ``fence-create``, so that tests can tell that ``allowed_clients`` matches
+    the client_id.
     """
     client_id = "test-token-exchange-client-id"
     client_name = "test-token-exchange-client"

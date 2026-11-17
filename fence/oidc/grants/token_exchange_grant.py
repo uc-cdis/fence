@@ -127,11 +127,11 @@ class TokenExchangeGrant(BaseGrant, TokenEndpointMixin):
             )
 
         allowed_clients = policy.get("allowed_clients") or []
-        if allowed_clients and client.name not in allowed_clients:
+        if allowed_clients and client.client_id not in allowed_clients:
             logger.info(
-                f"Rejecting token exchange: client '{client.name}' "
-                f"(client_id '{client.client_id}') is not in the allowed_clients "
-                f"list for issuer '{issuer}'"
+                f"Rejecting token exchange: client_id '{client.client_id}' "
+                f"(client '{client.name}') is not in the allowed_clients list for "
+                f"issuer '{issuer}'"
             )
             raise UnauthorizedClientError(
                 "This client is not authorized to exchange tokens from this issuer"

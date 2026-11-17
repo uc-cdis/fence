@@ -1219,10 +1219,10 @@ TOKEN_EXCHANGE:
     #   allowed_requested_token_types:
     #     - 'urn:ietf:params:oauth:token-type:access_token'
     #
-    #   # names of the clients allowed to exchange tokens from this issuer (the
-    #   # name given to `fence-create client-create --client`), not client_ids.
-    #   # every client_id with a listed name is allowed, so a client stays
-    #   # allowed when its credentials are rotated.
+    #   # client_ids of the clients allowed to exchange tokens from this issuer.
+    #   #`fence-create client-rotate` issues a new client_id,
+    #   # so add the new one here before switching a client to rotated
+    #   # credentials.
     #   # empty/omitted means any client registered for the token-exchange grant
     #   allowed_clients: []
     #
