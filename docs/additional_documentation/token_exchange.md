@@ -44,23 +44,20 @@ here.
 
 Passports from an issuer are only usable if the issuer is *also* in
 `GA4GH_VISA_ISSUER_ALLOWLIST`, since that is what the visa validation inside the
-passport sync checks against. If `GA4GH_PASSPORTS_TO_DRS_ENABLED` or
-`GLOBAL_PARSE_VISAS_ON_LOGIN` is `true`, Fence refuses to start when an issuer
-is missing from it. Otherwise it logs a warning, and every exchange of that
-issuer's tokens is rejected.
+passport sync checks against. Fence refuses to start when an issuer is missing
+from it.
 
-| Per-issuer key | Default | Meaning |
-|---|---|---|
-| `allowed_subject_token_types` | none; required | `subject_token_type` values this issuer's tokens may be sent as |
-| `allowed_requested_token_types` | `access_token` | `requested_token_type` values this issuer's tokens may be exchanged for |
-| `allowed_clients` | any | names of the clients allowed to exchange this issuer's tokens. |
-| `max_token_lifetime` | `ACCESS_TOKEN_EXPIRES_IN` | hard cap (seconds) on the issued token's lifetime. It can only shorten a token: a value above `ACCESS_TOKEN_EXPIRES_IN` has no effect, and Fence logs a warning at startup |
-| `allowed_scopes` | the client's scopes | scopes an exchanged token may carry. Fence refuses to start if this is set without `openid` |
-| `require_passport_subject_visa_match` | `true` | require the passport's subject to be among the identities its visas assert |
+| Per-issuer key | Default | Meaning | Allowed values and constraints |
+|---|---|---|---|
+| `allowed_subject_token_types` | none; required | `subject_token_type` values this issuer's tokens may be sent as | A non-empty list of one or both of:<br>• `urn:ietf:params:oauth:token-type:jwt`: a generic JWT. Only passports are exchanged; any other JWT is rejected with `unsupported_grant_type`<br>• `urn:ga4gh:params:oauth:token-type:passport`: the client states the token is a passport; a JWT that is not one is rejected with `invalid_grant`<br>Fence refuses to start if the list is missing or empty, or names any other type |
+| `allowed_requested_token_types` | `[urn:ietf:params:oauth:token-type:access_token]` | `requested_token_type` values this issuer's tokens may be exchanged for | A non-empty list. The only supported value is `urn:ietf:params:oauth:token-type:access_token`. Fence refuses to start if the list is set but empty, or names any other type |
+| `allowed_clients` | any client registered for the grant | names of the clients allowed to exchange this issuer's tokens | A list of client **names**, not client IDs, so a client keeps access after its credentials are rotated. Unset or empty allows any client that has the token exchange grant type. A client not in the list gets `unauthorized_client` |
+| `max_token_lifetime` | `ACCESS_TOKEN_EXPIRES_IN` | hard cap (seconds) on the issued token's lifetime | A positive whole number of seconds. Unset means no cap beyond `ACCESS_TOKEN_EXPIRES_IN`. It can only shorten a token: a value above `ACCESS_TOKEN_EXPIRES_IN` has no effect, and Fence logs a warning at startup. The issued lifetime is also bounded by the subject token's `exp` and, for passports, the earliest visa expiration |
+| `allowed_scopes` | the client's scopes | scopes an exchanged token may carry | A list of scopes, intersected with the client's allowed scopes; the issued token never has a scope outside either list. Must include `openid`: Fence refuses to start if this is set without it. Unset or empty means the client's scopes. A requested scope outside the result gets `invalid_scope` |
+| `require_passport_subject_visa_match` | `true` | require the passport's subject to be among the identities its visas assert | `true` or `false`. Applies only to passports. With `false`, a passport whose visas describe a different subject still yields a token for the passport's subject, which gets no authorization from those visas |
 
 `allowed_subject_token_types` has no default so that a token type added in a
-later Fence release is never turned on by an upgrade. Fence refuses to start if
-either list names a type it has no handler for.
+later Fence release is never turned on by an upgrade.
 
 ## Registering a client
 

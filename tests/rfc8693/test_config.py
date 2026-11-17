@@ -142,6 +142,18 @@ def test_issuer_not_in_visa_allowlist_fails(token_exchange):
         validate(token_exchange, visa_issuer_allowlist=())
 
 
+@pytest.mark.parametrize("max_token_lifetime", [0, -1, "0", "abc", True])
+def test_max_token_lifetime_must_be_positive_integer(
+    token_exchange, policy, max_token_lifetime
+):
+    """
+    Test error is raised when max_token_lifetime is not a positive integer.
+    """
+    policy["max_token_lifetime"] = max_token_lifetime
+    with pytest.raises(Exception, match="max_token_lifetime"):
+        validate(token_exchange)
+
+
 def test_max_token_lifetime_above_default_warns(token_exchange, policy):
     """
     max_token_lifetime can only shorten an exchanged token, so a value above

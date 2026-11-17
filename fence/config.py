@@ -336,10 +336,27 @@ class FenceConfig(Config):
                 )
 
             max_token_lifetime = policy.get("max_token_lifetime")
+            if max_token_lifetime is not None:
+                try:
+                    if isinstance(max_token_lifetime, bool):
+                        raise TypeError
+                    max_token_lifetime = int(max_token_lifetime)
+                except (TypeError, ValueError):
+                    raise Exception(
+                        f"The TOKEN_EXCHANGE policy for issuer '{issuer}' sets "
+                        f"max_token_lifetime to {max_token_lifetime!r}, which must "
+                        "be a whole number of seconds."
+                    )
+                if max_token_lifetime <= 0:
+                    raise Exception(
+                        f"The TOKEN_EXCHANGE policy for issuer '{issuer}' sets "
+                        f"max_token_lifetime to {max_token_lifetime}, which must be "
+                        "greater than 0."
+                    )
             if (
                 max_token_lifetime
                 and access_token_expires_in
-                and int(max_token_lifetime) > int(access_token_expires_in)
+                and max_token_lifetime > int(access_token_expires_in)
             ):
                 logger.warning(
                     f"The TOKEN_EXCHANGE policy for issuer '{issuer}' sets "
