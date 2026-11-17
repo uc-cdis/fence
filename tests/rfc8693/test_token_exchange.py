@@ -4,6 +4,7 @@ Tests for the RFC 8693 token exchange grant.
 https://datatracker.ietf.org/doc/html/rfc8693
 """
 
+import re
 import time
 from unittest.mock import MagicMock, patch
 
@@ -808,6 +809,122 @@ class TestTokenIssuance:
             subject_token_type=TOKEN_TYPE_JWT,
         )
         assert response.status_code == 200, response.json
+
+    def test_deactivated_subject_without_visa_match(
+        self,
+        mock_arborist,
+        mock_google_proxy_group,
+        client,
+        db_session,
+        token_exchange_config,
+        token_exchange_client,
+        synced_passport,
+        google_proxy_group,
+        kid,
+        rsa_private_key,
+    ):
+        """
+        Test deactivated users cannot token exchange.
+        """
+        mock_google_proxy_group.return_value = google_proxy_group
+        token_exchange_config["allowed_subject_token_issuers"][TEST_ISSUER][
+            "require_passport_subject_visa_match"
+        ] = False
+
+        passport_subject = User(
+            username=TEST_SUBJECT + TEST_ISSUER[len("https://") :], active=False
+        )
+        db_session.add(passport_subject)
+        iss_sub_pair = IssSubPairToUser(iss=TEST_ISSUER, sub=TEST_SUBJECT)
+        iss_sub_pair.user = passport_subject
+        db_session.add(iss_sub_pair)
+        db_session.commit()
+
+        passport = make_passport(
+            kid, rsa_private_key, visa_subject="some-other-subject"
+        )
+        response = exchange(
+            client,
+            token_exchange_client,
+            subject_token=passport,
+            subject_token_type=TOKEN_TYPE_JWT,
+        )
+        assert response.status_code == 400, response.json
+        assert response.json["error"] == "invalid_grant"
+        assert "access_token" not in response.json
+
+    def test_username_deny_regex_new_subject(
+        self,
+        mock_arborist,
+        mock_google_proxy_group,
+        monkeypatch,
+        client,
+        token_exchange_config,
+        token_exchange_client,
+        synced_passport,
+        google_proxy_group,
+        kid,
+        rsa_private_key,
+    ):
+        """
+        Test blocked users cannot token exchange.
+        """
+        mock_google_proxy_group.return_value = google_proxy_group
+        # matches the username derived from the passport's <iss, sub>
+        monkeypatch.setitem(
+            config,
+            "GLOBAL_USERNAME_DENY_REGEX",
+            re.escape(TEST_ISSUER[len("https://") :]) + "$",
+        )
+
+        response = exchange(
+            client,
+            token_exchange_client,
+            subject_token=make_passport(kid, rsa_private_key),
+            subject_token_type=TOKEN_TYPE_JWT,
+        )
+        assert response.status_code == 400, response.json
+        assert response.json["error"] == "invalid_grant"
+        assert "access_token" not in response.json
+
+    def test_username_deny_regex_login_blocked_user(
+        self,
+        mock_arborist,
+        mock_google_proxy_group,
+        monkeypatch,
+        client,
+        db_session,
+        token_exchange_config,
+        token_exchange_client,
+        synced_passport,
+        google_proxy_group,
+        kid,
+        rsa_private_key,
+    ):
+        """
+        RAS login maps <iss, sub> to the user before the deny regex is checked,
+        so a user whose login was blocked is left in the database, active. The
+        exchange must refuse them too.
+        """
+        mock_google_proxy_group.return_value = google_proxy_group
+        monkeypatch.setitem(config, "GLOBAL_USERNAME_DENY_REGEX", r".*@gmail\.com")
+
+        blocked_user = User(username="someone@gmail.com")
+        db_session.add(blocked_user)
+        iss_sub_pair = IssSubPairToUser(iss=TEST_ISSUER, sub=TEST_SUBJECT)
+        iss_sub_pair.user = blocked_user
+        db_session.add(iss_sub_pair)
+        db_session.commit()
+
+        response = exchange(
+            client,
+            token_exchange_client,
+            subject_token=make_passport(kid, rsa_private_key),
+            subject_token_type=TOKEN_TYPE_JWT,
+        )
+        assert response.status_code == 400, response.json
+        assert response.json["error"] == "invalid_grant"
+        assert "access_token" not in response.json
 
 
 @pytest.fixture(scope="function")

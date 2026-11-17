@@ -1,3 +1,5 @@
+import re
+
 import flask
 from authlib.oauth2.rfc6749.errors import (
     InvalidGrantError,
@@ -7,6 +9,7 @@ from authlib.oauth2.rfc6749.errors import (
 from authutils.token.core import get_iss
 from cdislogging import get_logger
 
+from fence.config import config
 from fence.jwt.validate import validate_jwt
 from fence.models import GrantType, IssSubPairToUser
 from fence.oidc.token_exchange.base import (
@@ -149,6 +152,20 @@ class JWTSubjectTokenHandler(SubjectTokenHandler):
 
         if not user:
             user = get_or_create_gen3_user_from_iss_sub(issuer, subject_id)
+
+        if user.active == False:
+            logger.info(
+                f"Rejecting token exchange for deactivated user {user.username}"
+            )
+            raise InvalidGrantError("The subject token's subject is not an active user")
+
+        username_deny_regex = config["GLOBAL_USERNAME_DENY_REGEX"]
+        if username_deny_regex and re.search(username_deny_regex, user.username):
+            logger.info(
+                f"Rejecting token exchange for user {user.username} due to "
+                f"deny regex: {username_deny_regex}"
+            )
+            raise InvalidGrantError("The subject token is not acceptable")
 
         # set by the sync to the earliest expiration among the passport's valid
         # visas, less the authz removal job frequency
