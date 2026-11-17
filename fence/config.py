@@ -324,6 +324,7 @@ class FenceConfig(Config):
                         f"{sorted(REQUESTED_TOKEN_HANDLERS)}"
                     )
 
+            # TODO: Handle non-passport exchange
             if issuer not in visa_issuer_allowlist:
                 message = (
                     f"TOKEN_EXCHANGE.allowed_subject_token_issuers contains '{issuer}', "
@@ -331,9 +332,7 @@ class FenceConfig(Config):
                     "in the passport sync checks against that list, so no token from "
                     "this issuer can be exchanged."
                 )
-                if passports_in_use:
-                    raise Exception(message)
-                logger.warning(message)
+                raise Exception(message)
 
             allowed_scopes = policy.get("allowed_scopes")
             if allowed_scopes and "openid" not in allowed_scopes:
