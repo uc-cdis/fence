@@ -231,8 +231,6 @@ class FenceConfig(Config):
             self._configs.get("TOKEN_EXCHANGE") or {},
             self._configs.get("GA4GH_VISA_ISSUER_ALLOWLIST") or [],
             self._configs.get("BASE_URL"),
-            passports_in_use=bool(self._configs.get("GA4GH_PASSPORTS_TO_DRS_ENABLED"))
-            or self._configs.get("GLOBAL_PARSE_VISAS_ON_LOGIN") is True,
             access_token_expires_in=self._configs.get("ACCESS_TOKEN_EXPIRES_IN"),
         )
 
@@ -241,7 +239,6 @@ class FenceConfig(Config):
         token_exchange,
         visa_issuer_allowlist,
         base_url,
-        passports_in_use,
         access_token_expires_in,
     ):
         """
@@ -251,9 +248,6 @@ class FenceConfig(Config):
             token_exchange (dict): the TOKEN_EXCHANGE configuration
             visa_issuer_allowlist (list): GA4GH_VISA_ISSUER_ALLOWLIST
             base_url (str): this Fence instance's BASE_URL
-            passports_in_use (bool): whether this instance otherwise relies on
-                GA4GH_VISA_ISSUER_ALLOWLIST (passports at DRS, or visas parsed on
-                every login), in which case every exchange issuer must be in it
             access_token_expires_in (int): ACCESS_TOKEN_EXPIRES_IN, which no
                 exchanged token outlives
         """

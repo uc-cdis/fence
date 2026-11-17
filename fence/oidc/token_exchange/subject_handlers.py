@@ -116,11 +116,12 @@ class JWTSubjectTokenHandler(SubjectTokenHandler):
         issuer = validated_token.issuer
         subject_id = validated_token.subject
 
-        # this re-validates the passport and every visa in it against
-        # GA4GH_VISA_ISSUER_ALLOWLIST, and syncs what the visas assert to
-        # Arborist. the duplicated passport validation is intentional: the check
-        # in validate is what keeps untrusted issuers out of this code path
-        # entirely
+        # Validates the passport and every visa in it against
+        # GA4GH_VISA_ISSUER_ALLOWLIST and syncs what the visas assert to
+        # Arborist, unless the passport is already in the passport cache, in
+        # which case the cached usernames are returned without re-validating.
+        # the check in validate is what keeps untrusted issuers out of this
+        # code path entirely
         users_from_passport = sync_gen3_users_authz_from_ga4gh_passports([passport])
         if not users_from_passport:
             # no valid visas, or the earliest visa expiration is already too

@@ -30,14 +30,11 @@ VALID_CONFIG = {
 }
 
 
-def validate(
-    token_exchange, visa_issuer_allowlist=(TEST_ISSUER,), passports_in_use=False
-):
+def validate(token_exchange, visa_issuer_allowlist=(TEST_ISSUER,)):
     FenceConfig._validate_token_exchange(
         token_exchange,
         list(visa_issuer_allowlist),
         BASE_URL,
-        passports_in_use=passports_in_use,
         access_token_expires_in=ACCESS_TOKEN_EXPIRES_IN,
     )
 
@@ -135,19 +132,14 @@ def test_issuer_policy_requires_openid(token_exchange, policy):
         validate(token_exchange)
 
 
-@pytest.mark.parametrize("passports_in_use", [True, False])
-def test_issuer_not_in_visa_allowlist_fails(token_exchange, passports_in_use):
+def test_issuer_not_in_visa_allowlist_fails(token_exchange):
     """
     The exchange validates passports against GA4GH_VISA_ISSUER_ALLOWLIST itself,
     so an issuer missing from it fails startup.
     """
     # TODO: Handle non-passport exchange
     with pytest.raises(Exception, match="GA4GH_VISA_ISSUER_ALLOWLIST"):
-        validate(
-            token_exchange,
-            visa_issuer_allowlist=(),
-            passports_in_use=passports_in_use,
-        )
+        validate(token_exchange, visa_issuer_allowlist=())
 
 
 def test_max_token_lifetime_above_default_warns(token_exchange, policy):
