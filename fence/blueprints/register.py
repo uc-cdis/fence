@@ -135,9 +135,9 @@ def add_user_registration_info_to_database(
 
     if flask.current_app.arborist:
         with flask.current_app.arborist.context():
+            # User provisioning is independent from optional registration-group assignment.
+            flask.current_app.arborist.create_user(dict(name=user.username))
             if config["REGISTERED_USERS_GROUP"]:
-                # make sure the user exists in Arborist
-                flask.current_app.arborist.create_user(dict(name=user.username))
                 arborist_groups = set(
                     g["name"]
                     for g in flask.current_app.arborist.list_groups().get("groups", [])
