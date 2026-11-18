@@ -13,6 +13,7 @@ from fence.oidc.grants import (
     ImplicitGrant,
     RefreshTokenGrant,
     ClientCredentialsGrant,
+    TokenExchangeGrant,
 )
 from fence.oidc.oidc_server import OIDCServer
 
@@ -22,5 +23,6 @@ server.register_grant(AuthorizationCodeGrant)
 server.register_grant(ImplicitGrant)
 server.register_grant(RefreshTokenGrant)
 server.register_grant(ClientCredentialsGrant)
+server.register_grant(TokenExchangeGrant)
 server.register_endpoint(RevocationEndpoint)
 server.register_client_auth_method("none", authenticate_public_client)

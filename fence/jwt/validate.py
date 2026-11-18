@@ -154,6 +154,7 @@ def validate_jwt(
         unverified_claims = jwt.decode(
             encoded_token, algorithms=["RS256"], options={"verify_signature": False}
         )
+        # TODO If scope is a string and not an array, OIDC client error will always appear
         if not unverified_claims.get("scope") or "" in unverified_claims["scope"]:
             msg += "; was OIDC client configured with scopes?"
         raise JWTError(msg)
