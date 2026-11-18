@@ -202,6 +202,25 @@ def parse_arguments():
         help="destination where dbGaP whitelist files are saved",
         default=None,
     )
+    dbgap_sync.add_argument(
+        "--prune-users",
+        dest="prune_users",
+        action="store_true",
+        default=True,
+        help=(
+            "delete Arborist users with no remaining non-generic policies "
+            "(default: enabled for backward compatibility)"
+        ),
+    )
+    dbgap_sync.add_argument(
+        "--no-prune-users",
+        dest="prune_users",
+        action="store_false",
+        help=(
+            "preserve Arborist users with no remaining non-generic policies; "
+            "recommended when identities are managed dynamically"
+        ),
+    )
 
     dbgap_download = subparsers.add_parser("dbgap-download-access-files")
     dbgap_download.add_argument(
@@ -492,6 +511,7 @@ def main():
             sync_from_local_yaml_file=args.yaml,
             folder=args.folder,
             arborist=arborist,
+            prune_users=args.prune_users,
         )
     elif args.action == "dbgap-download-access-files":
         download_dbgap_files(
