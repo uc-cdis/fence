@@ -3,7 +3,7 @@ from botocore.client import Config
 from botocore.exceptions import ClientError
 from retry.api import retry_call
 
-from cdispyutils.config import get_value
+from gen3pyutils.config import get_value
 from cdislogging import get_logger
 from gen3cirrus import AwsService
 from fence.config import config

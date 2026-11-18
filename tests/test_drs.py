@@ -1,10 +1,9 @@
 import flask
-import httpx
+import httpx2
 import hashlib
 import json
 import jwt
 import pytest
-import requests
 import responses
 
 from fence.blueprints.ga4gh import BulkObjectAccessRequest, BulkObjectAccessIds
@@ -259,7 +258,7 @@ def test_get_presigned_url_with_query_params(
 
 @responses.activate
 @pytest.mark.parametrize("indexd_client", ["s3", "gs"], indirect=True)
-@patch("httpx.get")
+@patch("httpx2.get")
 @patch("fence.resources.google.utils._create_proxy_group")
 @patch("fence.scripting.fence_create.ArboristClient")
 def test_passport_use_disabled(
@@ -404,7 +403,7 @@ def test_passport_use_disabled(
     data = {"passports": passports}
 
     keys = [keypair.public_key_to_jwk() for keypair in flask.current_app.keypairs]
-    mock_httpx_get.return_value = httpx.Response(200, json={"keys": keys})
+    mock_httpx_get.return_value = httpx2.Response(200, json={"keys": keys})
 
     res = client.post(
         "/ga4gh/drs/v1/objects/" + test_guid + "/access/" + access_id,
@@ -418,7 +417,7 @@ def test_passport_use_disabled(
 
 @responses.activate
 @pytest.mark.parametrize("indexd_client", ["s3", "gs"], indirect=True)
-@patch("httpx.get")
+@patch("httpx2.get")
 @patch("fence.resources.google.utils._create_proxy_group")
 @patch("fence.scripting.fence_create.ArboristClient")
 def test_get_presigned_url_for_non_public_data_with_passport(
@@ -563,7 +562,7 @@ def test_get_presigned_url_for_non_public_data_with_passport(
     data = {"passports": passports}
 
     keys = [keypair.public_key_to_jwk() for keypair in flask.current_app.keypairs]
-    mock_httpx_get.return_value = httpx.Response(200, json={"keys": keys})
+    mock_httpx_get.return_value = httpx2.Response(200, json={"keys": keys})
 
     res = client.post(
         "/ga4gh/drs/v1/objects/" + test_guid + "/access/" + access_id,
@@ -577,7 +576,7 @@ def test_get_presigned_url_for_non_public_data_with_passport(
 
 @responses.activate
 @pytest.mark.parametrize("indexd_client", ["s3", "gs"], indirect=True)
-@patch("httpx.get")
+@patch("httpx2.get")
 @patch("fence.resources.google.utils._create_proxy_group")
 @patch("fence.scripting.fence_create.ArboristClient")
 def test_get_presigned_url_with_passport_with_incorrect_authz(
@@ -721,7 +720,7 @@ def test_get_presigned_url_with_passport_with_incorrect_authz(
     data = {"passports": passports}
 
     keys = [keypair.public_key_to_jwk() for keypair in flask.current_app.keypairs]
-    mock_httpx_get.return_value = httpx.Response(200, json={"keys": keys})
+    mock_httpx_get.return_value = httpx2.Response(200, json={"keys": keys})
 
     res = client.post(
         "/ga4gh/drs/v1/objects/" + test_guid + "/access/" + access_id,
@@ -735,7 +734,7 @@ def test_get_presigned_url_with_passport_with_incorrect_authz(
 
 @responses.activate
 @pytest.mark.parametrize("indexd_client", ["s3", "gs"], indirect=True)
-@patch("httpx.get")
+@patch("httpx2.get")
 @patch("fence.resources.google.utils._create_proxy_group")
 @patch("fence.scripting.fence_create.ArboristClient")
 def test_get_presigned_url_for_public_data_with_no_passport(
@@ -795,7 +794,7 @@ def test_get_presigned_url_for_public_data_with_no_passport(
 
 @responses.activate
 @pytest.mark.parametrize("indexd_client", ["s3", "gs"], indirect=True)
-@patch("httpx.get")
+@patch("httpx2.get")
 @patch("fence.resources.google.utils._create_proxy_group")
 @patch("fence.scripting.fence_create.ArboristClient")
 def test_get_presigned_url_for_non_public_data_with_no_passport(
@@ -854,7 +853,7 @@ def test_get_presigned_url_for_non_public_data_with_no_passport(
 
 
 @responses.activate
-@patch("httpx.get")
+@patch("httpx2.get")
 @patch("fence.resources.google.utils._create_proxy_group")
 @patch("fence.scripting.fence_create.ArboristClient")
 def test_passport_cache_valid_passport(
@@ -1017,7 +1016,7 @@ def test_passport_cache_valid_passport(
     data = {"passports": passports}
 
     keys = [keypair.public_key_to_jwk() for keypair in flask.current_app.keypairs]
-    mock_httpx_get.return_value = httpx.Response(200, json={"keys": keys})
+    mock_httpx_get.return_value = httpx2.Response(200, json={"keys": keys})
 
     passport_hash = hashlib.sha256(encoded_passport.encode("utf-8")).hexdigest()
 
@@ -1067,7 +1066,7 @@ def test_passport_cache_valid_passport(
 
 
 @responses.activate
-@patch("httpx.get")
+@patch("httpx2.get")
 @patch("fence.resources.google.utils._create_proxy_group")
 @patch("fence.scripting.fence_create.ArboristClient")
 def test_passport_cache_invalid_passport(
@@ -1230,7 +1229,7 @@ def test_passport_cache_invalid_passport(
     data = {"passports": passports}
 
     keys = [keypair.public_key_to_jwk() for keypair in flask.current_app.keypairs]
-    mock_httpx_get.return_value = httpx.Response(200, json={"keys": keys})
+    mock_httpx_get.return_value = httpx2.Response(200, json={"keys": keys})
 
     passport_hash = hashlib.sha256(invalid_encoded_passport.encode("utf-8")).hexdigest()
 
@@ -1272,7 +1271,7 @@ def test_passport_cache_invalid_passport(
 
 
 @responses.activate
-@patch("httpx.get")
+@patch("httpx2.get")
 @patch("fence.resources.google.utils._create_proxy_group")
 @patch("fence.scripting.fence_create.ArboristClient")
 def test_passport_cache_expired_in_memory_valid_in_db(
@@ -1447,7 +1446,7 @@ def test_passport_cache_expired_in_memory_valid_in_db(
     data = {"passports": passports}
 
     keys = [keypair.public_key_to_jwk() for keypair in flask.current_app.keypairs]
-    mock_httpx_get.return_value = httpx.Response(200, json={"keys": keys})
+    mock_httpx_get.return_value = httpx2.Response(200, json={"keys": keys})
 
     passport_hash = hashlib.sha256(encoded_passport.encode("utf-8")).hexdigest()
 
@@ -1515,7 +1514,7 @@ def test_passport_cache_expired_in_memory_valid_in_db(
 
 
 @responses.activate
-@patch("httpx.get")
+@patch("httpx2.get")
 @patch("fence.resources.google.utils._create_proxy_group")
 @patch("fence.scripting.fence_create.ArboristClient")
 def test_passport_cache_expired(
@@ -1678,7 +1677,7 @@ def test_passport_cache_expired(
     data = {"passports": passports}
 
     keys = [keypair.public_key_to_jwk() for keypair in flask.current_app.keypairs]
-    mock_httpx_get.return_value = httpx.Response(200, json={"keys": keys})
+    mock_httpx_get.return_value = httpx2.Response(200, json={"keys": keys})
 
     passport_hash = hashlib.sha256(encoded_passport.encode("utf-8")).hexdigest()
 
@@ -2136,7 +2135,7 @@ def test_get_ga4gh_signed_urls_partial_authz_failure(
 
 @pytest.mark.parametrize("access_id", SUPPORTED_PROTOCOLS)
 @responses.activate
-@patch("httpx.get")
+@patch("httpx2.get")
 @patch("fence.resources.google.utils._create_proxy_group")
 @patch("fence.scripting.fence_create.ArboristClient")
 @patch("fence.blueprints.data.indexd.sync_gen3_users_authz_from_ga4gh_passports")
@@ -2243,7 +2242,7 @@ def test_get_presigned_url_with_passport_sets_skip_google_updates_by_protocol(
     )
 
     keys = [keypair.public_key_to_jwk() for keypair in flask.current_app.keypairs]
-    mock_httpx_get.return_value = httpx.Response(200, json={"keys": keys})
+    mock_httpx_get.return_value = httpx2.Response(200, json={"keys": keys})
 
     res = client.post(
         "/ga4gh/drs/v1/objects/" + test_guid + "/access/" + access_id,

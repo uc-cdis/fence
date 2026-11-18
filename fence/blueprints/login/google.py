@@ -3,6 +3,7 @@ import flask
 from fence.models import IdentityProvider
 from fence.config import config
 from fence.blueprints.login.base import DefaultOAuth2Login, DefaultOAuth2Callback
+from fence.utils import append_query_params
 
 
 class GoogleLogin(DefaultOAuth2Login):
@@ -21,9 +22,18 @@ class GoogleCallback(DefaultOAuth2Callback):
     def get(self):
         # Check if this is a request to link account vs. actually log in
         if flask.session.get("google_link"):
+            # `state` must survive this hop: the link callback checks it against
+            # the value stored in the session when linking started
+            forwarded_params = {
+                param: flask.request.args[param]
+                for param in ("code", "state")
+                if param in flask.request.args
+            }
             return flask.redirect(
-                config.get("BASE_URL", "")
-                + "/link/google/callback?code={}".format(flask.request.args.get("code"))
+                append_query_params(
+                    config.get("BASE_URL", "") + "/link/google/callback",
+                    **forwarded_params,
+                )
             )
 
         return super(GoogleCallback, self).get()

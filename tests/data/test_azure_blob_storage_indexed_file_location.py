@@ -1,6 +1,7 @@
 """
 Test fence.blueprints.data.indexd.AzureBlobStorageIndexedFileLocation
 """
+
 from mock import patch
 import pytest
 
@@ -60,7 +61,7 @@ def test_get_signed_url(
     """
     indexed_file_location_url = indexd_client["url"]
 
-    with patch("cdispyutils.config.get_value", return_value=azure_creds):
+    with patch("gen3pyutils.config.get_value", return_value=azure_creds):
         with patch(
             "fence.blueprints.data.indexd.AzureBlobStorageIndexedFileLocation._get_container_and_blob",
             return_value=("container_name", "blob_name"),

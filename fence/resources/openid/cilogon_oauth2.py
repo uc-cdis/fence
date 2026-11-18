@@ -32,6 +32,9 @@ class CilogonOauth2Client(Oauth2ClientBase):
         return uri
 
     def get_auth_info(self, code):
+        # use the configured `user_id_field` if there is one, otherwise default to "sub"
+        user_id_field = self.settings.get("user_id_field") or "sub"
+
         try:
             token_endpoint = self.get_value_from_discovery_doc(
                 "token_endpoint", "https://cilogon.org/oauth2/token"
@@ -43,10 +46,13 @@ class CilogonOauth2Client(Oauth2ClientBase):
                 token_endpoint, jwks_endpoint, code
             )
 
-            if claims.get("sub"):
-                return {"sub": claims["sub"]}
+            if claims.get(user_id_field):
+                return {
+                    user_id_field: claims[user_id_field],
+                    "sub": claims.get("sub"),
+                }
             else:
-                return {"error": "Can't get user's CILogon sub"}
+                return {"error": "Can't get user's CILogon {}".format(user_id_field)}
         except Exception as e:
             self.logger.exception("Can't get user info")
-            return {"error": "Can't get your CILogon sub: {}".format(e)}
+            return {"error": "Can't get your CILogon {}: {}".format(user_id_field, e)}

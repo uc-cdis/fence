@@ -1,3 +1,4 @@
+import secrets
 import time
 
 import flask
@@ -128,6 +129,12 @@ class GoogleLinkRedirect(Resource):
             # save off provided redirect in session and initiate Google AuthN
             flask.session["redirect"] = provided_redirect
 
+            # Single-use token tying the callback to a linking flow this session
+            # actually started: `GoogleCallback` links nothing unless Google sends
+            # this same value back.
+            state = secrets.token_urlsafe(32)
+            flask.session["google_link_state"] = state
+
             # requested time (in seconds) during which the link will be valid
             requested_expires_in = get_valid_expiration_from_request()
             if requested_expires_in:
@@ -135,8 +142,8 @@ class GoogleLinkRedirect(Resource):
 
             # if we're mocking Google login, skip to callback
             if config.get("MOCK_GOOGLE_AUTH", False):
-                flask.redirect_url = (
-                    config["BASE_URL"].strip("/") + "/link/google/callback?code=abc"
+                flask.redirect_url = "{}/link/google/callback?code=abc&state={}".format(
+                    config["BASE_URL"].strip("/"), state
                 )
                 response = flask.redirect(flask.redirect_url)
                 # pass-through the authorization header. The user's username
@@ -147,7 +154,9 @@ class GoogleLinkRedirect(Resource):
                 )
                 return response
 
-            flask.redirect_url = flask.current_app.google_client.get_auth_url()
+            flask.redirect_url = flask.current_app.google_client.get_auth_url(
+                state=state
+            )
 
             # Tell Google to let user select an account
             flask.redirect_url = append_query_params(
@@ -273,8 +282,12 @@ class GoogleCallback(Resource):
         if any issues arise.
 
         Raises:
+            Unauthorized: The state does not match the one issued when this
+                session started linking
             UserError: No redirect provided
         """
+        _validate_google_link_state()
+
         provided_redirect = flask.session.get("redirect")
         code = flask.request.args.get("code")
 
@@ -566,6 +579,32 @@ def _add_google_email_to_proxy_group(google_email, proxy_group_id):
     with GoogleCloudManager() as g_manager:
         g_manager.add_member_to_group(
             member_email=google_email, group_id=proxy_group_id
+        )
+
+
+def _validate_google_link_state():
+    """
+    Check the callback's `state` against the one issued when linking started.
+
+    The linking target comes from the session while the Google account comes from
+    the `code` query param.
+
+    Raises:
+        Unauthorized: There is no state in the session (no linking flow was
+            started) or the request's state does not match it
+    """
+    # single-use: a second callback for the same flow has to start over
+    expected_state = flask.session.pop("google_link_state", None)
+    provided_state = flask.request.args.get("state")
+
+    if (
+        not expected_state
+        or not provided_state
+        or not secrets.compare_digest(provided_state, expected_state)
+    ):
+        raise Unauthorized(
+            "Google account linking flow was interrupted (state mismatch). Please"
+            " go back and start the linking process again."
         )
 
 

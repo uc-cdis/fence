@@ -49,11 +49,6 @@ FROM base
 COPY --from=builder /venv /venv
 ENV PATH="/venv/bin:$PATH"
 
-# FIXME: Remove this when it's in the base image
-ENV PROMETHEUS_MULTIPROC_DIR="/var/tmp/prometheus_metrics"
-RUN mkdir -p "${PROMETHEUS_MULTIPROC_DIR}" \
-    && chown gen3:gen3 "${PROMETHEUS_MULTIPROC_DIR}"
-
 # Switching to root user to run dnf upgrades
 USER root
 # Install ccrypt to decrypt dbgap telmetry files

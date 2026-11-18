@@ -1,6 +1,7 @@
 import time
 import base64
 import json
+import secrets
 from urllib.parse import urlparse, urlencode, parse_qsl
 import jwt
 
@@ -50,22 +51,13 @@ class DefaultOAuth2Login(Resource):
             current_url += f"?{flask.request.query_string.decode('utf-8')}"
         flask.session["post_registration_redirect"] = current_url
 
-        mock_login = (
-            config["OPENID_CONNECT"].get(self.idp_name.lower(), {}).get("mock", False)
-        )
-
-        # to support older cfgs, new cfgs should use the `mock` field in OPENID_CONNECT
-        legacy_mock_login = config.get(
-            "MOCK_{}_AUTH".format(self.idp_name.upper()), False
-        )
-
         mock_default_user = (
             config["OPENID_CONNECT"]
             .get(self.idp_name.lower(), {})
             .get("mock_default_user", "test@example.com")
         )
 
-        if mock_login or legacy_mock_login:
+        if _mock_login_enabled(self.idp_name):
             # prefer dev cookie for mocked username, fallback on configuration
             username = flask.request.cookies.get(
                 config.get("DEV_LOGIN_COOKIE_NAME"), mock_default_user
@@ -75,7 +67,9 @@ class DefaultOAuth2Login(Resource):
             prepare_login_log(self.idp_name)
             return resp
 
-        return flask.redirect(self.client.get_auth_url())
+        state = secrets.token_urlsafe(32)
+        flask.session[state_session_key(self.idp_name)] = state
+        return flask.redirect(_with_state_param(self.client.get_auth_url(), state))
 
 
 class DefaultOAuth2Callback(Resource):
@@ -131,6 +125,8 @@ class DefaultOAuth2Callback(Resource):
             ]["is_authz_groups_sync_enabled"]
 
     def get(self):
+        self._validate_state()
+
         # Check if user granted access
         if flask.request.args.get("error"):
 
@@ -210,6 +206,34 @@ class DefaultOAuth2Callback(Resource):
         )
 
         return resp
+
+    def _validate_state(self) -> None:
+        """
+        Confirm this callback belongs to a login that this browser started.
+
+        Runs before the error branch and before the code is exchanged, so neither is
+        reachable by a cross-site request. The state is single-use: it is popped
+        whether or not it matches.
+
+        Raises:
+            Unauthorized: if no state was issued for this IdP in this session, or the
+                state the IdP echoed back does not match the one issued
+        """
+        if _mock_login_enabled(self.idp_name):
+            return
+
+        expected_state = flask.session.pop(state_session_key(self.idp_name), None)
+        received_state = flask.request.args.get("state")
+        if (
+            not expected_state
+            or not received_state
+            or not secrets.compare_digest(expected_state, received_state)
+        ):
+            logger.warning(
+                f"Rejecting {self.idp_name} login callback: the state parameter was "
+                "missing or did not match the one issued for this session."
+            )
+            raise Unauthorized("Login state is missing or invalid; please log in again")
 
     def extract_exp(self, refresh_token):
         """
@@ -309,6 +333,23 @@ class DefaultOAuth2Callback(Resource):
                     ), f"Could not revoke user {username} policy mfa_policy"
 
 
+def state_session_key(idp_name: str) -> str:
+    """
+    Session key holding the OAuth state issued for one IdP's login.
+
+    Scoped per IdP, and kept distinct from ``state`` (owned by the fence-as-IdP flow)
+    and ``google_link_state`` (owned by Google account linking), because one session
+    can have more than one of those flows in progress at once.
+
+    Args:
+        idp_name (str): name for the identity provider
+
+    Returns:
+        str: the session key
+    """
+    return "oauth2_state_{}".format(idp_name.lower())
+
+
 def prepare_login_log(idp_name):
     x_forwarded_headers = [
         f"{header}:{value}" for header, value in flask.request.headers if "X-" in header
@@ -323,6 +364,48 @@ def prepare_login_log(idp_name):
         "additional_data": x_forwarded_headers,
         "ip": get_ip_information_string(),
     }
+
+
+def _mock_login_enabled(idp_name: str) -> bool:
+    """
+    Whether an IdP is configured to skip the real authorization code flow.
+
+    Args:
+        idp_name (str): name for the identity provider
+
+    Returns:
+        bool: True if either the per-IdP ``mock`` field or the legacy
+            ``MOCK_<IDP>_AUTH`` setting is enabled
+    """
+    mock_login = config["OPENID_CONNECT"].get(idp_name.lower(), {}).get("mock", False)
+    # to support older cfgs, new cfgs should use the `mock` field in OPENID_CONNECT
+    legacy_mock_login = config.get("MOCK_{}_AUTH".format(idp_name.upper()), False)
+    return bool(mock_login or legacy_mock_login)
+
+
+def _with_state_param(url: str, state: str) -> str:
+    """
+    Return an authorization URL carrying exactly one ``state`` parameter.
+
+    Any existing ``state`` is replaced rather than appended: authlib puts its own
+    generated state in the URL and returns it for the caller to discard, and leaving
+    two would let the IdP decide which one it echoes back.
+
+    Args:
+        url (str): authorization URL the user is about to be sent to
+        state (str): value binding that login to this session
+
+    Returns:
+        str: the URL with ``state`` set
+    """
+    parsed = urlparse(url)
+    params = [
+        (key, value)
+        for key, value in parse_qsl(parsed.query, keep_blank_values=True)
+        if key != "state"
+    ]
+    params.append(("state", state))
+    return parsed._replace(query=urlencode(params)).geturl()
 
 
 def _login_and_register(

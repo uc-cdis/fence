@@ -361,7 +361,7 @@ MAX_ACCESS_TOKEN_TTL: 3600
 MAX_TASK_TOKEN_TTL:
   FOO: 4000
 
-ALLOWED_TASK_TOKEN_TYPES: ["FOO", "NOT_IN_CONFIG", "NOT_IN_MAPPING"]
+ALLOWED_TASK_TOKEN_TYPES: ["FOO", "NOT_IN_MAX_TASK_TOKEN_TTL_MAPPING"]
 
 
 ########################################################################################

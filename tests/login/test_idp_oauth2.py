@@ -374,6 +374,100 @@ def test_post_login_with_group_prefix(mock_get_auth_info, app):
             assert mock_arborist.add_user_to_group.call_count == 3
 
 
+@patch("fence.resources.openid.idp_oauth2.Oauth2ClientBase.store_refresh_token")
+@patch("fence.resources.openid.idp_oauth2.jwt.decode")
+@patch("authlib.integrations.requests_client.OAuth2Session.refresh_token")
+def test_get_access_token_uses_jwt_exp(
+    mock_refresh_token, mock_jwt_decode, mock_store_refresh_token, mock_db_session
+):
+    """
+    Test that get_access_token decodes the refresh token JWT and uses its exp claim
+    as the expiry passed to store_refresh_token.
+    """
+    mock_settings = {
+        "client_id": "test_client_id",
+        "client_secret": "test_client_secret",
+        "redirect_url": "http://localhost/callback",
+        "discovery_url": "http://localhost/.well-known/openid-configuration",
+        "user_id_field": "sub",
+    }
+
+    user = MagicMock()
+    user.upstream_refresh_tokens = [
+        MagicMock(refresh_token="valid_refresh_token", expires=9999999999),
+    ]
+
+    oauth2_client = Oauth2ClientBase(
+        settings=mock_settings, logger=MagicMock(), idp="test_idp"
+    )
+
+    new_refresh_token = "new_refresh_token"
+    expected_exp = 9888888888
+
+    mock_refresh_token.return_value = {
+        "access_token": "new_access_token",
+        "id_token": "new_id_token",
+        "refresh_token": new_refresh_token,
+        "expires_at": 1111111111,  # should NOT be used, this was the old way
+    }
+    mock_jwt_decode.return_value = {"exp": expected_exp}
+
+    oauth2_client.get_access_token(user, "https://token.endpoint", mock_db_session)
+
+    mock_store_refresh_token.assert_called_once_with(
+        user,
+        refresh_token=new_refresh_token,
+        expires=expected_exp,
+        db_session=mock_db_session,
+    )
+
+
+@patch("fence.resources.openid.idp_oauth2.Oauth2ClientBase.store_refresh_token")
+@patch("fence.resources.openid.idp_oauth2.jwt.decode")
+@patch("authlib.integrations.requests_client.OAuth2Session.refresh_token")
+def test_get_access_token_falls_back_when_jwt_decode_fails(
+    mock_refresh_token, mock_jwt_decode, mock_store_refresh_token, mock_db_session
+):
+    """
+    Test that get_access_token falls back to time.time() + default_refresh_token_exp
+    when jwt.decode raises an exception.
+    """
+    default_exp = 1209600  # 14 days in seconds
+    mock_settings = {
+        "client_id": "test_client_id",
+        "client_secret": "test_client_secret",
+        "redirect_url": "http://localhost/callback",
+        "discovery_url": "http://localhost/.well-known/openid-configuration",
+        "default_refresh_token_exp": default_exp,
+        "user_id_field": "sub",
+    }
+
+    user = MagicMock()
+    user.upstream_refresh_tokens = [
+        MagicMock(refresh_token="valid_refresh_token", expires=9999999999),
+    ]
+
+    oauth2_client = Oauth2ClientBase(
+        settings=mock_settings, logger=MagicMock(), idp="test_idp"
+    )
+
+    mock_refresh_token.return_value = {
+        "access_token": "new_access_token",
+        "id_token": "new_id_token",
+        "refresh_token": "new_refresh_token",
+    }
+    mock_jwt_decode.side_effect = Exception("decode error")
+
+    import time
+
+    before = time.time()
+    oauth2_client.get_access_token(user, "https://token.endpoint", mock_db_session)
+    after = time.time()
+
+    call_kwargs = mock_store_refresh_token.call_args[1]
+    assert before + default_exp <= call_kwargs["expires"] <= after + default_exp
+
+
 @patch("fence.resources.openid.idp_oauth2.Oauth2ClientBase.get_jwt_keys")
 @patch("authlib.integrations.requests_client.OAuth2Session.fetch_token")
 @patch("fence.resources.openid.idp_oauth2.jwt.decode")  # Mock jwt.decode
@@ -453,3 +547,115 @@ def test_jwt_audience_verification_fails(
         options={"verify_signature": False},
         algorithms=["RS256"],
     )
+
+
+class FakeArborist:
+    """Arborist stand-in that, like Arborist, refuses to add unknown users to groups."""
+
+    def __init__(self, group_names: list[str], usernames: list[str] | None = None):
+        self.group_members = {name: set() for name in group_names}
+        self.usernames = set(usernames or [])
+
+    def list_groups(self) -> dict:
+        """Return the groups in Arborist's response format."""
+        return {"groups": [{"name": name} for name in self.group_members]}
+
+    def create_user(self, user_info: dict) -> None:
+        """Create the user if it does not exist yet."""
+        self.usernames.add(user_info["name"])
+
+    def add_user_to_group(
+        self,
+        username: str,
+        group_name: str,
+        expires_at: datetime.datetime | None = None,
+    ) -> bool | None:
+        """Return True on success and None on error, like the gen3authz client."""
+        if username not in self.usernames or group_name not in self.group_members:
+            return None
+        self.group_members[group_name].add(username)
+        return True
+
+
+class FailingArborist(FakeArborist):
+    """Arborist stand-in where every group membership update fails."""
+
+    def add_user_to_group(
+        self,
+        username: str,
+        group_name: str,
+        expires_at: datetime.datetime | None = None,
+    ) -> bool | None:
+        """Fail like the gen3authz client does."""
+        return None
+
+
+def _sync_groups_from_idp(
+    arborist: FakeArborist, idp_groups: list[str], logger: MagicMock | None = None
+) -> None:
+    """
+    Run `update_user_authorization` for user "test_user" with an IdP token listing
+    `idp_groups`.
+
+    Args:
+        arborist (FakeArborist): Arborist stand-in the client syncs groups into.
+        idp_groups (list[str]): groups in the access token received from the IdP.
+        logger (MagicMock | None): logger for the client.
+    """
+    client = Oauth2ClientBase(
+        settings={
+            "client_id": "client",
+            "client_secret": "foobar3",
+            "redirect_url": "localhost",
+            "discovery_url": "http://localhost/.well-known/openid-configuration",
+            "is_authz_groups_sync_enabled": True,
+        },
+        logger=logger or MagicMock(),
+        idp="test_idp",
+        arborist=arborist,
+    )
+    token = {
+        "id_token": "id-token",
+        "access_token": "access-token",
+        "expires_at": datetime.datetime.now(tz=datetime.timezone.utc).timestamp()
+        + 3600,
+    }
+    with patch.object(
+        Oauth2ClientBase, "get_value_from_discovery_doc", return_value=""
+    ), patch.object(Oauth2ClientBase, "get_access_token", return_value=token), patch(
+        "fence.resources.openid.idp_oauth2.get_public_key_for_token"
+    ), patch(
+        "fence.resources.openid.idp_oauth2.jwt.decode",
+        return_value={"groups": idp_groups},
+    ):
+        client.update_user_authorization(
+            MagicMock(username="test_user", id=1), pkey_cache={}, db_session=MagicMock()
+        )
+
+
+@pytest.mark.parametrize("arborist_usernames", [[], ["test_user"]])
+def test_group_sync_adds_user_to_matching_group(arborist_usernames: list[str]) -> None:
+    """A user gets IdP-matched group membership whether or not they exist in Arborist yet."""
+    arborist = FakeArborist(["group1"], usernames=arborist_usernames)
+
+    _sync_groups_from_idp(arborist, ["group1"])
+
+    assert arborist.group_members["group1"] == {"test_user"}
+
+
+def test_group_sync_without_matching_groups_does_not_create_arborist_user() -> None:
+    """A user with no IdP group matching an Arborist group is not created in Arborist."""
+    arborist = FakeArborist(["group1"])
+
+    _sync_groups_from_idp(arborist, ["unknown_group"])
+
+    assert "test_user" not in arborist.usernames
+
+
+def test_group_sync_logs_error_when_group_add_fails() -> None:
+    """A failed Arborist group membership update is logged as an error."""
+    logger = MagicMock()
+
+    _sync_groups_from_idp(FailingArborist(["group1"]), ["group1"], logger=logger)
+
+    logger.error.assert_called_once()

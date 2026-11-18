@@ -3,7 +3,7 @@ import json
 import hashlib
 
 from cdislogging import get_logger
-from cdispyutils.config import get_value
+from gen3pyutils.config import get_value
 import requests
 
 from fence.auth import login_required, require_auth_header, current_token, get_jwt
@@ -19,6 +19,7 @@ from fence.blueprints.data.indexd import (
 )
 from fence.config import config
 from fence.errors import Forbidden, InternalError, NotSupported, UserError, Unauthorized
+from fence.resources.audit.utils import enable_audit_logging
 from fence.utils import get_valid_expiration
 
 
@@ -177,6 +178,14 @@ def upload_data_file():
         uploader=uploader,
         guid=guid,
     )
+
+    if guid:
+        # A supplied GUID can resolve to an existing record instead of creating one
+        # (See BlankIndex.index_document code), and since
+        # the signed URL below writes to that record's storage key, we need to
+        # not just auth the authz provided by the user, but check on the existing record.
+        _authorize_upload_to_existing_record(blank_index.index_document)
+
     default_expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
 
     expires_in = get_valid_expiration(
@@ -202,6 +211,42 @@ def upload_data_file():
     return flask.jsonify(response), 201
 
 
+def _authorize_upload_to_existing_record(index_document: dict) -> None:
+    """
+    Confirm the caller may write to an indexd record that already exists.
+
+    Args:
+        index_document (dict): the indexd record the supplied GUID resolved to
+
+    Raises:
+        Forbidden: if the caller may not write to this record
+    """
+    record_authz = index_document.get("authz")
+    if record_authz:
+        authorized = flask.current_app.arborist.auth_request(
+            jwt=get_jwt(),
+            service="fence",
+            methods=["write-storage"],
+            resources=record_authz,
+        )
+        if not authorized:
+            logger.error(
+                "Auth error on upload to existing record. User must have "
+                "'write-storage' access on {}.".format(record_authz)
+            )
+            raise Forbidden(
+                "You do not have write-storage access to this record's authz resources."
+            )
+        return
+
+    uploader = index_document.get("uploader")
+    if not uploader or uploader != current_token["context"]["user"]["name"]:
+        raise Forbidden(
+            "You cannot upload to this record because it has no authz resources and "
+            "the uploader field indicates it does not belong to you."
+        )
+
+
 @blueprint.route("/multipart/init", methods=["POST"])
 @require_auth_header(scope={"data"})
 @login_required({"data"})
@@ -219,6 +264,9 @@ def init_multipart_upload():
     guid = params.get("guid")
 
     blank_index = BlankIndex(file_name=params["file_name"], guid=guid)
+
+    if guid:
+        _authorize_upload_to_existing_record(blank_index.index_document)
 
     default_expires_in = flask.current_app.config.get("MAX_PRESIGNED_URL_TTL", 3600)
     expires_in = get_valid_expiration(
@@ -354,6 +402,7 @@ def download_file(file_id):
 
 
 @blueprint.route("/download/bulk", methods=["POST"])
+@enable_audit_logging
 def download_bulk_files():
     """
     Get a presigned url to download a file given by file_id.
@@ -367,6 +416,21 @@ def download_bulk_files():
         raise UserError("missing required argument `guids`")
 
     guids = params["guids"]
+    if not isinstance(guids, list) or not all(isinstance(guid, str) for guid in guids):
+        raise UserError("`guids` must be a list of strings")
+
+    max_bulk_requests = config.get("MAX_BULK_DRS_REQUESTS")
+    if len(guids) > max_bulk_requests:
+        return (
+            flask.jsonify(
+                {
+                    "error_code": 413,
+                    "error_description": f"Request too large: {len(guids)} objects requested, maximum is {max_bulk_requests}",
+                }
+            ),
+            413,
+        )
+
     requested_protocol = flask.request.args.get("protocol", None)
     r_pays_project = flask.request.args.get("userProject", None)
     no_force_sign_param = flask.request.args.get("no_force_sign", None)

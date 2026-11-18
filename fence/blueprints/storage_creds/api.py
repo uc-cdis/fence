@@ -2,16 +2,26 @@ import json
 
 import flask
 from flask_restful import Resource
-import jwt
 
-from fence.auth import require_auth_header, current_token, get_user_from_claims
-from fence.authz.auth import can_user_get_task_token
+from fence.auth import require_auth_header, current_token
+from fence.authz.auth import authorize as authz_authorize, can_user_get_task_token
 from fence.errors import Forbidden, UserError
 from fence.jwt.blacklist import blacklist_token
+from fence.jwt.dpop import jti_seen
 from fence.models import UserRefreshToken
 from fence.config import config
+from authutils.dpop import validate_dpop_proof
+from authutils.errors import InvalidNonceErrorAuthorizationServer
 
-from fence.resources.storage.cdis_jwt import create_user_access_token, create_api_key
+from fence.resources.storage.cdis_jwt import (
+    create_api_key,
+    create_user_access_token,
+    validate_api_key,
+)
+
+from cdislogging import get_logger
+
+logger = get_logger(__name__)
 
 
 class ApiKeyList(Resource):
@@ -117,25 +127,35 @@ class ApiKey(Resource):
     @require_auth_header({"credentials"})
     def delete(self, access_key):
         """
-        Delete a key for user
+        Delete a key for user, or for any user if the caller is an admin
 
-        :param access_key: existing access key that belongs to this user
+        :param access_key: existing access key that belongs to this user, or to
+            any user if the caller is an admin
 
         :statuscode 204 Success
-        :statuscode 403 Forbidden to delete access key
-        :statuscode 404 Access key doesn't exist
+        :statuscode 404 Access key doesn't exist, or the caller is neither its
+            owner nor an admin
         """
         user_id = current_token["sub"]
 
         jti = access_key
         with flask.current_app.db.session as session:
-            api_key = (
-                session.query(UserRefreshToken)
-                .filter_by(jti=jti, userid=user_id)
-                .first()
-            )
+            api_key = session.query(UserRefreshToken).filter_by(jti=jti).first()
+        not_found_msg = "token not found with JTI {}".format(jti)
         if not api_key:
-            flask.abort(404, "token not found with JTI {} for current user".format(jti))
+            flask.abort(404, not_found_msg)
+
+        # Check if the admin can delete the token.
+        if str(api_key.userid) != user_id:
+            try:
+                authz_authorize(
+                    "/services/fence/admin",
+                    "delete",
+                    user_id=current_token["context"]["user"]["name"],
+                )
+            except Forbidden:
+                flask.abort(404, not_found_msg)
+
         blacklist_token(jti, api_key.expires)
 
         return "", 204
@@ -151,7 +171,7 @@ class AccessKey(Resource):
         **Example:**
         .. code-block:: http
 
-               POST /hmac/ HTTP/1.1
+               POST /credentials/api/access_token HTTP/1.1
                Content-Type: application/json
                Accept: application/json
 
@@ -177,10 +197,9 @@ class AccessKey(Resource):
 
         # TODO Instead of using this endpoint for task tokens, implement oauth2 token exchange
         # (https://datatracker.ietf.org/doc/html/rfc8693): exchange a Refresh Token or API Key for
-        # a longer-lived, downscoped access token. authlib doesn’t support token exchange yet
+        # a longer-lived, downscoped access token. authlib doesn't support token exchange yet
         # (https://github.com/authlib/authlib/issues/821).
         # => https://ctds-planx.atlassian.net/browse/PD-190
-        max_ttl = config.get("MAX_ACCESS_TOKEN_TTL", 3600)
         task_token_type = flask.request.args.get("task_token") or None
         if (
             task_token_type
@@ -189,36 +208,95 @@ class AccessKey(Resource):
             raise UserError(
                 f"Invalid 'task_token' value '{task_token_type}'. Allowed task token types are: {config['ALLOWED_TASK_TOKEN_TYPES']}"
             )
+
+        # get and validate the `expires_in` parameter
+        max_ttl = config.get("MAX_ACCESS_TOKEN_TTL", 3600)
+        if task_token_type:
+            # the classic max token TTL only applies to task tokens if a TTL is not configured for
+            # this specific task token type
+            max_ttl = config["MAX_TASK_TOKEN_TTL"].get(task_token_type, max_ttl)
         try:
             expires_in = int(flask.request.args.get("expires_in", max_ttl))
         except ValueError:
             raise UserError(
                 f"Invalid 'expires_in' value '{flask.request.args['expires_in']}'"
             )
-        if not task_token_type:
-            expires_in = min(expires_in, max_ttl)
-        else:
-            # the classic max token TTL does not apply to task tokens, use the task token TTL
-            # instead
-            max_task_token_ttl = config["MAX_TASK_TOKEN_TTL"].get(
-                task_token_type, max_ttl
+        if expires_in <= 0:
+            raise UserError(
+                f"Invalid 'expires_in' value '{flask.request.args['expires_in']}'"
             )
-            expires_in = min(expires_in, max_task_token_ttl)
 
-        result = create_user_access_token(
-            flask.current_app.keypairs[0],
-            api_key,
-            expires_in,
-            task_token_type=task_token_type,
-        )
+        # check `expires_in` against the max expiration allowed
+        if expires_in > max_ttl:
+            raise UserError(
+                f"Requested 'expires_in' value '{expires_in}s' is greater than the max allowed '{max_ttl}s'"
+            )
 
-        # we generate the result token BEFORE checking access, because a token is required to
-        # perform the authorization check, but we only return it if the user DOES have access
-        if task_token_type and not can_user_get_task_token(
-            task_token_type, expires_in, token=result
+        # The api key and the user's access are checked before the DPoP proof, so that a
+        # caller who will be refused anyway never gets a nonce.
+        api_key_claims, user = validate_api_key(api_key, expires_in)
+
+        # `user` is None when the api key validates but the user it names no longer
+        # exists for some reason; such a user holds no policies and so cannot be granted
+        # a task token
+        if task_token_type and not (
+            user
+            and can_user_get_task_token(
+                task_token_type, expires_in, username=user.username
+            )
         ):
             raise Forbidden(
                 f"You do not have access to obtain '{task_token_type}' tokens, or you do not have access to the token lifetime you requested"
             )
+
+        # If DPOP_ENABLED, task tokens require DPoP proof
+        cnf_claim = None
+        if task_token_type and config["DPOP_ENABLED"]:
+            # For the header: the underlying flask library handles case-insensitivity required
+            dpop_header = flask.request.headers.get("DPoP", "")
+
+            request_method = flask.request.method
+            # `htu` must match the URL the client signed. The path comes from the
+            # request because this resource is registered at several paths; the origin
+            # comes from config because flask's URL can reflect internal k8s routing.
+            request_url = f"{config['BASE_URL'].rstrip('/')}{flask.request.path}"
+
+            logger.debug(f"using request_method: {request_method}")
+            logger.debug(f"using request_url: {request_url}")
+
+            try:
+                _, client_jwk = validate_dpop_proof(
+                    dpop_header=dpop_header,
+                    request_method=request_method,
+                    request_url=request_url,
+                    unvalidated_access_token=None,
+                    require_nonce=True,
+                    secret=config["DPOP_SHARED_SECRET"],
+                    as_resource_server=False,
+                    jti_seen_callback=jti_seen,
+                )
+                cnf_claim = {"jkt": client_jwk.thumbprint()}
+            except InvalidNonceErrorAuthorizationServer as invalid_nonce_error:
+                # early error return with new nonce for client to resend
+                return (
+                    invalid_nonce_error.json,
+                    invalid_nonce_error.code,
+                    invalid_nonce_error.error_headers,
+                )
+            except ValueError as exc:
+                logger.info(f"Rejecting DPoP request: {exc}")
+                raise UserError("Invalid DPoP request")
+            except Exception as exc:
+                logger.error(f"Unknown error validating DPoP request: {exc}")
+                raise UserError("Error validating DPoP request")
+
+        result = create_user_access_token(
+            flask.current_app.keypairs[0],
+            api_key_claims,
+            user,
+            expires_in,
+            task_token_type=task_token_type,
+            cnf=cnf_claim,
+        )
 
         return flask.jsonify(dict(access_token=result))
