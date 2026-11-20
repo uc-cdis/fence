@@ -114,7 +114,7 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
 
         user = self.authenticate_user(authorization_code)
         if not user:
-            raise InvalidRequestError('There is no "user" for this code.')
+            raise InvalidRequestError("There is no user for this code.")
 
         scope = authorization_code.scope
         nonce = authorization_code.nonce
@@ -204,7 +204,7 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
         if "none" in prompts and len(prompts) > 1:
             # If this parameter contains none with any other value,
             # an error is returned
-            raise InvalidRequestError('Invalid "prompt" parameter.')
+            raise InvalidRequestError("Invalid prompt parameter.")
         if "login" in prompts:
             prompt = "login"
         if "consent" in prompts:
@@ -244,7 +244,7 @@ class AuthorizationCodeGrant(grants.AuthorizationCodeGrant):
 
         code = self.request.payload.data.get("code")
         if code is None:
-            raise InvalidRequestError('Missing "code" in request.')
+            raise InvalidRequestError("Missing code in request.")
 
         # ensure that the authorization code was issued to the authenticated
         # confidential client, or if the client is public, ensure that the
