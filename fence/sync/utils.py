@@ -156,5 +156,5 @@ def combine_provided_and_dbgap_resources(
 
     res = reduce(nest_resource, arborist_paths, list(useryaml_resources))
     if logger:
-        logger.info(f"Combined resources: {json.dumps(res, indent=2)}")
+        logger.debug(f"Combined resources: {json.dumps(res, indent=2)}")
     return res
