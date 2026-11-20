@@ -2324,3 +2324,32 @@ def test_download_s3_file_with_client_token(
     assert query_params.get("user_id") == [ANONYMOUS_USER_ID]
     assert query_params.get("username") == [ANONYMOUS_USERNAME]
     assert query_params.get("client_id") == [client_credentials_token["azp"]]
+
+
+@pytest.mark.parametrize(
+    "guids", ["guid-1", ["guid-1", 2], {"guid": "guid-1"}], ids=["str", "int", "dict"]
+)
+def test_download_bulk_guids_must_be_a_list_of_strings(client, guids):
+    """A bulk download whose guids is not a list of strings is rejected."""
+    with patch(
+        "fence.blueprints.data.blueprint.bulk_get_signed_url_for_file"
+    ) as mock_bulk_get_signed_url_for_file:
+        response = client.post("/data/download/bulk", json={"guids": guids})
+
+    assert response.status_code == 400
+    mock_bulk_get_signed_url_for_file.assert_not_called()
+
+
+def test_download_bulk_request_too_large(client, monkeypatch):
+    """A bulk download of more than MAX_BULK_DRS_REQUESTS GUIDs is rejected."""
+    monkeypatch.setitem(config, "MAX_BULK_DRS_REQUESTS", 1)
+
+    with patch(
+        "fence.blueprints.data.blueprint.bulk_get_signed_url_for_file"
+    ) as mock_bulk_get_signed_url_for_file:
+        response = client.post(
+            "/data/download/bulk", json={"guids": ["guid-1", "guid-2"]}
+        )
+
+    assert response.status_code == 413
+    mock_bulk_get_signed_url_for_file.assert_not_called()

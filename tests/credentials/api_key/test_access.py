@@ -78,49 +78,50 @@ def test_get_access_token_with_expires_in(client, encoded_creds_jwt, expires_in)
         data=data,
         headers={"Authorization": "Bearer " + str(encoded_credentials_jwt)},
     )
-    assert response.status_code == 200, response.text
-    assert "access_token" in response.json
-    claims = validate_jwt(response.json["access_token"])
 
-    if expires_in in [None, TASK_TOKEN_EXPIRES_IN]:
-        # if the expiration is not specified or larger than the configured max, the token lifetime
-        # is the configured max
-        expected_exp = now + config["MAX_ACCESS_TOKEN_TTL"]
+    if expires_in == TASK_TOKEN_EXPIRES_IN:
+        # if the expiration is larger than the configured max, the request is rejected
+        assert response.status_code == 400, response.text
+        assert (
+            f"Requested 'expires_in' value '{expires_in}s' is greater than the max allowed '{config['MAX_ACCESS_TOKEN_TTL']}s'".replace(
+                "'", "&#39;"
+            )
+            in response.text
+        )
     else:
-        # otherwise, the token lifetime is as requested
-        expected_exp = now + expires_in
+        assert response.status_code == 200, response.text
+        assert "access_token" in response.json
+        claims = validate_jwt(response.json["access_token"])
 
-    # EXP_ERR_TOLERANCE accounts for the margin of error between the test's
-    # expected token expiration and the actual token's expiration time.
-    assert expected_exp <= claims["exp"] <= expected_exp + EXP_ERR_TOLERANCE
+        if expires_in is None:
+            # if the expiration is not specified, the token lifetime is the configured max
+            expected_exp = now + config["MAX_ACCESS_TOKEN_TTL"]
+        else:
+            # otherwise, the token lifetime is as requested
+            expected_exp = now + expires_in
+
+        # EXP_ERR_TOLERANCE accounts for the margin of error between the test's
+        # expected token expiration and the actual token's expiration time.
+        assert expected_exp <= claims["exp"] <= expected_exp + EXP_ERR_TOLERANCE
 
 
 @pytest.mark.parametrize(
-    ("task_token_type", "expires_in", "authorized"),
-    [
-        ("FOO", None, True),
-        ("FOO", TASK_TOKEN_EXPIRES_IN, True),
-        ("FOO", config["MAX_TASK_TOKEN_TTL"]["FOO"] + 60, True),
-        ("NOT_IN_CONFIG", config["MAX_TASK_TOKEN_TTL"]["FOO"] + 60, True),
-        ("NOT_IN_MAPPING", TASK_TOKEN_EXPIRES_IN, False),
-    ],
+    "expires_in",
+    [None, TASK_TOKEN_EXPIRES_IN, config["MAX_TASK_TOKEN_TTL"]["FOO"] + 60],
 )
-def test_task_token(
+def test_task_token_authorized_user(
     client,
     encoded_creds_jwt,
     mock_arborist_requests,
     expires_in,
-    task_token_type,
-    authorized,
 ):
     """
-    Test that a task token can be generated with a longer life than a regular token, and that the configured max expiration is respected
+    Test that a task token can be generated with a longer life than a regular token, and that the
+    requested expiration is applied (except for requests that request more than the max, which are
+    rejected)
     """
-    mock_arborist_requests(
-        {
-            "arborist/auth/request": {"POST": ({"auth": authorized}, 200)},
-        }
-    )
+    task_token_type = "FOO"
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
 
     encoded_credentials_jwt = encoded_creds_jwt["jwt"]
     response = get_api_key(client, encoded_credentials_jwt)
@@ -137,33 +138,159 @@ def test_task_token(
         headers={"Authorization": "Bearer " + str(encoded_credentials_jwt)},
     )
 
-    if task_token_type == "NOT_IN_MAPPING":
-        assert response.status_code == 403, response.text
+    # check that the returned token's expiration matches
+    if expires_in is None:
+        # not specified: defaults to MAX_TASK_TOKEN_TTL[task_token_type]
+        expected_exp = now + config["MAX_TASK_TOKEN_TTL"][task_token_type]
+    elif expires_in >= config["MAX_TASK_TOKEN_TTL"][task_token_type]:
+        # cannot be longer than the configured MAX_TASK_TOKEN_TTL
+        assert response.status_code == 400, response.text
+        assert (
+            f"Requested 'expires_in' value '{expires_in}s' is greater than the max allowed '{config['MAX_TASK_TOKEN_TTL'].get(task_token_type, config['MAX_ACCESS_TOKEN_TTL'])}s'".replace(
+                "'", "&#39;"
+            )
+            in response.text
+        )
         return
+    else:
+        # otherwise, the requested lifetime is applied
+        expected_exp = now + expires_in
+
+    assert response.status_code == 200, response.text
 
     # the returned access token should have the task token type as audience
-    assert response.status_code == 200, response.text
     assert "access_token" in response.json
     claims = validate_jwt(response.json["access_token"], aud=task_token_type)
     assert claims["aud"] == [task_token_type]
 
-    # check that the returned token's expiration matches
-    if expires_in is None:
-        # not specified: min of MAX_ACCESS_TOKEN_TTL and MAX_TASK_TOKEN_TTL
-        expected_exp = now + config["MAX_ACCESS_TOKEN_TTL"]
-    elif task_token_type not in config["MAX_TASK_TOKEN_TTL"]:
-        # ttl not configured for this task token type: fallback to MAX_ACCESS_TOKEN_TTL
-        expected_exp = now + config["MAX_ACCESS_TOKEN_TTL"]
-    elif expires_in >= config["MAX_TASK_TOKEN_TTL"][task_token_type]:
-        # cannot be longer than the configured MAX_TASK_TOKEN_TTL
-        expected_exp = now + config["MAX_TASK_TOKEN_TTL"][task_token_type]
-    else:
-        # otherwise, the requested lifetime is applied
-        expected_exp = now + TASK_TOKEN_EXPIRES_IN
+    # EXP_ERR_TOLERANCE accounts for the margin of error between the test's
+    # expected token expiration and the actual token's expiration time.
+    assert expected_exp <= claims["exp"] <= expected_exp + EXP_ERR_TOLERANCE
+
+
+def test_task_token_unauthorized_user(
+    client, encoded_creds_jwt, mock_arborist_requests
+):
+    """
+    Test that a task token cannot be generated by an unauthorized user
+    """
+    task_token_type = "FOO"
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": False}, 200)}})
+
+    encoded_credentials_jwt = encoded_creds_jwt["jwt"]
+    response = get_api_key(client, encoded_credentials_jwt)
+    assert response.status_code == 200, response.text
+    api_key = response.json["api_key"]
+
+    # request a task token
+    path = f"/credentials/api/access_token?task_token={task_token_type}"
+    data = {"api_key": api_key}
+    response = client.post(
+        path,
+        data=data,
+        headers={"Authorization": "Bearer " + str(encoded_credentials_jwt)},
+    )
+    assert response.status_code == 403, response.text
+    assert (
+        f"You do not have access to obtain '{task_token_type}' tokens, or you do not have access to the token lifetime you requested".replace(
+            "'", "&#39;"
+        )
+        in response.text
+    )
+
+
+def test_task_token_type_not_allowed(client, encoded_creds_jwt):
+    """
+    Test that a task token cannot be generated if the requested task token type is not allowed
+    """
+    task_token_type = "NOT_IN_ALLOWED_TASK_TOKEN_TYPES"
+
+    encoded_credentials_jwt = encoded_creds_jwt["jwt"]
+    response = get_api_key(client, encoded_credentials_jwt)
+    assert response.status_code == 200, response.text
+    api_key = response.json["api_key"]
+
+    # request a task token
+    path = f"/credentials/api/access_token?task_token={task_token_type}"
+    data = {"api_key": api_key}
+    response = client.post(
+        path,
+        data=data,
+        headers={"Authorization": "Bearer " + str(encoded_credentials_jwt)},
+    )
+    assert response.status_code == 400, response.text
+    assert (
+        f"Invalid 'task_token' value '{task_token_type}'. Allowed task token types are: {config['ALLOWED_TASK_TOKEN_TYPES']}".replace(
+            "'", "&#39;"
+        )
+        in response.text
+    )
+
+
+def test_task_token_type_not_in_max_ttl_mapping_no_exp(
+    client,
+    encoded_creds_jwt,
+    mock_arborist_requests,
+):
+    """
+    Test that a task token whose type does not have a configured max expiration is generated with
+    the default token expiration
+    """
+    task_token_type = "NOT_IN_MAX_TASK_TOKEN_TTL_MAPPING"
+    mock_arborist_requests({"arborist/auth/request": {"POST": ({"auth": True}, 200)}})
+
+    encoded_credentials_jwt = encoded_creds_jwt["jwt"]
+    response = get_api_key(client, encoded_credentials_jwt)
+    assert response.status_code == 200, response.text
+    api_key = response.json["api_key"]
+
+    # request a task token
+    now = int(time.time())
+    path = f"/credentials/api/access_token?task_token={task_token_type}"
+    data = {"api_key": api_key}
+    response = client.post(
+        path,
+        data=data,
+        headers={"Authorization": "Bearer " + str(encoded_credentials_jwt)},
+    )
+    assert response.status_code == 200, response.text
+
+    # `expires_in` not specified: min of MAX_ACCESS_TOKEN_TTL and MAX_TASK_TOKEN_TTL
+    expected_exp = now + config["MAX_ACCESS_TOKEN_TTL"]
+
+    # the returned access token should have the task token type as audience
+    assert "access_token" in response.json
+    claims = validate_jwt(response.json["access_token"], aud=task_token_type)
+    assert claims["aud"] == [task_token_type]
 
     # EXP_ERR_TOLERANCE accounts for the margin of error between the test's
     # expected token expiration and the actual token's expiration time.
     assert expected_exp <= claims["exp"] <= expected_exp + EXP_ERR_TOLERANCE
+
+
+def test_task_token_type_not_in_max_ttl_mapping_exp_too_long(client, encoded_creds_jwt):
+    """
+    Test that a task token whose type does not have a configured max expiration cannot be generated
+    with an expiration longer than the default
+    """
+    task_token_type = "NOT_IN_MAX_TASK_TOKEN_TTL_MAPPING"
+    expires_in = TASK_TOKEN_EXPIRES_IN
+
+    encoded_credentials_jwt = encoded_creds_jwt["jwt"]
+    response = get_api_key(client, encoded_credentials_jwt)
+    assert response.status_code == 200, response.text
+    api_key = response.json["api_key"]
+
+    # request a task token
+    path = f"/credentials/api/access_token?task_token={task_token_type}&expires_in={expires_in}"
+    data = {"api_key": api_key}
+    response = client.post(
+        path,
+        data=data,
+        headers={"Authorization": "Bearer " + str(encoded_credentials_jwt)},
+    )
+    assert response.status_code == 400, response.text
+    assert f"Requested 'expires_in' value '{expires_in}s' is greater than the max allowed '{config['MAX_TASK_TOKEN_TTL'].get(task_token_type, config['MAX_ACCESS_TOKEN_TTL'])}s'"
 
 
 def test_get_access_token_with_almost_expired_key(
@@ -199,7 +326,7 @@ def test_get_access_token_with_almost_expired_key(
     assert "access_token" in response.json
 
     # the soon-to-be-expired API key is NOT accepted when generating regular tokens
-    path = f"/credentials/api/access_token?expires_in={TASK_TOKEN_EXPIRES_IN}"
+    path = f"/credentials/api/access_token"
     data = {"api_key": api_key}
     response = client.post(
         path,

@@ -28,6 +28,7 @@ import json
 import jwt
 import mock
 import pytest
+from botocore.exceptions import EndpointConnectionError
 from unittest.mock import MagicMock, patch
 
 import fence
@@ -626,6 +627,308 @@ def test_presigned_url_log_audit_headers(
         assert any(s.startswith("bytes:") for s in additional)
 
 
+#################################
+# Bulk presigned URL audit logs #
+#################################
+
+
+class FakeArborist(object):
+    """
+    Arborist stand-in that grants fence read-storage on a set of resources per
+    user. The `None` key holds the grants of the request's bearer token.
+    """
+
+    def __init__(self, grants):
+        self.grants = grants
+
+    def auth_mapping(self, username=None, jwt=None):
+        return {
+            resource: [{"service": "fence", "method": "read-storage"}]
+            for resource in self.grants.get(username, set())
+        }
+
+    def auth_request(self, jwt, service, methods, resources, user_id=None):
+        return set(resources) <= self.grants.get(user_id, set())
+
+
+# Build an bulk download for a list of GUIDs:
+# - Fence /data/download/bulk takes a guids list
+# - GA4GH DRS /objects/access takes one bulk_object_access_ids per object.
+BULK_REQUESTS = {
+    "data-download-bulk": lambda guids: (
+        "/data/download/bulk?protocol=s3",
+        {"guids": guids},
+    ),
+    "ga4gh-drs-bulk": lambda guids: (
+        "/ga4gh/drs/v1/objects/access",
+        {
+            "bulk_object_access_ids": [
+                {"bulk_object_id": guid, "bulk_access_ids": ["s3"]} for guid in guids
+            ]
+        },
+    ),
+}
+
+
+SQS_PUSH_AUDIT_LOGS_CONFIG = {
+    "type": "aws_sqs",
+    "aws_sqs_config": {"sqs_url": "mocked-sqs-url", "region": "region"},
+}
+
+
+@pytest.fixture
+def make_audit_service_client(app, monkeypatch):
+    """
+    Enable presigned URL audit logs with audit schema 1.0, and return a
+    function that builds an audit-service client for a given
+    `PUSH_AUDIT_LOGS_CONFIG`. The client's SQS client is a mock.
+    `mock_audit_service_sqs` replaces the app's client and config without
+    restoring them, so tests that need a known push type build their own
+    client instead of using the app's.
+    """
+    monkeypatch.setitem(config, "ENABLE_AUDIT_LOGS", {"presigned_url": True})
+    # other tests in this module rely on the schema an earlier test cached
+    previous_schema = AUDIT_SCHEMA_CACHE.get("audit_schema")
+    AUDIT_SCHEMA_CACHE.set(
+        "audit_schema", {"login": {"version": 2.1}, "presigned_url": {"version": 1.0}}
+    )
+
+    def do_make(push_audit_logs_config):
+        monkeypatch.setitem(config, "PUSH_AUDIT_LOGS_CONFIG", push_audit_logs_config)
+        with patch("fence.resources.audit.client.AuditServiceClient._ping"), patch(
+            "fence.resources.audit.client.boto3.client"
+        ):
+            return AuditServiceClient("http://audit-service", MagicMock())
+
+    yield do_make
+    if previous_schema is None:
+        AUDIT_SCHEMA_CACHE.delete("audit_schema")
+    else:
+        AUDIT_SCHEMA_CACHE.set("audit_schema", previous_schema)
+
+
+@pytest.fixture
+def mock_bulk_download(app, monkeypatch, make_audit_service_client):
+    """
+    Run bulk download requests through fence's routes with indexd, arborist,
+    URL signing and audit-service mocked. Call the returned function with
+    the indexd records and the arborist grants, it returns the mocked
+    audit-service `requests` module.
+
+    Bulk requests read `BulkIndexedFiles.index_document` and check each
+    file's authz against the requester's arborist auth mapping. The conftest
+    `indexd_client_with_arborist` and `mock_arborist_requests` fixtures fake
+    one `IndexedFile` record and one response per arborist URL, so they
+    cannot give files different authz or users different grants.
+    """
+    monkeypatch.setattr(
+        app, "audit_service_client", make_audit_service_client({"type": "api"})
+    )
+    audit_service_requests = mock.Mock()
+    audit_service_requests.post.return_value = MockResponse(data={}, status_code=201)
+    monkeypatch.setattr("fence.resources.audit.client.requests", audit_service_requests)
+    monkeypatch.setattr(
+        "fence.blueprints.data.indexd.BulkIndexedFiles._get_signed_urls",
+        lambda self, protocol, file_id, *args: f"https://signed/{file_id}",
+    )
+
+    def do_mock(index_documents, grants):
+        monkeypatch.setattr(
+            "fence.blueprints.data.indexd.BulkIndexedFiles.index_document",
+            index_documents,
+        )
+        monkeypatch.setattr(app, "arborist", FakeArborist(grants))
+        return audit_service_requests
+
+    return do_mock
+
+
+def bearer_headers(user_client, kid, rsa_private_key):
+    """Headers carrying a download token for `user_client`."""
+    return {
+        "Authorization": "Bearer "
+        + jwt.encode(
+            utils.authorized_download_context_claims(
+                user_client.username, str(user_client.user_id)
+            ),
+            key=rsa_private_key,
+            headers={"kid": kid},
+            algorithm="RS256",
+        ),
+        "User-Agent": "pytest",
+    }
+
+
+def presigned_url_log_call(request_url, guid, status_code, **fields):
+    """The audit-service call expected for one file of a bulk request."""
+    return mock.call(
+        "http://audit-service/log/presigned_url",
+        json={
+            "request_url": request_url,
+            "status_code": status_code,
+            "guid": guid,
+            "action": "download",
+            **fields,
+        },
+    )
+
+
+@pytest.mark.parametrize("bulk_request", BULK_REQUESTS.keys())
+def test_bulk_presigned_url_log_per_file(
+    bulk_request, client, user_client, kid, rsa_private_key, mock_bulk_download
+):
+    """
+    A bulk request creates one presigned URL log per requested file, each with
+    that file's resource paths and status code, and its own copy of the
+    request's headers, duration and method.
+    """
+    audit_service_requests = mock_bulk_download(
+        {
+            "guid-allowed": {"urls": ["s3://bucket/a"], "authz": ["/programs/A"]},
+            "guid-denied": {"urls": ["s3://bucket/b"], "authz": ["/programs/B"]},
+        },
+        grants={None: {"/programs/A"}},
+    )
+    AUDIT_SCHEMA_CACHE.set(
+        "audit_schema", {"login": {"version": 2.1}, "presigned_url": {"version": 1.1}}
+    )
+    path, body = BULK_REQUESTS[bulk_request](["guid-allowed", "guid-denied"])
+
+    response = client.post(
+        path, json=body, headers=bearer_headers(user_client, kid, rsa_private_key)
+    )
+
+    assert response.status_code == 200, response.text
+    fields = {
+        "protocol": "s3",
+        "username": user_client.username,
+        "sub": user_client.user_id,
+        "additional_data": [
+            "User-Agent:pytest",
+            mock.ANY,  # duration
+            "http_method:POST",
+            {"bulk": True, "bulk_files": []},
+        ],
+    }
+    assert audit_service_requests.post.call_args_list == [
+        presigned_url_log_call(
+            path, "guid-allowed", 200, resource_paths=["/programs/A"], **fields
+        ),
+        presigned_url_log_call(
+            path, "guid-denied", 401, resource_paths=["/programs/B"], **fields
+        ),
+    ]
+
+
+def test_bulk_drs_presigned_url_log_per_access_id(
+    client, user_client, kid, rsa_private_key, mock_bulk_download
+):
+    """
+    A DRS bulk request over two access IDs logs every file once, with its own
+    protocol and resource paths.
+    """
+    audit_service_requests = mock_bulk_download(
+        {
+            "guid-s3": {"urls": ["s3://bucket/a"], "authz": ["/programs/A"]},
+            "guid-gs": {"urls": ["gs://bucket/b"], "authz": ["/programs/B"]},
+        },
+        grants={None: {"/programs/A", "/programs/B"}},
+    )
+    path = "/ga4gh/drs/v1/objects/access"
+    body = {
+        "bulk_object_access_ids": [
+            {"bulk_object_id": "guid-s3", "bulk_access_ids": ["s3"]},
+            {"bulk_object_id": "guid-gs", "bulk_access_ids": ["gs"]},
+        ]
+    }
+
+    response = client.post(
+        path, json=body, headers=bearer_headers(user_client, kid, rsa_private_key)
+    )
+
+    assert response.status_code == 200, response.text
+    user = {"username": user_client.username, "sub": user_client.user_id}
+    assert audit_service_requests.post.call_args_list == [
+        presigned_url_log_call(
+            path,
+            "guid-s3",
+            200,
+            resource_paths=["/programs/A"],
+            protocol="s3",
+            **user,
+        ),
+        presigned_url_log_call(
+            path,
+            "guid-gs",
+            200,
+            resource_paths=["/programs/B"],
+            protocol="gs",
+            **user,
+        ),
+    ]
+
+
+def test_bulk_drs_two_passport_users(client, mock_bulk_download):
+    """
+    A DRS bulk request whose passports map to two users gets a URL for each
+    file one of them can read. That file is logged under the user who was
+    authorized for it, and a file nobody was authorized for is logged under
+    both usernames with no sub.
+    """
+    users = {
+        "alice": mock.Mock(username="alice", id=1),
+        "bob": mock.Mock(username="bob", id=2),
+    }
+    audit_service_requests = mock_bulk_download(
+        {
+            "guid-a": {"urls": ["s3://bucket/a"], "authz": ["/programs/A"]},
+            "guid-b": {"urls": ["s3://bucket/b"], "authz": ["/programs/B"]},
+        },
+        grants={"bob": {"/programs/A"}},
+    )
+    path = "/ga4gh/drs/v1/objects/access"
+
+    with mock.patch(
+        "fence.blueprints.data.indexd.sync_gen3_users_authz_from_ga4gh_passports",
+        return_value=users,
+    ):
+        response = client.post(
+            path,
+            json={
+                "passports": ["passport-token"],
+                "bulk_object_access_ids": [
+                    {"bulk_object_id": "guid-a", "bulk_access_ids": ["s3"]},
+                    {"bulk_object_id": "guid-b", "bulk_access_ids": ["s3"]},
+                ],
+            },
+        )
+
+    assert response.status_code == 200, response.text
+    assert [
+        url["drs_object_id"] for url in response.json["resolved_drs_object_access_urls"]
+    ] == ["guid-a"]
+    assert audit_service_requests.post.call_args_list == [
+        presigned_url_log_call(
+            path,
+            "guid-a",
+            200,
+            resource_paths=["/programs/A"],
+            protocol="s3",
+            username="bob",
+            sub=2,
+        ),
+        presigned_url_log_call(
+            path,
+            "guid-b",
+            403,
+            resource_paths=["/programs/B"],
+            protocol="s3",
+            username="alice,bob",
+            sub=None,
+        ),
+    ]
+
+
 ####################
 # Login audit logs #
 ####################
@@ -845,6 +1148,131 @@ def test_login_log_push_to_sqs(
     mocked_sqs.send_message.assert_called_once()
 
     get_auth_info_patch.stop()
+
+
+@pytest.fixture
+def sqs_audit_service_client(make_audit_service_client):
+    """An audit-service client that pushes to a mocked SQS queue."""
+    audit_service_client = make_audit_service_client(SQS_PUSH_AUDIT_LOGS_CONFIG)
+    audit_service_client.sqs.send_message_batch.return_value = {"Failed": []}
+    return audit_service_client
+
+
+def presigned_url_log(guid, request_url="/data/download/bulk"):
+    """Arguments of `create_presigned_url_log` for one downloaded file."""
+    return {
+        "request_url": request_url,
+        "status_code": 200,
+        "username": "user",
+        "sub": 1,
+        "guid": guid,
+        "action": "download",
+    }
+
+
+@pytest.mark.parametrize(
+    "request_url_length,expected_batch_sizes",
+    [
+        (10, [10, 10, 5]),
+        # 100 KiB per message: only two fit under SQS_MAX_BATCH_BYTES
+        (100 * 1024, [2] * 12 + [1]),
+    ],
+)
+def test_presigned_url_logs_push_to_sqs_in_batches(
+    sqs_audit_service_client, request_url_length, expected_batch_sizes
+):
+    """
+    Presigned URL logs are pushed to SQS in batches of at most 10 messages and
+    `SQS_MAX_BATCH_BYTES`, in order, each message with its category.
+    """
+    request_url = "/" + "a" * (request_url_length - 1)
+    logs = [presigned_url_log(f"guid-{i}", request_url) for i in range(25)]
+
+    sqs_audit_service_client.create_presigned_url_logs(logs)
+
+    batches = [
+        [json.loads(entry["MessageBody"]) for entry in call.kwargs["Entries"]]
+        for call in sqs_audit_service_client.sqs.send_message_batch.call_args_list
+    ]
+    assert [len(batch) for batch in batches] == expected_batch_sizes
+    assert [message for batch in batches for message in batch] == [
+        {**log, "resource_paths": None, "protocol": None, "category": "presigned_url"}
+        for log in logs
+    ]
+
+
+@pytest.mark.parametrize(
+    "first_batch_result",
+    [
+        {"Failed": [{"Id": "0", "Code": "InternalError", "SenderFault": False}]},
+        EndpointConnectionError(endpoint_url="mocked-sqs-url"),
+    ],
+    ids=["entry-rejected", "batch-raised"],
+)
+def test_presigned_url_logs_sqs_failures_raise_after_every_batch(
+    sqs_audit_service_client, first_batch_result
+):
+    """
+    If SQS rejects some entries of a batch, or the push of a whole batch
+    raises, the remaining batches are still pushed, then an InternalError is
+    raised.
+    """
+    sqs = sqs_audit_service_client.sqs
+    sqs.send_message_batch.side_effect = [first_batch_result, {"Failed": []}]
+    logs = [presigned_url_log(f"guid-{i}") for i in range(11)]
+
+    with pytest.raises(InternalError):
+        sqs_audit_service_client.create_presigned_url_logs(logs)
+    assert sqs.send_message_batch.call_count == 2
+
+
+def test_presigned_url_logs_api_failures_raise_after_every_log(
+    make_audit_service_client,
+):
+    """
+    When pushing to the audit-service API, a rejected log does not stop the
+    others from being sent, and an InternalError is raised at the end.
+    """
+    audit_service_client = make_audit_service_client({"type": "api"})
+    with mock.patch(
+        "fence.resources.audit.client.requests", new_callable=mock.Mock
+    ) as audit_service_requests:
+        audit_service_requests.post.side_effect = [
+            MockResponse(data={}, status_code=422),
+            MockResponse(data={}, status_code=201),
+        ]
+        with pytest.raises(InternalError):
+            audit_service_client.create_presigned_url_logs(
+                [presigned_url_log("guid-1"), presigned_url_log("guid-2")]
+            )
+    assert audit_service_requests.post.call_count == 2
+
+
+def test_presigned_url_log_additional_data_does_not_carry_over_between_calls(
+    make_audit_service_client,
+):
+    """
+    Each presigned URL log created without `additional_data` sends only its
+    own bulk entry, not the entries of earlier logs.
+    """
+    audit_service_client = make_audit_service_client({"type": "api"})
+    # `additional_data` is only sent with presigned_url audit schema 1.1+
+    AUDIT_SCHEMA_CACHE.set(
+        "audit_schema", {"login": {"version": 2.1}, "presigned_url": {"version": 1.1}}
+    )
+    with mock.patch(
+        "fence.resources.audit.client.requests", new_callable=mock.Mock
+    ) as audit_service_requests:
+        audit_service_requests.post.return_value = MockResponse(
+            data={}, status_code=201
+        )
+        for guid in ["guid-1", "guid-2"]:
+            audit_service_client.create_presigned_url_log(**presigned_url_log(guid))
+
+    assert [
+        call.kwargs["json"]["additional_data"]
+        for call in audit_service_requests.post.call_args_list
+    ] == [[{"bulk": False, "bulk_files": []}]] * 2
 
 
 ######################

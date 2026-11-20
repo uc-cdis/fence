@@ -1,13 +1,17 @@
 import os
 from unittest.mock import MagicMock, patch
 
+from addict import Dict
 import flask
 import pytest
+from sqlalchemy.orm import Session
 
 from fence.blueprints.login import get_idp_route_name
 from fence.blueprints.login.base import _login_and_register
+from fence.blueprints.register import add_user_registration_info_to_database
 from fence.config import config
 from fence.errors import UserError
+from fence.models import User
 from tests.conftest import all_available_idps
 from test_login_redirect import get_value_from_discovery_doc_patcher
 
@@ -218,3 +222,72 @@ def test_register_endpoint(
         ), "Expected an HTML form"
     finally:
         flask.current_app.config["WTF_CSRF_ENABLED"] = True
+
+
+def test_registration_without_registered_users_group_does_not_create_arborist_user(
+    app: flask.Flask, db_session: Session, test_user_a: Dict
+) -> None:
+    """With no REGISTERED_USERS_GROUP, registering does not create the user in Arborist."""
+    user = db_session.query(User).filter_by(username=test_user_a.username).one()
+    arborist = MagicMock()
+
+    with app.app_context(), patch.object(app, "arborist", arborist), patch.dict(
+        config, {"REGISTERED_USERS_GROUP": ""}
+    ):
+        add_user_registration_info_to_database(
+            user,
+            "Kathryn",
+            "Janeway",
+            "Starfleet Academy",
+            "seeyouin7years@example.com",
+        )
+
+    arborist.create_user.assert_not_called()
+
+
+def test_registration_with_registered_users_group_creates_arborist_user(
+    app: flask.Flask, db_session: Session, test_user_a: Dict
+) -> None:
+    """With a REGISTERED_USERS_GROUP, registering creates the user in Arborist."""
+    user = db_session.query(User).filter_by(username=test_user_a.username).one()
+    arborist = MagicMock()
+    arborist.list_groups.return_value = {"groups": [{"name": "registered"}]}
+    arborist.add_user_to_group.return_value = True
+
+    with app.app_context(), patch.object(app, "arborist", arborist), patch.dict(
+        config, {"REGISTERED_USERS_GROUP": "registered"}
+    ):
+        add_user_registration_info_to_database(
+            user,
+            "Kathryn",
+            "Janeway",
+            "Starfleet Academy",
+            "seeyouin7years@example.com",
+        )
+
+    arborist.create_user.assert_called_once_with({"name": test_user_a.username})
+
+
+def test_registration_adds_user_to_registered_users_group(
+    app: flask.Flask, db_session: Session, test_user_a: Dict
+) -> None:
+    """With a REGISTERED_USERS_GROUP, registering adds the user to that Arborist group."""
+    user = db_session.query(User).filter_by(username=test_user_a.username).one()
+    arborist = MagicMock()
+    arborist.list_groups.return_value = {"groups": [{"name": "registered"}]}
+    arborist.add_user_to_group.return_value = True
+
+    with app.app_context(), patch.object(app, "arborist", arborist), patch.dict(
+        config, {"REGISTERED_USERS_GROUP": "registered"}
+    ):
+        add_user_registration_info_to_database(
+            user,
+            "Kathryn",
+            "Janeway",
+            "Starfleet Academy",
+            "seeyouin7years@example.com",
+        )
+
+    arborist.add_user_to_group.assert_called_once_with(
+        test_user_a.username, "registered"
+    )
